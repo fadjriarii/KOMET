@@ -1,0 +1,11 @@
+{
+  "watch": [
+    "src"
+  ],
+  "ignore": [
+    "logs/*",
+    "scratch/*",
+    "*.log",
+    "*.json"
+  ]
+}

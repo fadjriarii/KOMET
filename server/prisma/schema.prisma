@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Student {
+  nim             String           @id
+  nama            String
+  jenjang         String
+  periodeMasuk    String
+  angkatan        String
+  programStudi    String
+  fakultas        String
+  statusKeaktifan String
+  semester        Int
+  kewarganegaraan String
+  updatedAt       DateTime         @updatedAt
+  
+  // Relasi
+  graduate        Graduate?
+  mbkmActivities  MbkmActivity[]
+
+  @@index([statusKeaktifan])
+  @@index([semester])
+  @@index([fakultas])
+  @@index([programStudi])
+  @@index([angkatan])
+  @@index([kewarganegaraan])
+  @@index([statusKeaktifan, semester])
+  @@index([statusKeaktifan, kewarganegaraan])
+  @@map("students")
+}
+
+model Graduate {
+  id              Int      @id @default(autoincrement())
+  nim             String   @unique
+  jenjang         String
+  statusKelulusan String
+  tahunLulus      String
+  periodeWisuda   String   @default("")
+  ipk             Float
+  sksLulus        Int
+  
+  // Relasi ke Student
+  student         Student  @relation(fields: [nim], references: [nim], onDelete: Cascade)
+
+  @@index([tahunLulus])
+  @@index([jenjang])
+  @@index([tahunLulus, jenjang])
+  @@map("graduates")
+}
+
+model MbkmActivity {
+  id              Int      @id @default(autoincrement())
+  nim             String
+  periode         String
+  programStudi    String
+  fakultas        String
+  jenjang         String
+  statusKeaktifan String   @db.Text
+  jenisAktivitas  String   @db.Text
+  judulAktivitas  String   @db.Text
+  mitra           String   @db.Text
+  statusAktivitas String
+  
+  // Relasi ke Student
+  student         Student  @relation(fields: [nim], references: [nim], onDelete: Cascade)
+
+  @@index([periode])
+  @@index([statusAktivitas])
+  @@index([jenisAktivitas(length: 100)])
+  @@index([periode, statusAktivitas])
+  @@map("mbkm_activities")
+}
