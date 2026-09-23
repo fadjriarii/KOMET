@@ -172,9 +172,30 @@ client/
 
 ---
 
-## 8. SOP Eksekusi Antigravity AI
+## 8. Sentralisasi Business Logic & Data Transformation (`src/utils/logic.js`)
+
+Untuk menjaga agar komponen UI (`.jsx`) tetap bersih (pure presenter) dan memudahkan **migrasi/replikasi seluruh kalkulasi bisnis ke Backend API KOMET**, aturan ketat berikut berlaku:
+
+1. **Single Source of Truth Logic:**
+   - Seluruh fungsi kalkulasi metrik, penentuan tahun ajaran, formula akademik, ekstraksi KPI, normalisasi respon backend, dan pemetaan/transformasi data tabel **WAJIB** berada di dalam [`src/utils/logic.js`](file:///home/fadjri/projects/Komet/client/src/utils/logic.js).
+2. **Larangan Inline Logic di Komponen:**
+   - Dilarang keras menulis parsing data rumit, manipulasi array berulang (`slice`, `filter`, `reduce`), penentuan formula pertumbuhan/fluktuasi, atau pembuatan narasi dinamis langsung di dalam file JSX.
+   - Komponen hanya boleh memanggil fungsi helper yang di-ekspor oleh `logic.js`.
+3. **Kategori Logic di `logic.js`:**
+   - **Formatting & Visual Utilities:** `formatNumber`, `formatPercent`, `formatGPA`, `formatDateIndo`.
+   - **Kalkulasi Akademik:** `getCurrentAcademicYear` (cut-off 1 September).
+   - **Ekstraksi & Normalisasi Domain:** `extractStudentKpis`, `getStudentKpiSubtitles`, `getStudentActiveDescription`, `transformForeignTrend`, `transformIntakeTrend`, `transformDeclineHistory`.
+   - **Module Normalizers:** `extractOverviewMetrics`, `extractGraduatesSummary`, `extractMbkmSummary`.
+4. **Kesiapan Porting Backend:**
+   - Fungsi-fungsi di dalam `logic.js` dapat langsung dijadikan acuan/di-copy ke backend service/controller ketika endpoint backend terkait diimplementasikan atau disempurnakan.
+
+---
+
+## 9. SOP Eksekusi Antigravity AI
 
 Sebelum membuat atau mengubah file:
 1. **Periksa apakah komponen sudah ada di `src/components/common/`**. Jika sudah ada, gunakan kembali; jangan buat duplikat.
-2. **Pertahankan konsistensi warna brand**: Gunakan token warna tema `digital-blue-*` (e.g. `bg-digital-blue-600`, `text-digital-blue-700`, `bg-digital-blue-50`) atau konstanta dari `src/utils/theme.js`.
-3. **Pastikan zero-breaking-changes**: Jalankan `npm run build` setelah setiap perubahan besar untuk memastikan tidak ada import error atau type issue.
+2. **Pusatkan seluruh kalkulasi dan transformasi data ke `src/utils/logic.js`**. Jangan menaruh logic pengolahan data inline di komponen JSX.
+3. **Pertahankan konsistensi warna brand**: Gunakan token warna tema `digital-blue-*` (e.g. `bg-digital-blue-600`, `text-digital-blue-700`, `bg-digital-blue-50`) atau konstanta dari `src/utils/theme.js`.
+4. **Pastikan zero-breaking-changes**: Jalankan `npm run build` setelah setiap perubahan besar untuk memastikan tidak ada import error atau type issue.
+

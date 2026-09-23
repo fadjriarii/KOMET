@@ -18,5 +18,8 @@ Seluruh pedoman teknis lengkap telah didefinisikan di:
    - Simpan halaman, hooks, dan service spesifik di bawah `src/modules/<nama_modul>/`.
 5. **Integritas Logic & Style**:
    - Jangan mengubah logika yang sudah berfungsi atau gaya coding yang ada tanpa instruksi user.
-6. **Verifikasi Build**:
+6. **Pemusatan Seluruh Logic di `src/utils/logic.js`**:
+   - DILARANG menulis business logic, formula kalkulasi, transformasi array/object data, atau ekstraksi KPI secara inline di dalam komponen React (`.jsx`).
+   - SELURUH logic pengolahan data, formatters, normalizer respon API, dan formula akademik WAJIB dipusatkan di [logic.js](file:///home/fadjri/projects/Komet/client/src/utils/logic.js) agar siap dipindahkan/disinkronkan ke backend secara keseluruhan.
+7. **Verifikasi Build**:
    - Selalu pastikan aplikasi berhasil di-build (`npm run build`) tanpa error setelah melakukan perubahan.
