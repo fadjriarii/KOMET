@@ -50,46 +50,50 @@ export default function UserProfile() {
 
         <ChevronDown 
           size={14} 
-          className={`text-gray-400 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} 
+          className={`text-gray-400 transition-transform duration-1000 ease-out ${isDropdownOpen ? 'rotate-180 text-digital-blue-600' : ''}`} 
         />
       </button>
 
-      {/* Dropdown Menu */}
-      {isDropdownOpen && (
-        <div className="absolute right-0 mt-2 w-52 bg-white border border-gray-100 rounded-xl shadow-xl py-1.5 z-50 text-gray-800 transition-all animate-in fade-in slide-in-from-top-2 duration-150">
-          <div className="px-4 py-2 border-b border-gray-100">
-            <p className="text-xs font-bold text-gray-900 truncate">{userFullName}</p>
-            <p className="text-[11px] text-gray-500">{userRole}</p>
-          </div>
-          
-          <div className="py-1">
-            <button 
-              onClick={() => setIsDropdownOpen(false)}
-              className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-gray-700 hover:bg-digital-blue-50 hover:text-digital-blue-700 transition-colors cursor-pointer"
-            >
-              <User size={15} className="text-gray-500" />
-              <span>Profil Pengguna</span>
-            </button>
-            <button 
-              onClick={() => setIsDropdownOpen(false)}
-              className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-gray-700 hover:bg-digital-blue-50 hover:text-digital-blue-700 transition-colors cursor-pointer"
-            >
-              <ShieldCheck size={15} className="text-gray-500" />
-              <span>Keamanan & Akun</span>
-            </button>
-          </div>
-
-          <div className="border-t border-gray-100 pt-1">
-            <button 
-              onClick={() => setIsDropdownOpen(false)}
-              className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
-            >
-              <LogOut size={15} />
-              <span>Keluar</span>
-            </button>
-          </div>
+      {/* Dropdown Menu dengan animasi halus 1000ms standar modern 2025/2026 */}
+      <div 
+        className={`absolute right-0 mt-2 w-56 bg-white/95 backdrop-blur-md border border-gray-100/90 rounded-2xl shadow-[0_12px_32px_rgba(0,0,0,0.08),0_2px_6px_rgba(0,0,0,0.04)] py-1.5 z-50 text-gray-800 origin-top-right transition-all duration-500 ease-out ${
+          isDropdownOpen
+            ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto visible'
+            : 'opacity-0 scale-95 -translate-y-2 pointer-events-none invisible'
+        }`}
+      >
+        <div className="px-4 py-2.5 border-b border-gray-100/80">
+          <p className="text-xs font-bold text-gray-900 truncate">{userFullName}</p>
+          <p className="text-[11px] text-gray-500 font-medium">{userRole}</p>
         </div>
-      )}
+        
+        <div className="p-1.5 space-y-0.5">
+          <button 
+            onClick={() => setIsDropdownOpen(false)}
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-digital-blue-50/80 hover:text-digital-blue-700 rounded-xl transition-colors duration-200 cursor-pointer group"
+          >
+            <User size={15} className="text-gray-400 group-hover:text-digital-blue-600 transition-colors" />
+            <span>Profil Pengguna</span>
+          </button>
+          <button 
+            onClick={() => setIsDropdownOpen(false)}
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-digital-blue-50/80 hover:text-digital-blue-700 rounded-xl transition-colors duration-200 cursor-pointer group"
+          >
+            <ShieldCheck size={15} className="text-gray-400 group-hover:text-digital-blue-600 transition-colors" />
+            <span>Keamanan & Akun</span>
+          </button>
+        </div>
+
+        <div className="border-t border-gray-100/80 p-1.5 pt-1">
+          <button 
+            onClick={() => setIsDropdownOpen(false)}
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50/80 rounded-xl transition-colors duration-200 cursor-pointer group"
+          >
+            <LogOut size={15} className="text-red-500 group-hover:translate-x-0.5 transition-transform" />
+            <span>Keluar</span>
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
