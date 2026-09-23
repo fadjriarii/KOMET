@@ -1,27 +1,15 @@
-import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
-import { MainLayout } from '@/components/layout/MainLayout/MainLayout';
-import { DashboardPage } from '@/pages/DashboardPage';
-import { StudentDataPage } from '@/pages/StudentDataPage';
-import { GraduateDataPage } from '@/pages/GraduateDataPage';
-import { MbkmDataPage } from '@/pages/MbkmDataPage';
+import MainLayout from './components/layout/MainLayout';
 
-/**
- * Komponen root aplikasi KOMET Dashboard.
- * Mendukung navigasi Dashboard (/), Student Data (/student-data), Graduate Data (/graduate-data), dan MBKM Data (/mbkm-data).
- */
-const App = () => (
-  <HashRouter>
-    <Routes>
-      <Route element={<MainLayout />}>
-        <Route path="/" element={<DashboardPage />} />
-        <Route path="/student-data" element={<StudentDataPage />} />
-        <Route path="/graduate-data" element={<GraduateDataPage />} />
-        <Route path="/mbkm-data" element={<MbkmDataPage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Route>
-    </Routes>
-  </HashRouter>
-);
-
-export default App;
-
+export default function App() {
+  return (
+    <MainLayout>
+      {/* Konten halaman dirender di sini sebagai 'children' */}
+      <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+        <h1 className="text-2xl font-bold text-gray-800">Selamat Datang di Komet</h1>
+        <p className="text-gray-600 mt-2">
+          Mulai kerjakan integrasi endpoint Students, Graduates, dan MBKM di sini.
+        </p>
+      </div>
+    </MainLayout>
+  );
+}

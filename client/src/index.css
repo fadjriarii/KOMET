@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+@theme {
+  --color-digital-blue-50: oklch(95.13% 0.023 256.10);
+  --color-digital-blue-100: oklch(90.17% 0.048 259.10);
+  --color-digital-blue-200: oklch(80.72% 0.097 258.14);
+  --color-digital-blue-300: oklch(71.49% 0.149 258.39);
+  --color-digital-blue-400: oklch(63.31% 0.198 258.73);
+  --color-digital-blue-500: oklch(56.35% 0.241 260.82);
+  --color-digital-blue-600: oklch(48.02% 0.201 260.48);
+  --color-digital-blue-700: oklch(39.11% 0.161 260.13);
+  --color-digital-blue-800: oklch(29.89% 0.116 259.04);
+  --color-digital-blue-900: oklch(19.67% 0.068 256.39);
+  --color-digital-blue-950: oklch(16.49% 0.052 253.90);
+}
+
+body {
+  @apply bg-gray-50 m-0 p-0 font-sans;
+}

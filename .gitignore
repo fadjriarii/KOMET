@@ -1,23 +1,69 @@
-# Node
+# Dependencies
 node_modules/
+.pnp
+.pnp.js
 
-# Environment
+# Environment Variables & Secrets
 .env
 .env.*
+*.env
+*.env.*
+*.local
 !.env.example
+!*.env.example
 
 # Logs
 logs/
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
-# OS
-.DS_Store
+# Build & Output
+dist/
+dist-ssr/
+build/
+out/
 
-# IDE
-.vscode/
-.idea/
+# Testing & Coverage
+coverage/
+*.lcov
+.nyc_output/
 
-# Scratch & testing
+# Temporary / Scratch & Test Dumps
 scratch/
+tmp/
+temp/
 test-*.js
+test_*.js
+test.json
+*.tmp
 
+# Database & SQLite files
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+/generated/prisma
+
+# Cache
+.cache/
+.vite/
+.eslintcache
+.stylelintcache
+.turbo/
+
+# OS Files
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+
+# IDE & Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
