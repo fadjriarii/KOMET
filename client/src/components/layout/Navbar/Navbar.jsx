@@ -4,7 +4,7 @@ import UserProfile from './UserProfile';
 
 export default function Navbar() {
   return (
-    <header className="h-16 bg-white text-gray-800 flex items-center justify-between pr-4 lg:pr-6 pl-0 border-b border-gray-200/80 z-10 select-none w-full relative">
+    <header className="h-16 bg-white text-gray-800 flex items-center justify-between pr-4 lg:pr-6 pl-0 border-b border-gray-200/80 z-30 select-none w-full relative">
       
       {/* Sisi Kiri: Logo Navbar (fix standby di layer bawah sidebar) & Breadcrumbs (posisi fix) */}
       <div className="flex items-center h-full">

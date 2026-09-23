@@ -15,5 +15,29 @@
 }
 
 body {
-  @apply bg-gray-50 m-0 p-0 font-sans;
+  @apply bg-gray-50 m-0 p-0 font-sans text-gray-800 antialiased;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+@keyframes deepBlurCrossFade {
+  0% {
+    opacity: 0;
+    filter: blur(6px);
+    transform: scale(0.988);
+  }
+  20% {
+    filter: blur(0px);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0px);
+    transform: scale(1);
+  }
+}
+
+.animate-blur-crossfade {
+  animation: deepBlurCrossFade 1500ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: opacity, filter, transform;
 }

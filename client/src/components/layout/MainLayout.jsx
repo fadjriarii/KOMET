@@ -38,6 +38,16 @@ export default function MainLayout({ children }) {
         >
           {children}
         </main>
+
+        {/* Modal Portal Root Khusus Area Konten (Center di antara Sidebar & Sisi Kanan, di bawah Navbar) */}
+        <div 
+          id="content-modal-root"
+          style={{
+            left: `${currentSidebarWidth}px`,
+            transition: isDragging ? 'none' : 'left 1000ms ease-in-out',
+          }}
+          className="absolute top-0 bottom-0 right-0 z-20 pointer-events-none"
+        />
       </div>
 
     </div>

@@ -35,7 +35,7 @@ export default function Sidebar({ isSidebarOpen, setIsSidebarOpen }) {
     <>
       <aside 
         style={asideStyle}
-        className={`fixed top-0 bottom-0 left-0 bg-white border-r border-gray-200/80 flex flex-col z-30 overflow-hidden ${
+        className={`fixed top-0 bottom-0 left-0 bg-white border-r border-gray-200/80 flex flex-col z-40 overflow-hidden ${
           !isDragging
             ? `transition-all duration-1000 ease-in-out ${
                 isSidebarOpen ? 'w-64 opacity-100' : 'w-0 opacity-0 border-r-0 pointer-events-none'
