@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Users, Globe, UserPlus, TrendingDown, TrendingUp, AlertCircle } from 'lucide-react';
 import StatCard from '../../../components/common/cards/StatCard';
 import { useStudentsData } from '../hooks/useStudentsData';
-import { formatNumber } from '../../../utils/formatters';
+import { extractStudentKpis, getStudentKpiSubtitles } from '../../../utils/logic';
 import StudentDetailModal from '../components/StudentDetailModal';
 
 export default function StudentsPage() {
@@ -29,15 +29,9 @@ export default function StudentsPage() {
   const isDataReady = Boolean(data && data.success);
   const showSkeleton = isLoading || !isDataReady;
 
-  // Ekstraksi nilai KPI murni dari API backend (endpoint: /api/students/summary) tanpa mock data
-  const activeCount = data?.kpis?.activeStudentsCount ?? data?.summary?.totalActiveStudents;
-  const foreignRate = data?.kpis?.foreignStudentsRate ?? (data?.summary?.internationalStudentsTrend?.latest?.rate ? `${data.summary.internationalStudentsTrend.latest.rate}%` : null);
-  const foreignCount = data?.kpis?.foreignStudentsCount ?? data?.summary?.totalInternationalStudents;
-  const intakeCount = data?.kpis?.intakeCohortCount ?? data?.summary?.intakeTrend?.latest?.intakeCount;
-  const intakePeriod = data?.summary?.intakeTrend?.latest?.tahun;
-  const declineAvg = data?.kpis?.intakeFluctuationAvg ?? (data?.summary?.newStudentDecline?.declinePercentage !== undefined ? `${data.summary.newStudentDecline.declinePercentage}%` : null);
-  const isFluctuationPositive = data?.kpis?.isFluctuationPositive ?? false;
-  const declinePeriod = data?.summary?.newStudentDecline?.selectedPeriod;
+  // Ekstraksi & normalisasi nilai KPI via helper terpusat
+  const kpis = extractStudentKpis(data);
+  const subtitles = getStudentKpiSubtitles(kpis);
 
   return (
     <div className="space-y-6">
@@ -64,8 +58,8 @@ export default function StudentsPage() {
         {/* 1. Mahasiswa Aktif */}
         <StatCard 
           title="Mahasiswa Aktif" 
-          value={activeCount !== undefined && activeCount !== null ? formatNumber(activeCount) : null} 
-          subtitle="Total Student Body status aktif"
+          value={kpis.formattedActiveCount !== '-' ? kpis.formattedActiveCount : null} 
+          subtitle={subtitles.activeSubtitle}
           icon={Users}
           badge="Status Aktif"
           actionLabel="Lihat Rincian"
@@ -76,8 +70,8 @@ export default function StudentsPage() {
         {/* 2. Persentase Mahasiswa Internasional */}
         <StatCard 
           title="Persentase Mahasiswa Internasional" 
-          value={foreignRate} 
-          subtitle={foreignCount !== undefined && foreignCount !== null ? `${formatNumber(foreignCount)} Mahasiswa Non-WNI` : 'Non-WNI status aktif'}
+          value={kpis.foreignRate !== '-' ? kpis.foreignRate : null} 
+          subtitle={subtitles.foreignSubtitle}
           icon={Globe}
           badge="Non-WNI Aktif"
           actionLabel="Lihat Rincian"
@@ -88,8 +82,8 @@ export default function StudentsPage() {
         {/* 3. Intake Mahasiswa Baru */}
         <StatCard 
           title="Intake Mahasiswa Baru" 
-          value={intakeCount !== undefined && intakeCount !== null ? formatNumber(intakeCount) : null} 
-          subtitle={intakePeriod ? `Semester 1 (Periode ${intakePeriod})` : 'Semester 1'}
+          value={kpis.formattedIntakeCount !== '-' ? kpis.formattedIntakeCount : null} 
+          subtitle={subtitles.intakeSubtitle}
           icon={UserPlus}
           badge="Mhs Semester 1"
           actionLabel="Lihat Rincian"
@@ -100,9 +94,9 @@ export default function StudentsPage() {
         {/* 4. Penurunan Jumlah Mahasiswa Baru (5 Tahun) */}
         <StatCard 
           title="Penurunan Mhs Baru (5 Thn)" 
-          value={declineAvg} 
-          subtitle={declinePeriod ? `Rata-rata 5 Tahun (${declinePeriod})` : 'Rata-rata 5 Tahun'}
-          icon={isFluctuationPositive ? TrendingUp : TrendingDown}
+          value={kpis.declineAvg} 
+          subtitle={subtitles.declineSubtitle}
+          icon={kpis.isFluctuationPositive ? TrendingUp : TrendingDown}
           badge="5-Year Avg"
           actionLabel="Lihat Rincian"
           onViewDetails={(e) => handleOpenModal('decline', e)}
@@ -110,7 +104,7 @@ export default function StudentsPage() {
         />
       </div>
 
-      {/* macOS Styled Detail Modal */}
+      {/* Styled Detail Modal */}
       <StudentDetailModal
         isOpen={Boolean(activeModalType)}
         onClose={() => setActiveModalType(null)}
