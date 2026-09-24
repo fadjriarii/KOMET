@@ -10,14 +10,16 @@
 
 Aplikasi Komet dibangun untuk visualisasi data berskala besar, analitik akademik, dan monitoring terpadu. Untuk menjaga keberlanjutan proyek yang berjangka panjang, setiap penulisan kode wajib mematuhi:
 
-1. **Feature-Based Modular Architecture:** Seluruh logika bisnis, halaman, hooks, dan service spesifik domain dipisahkan ke dalam folder `src/modules/<nama_modul>/`.
-2. **DRY (Don't Repeat Yourself):** Komponen UI yang digunakan lebih dari satu kali (Card metrik, Chart wrapper, Modal/Popup, Table, Button, Badge) **WAJIB** ditarik ke `src/components/common/`.
+1. **Feature-Based Modular Architecture:** Seluruh logika bisnis, halaman, hooks, popup detail, dan service spesifik domain dipisahkan ke dalam folder `src/modules/<nama_modul>/`.
+2. **DRY (Don't Repeat Yourself):** Komponen UI atau fungsi yang digunakan lebih dari satu kali (Card metrik, Chart wrapper, Modal/Popup, Table, Tab navigation, Button, Badge) **WAJIB** ditarik ke `src/components/common/` atau `src/hooks/`.
 3. **Pemisahan Tanggung Jawab (Separation of Concerns):**
-   - **UI Component:** Hanya menangani tampilan dan interaksi pengguna.
-   - **Custom Hooks:** Menangani state management lokal dan pemanggilan service.
-   - **Services Layer:** Menangani HTTP request ke backend API Komet.
-   - **Utils Layer:** Menangani kalkulasi murni, pemformatan tanggal/angka/IPK dan tema warna.
-4. **Preservasi Logic & Coding Style:** Jangan pernah mengubah logika bisnis atau merombak gaya penulisan yang sudah berjalan tanpa instruksi eksplisit dari user.
+   - **UI Component (`.jsx`):** Hanya menangani tampilan dan interaksi pengguna (pure presenter).
+   - **Custom Hooks (`.js`):** Menangani state management lokal, filter, dan pemanggilan service.
+   - **Services Layer (`.js`):** Menangani HTTP request ke backend API Komet.
+   - **Utils Layer (`logic.js`):** Menangani kalkulasi murni, pemformatan angka/tanggal/IPK, transformasi data tabel/chart, dan narasi formula.
+4. **Backend-First Data Alignment:** 
+   - Jika kalkulasi/metrik sudah dihitung di backend (lihat [Backend-Documentation.md](file:///home/fadjri/projects/Komet/client/requirements/Backend-Documentation.md)), gunakan langsung field response backend.
+   - Jika belum ada di backend, buat fungsinya secara terpusat di `src/utils/logic.js` agar siap dipindahkan ke backend service/controller nantinya.
 
 ---
 
@@ -47,9 +49,8 @@ Palet warna utama aplikasi Komet menggunakan **Digital Blue** (OKLCH). Seluruh c
 - **Active Backgrounds / Hover Soft Highlights**: `digital-blue-50` atau `digital-blue-100`
 - **Text Highlights / Active Nav Text**: `digital-blue-700`
 - **Borders / Soft Dividers**: `digital-blue-200`
+- **Formula Highlight Badge**: `font-mono font-bold text-digital-blue-900 bg-white/95 border border-digital-blue-200 shadow-2xs`
 - **Visualisasi Data & Charts**:
-  - **Single Series Chart**: Gunakan `digital-blue-600` (atau gradien `digital-blue-600` ke `digital-blue-400`).
-  - **Multi-Series / Category Chart**: Gunakan urutan shade terstruktur (`digital-blue-600`, `digital-blue-400`, `digital-blue-800`, `digital-blue-300`, `digital-blue-500`) dan kombinasikan dengan warna semantik (Emerald untuk positif/lulus tepat waktu, Amber untuk peringatan, Rose untuk drop out/fluctuasi negatif).
   - Gunakan konstanta terpusat dari `src/utils/theme.js` (`DIGITAL_BLUE` & `CHART_PALETTE`).
 
 ---
@@ -65,100 +66,73 @@ client/
 ├── src/
 │   ├── assets/                        # Logo, ilustrasi, dan aset statis (KOMET.png, dll)
 │   ├── components/
-│   │   ├── common/                    # Komponen Reusable (Global UI Primitives)
-│   │   │   ├── cards/                 # StatCard, ChartCard, ContainerCard
-│   │   │   ├── charts/                # ChartWrapper, BarChart, LineChart, PieChart
-│   │   │   ├── feedback/              # LoadingSpinner, EmptyState, ErrorBoundary, Skeleton
-│   │   │   ├── modals/                # Modal, ConfirmDialog, FilterDrawer
-│   │   │   ├── tables/                # DataTable, Pagination, TableFilter
-│   │   │   └── ui/                    # Button, Badge, Input, Select, Dropdown
-│   │   └── layout/                    # Layout sistem (Navbar, Sidebar, Container)
-│   │       ├── MainLayout.jsx         # Layout utama dengan sidebar collapsible & responsive margin
-│   │       ├── Navbar/                # Navbar, Breadcrumbs, UserProfile
-│   │       └── Sidebar/               # Sidebar, SidebarNav, MenuGroup, useSidebarDrag, dll
-│   ├── context/                       # Global React Context (Auth, Filter, Theme)
-│   ├── hooks/                         # Global reusable React Hooks (useDebounce, useMediaQuery, dll)
+│   │   ├── common/                    # Komponen Reusable (Global UI Primitives - DRY)
+│   │   │   ├── cards/                 # StatCard, ChartCard
+│   │   │   ├── charts/                # ChartWrapper, Recharts presets
+│   │   │   ├── feedback/              # LoadingSpinner, EmptyState, Skeleton
+│   │   │   ├── modals/                # Modal, ModalSummaryBanner, ModalTabNav, ModalTable
+│   │   │   ├── tables/                # DataTable, Pagination
+│   │   │   └── ui/                    # Button, Badge, Input, Select
+│   │   └── layout/                    # Layout sistem (Navbar, Sidebar, MainLayout)
+│   ├── context/                       # Global React Context (NavigationContext)
+│   ├── hooks/                         # Global reusable React Hooks (useTabTransition, dll)
 │   ├── modules/                       # Fitur / Domain Spesifik
 │   │   ├── overview/                  # Modul Overview
-│   │   │   ├── components/            # Komponen visualisasi spesifik overview
-│   │   │   ├── hooks/                 # Custom hooks (e.g. useOverviewData)
-│   │   │   ├── pages/                 # Halaman utama overview (OverviewPage.jsx)
-│   │   │   └── services/              # API caller (overviewService.js)
+│   │   │   ├── components/
+│   │   │   ├── hooks/
+│   │   │   ├── pages/                 # OverviewPage.jsx
+│   │   │   └── services/              # overviewService.js
 │   │   ├── students/                  # Modul Student Data
-│   │   │   ├── components/            # StudentKPIs, StudentTrendChart, StudentTable, dll
-│   │   │   ├── hooks/                 # useStudentsData, useStudentFilters
+│   │   │   ├── components/
+│   │   │   │   ├── modals/            # ActiveStudentsModal, ForeignStudentsModal, IntakeStudentsModal, DeclineStudentsModal
+│   │   │   │   └── StudentDetailModal.jsx
+│   │   │   ├── hooks/                 # useStudentsData.js
 │   │   │   ├── pages/                 # StudentsPage.jsx
 │   │   │   └── services/              # studentsService.js
 │   │   ├── graduates/                 # Modul Graduate Data
-│   │   │   ├── components/            # GraduateSummary, GPADistributionChart, dll
-│   │   │   ├── hooks/                 # useGraduatesData
-│   │   │   ├── pages/                 # GraduatesPage.jsx
-│   │   │   └── services/              # graduatesService.js
 │   │   ├── mbkm/                      # Modul MBKM Data
-│   │   │   ├── components/            # MbkmParticipationCard, PartnerChart, dll
-│   │   │   ├── hooks/                 # useMbkmData
-│   │   │   ├── pages/                 # MbkmPage.jsx
-│   │   │   └── services/              # mbkmService.js
 │   │   └── dosen/                     # Modul Dosen (Tahap Selanjutnya)
-│   │       ├── components/            # DosenProfile, TridharmaCharts, dll
-│   │       ├── hooks/
-│   │       ├── pages/                 # DosenPage.jsx
-│   │       └── services/              # dosenService.js
-│   ├── routes/                        # Konfigurasi rute navigasi
 │   ├── services/                      # Base HTTP client (apiClient.js)
-│   └── utils/                         # Helper functions (formatters.js, theme.js, constants.js)
+│   └── utils/                         # Single Source of Truth Logic (logic.js, theme.js)
 ```
 
 ---
 
-## 4. Konvensi Penamaan (Naming Conventions)
+## 4. Standar Modularitas Popup Modal (Modal Sub-components)
 
-| Tipe File | Konvensi | Contoh |
-|---|---|---|
-| **React Components** | `PascalCase.jsx` | `StatCard.jsx`, `StudentsPage.jsx`, `SidebarNav.jsx` |
-| **Custom Hooks** | `camelCase.js` (diawali `use`) | `useSidebarDrag.js`, `useStudentsData.js` |
-| **Service Files** | `camelCase.js` (diakhiri `Service`) | `studentsService.js`, `apiClient.js` |
-| **Utility Files** | `camelCase.js` | `formatters.js`, `theme.js` |
-| **Contexts** | `PascalCaseContext.jsx` | `AuthContext.jsx`, `FilterContext.jsx` |
-| **CSS Classes** | Tailwind utility classes | `@theme`, `oklch`, `bg-digital-blue-600` |
+Setiap popup detail rincian card di seluruh aplikasi **WAJIB** mengikuti susunan blok modular standar:
 
----
-
-## 5. Aturan Pembuatan Komponen Visualisasi Data
-
-1. **Gunakan `StatCard` untuk KPI**:
-   - Letakkan di bagian atas halaman ringkasan data.
-   - Sertakan title, value, icon, trend positif/negatif, dan badge bila ada.
-2. **Gunakan `ChartCard` sebagai container grafik**:
-   - Selalu berikan judul (`title`), deskripsi singkat (`subtitle`), dan slot action (`headerAction` untuk filter tahun/semester).
-   - Pastikan grafik responsif (menggunakan `ResponsiveContainer`).
-   - Terapkan warna dari `CHART_PALETTE` atau shade `digital-blue`.
-3. **Gunakan `DataTable` untuk list detail data**:
-   - Wajib menyertakan loading state (`LoadingSpinner`) dan empty state (`EmptyState`).
-   - Sertakan pagination jika data lebih dari 10 baris.
-4. **Modal/Popup**:
-   - Gunakan `Modal.jsx` dengan backdrop blur halus dan animasi masuk 200–300ms.
-   - Sediakan tombol tutup (X) dan keyboard escape handler.
+1. **Container Modal (`Modal.jsx`)**:
+   - Menangani backdrop blur khusus area konten, shortcut Escape, dan animasi *quick-look zoom*.
+2. **Summary Banner 80/20 (`ModalSummaryBanner.jsx`)**:
+   - **Sisi Kiri (80%)**: Paragraf narasi deskripsi dan badge rumus yang di-highlight.
+   - **Sisi Kanan (20%)**: Kotak highlight angka KPI utama.
+3. **Tab Navigation (`ModalTabNav.jsx` & `useTabTransition.js`)**:
+   - Mengelola pergantian tab (misal: *Diagram Tren* vs *Tabel Riwayat*) dengan animasi slide halus.
+4. **Tabel Riwayat Modal (`ModalTable.jsx`)**:
+   - Menangani sticky header `digital-blue`, baris zebra striping, custom scrollbar, loading skeleton, dan empty state.
+5. **Chart Recharts**:
+   - Menggunakan `ResponsiveContainer`, `BarChart`/`ComposedChart`, tooltip informatif, dan warna dari `DIGITAL_BLUE`.
 
 ---
 
-## 6. Pedoman Rute & Tata Letak Baru (Multi-Layout & Dosen Navigation)
+## 5. Sentralisasi Business Logic & Data Transformation (`src/utils/logic.js`)
 
-### A. Layout Khusus Mahasiswa vs Layout Khusus Dosen:
-- `MainLayout.jsx` bertindak sebagai shell fleksibel.
-- Saat modul Dosen diimplementasikan, navigasi sidebar dapat dipisah menjadi:
-  - `StudentSidebarNav.jsx` (untuk rute `/students/*`, `/graduates/*`, `/mbkm/*`)
-  - `DosenSidebarNav.jsx` (untuk rute `/dosen/*`)
-- Keduanya dapat memanfaatkan `MenuGroup.jsx` yang mendukung collapsible accordion.
+Untuk menjaga agar komponen UI (`.jsx`) tetap bersih (*pure presenter*) dan memudahkan **migrasi seluruh kalkulasi bisnis ke Backend API KOMET**:
 
-### B. Nested Sidebar (Sidebar Bersarang):
-- Untuk submenu bertingkat (misal: *Dosen -> Tridharma -> Penelitian / Pengabdian*), gunakan `MenuGroup` bertingkat dengan indentasi visual (`pl-4` atau `border-l border-gray-100`) dan toggle status per grup.
+1. **Single Source of Truth Logic:**
+   - Seluruh fungsi kalkulasi metrik, penentuan tahun ajaran, formula akademik, ekstraksi KPI, normalisasi respon backend, dan pemetaan/transformasi data tabel **WAJIB** berada di dalam [`src/utils/logic.js`](file:///home/fadjri/projects/Komet/client/src/utils/logic.js).
+2. **Larangan Inline Logic di Komponen:**
+   - Dilarang keras menulis parsing data rumit, manipulasi array berulang (`slice`, `filter`, `reduce`), penentuan formula pertumbuhan/fluktuasi, atau pembuatan narasi dinamis langsung di dalam file JSX.
+   - Komponen hanya boleh memanggil fungsi helper yang di-ekspor oleh `logic.js`.
+3. **Kesiapan Porting Backend:**
+   - Fungsi-fungsi di dalam `logic.js` dirancang sebagai *pure functions* murni agar dapat langsung di-copy/paste atau diadaptasi ke Backend Controller/Prisma Service saat endpoint backend disempurnakan.
 
 ---
 
-## 7. Protokol Integrasi API Backend
+## 6. Protokol Integrasi API Backend
 
-1. Gunakan `apiClient.js` di `src/services/apiClient.js` sebagai single source of truth untuk fetch data.
+1. Gunakan `apiClient.js` di `src/services/apiClient.js` sebagai single source of truth untuk fetch data HTTP.
 2. API Key backend dikirim otomatis via header `x-api-key`.
 3. Format standar response backend Komet:
    ```json
@@ -168,34 +142,14 @@ client/
      "data": [ ... ]
    }
    ```
-4. Selalu tangani skenario error (`catch`) dan berikan pesan ramah pengguna.
+4. Selalu tangani skenario error (`catch`) dan berikan fallback graceful via Skeleton / EmptyState.
 
 ---
 
-## 8. Sentralisasi Business Logic & Data Transformation (`src/utils/logic.js`)
-
-Untuk menjaga agar komponen UI (`.jsx`) tetap bersih (pure presenter) dan memudahkan **migrasi/replikasi seluruh kalkulasi bisnis ke Backend API KOMET**, aturan ketat berikut berlaku:
-
-1. **Single Source of Truth Logic:**
-   - Seluruh fungsi kalkulasi metrik, penentuan tahun ajaran, formula akademik, ekstraksi KPI, normalisasi respon backend, dan pemetaan/transformasi data tabel **WAJIB** berada di dalam [`src/utils/logic.js`](file:///home/fadjri/projects/Komet/client/src/utils/logic.js).
-2. **Larangan Inline Logic di Komponen:**
-   - Dilarang keras menulis parsing data rumit, manipulasi array berulang (`slice`, `filter`, `reduce`), penentuan formula pertumbuhan/fluktuasi, atau pembuatan narasi dinamis langsung di dalam file JSX.
-   - Komponen hanya boleh memanggil fungsi helper yang di-ekspor oleh `logic.js`.
-3. **Kategori Logic di `logic.js`:**
-   - **Formatting & Visual Utilities:** `formatNumber`, `formatPercent`, `formatGPA`, `formatDateIndo`.
-   - **Kalkulasi Akademik:** `getCurrentAcademicYear` (cut-off 1 September).
-   - **Ekstraksi & Normalisasi Domain:** `extractStudentKpis`, `getStudentKpiSubtitles`, `getStudentActiveDescription`, `transformForeignTrend`, `transformIntakeTrend`, `transformDeclineHistory`.
-   - **Module Normalizers:** `extractOverviewMetrics`, `extractGraduatesSummary`, `extractMbkmSummary`.
-4. **Kesiapan Porting Backend:**
-   - Fungsi-fungsi di dalam `logic.js` dapat langsung dijadikan acuan/di-copy ke backend service/controller ketika endpoint backend terkait diimplementasikan atau disempurnakan.
-
----
-
-## 9. SOP Eksekusi Antigravity AI
+## 7. SOP Eksekusi Antigravity AI
 
 Sebelum membuat atau mengubah file:
-1. **Periksa apakah komponen sudah ada di `src/components/common/`**. Jika sudah ada, gunakan kembali; jangan buat duplikat.
-2. **Pusatkan seluruh kalkulasi dan transformasi data ke `src/utils/logic.js`**. Jangan menaruh logic pengolahan data inline di komponen JSX.
-3. **Pertahankan konsistensi warna brand**: Gunakan token warna tema `digital-blue-*` (e.g. `bg-digital-blue-600`, `text-digital-blue-700`, `bg-digital-blue-50`) atau konstanta dari `src/utils/theme.js`.
-4. **Pastikan zero-breaking-changes**: Jalankan `npm run build` setelah setiap perubahan besar untuk memastikan tidak ada import error atau type issue.
-
+1. **Gunakan komponen bersama di `src/components/common/`** (seperti `ModalSummaryBanner`, `ModalTabNav`, `ModalTable`, `StatCard`, `Skeleton`).
+2. **Pusatkan seluruh kalkulasi dan transformasi data ke `src/utils/logic.js`**.
+3. **Pertahankan konsistensi warna brand `digital-blue-*`**.
+4. **Pastikan zero-breaking-changes**: Jalankan `npm run build` setelah setiap perubahan.
