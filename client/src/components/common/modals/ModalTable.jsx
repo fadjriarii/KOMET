@@ -59,9 +59,9 @@ export default function ModalTable({
   }
 
   return (
-    <div className={`bg-white border border-digital-blue-100/90 rounded-2xl overflow-hidden shadow-xs flex flex-col ${className}`}>
-      <div className={`${maxHeight} overflow-y-auto custom-scrollbar`}>
-        <table className="w-full text-left border-collapse text-xs">
+    <div className={`bg-white border border-digital-blue-100/90 rounded-2xl overflow-hidden shadow-xs flex flex-col min-w-0 ${className}`}>
+      <div className={`${maxHeight} overflow-auto custom-scrollbar`}>
+        <table className="w-full min-w-[560px] text-left border-collapse text-xs">
           {/* Sticky Header */}
           <thead className="bg-gradient-to-r from-digital-blue-50/90 to-digital-blue-50/60 backdrop-blur-sm sticky top-0 z-10 border-b border-digital-blue-100 text-digital-blue-900">
             <tr>

@@ -1,6 +1,6 @@
 import { LayoutDashboard, Users, GraduationCap, Briefcase } from 'lucide-react';
 import MenuGroup from './MenuGroup';
-import { useNavigation } from '../../../context/NavigationContext';
+import { useNavigation } from '../../../context/useNavigation';
 
 const NAV_CONFIG = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },

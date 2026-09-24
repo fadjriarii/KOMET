@@ -17,8 +17,7 @@ export default function OpenSidebarButton({
 
   useEffect(() => {
     if (isSidebarOpen || isDragging) {
-      setIsHoveringEdge(false);
-      return;
+      return undefined;
     }
 
     const handleWindowMouseMove = (e) => {

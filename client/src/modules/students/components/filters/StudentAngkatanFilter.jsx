@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Calendar, ChevronDown, Check } from 'lucide-react';
+import { getAngkatanDisplayText, toggleAngkatanYear } from '../../../../utils/logic';
 
 /**
  * StudentAngkatanFilter - Filter Angkatan dalam bentuk Multi-Select Checkbox Popover
@@ -60,27 +61,7 @@ export default function StudentAngkatanFilter({
 
   // Toggle pilihan tahun spesifik
   const handleToggleYear = (year) => {
-    const yearStr = String(year);
-    if (selectedYears.includes(yearStr)) {
-      const next = selectedYears.filter((y) => y !== yearStr);
-      onChange?.(next);
-    } else {
-      onChange?.([...selectedYears, yearStr]);
-    }
-  };
-
-  // Label display pada tombol trigger
-  const getDisplayText = () => {
-    if (isAllTime) {
-      return placeholder;
-    }
-    if (selectedYears.length === 1) {
-      return `Angkatan ${selectedYears[0]}`;
-    }
-    if (selectedYears.length <= 2) {
-      return selectedYears.join(', ');
-    }
-    return `${selectedYears.length} Tahun Terpilih`;
+    onChange?.(toggleAngkatanYear(selectedYears, year));
   };
 
   return (
@@ -122,7 +103,7 @@ export default function StudentAngkatanFilter({
               isAllTime ? 'text-gray-400 font-normal' : 'text-gray-900 font-semibold'
             }`}
           >
-            {getDisplayText()}
+            {getAngkatanDisplayText(selectedYears, placeholder)}
           </span>
 
           {/* Chevron Indicator */}

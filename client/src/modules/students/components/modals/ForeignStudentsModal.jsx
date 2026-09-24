@@ -7,8 +7,12 @@ import { useTabTransition } from '../../../../hooks/useTabTransition';
 import {
   extractStudentKpis,
   getCurrentAcademicYear,
+  formatCompactNumber,
+  formatNumber,
   transformForeignTrend,
   reverseTrendData,
+  getForeignTrendSource,
+  getTooltipPayloadItem,
 } from '../../../../utils/logic';
 import { DIGITAL_BLUE } from '../../../../utils/theme';
 import { BarChart3, Table, Calendar, Users, Globe, Percent } from 'lucide-react';
@@ -49,7 +53,7 @@ const FOREIGN_TABLE_COLUMNS = [
     cellClassName: 'text-right',
     render: (row) => (
       <span className="bg-digital-blue-50/80 text-digital-blue-800 px-2 py-0.5 rounded-md border border-digital-blue-100 font-medium">
-        {row.foreignCount?.toLocaleString('id-ID')} mhs
+        {formatNumber(row.foreignCount)} mhs
       </span>
     ),
   },
@@ -59,7 +63,7 @@ const FOREIGN_TABLE_COLUMNS = [
     icon: Users,
     headerClassName: 'text-right',
     cellClassName: 'text-right font-medium text-gray-800',
-    render: (row) => `${row.rawTotal?.toLocaleString('id-ID')} mhs`,
+    render: (row) => `${formatNumber(row.rawTotal)} mhs`,
   },
   {
     key: 'percentage',
@@ -83,11 +87,10 @@ export default function ForeignStudentsModal({
 }) {
   const { activeTab, handleTabChange, slideClass } = useTabTransition(FOREIGN_TABS, 'chart');
 
-  const summary = data?.summary;
   const kpis = extractStudentKpis(data);
   const currentAcademicYear = getCurrentAcademicYear();
 
-  const trendData = transformForeignTrend(summary?.internationalStudentsTrend?.trend || []);
+  const trendData = transformForeignTrend(getForeignTrendSource(data));
   const tableData = reverseTrendData(trendData);
   const hasTrend = trendData.length > 0;
 
@@ -163,7 +166,7 @@ export default function ForeignStudentsModal({
                           yAxisId="left"
                           orientation="left"
                           tick={{ fontSize: 10, fill: '#9ca3af' }}
-                          tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}k` : v)}
+                          tickFormatter={formatCompactNumber}
                           tickLine={false}
                           axisLine={false}
                           width={44}
@@ -180,7 +183,7 @@ export default function ForeignStudentsModal({
                         <Tooltip
                           content={({ active, payload }) => {
                             if (!active || !payload?.length) return null;
-                            const current = payload[0]?.payload;
+                            const current = getTooltipPayloadItem(payload);
                             if (!current) return null;
 
                             return (
@@ -193,7 +196,7 @@ export default function ForeignStudentsModal({
                                     Total Mahasiswa
                                   </span>
                                   <span className="font-semibold text-gray-800">
-                                    {current.rawTotal?.toLocaleString('id-ID')} mhs
+                                    {formatNumber(current.rawTotal)} mhs
                                   </span>
                                 </div>
 
@@ -203,7 +206,7 @@ export default function ForeignStudentsModal({
                                     Mahasiswa Asing
                                   </span>
                                   <span className="font-semibold text-digital-blue-800">
-                                    {current.foreignCount?.toLocaleString('id-ID')} mhs
+                                    {formatNumber(current.foreignCount)} mhs
                                   </span>
                                 </div>
 

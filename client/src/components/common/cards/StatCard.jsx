@@ -14,6 +14,7 @@ export default function StatCard({
   badge,
   actionLabel = 'Lihat Rincian',
   onViewDetails,
+  actionDisabled = false,
   isLoading = false,
   className = '',
 }) {
@@ -88,11 +89,18 @@ export default function StatCard({
         {/* Kanan Bawah: Button Lihat Rincian dengan Icon */}
         <button
           type="button"
-          onClick={onViewDetails}
-          className="inline-flex items-center gap-1 text-xs font-semibold text-digital-blue-600 hover:text-digital-blue-700 hover:bg-digital-blue-50/70 active:bg-digital-blue-100/70 px-2 py-1 rounded-lg transition-all duration-150 cursor-pointer group/btn"
+          onClick={actionDisabled ? undefined : onViewDetails}
+          disabled={actionDisabled}
+          className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg transition-all duration-150 group/btn ${
+            actionDisabled
+              ? 'text-gray-400 bg-gray-50 cursor-not-allowed'
+              : 'text-digital-blue-600 hover:text-digital-blue-700 hover:bg-digital-blue-50/70 active:bg-digital-blue-100/70 cursor-pointer'
+          }`}
         >
           <span>{actionLabel}</span>
-          <ChevronRight size={14} className="group-hover/btn:translate-x-0.5 transition-transform duration-150" />
+          {!actionDisabled && (
+            <ChevronRight size={14} className="group-hover/btn:translate-x-0.5 transition-transform duration-150" />
+          )}
         </button>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback } from 'react';
 import Modal from '../../../../components/common/modals/Modal';
 import ModalSummaryBanner from '../../../../components/common/modals/ModalSummaryBanner';
 import ModalTabNav from '../../../../components/common/modals/ModalTabNav';
@@ -9,11 +9,16 @@ import { useTabTransition } from '../../../../hooks/useTabTransition';
 import {
   extractStudentKpis,
   getStudentIntakeDescription,
+  formatCompactNumber,
+  formatNumber,
   transformIntakeTrend,
   reverseTrendData,
+  getIntakeTrendSource,
+  getTooltipPayloadItem,
 } from '../../../../utils/logic';
 import { DIGITAL_BLUE } from '../../../../utils/theme';
 import { studentsService } from '../../services/studentsService';
+import { useStudentDetailResource } from '../../hooks/useStudentDetailResource';
 import {
   Calendar,
   TrendingUp,
@@ -91,51 +96,19 @@ export default function IntakeStudentsModal({
   data,
 }) {
   const { activeTab, handleTabChange, slideClass } = useTabTransition(INTAKE_TABS, 'chart');
-  const [intakeData, setIntakeData] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const fetchIntakeDetail = useCallback(() => studentsService.getIntakeTrend(), []);
+  const {
+    data: intakeData,
+    isLoading,
+    error,
+  } = useStudentDetailResource(
+    isOpen,
+    fetchIntakeDetail,
+    'Gagal memuat data intake mahasiswa'
+  );
 
   const kpis = extractStudentKpis(data);
-
-  // Fetch intake trend data dari backend saat modal dibuka
-  useEffect(() => {
-    if (!isOpen) return;
-
-    let isMounted = true;
-    async function fetchIntakeDetail() {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const res = await studentsService.getIntakeTrend();
-        if (isMounted && res?.success) {
-          setIntakeData(res);
-        }
-      } catch (err) {
-        if (isMounted) {
-          setError(err.message || 'Gagal memuat data intake mahasiswa');
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    }
-
-    fetchIntakeDetail();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [isOpen]);
-
-  // Gunakan data dari endpoint khusus atau fallback ke summary
-  const rawTrendList =
-    intakeData?.data ||
-    intakeData?.intakeTrendData ||
-    data?.summary?.intakeTrend?.trend ||
-    [];
-
-  const trendList = transformIntakeTrend(rawTrendList);
+  const trendList = transformIntakeTrend(getIntakeTrendSource(intakeData, data));
   const tableData = reverseTrendData(trendList);
   const hasData = trendList.length > 0;
 
@@ -202,7 +175,7 @@ export default function IntakeStudentsModal({
                         />
                         <YAxis
                           tick={{ fontSize: 10, fill: '#9ca3af' }}
-                          tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}k` : v)}
+                          tickFormatter={formatCompactNumber}
                           tickLine={false}
                           axisLine={false}
                           width={44}
@@ -210,7 +183,7 @@ export default function IntakeStudentsModal({
                         <Tooltip
                           content={({ active, payload }) => {
                             if (!active || !payload?.length) return null;
-                            const item = payload[0]?.payload;
+                            const item = getTooltipPayloadItem(payload);
                             if (!item) return null;
 
                             return (
@@ -222,7 +195,7 @@ export default function IntakeStudentsModal({
                                     Intake Mahasiswa
                                   </span>
                                   <span className="font-semibold text-gray-800">
-                                    {item.intakeCount?.toLocaleString('id-ID')} mhs
+                                    {formatNumber(item.intakeCount)} mhs
                                   </span>
                                 </div>
                                 <div className="flex items-center justify-between gap-4 mt-2 pt-2 border-t border-gray-100">
