@@ -61,35 +61,14 @@ export default function StudentFilterContainer({
   periodeOptions = [],
 
   // Reset Callback
+  activeCount = 0,
   onResetAll,
 
   isLoading = false,
   className = '',
   children,
 }) {
-  // Hitung jumlah filter yang sedang aktif
-  const activeCount = [
-    Boolean(searchValue),
-    Boolean(facultyValue),
-    Boolean(prodiValue),
-    Boolean(jenjangValue),
-    selectedYears.length > 0,
-    Boolean(semesterValue),
-    Boolean(nationalityValue),
-    Boolean(statusValue),
-    Boolean(periodeValue),
-  ].filter(Boolean).length;
-
   const handleReset = () => {
-    onSearchChange?.('');
-    onFacultyChange?.('');
-    onProdiChange?.('');
-    onJenjangChange?.('');
-    onAngkatanChange?.([]);
-    onSemesterChange?.('');
-    onNationalityChange?.('');
-    onStatusChange?.('');
-    onPeriodeChange?.('');
     onResetAll?.();
   };
 

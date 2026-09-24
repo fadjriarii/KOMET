@@ -9,6 +9,7 @@ import { ChevronDown, Check } from 'lucide-react';
  * @param {function} onChange - Callback ketika value berubah
  * @param {Array} options - Array opsi [{ value, label }] atau array string ['Fakultas A', 'Fakultas B']
  * @param {string} placeholder - Opsi default / placeholder (e.g. "Semua Fakultas")
+ * @param {string} defaultValue - Nilai yang dianggap kondisi default secara visual
  * @param {Component} icon - Icon Lucide opsional di sisi kiri
  * @param {boolean} disabled - Status disable
  * @param {string} className - Additional container classes
@@ -20,6 +21,7 @@ export default function Select({
   onChange,
   options = [],
   placeholder = 'Pilih Opsi...',
+  defaultValue = '',
   icon: Icon,
   disabled = false,
   className = '',
@@ -61,7 +63,9 @@ export default function Select({
       : selectedOption
     : value || placeholder;
 
+  const isDefaultSelected = String(value || '') === String(defaultValue || '');
   const isPlaceholderSelected = !value;
+  const isVisuallyDefault = isPlaceholderSelected || isDefaultSelected;
 
   const handleSelectOption = (optVal) => {
     onChange?.(optVal);
@@ -100,7 +104,7 @@ export default function Select({
 
           <span
             className={`truncate text-left ${
-              isPlaceholderSelected ? 'text-gray-400 font-normal' : 'text-gray-900 font-semibold'
+              isVisuallyDefault ? 'text-gray-400 font-normal' : 'text-gray-900 font-semibold'
             }`}
           >
             {displayLabel}
@@ -185,4 +189,3 @@ export default function Select({
 
 
 }
-

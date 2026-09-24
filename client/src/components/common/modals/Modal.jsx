@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
@@ -21,7 +21,25 @@ export default function Modal({
 }) {
   const [isRendered, setIsRendered] = useState(false);
   const [isAnimatingIn, setIsAnimatingIn] = useState(false);
-  const [cachedDelta, setCachedDelta] = useState(null);
+
+  const originDelta = useMemo(() => {
+    if (!originRect || typeof window === 'undefined') return null;
+
+    const portalTarget = document.getElementById('content-modal-root');
+    const targetRect = portalTarget
+      ? portalTarget.getBoundingClientRect()
+      : { left: 0, top: 64, width: window.innerWidth, height: window.innerHeight - 64 };
+
+    const contentCenterX = targetRect.left + targetRect.width / 2;
+    const contentCenterY = targetRect.top + targetRect.height / 2;
+    const cardCenterX = originRect.left + originRect.width / 2;
+    const cardCenterY = originRect.top + originRect.height / 2;
+
+    return {
+      dx: Math.round(cardCenterX - contentCenterX),
+      dy: Math.round(cardCenterY - contentCenterY),
+    };
+  }, [originRect]);
 
   useEffect(() => {
     function handleKeyDown(event) {
@@ -31,48 +49,39 @@ export default function Modal({
     }
 
     if (isOpen) {
-      // Hitung offset titik tengah card terhadap titik tengah area konten
-      if (originRect) {
-        const portalTarget = document.getElementById('content-modal-root');
-        const targetRect = portalTarget
-          ? portalTarget.getBoundingClientRect()
-          : { left: 0, top: 64, width: window.innerWidth, height: window.innerHeight - 64 };
-
-        const contentCenterX = targetRect.left + targetRect.width / 2;
-        const contentCenterY = targetRect.top + targetRect.height / 2;
-        const cardCenterX = originRect.left + originRect.width / 2;
-        const cardCenterY = originRect.top + originRect.height / 2;
-
-        setCachedDelta({
-          dx: Math.round(cardCenterX - contentCenterX),
-          dy: Math.round(cardCenterY - contentCenterY),
-        });
-      }
-
-      setIsRendered(true);
       document.body.style.overflow = 'hidden';
       document.addEventListener('keydown', handleKeyDown);
 
       // Delay 25ms untuk memastikan initial transform terpasang sebelum transisi scale & position
+      const renderTimer = setTimeout(() => {
+        setIsRendered(true);
+      }, 0);
       const timer = setTimeout(() => {
         setIsAnimatingIn(true);
       }, 25);
 
       return () => {
+        clearTimeout(renderTimer);
         clearTimeout(timer);
+        document.removeEventListener('keydown', handleKeyDown);
       };
     } else {
       // Trigger animasi penutupan (kembali mengecil ke arah card)
-      setIsAnimatingIn(false);
+      const closeAnimationTimer = setTimeout(() => {
+        setIsAnimatingIn(false);
+      }, 0);
       const timer = setTimeout(() => {
         setIsRendered(false);
       }, 700);
 
       document.body.style.overflow = 'unset';
       document.removeEventListener('keydown', handleKeyDown);
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(closeAnimationTimer);
+        clearTimeout(timer);
+      };
     }
-  }, [isOpen, onClose, originRect]);
+  }, [isOpen, onClose]);
 
   // Clean-up overflow & listener saat unmount
   useEffect(() => {
@@ -84,8 +93,8 @@ export default function Modal({
   if (!isRendered) return null;
 
   // Style transform dinamis untuk ekspansi/kolaps dari posisi card (macOS Quick Look)
-  const initialTransform = cachedDelta
-    ? `translate3d(${cachedDelta.dx}px, ${cachedDelta.dy}px, 0) scale(0.25)`
+  const initialTransform = originDelta
+    ? `translate3d(${originDelta.dx}px, ${originDelta.dy}px, 0) scale(0.25)`
     : 'translate3d(0, -32px, 0) scale(0.92)';
 
   const activeTransform = 'translate3d(0, 0, 0) scale(1)';

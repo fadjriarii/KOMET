@@ -1,5 +1,5 @@
 import { ChevronRight } from 'lucide-react';
-import { useNavigation } from '../../../context/NavigationContext';
+import { useNavigation } from '../../../context/useNavigation';
 
 export default function Breadcrumbs() {
   const { activeGroup, activeLabel } = useNavigation();

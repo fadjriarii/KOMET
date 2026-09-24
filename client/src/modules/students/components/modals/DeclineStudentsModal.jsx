@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback } from 'react';
 import Modal from '../../../../components/common/modals/Modal';
 import ModalSummaryBanner from '../../../../components/common/modals/ModalSummaryBanner';
 import ModalTabNav from '../../../../components/common/modals/ModalTabNav';
@@ -8,11 +8,16 @@ import Skeleton from '../../../../components/common/feedback/Skeleton';
 import { useTabTransition } from '../../../../hooks/useTabTransition';
 import {
   extractStudentKpis,
+  formatCompactNumber,
+  formatNumber,
   transformDeclineHistory,
   reverseTrendData,
+  getDeclineHistorySource,
+  getTooltipPayloadItem,
 } from '../../../../utils/logic';
 import { DIGITAL_BLUE } from '../../../../utils/theme';
 import { studentsService } from '../../services/studentsService';
+import { useStudentDetailResource } from '../../hooks/useStudentDetailResource';
 import {
   BarChart3,
   Table,
@@ -75,52 +80,19 @@ export default function DeclineStudentsModal({
   data,
 }) {
   const { activeTab, handleTabChange, slideClass } = useTabTransition(DECLINE_TABS, 'chart');
-  const [declineData, setDeclineData] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const fetchDeclineDetail = useCallback(() => studentsService.getDeclineTrend(), []);
+  const {
+    data: declineData,
+    isLoading,
+    error,
+  } = useStudentDetailResource(
+    isOpen,
+    fetchDeclineDetail,
+    'Gagal memuat data penurunan mahasiswa'
+  );
 
   const kpis = extractStudentKpis(data);
-
-  // Fetch data decline trend dari backend saat modal dibuka
-  useEffect(() => {
-    if (!isOpen) return;
-
-    let isMounted = true;
-    async function fetchDeclineDetail() {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const res = await studentsService.getDeclineTrend();
-        if (isMounted && res?.success) {
-          setDeclineData(res);
-        }
-      } catch (err) {
-        if (isMounted) {
-          setError(err.message || 'Gagal memuat data penurunan mahasiswa');
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    }
-
-    fetchDeclineDetail();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [isOpen]);
-
-  // Gunakan data dari endpoint khusus atau fallback ke summary
-  const rawHistoryList =
-    declineData?.data?.history ||
-    declineData?.declineTrend?.history ||
-    declineData?.chartData ||
-    data?.summary?.newStudentDecline?.history ||
-    [];
-
-  const historyList = transformDeclineHistory(rawHistoryList);
+  const historyList = transformDeclineHistory(getDeclineHistorySource(declineData, data));
   const chartList = reverseTrendData(historyList);
   const hasData = historyList.length > 0;
 
@@ -199,7 +171,7 @@ export default function DeclineStudentsModal({
                         />
                         <YAxis
                           tick={{ fontSize: 10, fill: '#9ca3af' }}
-                          tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}k` : v)}
+                          tickFormatter={formatCompactNumber}
                           tickLine={false}
                           axisLine={false}
                           width={44}
@@ -207,7 +179,7 @@ export default function DeclineStudentsModal({
                         <Tooltip
                           content={({ active, payload, label }) => {
                             if (!active || !payload?.length) return null;
-                            const item = payload[0]?.payload;
+                            const item = getTooltipPayloadItem(payload);
                             if (!item) return null;
 
                             return (
@@ -226,7 +198,7 @@ export default function DeclineStudentsModal({
                                     Jumlah Intake
                                   </span>
                                   <span className="font-semibold text-gray-800">
-                                    {item.intakeCount?.toLocaleString('id-ID')} mhs
+                                    {formatNumber(item.intakeCount)} mhs
                                   </span>
                                 </div>
                               </div>

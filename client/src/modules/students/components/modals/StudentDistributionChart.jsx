@@ -12,13 +12,18 @@ import {
 import { DIGITAL_BLUE } from '../../../../utils/theme';
 import EmptyState from '../../../../components/common/feedback/EmptyState';
 import Skeleton from '../../../../components/common/feedback/Skeleton';
+import {
+  formatCompactNumber,
+  getDistributionChartHeight,
+  getTooltipPayloadItem,
+} from '../../../../utils/logic';
 
 /**
  * Custom Tooltip untuk Recharts Distribusi Mahasiswa
  */
 function CustomChartTooltip({ active, payload }) {
   if (!active || !payload || !payload.length) return null;
-  const data = payload[0]?.payload;
+  const data = getTooltipPayloadItem(payload);
   if (!data) return null;
 
   return (
@@ -50,7 +55,6 @@ export default function StudentDistributionChart({
   emptyIcon,
   yAxisWidth = 180,
   barColor = DIGITAL_BLUE[600],
-  barHoverColor = DIGITAL_BLUE[700],
 }) {
   if (isLoading) {
     return (
@@ -86,8 +90,7 @@ export default function StudentDistributionChart({
     );
   }
 
-  // Hitung tinggi container secara dinamis agar setiap bar memiliki ruang yang ideal
-  const dynamicHeight = Math.max(240, items.length * 38);
+  const dynamicHeight = getDistributionChartHeight(items.length);
 
   return (
     <div className="w-full">
@@ -103,7 +106,7 @@ export default function StudentDistributionChart({
             <XAxis
               type="number"
               tick={{ fontSize: 10, fill: '#9ca3af' }}
-              tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}k` : v)}
+              tickFormatter={formatCompactNumber}
               tickLine={false}
               axisLine={{ stroke: '#e5e7eb' }}
             />

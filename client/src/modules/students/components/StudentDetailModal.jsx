@@ -1,4 +1,3 @@
-import { useRef, useEffect } from 'react';
 import {
   ActiveStudentsModal,
   ForeignStudentsModal,
@@ -10,7 +9,6 @@ import {
  * StudentDetailModal
  * Komponen orkestrator / facade yang mendelegasikan rendering rincian popup
  * ke masing-masing modal modular di folder `modals/`.
- * Menggunakan cachedTypeRef agar animasi penutupan (closing animation) berjalan mulus.
  */
 export default function StudentDetailModal({
   isOpen,
@@ -19,40 +17,30 @@ export default function StudentDetailModal({
   originRect,
   data,
 }) {
-  const cachedTypeRef = useRef(activeModalType);
-
-  useEffect(() => {
-    if (activeModalType) {
-      cachedTypeRef.current = activeModalType;
-    }
-  }, [activeModalType]);
-
-  const currentType = activeModalType || cachedTypeRef.current;
-
-  if (!isOpen && !currentType) return null;
+  if (!activeModalType) return null;
 
   return (
     <>
       <ActiveStudentsModal
-        isOpen={isOpen && currentType === 'active'}
+        isOpen={isOpen && activeModalType === 'active'}
         onClose={onClose}
         originRect={originRect}
         data={data}
       />
       <ForeignStudentsModal
-        isOpen={isOpen && currentType === 'foreign'}
+        isOpen={isOpen && activeModalType === 'foreign'}
         onClose={onClose}
         originRect={originRect}
         data={data}
       />
       <IntakeStudentsModal
-        isOpen={isOpen && currentType === 'intake'}
+        isOpen={isOpen && activeModalType === 'intake'}
         onClose={onClose}
         originRect={originRect}
         data={data}
       />
       <DeclineStudentsModal
-        isOpen={isOpen && currentType === 'decline'}
+        isOpen={isOpen && activeModalType === 'decline'}
         onClose={onClose}
         originRect={originRect}
         data={data}

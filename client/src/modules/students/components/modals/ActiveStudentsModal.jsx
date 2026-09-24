@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback } from 'react';
 import Modal from '../../../../components/common/modals/Modal';
 import ModalSummaryBanner from '../../../../components/common/modals/ModalSummaryBanner';
 import ModalTabNav from '../../../../components/common/modals/ModalTabNav';
@@ -8,11 +8,11 @@ import {
   extractStudentKpis,
   getCurrentAcademicYear,
   getStudentActiveDescription,
-  transformFacultyDistribution,
-  transformProdiDistribution,
-  transformJenjangDistribution,
+  transformActiveStudentDetail,
+  getActiveTabContent,
 } from '../../../../utils/logic';
 import { studentsService } from '../../services/studentsService';
+import { useStudentDetailResource } from '../../hooks/useStudentDetailResource';
 import { Building2, BookOpen, Layers } from 'lucide-react';
 
 const STUDENT_TABS = [
@@ -28,55 +28,62 @@ export default function ActiveStudentsModal({
   data,
 }) {
   const { activeTab, handleTabChange, slideClass } = useTabTransition(STUDENT_TABS, 'fakultas');
-  const [activeDetailData, setActiveDetailData] = useState(null);
-  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
-  const [detailError, setDetailError] = useState(null);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    let isMounted = true;
-    async function fetchActiveDetail() {
-      setIsLoadingDetail(true);
-      setDetailError(null);
-      try {
-        const res = await studentsService.getActiveStudentsDetail();
-        if (isMounted && res?.success) {
-          setActiveDetailData(res);
-        }
-      } catch (err) {
-        if (isMounted) {
-          setDetailError(err.message || 'Gagal memuat rincian mahasiswa aktif');
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoadingDetail(false);
-        }
-      }
-    }
-
-    fetchActiveDetail();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [isOpen]);
+  const fetchActiveDetail = useCallback(() => studentsService.getActiveStudentsDetail(), []);
+  const {
+    data: activeDetailData,
+    isLoading: isLoadingDetail,
+    error: detailError,
+  } = useStudentDetailResource(
+    isOpen,
+    fetchActiveDetail,
+    'Gagal memuat rincian mahasiswa aktif'
+  );
 
   const kpis = extractStudentKpis(data);
   const currentAcademicYear = getCurrentAcademicYear();
+  const { facultyList, prodiList, jenjangList } = transformActiveStudentDetail(
+    activeDetailData,
+    kpis.activeCount
+  );
 
-  const facultyList = transformFacultyDistribution(
-    activeDetailData?.byFaculty,
-    activeDetailData?.totalActiveStudents || kpis.activeCount
-  );
-  const prodiList = transformProdiDistribution(
-    activeDetailData?.byProdi,
-    activeDetailData?.totalActiveStudents || kpis.activeCount
-  );
-  const jenjangList = transformJenjangDistribution(
-    activeDetailData?.byJenjang,
-    activeDetailData?.totalActiveStudents || kpis.activeCount
-  );
+  const activeContent = getActiveTabContent(activeTab, {
+    fakultas: (
+      <div className="pt-1">
+        <StudentDistributionChart
+          items={facultyList}
+          isLoading={isLoadingDetail}
+          error={detailError}
+          emptyIcon={Building2}
+          emptyTitle="Tidak Ada Data Fakultas"
+          yAxisWidth={190}
+        />
+      </div>
+    ),
+    prodi: (
+      <div className="pt-1">
+        <StudentDistributionChart
+          items={prodiList}
+          isLoading={isLoadingDetail}
+          error={detailError}
+          emptyIcon={BookOpen}
+          emptyTitle="Tidak Ada Data Program Studi"
+          yAxisWidth={210}
+        />
+      </div>
+    ),
+    jenjang: (
+      <div className="pt-1">
+        <StudentDistributionChart
+          items={jenjangList}
+          isLoading={isLoadingDetail}
+          error={detailError}
+          emptyIcon={Layers}
+          emptyTitle="Tidak Ada Data Jenjang"
+          yAxisWidth={140}
+        />
+      </div>
+    ),
+  });
 
   return (
     <Modal
@@ -109,44 +116,7 @@ export default function ActiveStudentsModal({
           <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar scroll-smooth pr-1">
             <div className="overflow-x-hidden w-full">
               <div key={activeTab} className={`w-full ${slideClass}`}>
-                {activeTab === 'fakultas' && (
-                  <div className="pt-1">
-                    <StudentDistributionChart
-                      items={facultyList}
-                      isLoading={isLoadingDetail}
-                      error={detailError}
-                      emptyIcon={Building2}
-                      emptyTitle="Tidak Ada Data Fakultas"
-                      yAxisWidth={190}
-                    />
-                  </div>
-                )}
-
-                {activeTab === 'prodi' && (
-                  <div className="pt-1">
-                    <StudentDistributionChart
-                      items={prodiList}
-                      isLoading={isLoadingDetail}
-                      error={detailError}
-                      emptyIcon={BookOpen}
-                      emptyTitle="Tidak Ada Data Program Studi"
-                      yAxisWidth={210}
-                    />
-                  </div>
-                )}
-
-                {activeTab === 'jenjang' && (
-                  <div className="pt-1">
-                    <StudentDistributionChart
-                      items={jenjangList}
-                      isLoading={isLoadingDetail}
-                      error={detailError}
-                      emptyIcon={Layers}
-                      emptyTitle="Tidak Ada Data Jenjang"
-                      yAxisWidth={140}
-                    />
-                  </div>
-                )}
+                {activeContent}
               </div>
             </div>
           </div>

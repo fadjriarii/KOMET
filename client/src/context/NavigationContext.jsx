@@ -1,13 +1,6 @@
-import { createContext, useContext, useState, useEffect } from 'react';
-
-const NavigationContext = createContext();
-
-export const NAV_ITEMS = [
-  { id: 'overview', label: 'Overview', group: 'Student Navigation' },
-  { id: 'students', label: 'Student Data', group: 'Student Navigation' },
-  { id: 'graduates', label: 'Graduates', group: 'Student Navigation' },
-  { id: 'mbkm', label: 'MBKM', group: 'Student Navigation' },
-];
+import { useState, useEffect } from 'react';
+import { NAV_ITEMS } from '../constants/navigation';
+import { NavigationContext } from './NavigationContextBase';
 
 const STORAGE_KEY = 'komet_active_tab';
 
@@ -77,12 +70,3 @@ export function NavigationProvider({ children, initialTab = 'overview' }) {
     </NavigationContext.Provider>
   );
 }
-
-export function useNavigation() {
-  const context = useContext(NavigationContext);
-  if (!context) {
-    throw new Error('useNavigation must be used within a NavigationProvider');
-  }
-  return context;
-}
-

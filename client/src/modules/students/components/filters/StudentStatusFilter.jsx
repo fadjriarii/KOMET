@@ -9,6 +9,7 @@ export default function StudentStatusFilter({
   onChange,
   options = [],
   placeholder = 'Semua Status',
+  defaultValue = 'Aktif',
   disabled = false,
   className = '',
 }) {
@@ -19,6 +20,7 @@ export default function StudentStatusFilter({
       onChange={onChange}
       options={options}
       placeholder={placeholder}
+      defaultValue={defaultValue}
       icon={UserCheck}
       disabled={disabled}
       className={className}

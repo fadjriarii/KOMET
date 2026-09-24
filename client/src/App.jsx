@@ -1,5 +1,6 @@
 import MainLayout from './components/layout/MainLayout';
-import { NavigationProvider, useNavigation } from './context/NavigationContext';
+import { NavigationProvider } from './context/NavigationContext';
+import { useNavigation } from './context/useNavigation';
 import OverviewPage from './modules/overview/pages/OverviewPage';
 import StudentsPage from './modules/students/pages/StudentsPage';
 import GraduatesPage from './modules/graduates/pages/GraduatesPage';
