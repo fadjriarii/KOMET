@@ -2,13 +2,32 @@ import { useState } from 'react';
 import { Users, Globe, UserPlus, TrendingDown, TrendingUp, AlertCircle } from 'lucide-react';
 import StatCard from '../../../components/common/cards/StatCard';
 import { useStudentsData } from '../hooks/useStudentsData';
-import { extractStudentKpis, getStudentKpiSubtitles } from '../../../utils/logic';
+import {
+  extractStudentKpis,
+  getStudentKpiSubtitles,
+  formatKpiDisplay,
+  extractStudentFilterOptions,
+} from '../../../utils/logic';
 import StudentDetailModal from '../components/StudentDetailModal';
+import { StudentFilterContainer } from '../components/filters';
 
 export default function StudentsPage() {
   const { data, isLoading, error } = useStudentsData();
   const [activeModalType, setActiveModalType] = useState(null); // 'active' | 'foreign' | 'intake' | 'decline' | null
   const [originRect, setOriginRect] = useState(null);
+
+  // Filter States - Baris 1
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedFaculty, setSelectedFaculty] = useState('');
+  const [selectedProdi, setSelectedProdi] = useState('');
+  const [selectedJenjang, setSelectedJenjang] = useState('');
+
+  // Filter States - Baris 2
+  const [selectedYears, setSelectedYears] = useState([]);
+  const [selectedSemester, setSelectedSemester] = useState('');
+  const [selectedNationality, setSelectedNationality] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('');
+  const [selectedPeriode, setSelectedPeriode] = useState('');
 
   const handleOpenModal = (type, e) => {
     // Cari elemen card terdekat untuk mendapatkan posisi & dimensi card di viewport
@@ -32,6 +51,18 @@ export default function StudentsPage() {
   // Ekstraksi & normalisasi nilai KPI via helper terpusat
   const kpis = extractStudentKpis(data);
   const subtitles = getStudentKpiSubtitles(kpis);
+
+  // Ekstraksi opsi filter dari response backend
+  const {
+    fakultasOptions,
+    prodiOptions,
+    jenjangOptions,
+    rollingYears,
+    semesterOptions,
+    kewarganegaraanOptions,
+    statusKeaktifanOptions,
+    periodeMasukOptions,
+  } = extractStudentFilterOptions(data);
 
   return (
     <div className="space-y-6">
@@ -58,7 +89,7 @@ export default function StudentsPage() {
         {/* 1. Mahasiswa Aktif */}
         <StatCard 
           title="Mahasiswa Aktif" 
-          value={kpis.formattedActiveCount !== '-' ? kpis.formattedActiveCount : null} 
+          value={formatKpiDisplay(kpis.formattedActiveCount)} 
           subtitle={subtitles.activeSubtitle}
           icon={Users}
           badge="Status Aktif"
@@ -70,7 +101,7 @@ export default function StudentsPage() {
         {/* 2. Persentase Mahasiswa Internasional */}
         <StatCard 
           title="Persentase Mahasiswa Internasional" 
-          value={kpis.foreignRate !== '-' ? kpis.foreignRate : null} 
+          value={formatKpiDisplay(kpis.foreignRate)} 
           subtitle={subtitles.foreignSubtitle}
           icon={Globe}
           badge="Non-WNI Aktif"
@@ -82,7 +113,7 @@ export default function StudentsPage() {
         {/* 3. Intake Mahasiswa Baru */}
         <StatCard 
           title="Intake Mahasiswa Baru" 
-          value={kpis.formattedIntakeCount !== '-' ? kpis.formattedIntakeCount : null} 
+          value={formatKpiDisplay(kpis.formattedIntakeCount)} 
           subtitle={subtitles.intakeSubtitle}
           icon={UserPlus}
           badge="Mhs Semester 1"
@@ -103,6 +134,45 @@ export default function StudentsPage() {
           isLoading={showSkeleton}
         />
       </div>
+
+      {/* Fitur Filter Container Lengkap (2 Baris Filter Selebar 4 Card di Atasnya) */}
+      <StudentFilterContainer
+        // Baris 1: 40% (Search) - 20% (Fakultas) - 20% (Prodi) - 20% (Jenjang)
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+        onSearchClear={() => setSearchQuery('')}
+        facultyValue={selectedFaculty}
+        onFacultyChange={setSelectedFaculty}
+        facultyOptions={fakultasOptions}
+        prodiValue={selectedProdi}
+        onProdiChange={setSelectedProdi}
+        prodiOptions={prodiOptions}
+        jenjangValue={selectedJenjang}
+        onJenjangChange={setSelectedJenjang}
+        jenjangOptions={jenjangOptions}
+
+        // Baris 2: Angkatan + Semester + Kewarganegaraan + Status Keaktifan + Periode Masuk
+        selectedYears={selectedYears}
+        onAngkatanChange={setSelectedYears}
+        rollingYears={rollingYears}
+        semesterValue={selectedSemester}
+        onSemesterChange={setSelectedSemester}
+        semesterOptions={semesterOptions}
+        nationalityValue={selectedNationality}
+        onNationalityChange={setSelectedNationality}
+        nationalityOptions={kewarganegaraanOptions}
+        statusValue={selectedStatus}
+        onStatusChange={setSelectedStatus}
+        statusOptions={statusKeaktifanOptions}
+        periodeValue={selectedPeriode}
+        onPeriodeChange={setSelectedPeriode}
+        periodeOptions={periodeMasukOptions}
+
+        isLoading={showSkeleton}
+      />
+
+      {/* Kontainer Kosong untuk Tabel Data Mahasiswa */}
+      <div className="w-full bg-white rounded-2xl md:rounded-3xl border border-gray-200/90 shadow-[0_4px_20px_rgba(0,0,0,0.04)] p-5 sm:p-6 min-h-[360px]" />
 
       {/* Styled Detail Modal */}
       <StudentDetailModal

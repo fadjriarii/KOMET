@@ -25,7 +25,7 @@ export function formatNumber(num) {
 
 /**
  * Format persentase dengan jumlah desimal yang dapat disesuaikan (e.g., 85.5%)
- * @param {number|string} value 
+ * @param {number|string} value
  * @param {number} decimals 
  * @returns {string}
  */
@@ -175,6 +175,46 @@ export function getStudentForeignDescription(academicYear, foreignCountFormatted
 }
 
 /**
+ * Generate teks narasi deskripsi untuk modal detail intake mahasiswa baru
+ * @param {string} intakePeriod 
+ * @param {string|number} intakeCountFormatted 
+ * @returns {string}
+ */
+export function getStudentIntakeDescription(intakePeriod, intakeCountFormatted) {
+  return `Intake mahasiswa baru mencatat total ${intakeCountFormatted} mahasiswa yang berhasil diterima dan terdaftar aktif pada semester 1 untuk tahun ajaran ${intakePeriod || 'aktif'}. Data riwayat ini merekam fluktuasi jumlah penerimaan mahasiswa baru per angkatan beserta laju pertumbuhannya dari waktu ke waktu.`;
+}
+
+/**
+ * Generate teks narasi deskripsi dan rumus untuk modal penurunan mahasiswa baru (5 tahun)
+ * @param {string} selectedPeriod 
+ * @param {string|number} declineAvgFormatted 
+ * @returns {string}
+ */
+export function getStudentDeclineDescription(selectedPeriod, declineAvgFormatted) {
+  return `Penurunan jumlah mahasiswa baru dihitung selama periode 5 tahun bergulir (periode aktif ${selectedPeriod || 'aktif'}). Formula perhitungan: % Penurunan MB = average [((B-A)/A) + ((C-B)/B) + ((D-C)/C) + ((E-D)/D)], dengan A = Jumlah mahasiswa semester 1 status aktif periode dipilih, serta B, C, D, dan E berturut-turut adalah periode sebelumnya (pilihan-1 hingga pilihan-4). Rata-rata fluktuasi saat ini adalah ${declineAvgFormatted}.`;
+}
+
+/**
+ * Format nilai KPI untuk ditampilkan — return null jika '-' atau kosong
+ * @param {any} value 
+ * @returns {any}
+ */
+export function formatKpiDisplay(value) {
+  if (value === '-' || value === null || value === undefined || value === '') return null;
+  return value;
+}
+
+/**
+ * Balik urutan array tren tanpa mengubah array asli
+ * @param {Array} trendList 
+ * @returns {Array}
+ */
+export function reverseTrendData(trendList = []) {
+  if (!Array.isArray(trendList)) return [];
+  return [...trendList].reverse();
+}
+
+/**
  * Transformasi riwayat tren mahasiswa asing untuk tabel modal
  * @param {Array} trendList 
  * @param {number} [limit=5] 
@@ -212,12 +252,21 @@ export function transformForeignTrend(trendList = [], limit = 0) {
  */
 export function transformIntakeTrend(trendList = []) {
   if (!Array.isArray(trendList)) return [];
-  return trendList.map((row) => ({
-    tahun: row.tahun || '-',
-    intakeCountFormatted: `${formatNumber(row.intakeCount || 0)} mhs`,
-    growthFormatted: row.growth || '0.00%',
-    isPositive: Number(row.rawGrowth || 0) >= 0,
-  }));
+  return trendList.map((row) => {
+    const count = Number(row.intakeCount || 0);
+    const growth = row.growth || '0.00%';
+    const rawGrowth = Number(row.rawGrowth || 0);
+    return {
+      tahun: row.tahun || '-',
+      intakeCount: count,
+      intakeCountFormatted: `${formatNumber(count)} mhs`,
+      growthFormatted: growth,
+      rawGrowth,
+      isPositive: rawGrowth >= 0,
+      ganjil: Number(row.ganjil || 0),
+      genap: Number(row.genap || 0),
+    };
+  });
 }
 
 /**
@@ -227,11 +276,16 @@ export function transformIntakeTrend(trendList = []) {
  */
 export function transformDeclineHistory(historyList = []) {
   if (!Array.isArray(historyList)) return [];
-  return historyList.map((row) => ({
-    label: row.label || '',
-    academicYear: row.academicYear || '-',
-    intakeCountFormatted: `${formatNumber(row.intakeCount || 0)} mhs`,
-  }));
+  return historyList.map((row) => {
+    const count = Number(row.intakeCount ?? row.absolutCount ?? 0);
+    return {
+      label: row.label || '',
+      academicYear: row.academicYear || row.year || '-',
+      intakeCount: count,
+      intakeCountFormatted: `${formatNumber(count)} mhs`,
+      changeFromPrev: row.changeFromPrev ?? row.deltaFormatted ?? '-',
+    };
+  });
 }
 
 /**
@@ -315,6 +369,109 @@ export function transformJenjangDistribution(jenjangList = [], totalActive = 0) 
   });
 }
 
+/**
+ * Mendapatkan daftar 5 tahun angkatan terakhir (rolling 5 years).
+ * Jika tahun berganti, tahun terlama otomatis hilang agar selalu menampilkan 5 tahun terakhir.
+ * 
+ * @param {Array} [rawAngkatanList=[]] - List angkatan dari backend jika tersedia
+ * @param {number} [currentYear] - Tahun referensi (default tahun berjalan)
+ * @returns {Array<string>} Array 5 tahun (e.g., ['2026', '2025', '2024', '2023', '2022'])
+ */
+export function getRollingFiveYears(rawAngkatanList = [], currentYear = new Date().getFullYear()) {
+  const extractedYears = new Set();
+  if (Array.isArray(rawAngkatanList)) {
+    rawAngkatanList.forEach((item) => {
+      const match = String(item).match(/\b(20\d{2})\b/);
+      if (match) {
+        extractedYears.add(parseInt(match[1], 10));
+      }
+    });
+  }
+
+  const maxYear = extractedYears.size > 0 
+    ? Math.max(...Array.from(extractedYears))
+    : currentYear;
+
+  const years = [];
+  for (let i = 0; i < 5; i++) {
+    years.push(String(maxYear - i));
+  }
+  return years;
+}
+
+/**
+ * Ekstraksi opsi filter mahasiswa lengkap dari response API backend
+ * @param {Object} data - Response payload dari /api/students/summary atau /api/students/active-students
+ * @returns {Object} { fakultasOptions, prodiOptions, angkatanOptions, rollingYears, semesterOptions, kewarganegaraanOptions, statusKeaktifanOptions, periodeMasukOptions }
+ */
+export function extractStudentFilterOptions(data) {
+  const filterOptions = data?.filterOptions || {};
+
+  // 1. Fakultas
+  const rawFakultas = filterOptions.fakultas || (data?.byFaculty ? data.byFaculty.map((f) => f.name) : []);
+  const fakultasOptions = Array.isArray(rawFakultas)
+    ? rawFakultas.filter(Boolean)
+    : [];
+
+  // 2. Program Studi
+  const rawProdi = filterOptions.programStudi || (data?.byProdi ? data.byProdi.map((p) => p.name) : []);
+  const prodiOptions = Array.isArray(rawProdi)
+    ? rawProdi.filter(Boolean)
+    : [];
+
+  // 3. Jenjang Studi (Sarjana S1, Profesi, Magister S2)
+  const rawJenjang = filterOptions.jenjang || (data?.byJenjang ? data.byJenjang.map((j) => j.name) : []);
+  const jenjangOptions = Array.isArray(rawJenjang) && rawJenjang.length > 0
+    ? rawJenjang.filter(Boolean)
+    : ['Sarjana (S1)', 'Prof', 'Magister (S2)'];
+
+  // 4. Angkatan & 5 Rolling Years
+  const rawAngkatan = Array.isArray(filterOptions.angkatan) ? filterOptions.angkatan : [];
+  const rollingYears = getRollingFiveYears(rawAngkatan);
+
+  // 5. Semester
+  const rawSemester = Array.isArray(filterOptions.semester)
+    ? filterOptions.semester
+    : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
+  const semesterOptions = rawSemester.map((s) => ({
+    value: String(s),
+    label: `Semester ${s}`,
+  }));
+
+  // 6. Kewarganegaraan
+  const rawKewarganegaraan = Array.isArray(filterOptions.kewarganegaraan)
+    ? filterOptions.kewarganegaraan
+    : ['WNA', 'WNI'];
+  const kewarganegaraanOptions = rawKewarganegaraan.map((k) => ({
+    value: k,
+    label: k === 'WNA' ? 'WNA (Asing)' : k === 'WNI' ? 'WNI (Indonesia)' : k,
+  }));
+
+  // 7. Status Keaktifan
+  const rawStatus = Array.isArray(filterOptions.statusKeaktifan)
+    ? filterOptions.statusKeaktifan
+    : ['Aktif', 'Lulus', 'Drop Out / Dikeluarkan', 'Mengundurkan Diri / Keluar', 'Mutasi', 'Transfer', 'Lainnya'];
+  const statusKeaktifanOptions = rawStatus.filter(Boolean);
+
+  // 8. Periode Masuk (Ganjil / Genap - mengikuti tahun angkatan)
+  const periodeMasukOptions = [
+    { value: 'Ganjil', label: 'Ganjil' },
+    { value: 'Genap', label: 'Genap' },
+  ];
+
+  return {
+    fakultasOptions,
+    prodiOptions,
+    jenjangOptions,
+    angkatanOptions: rawAngkatan,
+    rollingYears,
+    semesterOptions,
+    kewarganegaraanOptions,
+    statusKeaktifanOptions,
+    periodeMasukOptions,
+  };
+}
+
 // ============================================================================
 // 4. LOGIC MODULE: OVERVIEW, GRADUATES, & MBKM (NORMALIZER)
 // ============================================================================
@@ -377,9 +534,19 @@ export default {
   extractStudentKpis,
   getStudentKpiSubtitles,
   getStudentActiveDescription,
+  getStudentForeignDescription,
+  getStudentIntakeDescription,
+  getStudentDeclineDescription,
+  formatKpiDisplay,
+  reverseTrendData,
   transformForeignTrend,
   transformIntakeTrend,
   transformDeclineHistory,
+  transformFacultyDistribution,
+  transformProdiDistribution,
+  transformJenjangDistribution,
+  getRollingFiveYears,
+  extractStudentFilterOptions,
 
   // Module Normalizers
   extractOverviewMetrics,

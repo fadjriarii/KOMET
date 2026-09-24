@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
@@ -31,7 +31,7 @@ export default function Modal({
     }
 
     if (isOpen) {
-      // Hitung offset titik tengah card terhadap titik tengah area konten tab
+      // Hitung offset titik tengah card terhadap titik tengah area konten
       if (originRect) {
         const portalTarget = document.getElementById('content-modal-root');
         const targetRect = portalTarget
@@ -62,10 +62,11 @@ export default function Modal({
         clearTimeout(timer);
       };
     } else {
+      // Trigger animasi penutupan (kembali mengecil ke arah card)
       setIsAnimatingIn(false);
       const timer = setTimeout(() => {
         setIsRendered(false);
-      }, 1000); // Durasi 1000ms sesuai preferensi transisi yang sangat halus
+      }, 700);
 
       document.body.style.overflow = 'unset';
       document.removeEventListener('keydown', handleKeyDown);
@@ -82,7 +83,7 @@ export default function Modal({
 
   if (!isRendered) return null;
 
-  // Style transform dinamis untuk ekspansi/kolaps dari posisi card
+  // Style transform dinamis untuk ekspansi/kolaps dari posisi card (macOS Quick Look)
   const initialTransform = cachedDelta
     ? `translate3d(${cachedDelta.dx}px, ${cachedDelta.dy}px, 0) scale(0.25)`
     : 'translate3d(0, -32px, 0) scale(0.92)';
@@ -92,7 +93,9 @@ export default function Modal({
   const modalStyle = {
     transform: isAnimatingIn ? activeTransform : initialTransform,
     opacity: isAnimatingIn ? 1 : 0,
-    transition: 'transform 1000ms cubic-bezier(0.16, 1, 0.3, 1), opacity 900ms cubic-bezier(0.16, 1, 0.3, 1)',
+    transition: isAnimatingIn
+      ? 'transform 1000ms cubic-bezier(0.16, 1, 0.3, 1), opacity 900ms cubic-bezier(0.16, 1, 0.3, 1)'
+      : 'transform 700ms cubic-bezier(0.16, 1, 0.3, 1), opacity 600ms cubic-bezier(0.16, 1, 0.3, 1)',
   };
 
   const portalTarget = document.getElementById('content-modal-root') || document.body;
@@ -100,22 +103,22 @@ export default function Modal({
   return createPortal(
     <div 
       onClick={() => onClose?.()}
-      className="absolute inset-0 pointer-events-auto flex flex-col items-center justify-center p-4 sm:p-6 overflow-hidden select-none"
+      className="absolute inset-0 pointer-events-auto flex flex-col items-center justify-center p-4 sm:p-6 overflow-hidden select-none z-50"
     >
-      {/* Backdrop Blur khusus untuk area konten (Navbar & Sidebar tetap jernih & bebas blur) */}
+      {/* Backdrop Blur khusus untuk area konten */}
       <div 
         aria-hidden="true"
-        className={`absolute inset-0 bg-slate-900/35 backdrop-blur-md transition-opacity duration-1000 ease-out pointer-events-none ${
+        className={`absolute inset-0 bg-slate-900/35 backdrop-blur-md transition-opacity duration-700 ease-out pointer-events-none ${
           isAnimatingIn ? 'opacity-100' : 'opacity-0'
         }`}
       />
 
-      {/* Wrapper Animasi Popup + Helper Text (Bergerak & scaling bersamaan dengan modalStyle) */}
+      {/* Wrapper Animasi Popup + Helper Text */}
       <div 
         style={modalStyle}
         className={`relative w-full ${maxWidth} flex flex-col items-center will-change-transform z-10 pointer-events-none`}
       >
-        {/* Sheet Modal Box (Ukuran tetap & konsisten di seluruh tab) */}
+        {/* Sheet Modal Box */}
         <div 
           onClick={(e) => e.stopPropagation()}
           className={`w-full ${height} pointer-events-auto bg-white/95 backdrop-blur-xl rounded-2xl md:rounded-3xl border border-white/60 ring-1 ring-black/[0.08] shadow-[0_24px_50px_-12px_rgba(0,0,0,0.3),0_0_0_1px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col select-auto`}
@@ -152,7 +155,7 @@ export default function Modal({
           )}
         </div>
 
-        {/* Helper text di luar bawah popup (klik tombol ini langsung menutup modal) */}
+        {/* Helper text di luar bawah popup */}
         <button 
           type="button"
           onClick={() => onClose?.()}
