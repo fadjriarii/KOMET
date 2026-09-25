@@ -12,8 +12,8 @@ const { graduateQuerySchema, validateQuery } = require('../middlewares/validator
 const graduates = require('../controllers/graduatesController');
 
 // Semua routes dilindungi oleh API Key middleware & Rate Limiter & Validasi Query
-router.use(authMiddleware);
 router.use(statsLimiter);
+router.use(authMiddleware);
 router.use(validateQuery(graduateQuerySchema));
 
 // Endpoint utama tab lulusan (4 card + filter options)
