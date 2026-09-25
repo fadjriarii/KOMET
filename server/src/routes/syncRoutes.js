@@ -5,8 +5,8 @@ const authMiddleware = require('../middlewares/auth');
 const { checkSyncRunning } = require('../middlewares/syncGuard');
 const { syncLimiter, statsLimiter } = require('../middlewares/rateLimiter');
 
-// Seluruh rute sinkronisasi diproteksi oleh API Key Middleware
-router.use(authMiddleware);
+// Seluruh rute sinkronisasi diproteksi limiter dasar + API Key Middleware
+router.use(statsLimiter, authMiddleware);
 
 // Endpoint Sinkronisasi (Menggunakan HTTP POST) - Terikat syncLimiter & checkSyncRunning
 router.post('/students', syncLimiter, checkSyncRunning, syncController.syncStudents);
@@ -14,7 +14,7 @@ router.post('/graduates', syncLimiter, checkSyncRunning, syncController.syncGrad
 router.post('/mbkm', syncLimiter, checkSyncRunning, syncController.syncMbkm);
 router.post('/all', syncLimiter, checkSyncRunning, syncController.syncAll);
 
-// Endpoint Monitoring Status Sinkronisasi - Terikat statsLimiter
-router.get('/status', statsLimiter, syncController.getSyncStatus);
+// Endpoint Monitoring Status Sinkronisasi
+router.get('/status', syncController.getSyncStatus);
 
 module.exports = router;
