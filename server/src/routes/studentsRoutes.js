@@ -7,8 +7,8 @@ const { studentQuerySchema, validateQuery } = require('../middlewares/validator'
 const studentsController = require('../controllers/studentsController');
 
 // Semua routes dilindungi oleh API Key & Rate Limiter & Validasi Query
-router.use(studentSessionAuth);
 router.use(statsLimiter);
+router.use(studentSessionAuth);
 router.use(validateQuery(studentQuerySchema));
 
 // Endpoint utama dashboard (4 card + filter options)
