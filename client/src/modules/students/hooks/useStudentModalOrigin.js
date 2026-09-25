@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { getModalOriginRectFromEvent } from '../../../utils/logic';
+import { getModalOriginRectFromEvent } from '../../../utils/uiHelpers';
 
 export function useStudentModalOrigin() {
   const [activeModalType, setActiveModalType] = useState(null);

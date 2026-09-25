@@ -1,16 +1,31 @@
 const { buildStudentFilter, buildBaseFilter, getPaginationParams } = require('../services/students/filterBuilder');
 const { getFilterOptions } = require('../services/students/filterOptions');
-const { getTotalActiveStudents, getActiveStudentsByYear, getActiveStudentsMultisector } = require('../services/students/activeStudents');
+const { getTotalActiveStudents, getActiveStudentsMultisector } = require('../services/students/activeStudents');
 const { getInternationalStudentsTrend, getTotalInternationalStudents } = require('../services/students/internationalTrend');
 const { getIntakeTrend } = require('../services/students/intakeTrend');
 const { getNewStudentDecline } = require('../services/students/declineTrend');
 const { getStudentList } = require('../services/students/studentList');
 const { sendError } = require('../utils/errorHandler');
 
+const formatNumber = (value) => value === null || value === undefined ? '-' : new Intl.NumberFormat('id-ID').format(value);
+
+function buildActiveKpiFilter(query) {
+    const baseFilter = buildBaseFilter(query);
+    const statuses = Array.isArray(query.statusKeaktifan)
+        ? query.statusKeaktifan
+        : [query.statusKeaktifan];
+    return statuses.includes('__ALL__')
+        ? { ...baseFilter, statusKeaktifan: 'Aktif' }
+        : baseFilter;
+}
+
 // GET /api/students/summary — Data 4 card utama dashboard + filter options
 const getSummary = async (req, res) => {
     try {
         const baseFilter = buildBaseFilter(req.query);
+        // "Semua Status" berlaku untuk tabel, tetapi KPI Mahasiswa Aktif
+        // tetap memiliki definisi tetap: hanya status Aktif.
+        const activeKpiFilter = buildActiveKpiFilter(req.query);
         const { selectedPeriode } = req.query;
         
         const [
@@ -21,9 +36,9 @@ const getSummary = async (req, res) => {
             intakeTrendResult
         ] = await Promise.all([
             getFilterOptions(),
-            getTotalActiveStudents(baseFilter),        // Card 1: Total Mahasiswa Aktif
-            getTotalInternationalStudents(baseFilter), // Card 2: Total Mahasiswa Asing (WNA) Aktif
-            getInternationalStudentsTrend(baseFilter),
+            getTotalActiveStudents(activeKpiFilter),  // Card 1: Total Mahasiswa Aktif
+            getTotalInternationalStudents(activeKpiFilter), // Card 2: Total Mahasiswa Asing (WNA) Aktif
+            getInternationalStudentsTrend(activeKpiFilter),
             getIntakeTrend(baseFilter)                 // Card 3: Intake Mahasiswa Baru
         ]);
         
@@ -35,8 +50,9 @@ const getSummary = async (req, res) => {
 
         const activeStudentsCount = totalActiveStudents;
         const foreignStudentsCount = totalInternationalStudents;
-        const totalAll = totalActiveStudents + totalInternationalStudents;
-        const foreignStudentsRate = totalAll > 0 ? `${((totalInternationalStudents / totalAll) * 100).toFixed(1)}%` : "0.0%";
+        const foreignStudentsRate = totalActiveStudents > 0
+            ? `${((totalInternationalStudents / totalActiveStudents) * 100).toFixed(1)}%`
+            : "0.0%";
         const latestIntake = intakeTrend[intakeTrend.length - 1];
         const intakeCohortCount = latestIntake ? (latestIntake.intakeCount || latestIntake.count || 0) : 0;
         const declinePct = newStudentDecline?.declinePercentage ?? 0;
@@ -65,11 +81,20 @@ const getSummary = async (req, res) => {
             // Flat kpis object persis sesuai harapan StudentDataPage.jsx:
             kpis: {
                 activeStudentsCount,
+                foreignRate: foreignStudentsRate,
                 foreignStudentsRate,
                 foreignStudentsCount,
                 intakeCohortCount,
                 intakeFluctuationAvg,
-                isFluctuationPositive
+                isFluctuationPositive,
+                formattedActiveCount: formatNumber(activeStudentsCount),
+                formattedForeignCount: formatNumber(foreignStudentsCount),
+                formattedIntakeCount: formatNumber(intakeCohortCount),
+                foreignCount: foreignStudentsCount,
+                intakeCount: intakeCohortCount,
+                intakePeriod: latestIntake?.tahun || null,
+                declinePeriod: newStudentDecline?.selectedPeriod || null,
+                declineAvg: intakeFluctuationAvg
             },
             filterOptions
         });
@@ -78,29 +103,29 @@ const getSummary = async (req, res) => {
     }
 };
 
+// GET /api/students/international-detail — Detail chart mahasiswa asing per negara (TODO-12)
+const getInternationalDetail = async (req, res) => {
+    try {
+        const baseFilter = buildActiveKpiFilter(req.query);
+        const result = await getInternationalStudentsTrend(baseFilter);
+        return res.status(200).json({ success: true, ...result });
+    } catch (error) {
+        return sendError(res, 500, 'Gagal mengambil detail mahasiswa internasional.', error, 'students/getInternationalDetail');
+    }
+};
+
 // GET /api/students/active-students — Detail chart totalActiveStudents (multisector breakdown)
 const getActiveStudentsDetail = async (req, res) => {
     try {
-        const baseFilter = buildBaseFilter(req.query);
+        const baseFilter = buildActiveKpiFilter(req.query);
         const multisector = await getActiveStudentsMultisector(baseFilter);
-        const byYear = await getActiveStudentsByYear(baseFilter);
-        return res.status(200).json({ success: true, ...multisector, byYear });
+        return res.status(200).json({ success: true, ...multisector });
     } catch (error) {
         return sendError(res, 500, 'Gagal mengambil data mahasiswa aktif.', error, 'students/getActiveStudentsDetail');
     }
 };
 
 // GET /api/students/international-trend — Detail chart internationalStudentsTrend
-const getInternationalTrendDetail = async (req, res) => {
-    try {
-        const baseFilter = buildBaseFilter(req.query);
-        const data = await getInternationalStudentsTrend(baseFilter);
-        return res.status(200).json({ success: true, ...data });
-    } catch (error) {
-        return sendError(res, 500, 'Gagal mengambil tren mahasiswa asing.', error, 'students/getInternationalTrendDetail');
-    }
-};
-
 // GET /api/students/intake-trend — Detail chart intakeTrend (IntakeTrendView.jsx)
 const getIntakeTrendDetail = async (req, res) => {
     try {
@@ -119,15 +144,18 @@ const getDeclineTrendDetail = async (req, res) => {
         const { trend: intakeTrend } = await getIntakeTrend(baseFilter);
         const data = await getNewStudentDecline(req.query.selectedPeriode, baseFilter, intakeTrend);
         
-        const isPositive = data.declinePercentage >= 0;
-        const finalAverage = `${isPositive ? '+' : ''}${data.declinePercentage.toFixed(1)}%`;
+        const declinePercentage = data?.declinePercentage;
+        const isPositive = declinePercentage === null || declinePercentage === undefined || declinePercentage >= 0;
+        const finalAverage = declinePercentage === null || declinePercentage === undefined
+            ? '-'
+            : `${isPositive ? '+' : ''}${declinePercentage.toFixed(1)}%`;
         const trendBadge = isPositive ? 'Peningkatan' : 'Penurunan';
 
         const chartData = (data.history || []).map(h => ({
             year: h.year || h.academicYear,
-            absolutCount: h.count || h.intakeCount || 0,
-            deltaFormatted: `${h.percentageChange >= 0 ? '+' : ''}${(h.percentageChange || 0).toFixed(1)}%`,
-            deltaPercentage: h.percentageChange || 0
+            absolutCount: h.intakeCount || 0,
+            deltaFormatted: h.changeFromPrev === null || h.changeFromPrev === undefined ? '-' : `${h.changeFromPrev >= 0 ? '+' : ''}${h.changeFromPrev.toFixed(1)}%`,
+            deltaPercentage: h.changeFromPrev || 0
         }));
 
         return res.status(200).json({
@@ -154,10 +182,11 @@ const getDeclineTrendDetail = async (req, res) => {
 // GET /api/students/students — Tabel mahasiswa dengan filter + pagination
 const getStudents = async (req, res) => {
     try {
-        const whereFilter = buildStudentFilter(req.query);
-        const { limit, page } = getPaginationParams(req.query);
+        const services = req.studentDataServices || {};
+        const whereFilter = (services.buildStudentFilter || buildStudentFilter)(req.query);
+        const { limit, page } = (services.getPaginationParams || getPaginationParams)(req.query);
         
-        const result = await getStudentList(whereFilter, page, limit);
+        const result = await (services.getStudentList || getStudentList)(whereFilter, page, limit, req.query.cursor);
         return res.status(200).json({ success: true, ...result });
     } catch (error) {
         return sendError(res, 500, 'Gagal mengambil daftar mahasiswa.', error, 'students/getStudents');
@@ -167,8 +196,8 @@ const getStudents = async (req, res) => {
 module.exports = {
     getSummary,
     getActiveStudentsDetail,
-    getInternationalTrendDetail,
     getIntakeTrendDetail,
     getDeclineTrendDetail,
-    getStudents
+    getStudents,
+    getInternationalDetail
 };

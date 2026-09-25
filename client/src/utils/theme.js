@@ -36,8 +36,20 @@ export const SEMANTIC_COLORS = {
   info: DIGITAL_BLUE[600],
 };
 
+/** Warna dan label visual untuk indikator tren KPI. */
+export const TREND_STYLES = {
+  positive: { color: SEMANTIC_COLORS.success, textClass: 'text-emerald-500', iconClass: 'bg-emerald-50 text-emerald-500', label: 'Fluktuasi Positif' },
+  negative: { color: SEMANTIC_COLORS.danger, textClass: 'text-red-500', iconClass: 'bg-red-50 text-red-500', label: 'Penurunan' },
+};
+
+export function getTrendStyle(isPositive) {
+  return isPositive ? TREND_STYLES.positive : TREND_STYLES.negative;
+}
+
 export default {
   DIGITAL_BLUE,
   CHART_PALETTE,
   SEMANTIC_COLORS,
+  TREND_STYLES,
+  getTrendStyle,
 };

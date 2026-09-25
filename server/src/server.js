@@ -7,6 +7,7 @@ const hpp = require('hpp');
 const validateEnv = require('./config/envValidator');
 const logger = require('./utils/logger');
 const prisma = require('./config/prisma');
+const { issueStudentSession } = require('./middlewares/studentSession');
 
 // Handler Global untuk Unhandled Rejection & Uncaught Exception (mencegah silent crash)
 process.on('unhandledRejection', (reason, promise) => {
@@ -44,7 +45,8 @@ app.use(cors({
         return callback(new Error(`CORS: Origin ${origin} tidak diizinkan`));
     },
     methods: ['GET', 'POST'],
-    allowedHeaders: ['Content-Type', 'x-api-key', 'Authorization']
+    allowedHeaders: ['Content-Type', 'x-api-key', 'Authorization'],
+    credentials: true
 }));
 
 // Request Timeout: 30 detik
@@ -63,6 +65,7 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json());
+app.post('/api/session/student', issueStudentSession);
 
 // 3. Daftarkan Routes Sinkronisasi, Mahasiswa (Students), Kelulusan (Graduates), & MBKM
 const syncRoutes = require('./routes/syncRoutes');

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Calendar, ChevronDown, Check } from 'lucide-react';
-import { getAngkatanDisplayText, toggleAngkatanYear } from '../../../../utils/logic';
+import { getAngkatanDisplayText, toggleAngkatanYear } from '../../../../utils/uiHelpers';
 
 /**
  * StudentAngkatanFilter - Filter Angkatan dalam bentuk Multi-Select Checkbox Popover

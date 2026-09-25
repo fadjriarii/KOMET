@@ -1,7 +1,7 @@
 import { ChevronLeft, ChevronRight, Database } from 'lucide-react';
 import Skeleton from '../feedback/Skeleton';
 import EmptyState from '../feedback/EmptyState';
-import { getPaginationItems, getPaginationMeta } from '../../../utils/logic';
+import { getPaginationItems, getPaginationMeta } from '../../../utils/uiHelpers';
 
 /**
  * DataTable - Reusable Table Container
@@ -21,7 +21,11 @@ export default function DataTable({
   className = '',
   tableClassName = 'min-w-[920px]',
   tableViewportClassName = 'overflow-x-auto overflow-y-hidden custom-scrollbar',
+  density = 'default',
 }) {
+  const cellPadding = density === 'compact' ? 'px-2 py-1.5' : 'px-4 py-4';
+  const headerPadding = density === 'compact' ? 'px-2 py-2' : 'px-4 py-3';
+  const tableInset = density === 'compact' ? 'px-2' : '';
   const paginationMeta = pagination
     ? getPaginationMeta({
         currentPage: pagination.currentPage,
@@ -59,7 +63,7 @@ export default function DataTable({
         </div>
       )}
 
-      <div className={`flex-1 min-w-0 ${tableViewportClassName}`}>
+      <div className={`flex-1 min-w-0 ${tableInset} ${tableViewportClassName}`}>
         <table className={`w-full text-left border-collapse ${tableClassName}`}>
           <thead className="sticky top-0 z-10">
             <tr className="border-b border-gray-200/80 bg-gray-50/95 backdrop-blur">
@@ -67,7 +71,7 @@ export default function DataTable({
                 <th
                   key={col.key || idx}
                   scope="col"
-                  className={`px-4 first:pl-5 last:pr-5 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider ${col.headerClassName || 'whitespace-nowrap'}`}
+                  className={`${headerPadding} first:pl-2.5 last:pr-2.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider ${col.headerClassName || 'whitespace-nowrap'}`}
                 >
                   {col.label}
                 </th>
@@ -79,7 +83,7 @@ export default function DataTable({
               Array.from({ length: pagination?.pageSize || 8 }, (_, i) => (
                 <tr key={`skeleton-${i}`} className="bg-white">
                   {columns.map((col, colIdx) => (
-                    <td key={col.key || colIdx} className={`px-4 first:pl-5 last:pr-5 py-4 ${col.cellClassName || ''}`}>
+                    <td key={col.key || colIdx} className={`${cellPadding} first:pl-2.5 last:pr-2.5 ${col.cellClassName || ''}`}>
                       <Skeleton className={`h-4 ${colIdx === 0 ? 'w-8 mx-auto' : 'w-full max-w-[150px]'}`} />
                     </td>
                   ))}
@@ -102,7 +106,7 @@ export default function DataTable({
                   className="odd:bg-white even:bg-gray-50/30 hover:bg-digital-blue-50/45 transition-colors group"
                 >
                   {columns.map((col, colIdx) => (
-                    <td key={col.key || colIdx} className={`px-4 first:pl-5 last:pr-5 py-4 align-middle ${col.cellClassName || ''}`}>
+                    <td key={col.key || colIdx} className={`${cellPadding} first:pl-2.5 last:pr-2.5 align-middle ${col.cellClassName || ''}`}>
                       {col.render ? col.render(row, rowIdx) : row[col.key]}
                     </td>
                   ))}

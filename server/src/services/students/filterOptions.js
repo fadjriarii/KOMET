@@ -27,11 +27,42 @@ async function getFilterOptions(forceRefresh = false) {
         semester: semesterRes.map(r => r.semester).filter(Boolean).sort((a, b) => a - b),
         periodeMasuk: periodeRes.map(r => r.periodeMasuk).filter(Boolean).sort().reverse(),
         kewarganegaraan: kewargRes.map(r => r.kewarganegaraan).filter(Boolean).sort(),
-        statusKeaktifan: statusRes.map(r => r.statusKeaktifan).filter(Boolean).sort()
+        statusKeaktifan: statusRes.map(r => r.statusKeaktifan).filter(Boolean).sort(),
+        jenjang: await getDistinctJenjang(),
+        rollingYears: getRollingYears(angkatanRes.map(r => r.angkatan)),
+        nationalityOptions: [
+            { value: 'WNI', label: 'WNI' },
+            { value: 'WNA', label: 'WNA' }
+        ],
+        periodeOptions: [
+            { value: 'Ganjil', label: 'Ganjil' },
+            { value: 'Genap', label: 'Genap' }
+        ],
+        semesterOptions: semesterRes
+            .map(r => r.semester)
+            .filter(value => value !== null && value !== undefined)
+            .sort((a, b) => a - b)
+            .map(value => ({ value: String(value), label: `Semester ${value}` }))
     };
     studentsFilterCacheTime = now;
 
     return studentsFilterCache;
 }
 
-module.exports = { getFilterOptions };
+async function getDistinctJenjang() {
+    const rows = await prisma.student.findMany({ select: { jenjang: true }, distinct: ['jenjang'] });
+    return rows.map(r => r.jenjang).filter(Boolean).sort();
+}
+
+function getRollingYears(values) {
+    const years = values.map(value => String(value).match(/\b(20\d{2})\b/)?.[1]).filter(Boolean).map(Number);
+    const latest = years.length ? Math.max(...years) : new Date().getFullYear();
+    return Array.from({ length: 5 }, (_, index) => String(latest - index));
+}
+
+function clearFilterCache() {
+    studentsFilterCache = null;
+    studentsFilterCacheTime = 0;
+}
+
+module.exports = { getFilterOptions, clearFilterCache };

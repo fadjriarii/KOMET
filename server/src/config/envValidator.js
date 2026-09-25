@@ -5,6 +5,7 @@ const requiredEnvVars = [
     { key: 'SEVIMA_APP_KEY', description: 'X-App-Key untuk autentikasi API SEVIMA' },
     { key: 'SEVIMA_SECRET_KEY', description: 'X-Secret-Key untuk autentikasi API SEVIMA' },
     { key: 'SYNC_API_KEY', description: 'API Key untuk mengamankan endpoint /api/sync/*' }
+    ,{ key: 'SESSION_SECRET', description: 'Secret untuk HttpOnly session Student Data' }
 ];
 
 function validateEnv() {

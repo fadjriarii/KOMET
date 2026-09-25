@@ -1,4 +1,4 @@
-import Select from '../../../../components/common/ui/Select';
+import CheckboxSelect from '../../../../components/common/ui/CheckboxSelect';
 import { Award } from 'lucide-react';
 
 /**
@@ -13,7 +13,7 @@ export default function StudentJenjangFilter({
   className = '',
 }) {
   return (
-    <Select
+    <CheckboxSelect
       label="Jenjang"
       value={value}
       onChange={onChange}

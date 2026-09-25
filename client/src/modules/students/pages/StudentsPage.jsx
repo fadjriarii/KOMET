@@ -7,15 +7,13 @@ import { useStudentFilters } from '../hooks/useStudentFilters';
 import { useStudentModalOrigin } from '../hooks/useStudentModalOrigin';
 import { studentsService } from '../services/studentsService';
 import {
-  extractStudentKpis,
   getStudentKpiSubtitles,
   formatKpiDisplay,
-  extractStudentFilterOptions,
-  transformStudentListRows,
-} from '../../../utils/logic';
+} from '../../../utils/uiHelpers';
 import StudentDetailModal from '../components/StudentDetailModal';
 import StudentDataTable from '../components/StudentDataTable';
 import { StudentFilterContainer } from '../components/filters';
+import { getTrendStyle } from '../../../utils/theme';
 
 const TABLE_LIMIT = 10;
 
@@ -34,19 +32,17 @@ export default function StudentsPage() {
   const showSkeleton = isLoading || !isDataReady;
 
   // Ekstraksi & normalisasi nilai KPI via helper terpusat
-  const kpis = extractStudentKpis(data);
+  const kpis = data?.kpis || {};
   // Ekstraksi opsi filter dari response backend
-  const {
-    fakultasOptions,
-    prodiOptions,
-    jenjangOptions,
-    angkatanOptions,
-    rollingYears,
-    semesterOptions,
-    kewarganegaraanOptions,
-    statusKeaktifanOptions,
-    periodeMasukOptions,
-  } = extractStudentFilterOptions(data);
+  const filterOptions = data?.filterOptions || {};
+  const fakultasOptions = filterOptions.fakultas || [];
+  const prodiOptions = filterOptions.programStudi || [];
+  const jenjangOptions = filterOptions.jenjang || [];
+  const rollingYears = filterOptions.rollingYears || [];
+  const semesterOptions = filterOptions.semesterOptions || [];
+  const kewarganegaraanOptions = filterOptions.nationalityOptions || [];
+  const statusKeaktifanOptions = filterOptions.statusKeaktifan || [];
+  const periodeMasukOptions = filterOptions.periodeOptions || [];
 
   const {
     values: filters,
@@ -54,7 +50,7 @@ export default function StudentsPage() {
     studentListQuery,
     activeFilterCount,
     resetFilters,
-  } = useStudentFilters(angkatanOptions, TABLE_LIMIT);
+  } = useStudentFilters();
 
   const {
     rows: studentRows,
@@ -68,7 +64,7 @@ export default function StudentsPage() {
   const [filteredKpis, setFilteredKpis] = useState(null);
 
   const filteredSummaryQuery = useMemo(() => {
-    const params = new URLSearchParams(studentListQuery.toString());
+    const params = studentsService.toQueryParams(studentListQuery);
     params.delete('page');
     params.delete('limit');
     return params;
@@ -86,7 +82,7 @@ export default function StudentsPage() {
         setFilteredKpis(null);
         const response = await studentsService.getSummary(filteredSummaryQuery);
         if (!isMounted) return;
-        setFilteredKpis(extractStudentKpis(response));
+        setFilteredKpis(response?.kpis || null);
       } catch {
         if (isMounted) setFilteredKpis(null);
       }
@@ -101,6 +97,7 @@ export default function StudentsPage() {
 
   const displayKpis = hasCustomFilters && filteredKpis ? filteredKpis : kpis;
   const displaySubtitles = getStudentKpiSubtitles(displayKpis);
+  const declineTrendStyle = getTrendStyle(displayKpis.isFluctuationPositive);
 
   return (
     <div className="space-y-6">
@@ -169,6 +166,7 @@ export default function StudentsPage() {
           value={displayKpis.declineAvg} 
           subtitle={displaySubtitles.declineSubtitle}
           icon={displayKpis.isFluctuationPositive ? TrendingUp : TrendingDown}
+          valueClassName={declineTrendStyle.textClass}
           badge="5-Year Avg"
           actionLabel={kpiActionLabel}
           onViewDetails={(e) => openModal('decline', e)}
@@ -217,7 +215,7 @@ export default function StudentsPage() {
 
       {/* Tabel Daftar Mahasiswa (Data Real dari Endpoint /api/students/students) */}
       <StudentDataTable
-        rows={transformStudentListRows(studentRows)}
+        rows={studentRows}
         page={studentPage}
         limit={TABLE_LIMIT}
         pagination={studentPagination}
@@ -232,6 +230,7 @@ export default function StudentsPage() {
         activeModalType={currentModalType}
         originRect={originRect}
         data={data}
+        filters={filteredSummaryQuery}
       />
     </div>
   );

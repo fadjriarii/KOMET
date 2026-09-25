@@ -1,20 +1,17 @@
 import { useState, useMemo, useCallback } from 'react';
-import {
-  buildStudentListQuery,
-  getStudentActiveFilterCount,
-} from '../../../utils/logic';
+import { getStudentActiveFilterCount } from '../utils/studentQuery';
 
 const DEFAULT_STATUS = 'Aktif';
 
-export function useStudentFilters(angkatanOptions = [], tableLimit = 10) {
+export function useStudentFilters() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedFaculty, setSelectedFaculty] = useState('');
-  const [selectedProdi, setSelectedProdi] = useState('');
-  const [selectedJenjang, setSelectedJenjang] = useState('');
+  const [selectedFaculty, setSelectedFaculty] = useState([]);
+  const [selectedProdi, setSelectedProdi] = useState([]);
+  const [selectedJenjang, setSelectedJenjang] = useState([]);
   const [selectedYears, setSelectedYears] = useState([]);
-  const [selectedSemester, setSelectedSemester] = useState('');
+  const [selectedSemester, setSelectedSemester] = useState([]);
   const [selectedNationality, setSelectedNationality] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState(DEFAULT_STATUS);
+  const [selectedStatus, setSelectedStatus] = useState([DEFAULT_STATUS]);
   const [selectedPeriode, setSelectedPeriode] = useState('');
 
   const filterValues = useMemo(
@@ -42,13 +39,7 @@ export function useStudentFilters(angkatanOptions = [], tableLimit = 10) {
     ]
   );
 
-  const studentListQuery = useMemo(
-    () =>
-      buildStudentListQuery(filterValues, angkatanOptions, {
-        limit: tableLimit,
-      }),
-    [filterValues, angkatanOptions, tableLimit]
-  );
+  const studentListQuery = filterValues;
 
   const activeFilterCount = useMemo(
     () => getStudentActiveFilterCount(filterValues),
@@ -57,13 +48,13 @@ export function useStudentFilters(angkatanOptions = [], tableLimit = 10) {
 
   const resetFilters = useCallback(() => {
     setSearchQuery('');
-    setSelectedFaculty('');
-    setSelectedProdi('');
-    setSelectedJenjang('');
+    setSelectedFaculty([]);
+    setSelectedProdi([]);
+    setSelectedJenjang([]);
     setSelectedYears([]);
-    setSelectedSemester('');
+    setSelectedSemester([]);
     setSelectedNationality('');
-    setSelectedStatus(DEFAULT_STATUS);
+    setSelectedStatus([DEFAULT_STATUS]);
     setSelectedPeriode('');
   }, []);
 

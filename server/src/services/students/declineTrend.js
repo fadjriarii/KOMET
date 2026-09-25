@@ -11,11 +11,8 @@
  * - E = intake tahun ke-(N-4)
  *
  * Formula:
- * % Penurunan MB = rata-rata dari:
- *   (B - A) / A   ← perubahan dari tahun A ke B (B adalah tahun lebih lama)
- *   (C - B) / B
- *   (D - C) / C
- *   (E - D) / D
+ * % Perubahan MB = rata-rata dari perubahan tahun lama ke tahun terbaru:
+ *   (A - B) / B, (B - C) / C, (C - D) / D, (D - E) / E
  *
  * Nilai negatif = terjadi penurunan mahasiswa baru.
  * Nilai positif = terjadi kenaikan mahasiswa baru.
@@ -67,22 +64,23 @@ async function getNewStudentDecline(selectedPeriode, baseFilter, intakeTrendData
     }
 
     // Ambil intake untuk 5 tahun (A = terbaru, E = paling lama)
-    const [A, B, C, D, E] = await Promise.all([
+    const [A, B, C, D, E, F] = await Promise.all([
         getIntakeForYear(`${startYear}/${startYear + 1}`, baseFilter),
         getIntakeForYear(`${startYear - 1}/${startYear}`, baseFilter),
         getIntakeForYear(`${startYear - 2}/${startYear - 1}`, baseFilter),
         getIntakeForYear(`${startYear - 3}/${startYear - 2}`, baseFilter),
-        getIntakeForYear(`${startYear - 4}/${startYear - 3}`, baseFilter)
+        getIntakeForYear(`${startYear - 4}/${startYear - 3}`, baseFilter),
+        // Satu tahun tambahan hanya digunakan sebagai pembanding untuk
+        // baris tahun paling lama di tabel 5 tahun.
+        getIntakeForYear(`${startYear - 5}/${startYear - 4}`, baseFilter)
     ]);
 
-    // Hitung tiap term perubahan sesuai formula requirement:
-    // % Penurunan MB = rata-rata dari (B-A)/A + (C-B)/B + (D-C)/C + (E-D)/D
-    const term1 = A > 0 ? (B - A) / A : null;  // perubahan dari A ke B (arah historis)
-    const term2 = B > 0 ? (C - B) / B : null;
-    const term3 = C > 0 ? (D - C) / C : null;
-    const term4 = D > 0 ? (E - D) / D : null;
+    const terms = [A, B, C, D, E]
+        .slice(0, -1)
+        .map((newerCount, index) => calculateChange(newerCount, [B, C, D, E][index]))
+        .filter(term => term !== null);
 
-    const validTerms = [term1, term2, term3, term4].filter(t => t !== null);
+    const validTerms = terms;
 
     // Handle edge case: tidak ada data yang cukup untuk menghitung
     if (validTerms.length === 0) {
@@ -91,18 +89,13 @@ async function getNewStudentDecline(selectedPeriode, baseFilter, intakeTrendData
             selectedPeriod: selectedYear,
             declinePercentage: null,
             history: [
-                { label: 'A', academicYear: `${startYear}/${startYear + 1}`, intakeCount: A, changeFromPrev: null },
-                { label: 'B', academicYear: `${startYear - 1}/${startYear}`, intakeCount: B, changeFromPrev: null },
-                { label: 'C', academicYear: `${startYear - 2}/${startYear - 1}`, intakeCount: C, changeFromPrev: null },
-                { label: 'D', academicYear: `${startYear - 3}/${startYear - 2}`, intakeCount: D, changeFromPrev: null },
-                { label: 'E', academicYear: `${startYear - 4}/${startYear - 3}`, intakeCount: E, changeFromPrev: null }
+            ...buildHistory(startYear, [A, B, C, D, E], false, null, F)
             ],
-            formula: 'avg((B-A)/A + (C-B)/B + (D-C)/C + (E-D)/D)'
+            formula: 'avg((A-B)/B + (B-C)/C + (C-D)/D + (D-E)/E)'
         };
     }
 
-    const avgChange = validTerms.reduce((sum, t) => sum + t, 0) / validTerms.length;
-    const declinePercentage = parseFloat((avgChange * 100).toFixed(2));
+    const declinePercentage = parseFloat((validTerms.reduce((sum, term) => sum + term, 0) / validTerms.length * 100).toFixed(2));
 
     /**
      * FIX BUG calcChange direction:
@@ -121,15 +114,37 @@ async function getNewStudentDecline(selectedPeriode, baseFilter, intakeTrendData
     return {
         selectedPeriod: selectedYear,
         declinePercentage,
-        history: [
-            { label: 'A', academicYear: `${startYear}/${startYear + 1}`, intakeCount: A, changeFromPrev: null },
-            { label: 'B', academicYear: `${startYear - 1}/${startYear}`, intakeCount: B, changeFromPrev: calcChange(A, B) },
-            { label: 'C', academicYear: `${startYear - 2}/${startYear - 1}`, intakeCount: C, changeFromPrev: calcChange(B, C) },
-            { label: 'D', academicYear: `${startYear - 3}/${startYear - 2}`, intakeCount: D, changeFromPrev: calcChange(C, D) },
-            { label: 'E', academicYear: `${startYear - 4}/${startYear - 3}`, intakeCount: E, changeFromPrev: calcChange(D, E) }
-        ],
-        formula: 'avg((B-A)/A + (C-B)/B + (D-C)/C + (E-D)/D)'
+        history: buildHistory(startYear, [A, B, C, D, E], true, calcChange, F),
+        formula: 'avg((A-B)/B + (B-C)/C + (C-D)/D + (D-E)/E)'
     };
 }
 
-module.exports = { getNewStudentDecline };
+function calculateChange(newerCount, olderCount) {
+    return olderCount > 0 ? (newerCount - olderCount) / olderCount : null;
+}
+
+function calculateAverageChange(counts) {
+    const terms = counts.slice(0, -1)
+        .map((newerCount, index) => calculateChange(newerCount, counts[index + 1]))
+        .filter(term => term !== null);
+    return terms.length
+        ? parseFloat((terms.reduce((sum, term) => sum + term, 0) / terms.length * 100).toFixed(2))
+        : null;
+}
+
+function buildHistory(startYear, counts, includeChanges, calcChange, olderCount = null) {
+    return counts.map((intakeCount, index) => ({
+        label: String.fromCharCode(65 + index),
+        academicYear: `${startYear - index}/${startYear + 1 - index}`,
+        intakeCount,
+        intakeCountFormatted: `${new Intl.NumberFormat('id-ID').format(intakeCount)} mhs`,
+        // Perubahan tahun ini dibandingkan tahun akademik sebelumnya.
+        // Dengan demikian tahun terbaru tetap memiliki persentase jika
+        // tahun sebelumnya tersedia.
+        changeFromPrev: includeChanges && (index < counts.length - 1 || olderCount !== null)
+            ? calcChange(intakeCount, index < counts.length - 1 ? counts[index + 1] : olderCount)
+            : null
+    }));
+}
+
+module.exports = { getNewStudentDecline, calculateAverageChange };

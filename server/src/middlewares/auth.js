@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const logger = require('../utils/logger');
 
-module.exports = (req, res, next) => {
+function authenticateApiKey(req) {
     const apiKeyHeader = req.headers['x-api-key'];
     const authHeader = req.headers['authorization'];
     
@@ -14,10 +14,7 @@ module.exports = (req, res, next) => {
 
     if (!expectedKey) {
         logger.error('SYNC_API_KEY belum dikonfigurasi di environment!');
-        return res.status(500).json({
-            success: false,
-            message: 'Server configuration error: SYNC_API_KEY is not set.'
-        });
+        return false;
     }
 
     let isValid = false;
@@ -31,15 +28,23 @@ module.exports = (req, res, next) => {
     }
 
     if (isValid) {
-        return next();
+        return true;
     }
 
     // Masking: gunakan req.path agar query params sensitif tidak bocor ke log file
     const sanitizedUrl = req.path || req.baseUrl || req.originalUrl;
     logger.warn(`Unauthorized access attempt to ${req.method} ${sanitizedUrl} from IP: ${req.ip}`);
+    return false;
+}
+
+function apiKeyAuth(req, res, next) {
+    if (authenticateApiKey(req)) return next();
+    if (!process.env.SYNC_API_KEY) return res.status(500).json({ success: false, message: 'Server configuration error.' });
     return res.status(401).json({
         success: false,
         message: 'Unauthorized access. Valid x-api-key header or Bearer token is required.'
     });
-};
+}
 
+module.exports = apiKeyAuth;
+module.exports.authenticateApiKey = authenticateApiKey;

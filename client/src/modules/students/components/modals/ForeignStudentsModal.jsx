@@ -1,21 +1,22 @@
+import { useCallback } from 'react';
 import Modal from '../../../../components/common/modals/Modal';
 import ModalSummaryBanner from '../../../../components/common/modals/ModalSummaryBanner';
 import ModalTabNav from '../../../../components/common/modals/ModalTabNav';
 import ModalTable from '../../../../components/common/modals/ModalTable';
 import EmptyState from '../../../../components/common/feedback/EmptyState';
 import { useTabTransition } from '../../../../hooks/useTabTransition';
+import { TREND_TABS } from './studentTrendConfig';
 import {
-  extractStudentKpis,
   getCurrentAcademicYear,
   formatCompactNumber,
   formatNumber,
-  transformForeignTrend,
   reverseTrendData,
-  getForeignTrendSource,
   getTooltipPayloadItem,
-} from '../../../../utils/logic';
+} from '../../../../utils/uiHelpers';
 import { DIGITAL_BLUE } from '../../../../utils/theme';
-import { BarChart3, Table, Calendar, Users, Globe, Percent } from 'lucide-react';
+import { studentsService } from '../../services/studentsService';
+import { useStudentDetailResource } from '../../hooks/useStudentDetailResource';
+import { BarChart3, Calendar, Users, Globe, Percent } from 'lucide-react';
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -28,10 +29,7 @@ import {
   Legend,
 } from 'recharts';
 
-const FOREIGN_TABS = [
-  { key: 'chart', label: 'Diagram Tren', icon: BarChart3 },
-  { key: 'table', label: 'Tabel Riwayat', icon: Table },
-];
+const FOREIGN_TABS = TREND_TABS;
 
 const FOREIGN_TABLE_COLUMNS = [
   {
@@ -84,13 +82,17 @@ export default function ForeignStudentsModal({
   onClose,
   originRect,
   data,
+  filters,
 }) {
   const { activeTab, handleTabChange, slideClass } = useTabTransition(FOREIGN_TABS, 'chart');
+  const fetchSummary = useCallback(() => studentsService.getSummary(filters), [filters]);
+  const { data: filteredData } = useStudentDetailResource(isOpen, fetchSummary, 'Gagal memuat data mahasiswa asing');
 
-  const kpis = extractStudentKpis(data);
+  const sourceData = filteredData || data;
+  const kpis = sourceData?.kpis || {};
   const currentAcademicYear = getCurrentAcademicYear();
 
-  const trendData = transformForeignTrend(getForeignTrendSource(data));
+  const trendData = sourceData?.summary?.internationalStudentsTrend?.trend || [];
   const tableData = reverseTrendData(trendData);
   const hasTrend = trendData.length > 0;
 
