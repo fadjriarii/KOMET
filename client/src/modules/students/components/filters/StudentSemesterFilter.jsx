@@ -1,4 +1,4 @@
-import Select from '../../../../components/common/ui/Select';
+import CheckboxSelect from '../../../../components/common/ui/CheckboxSelect';
 import { Layers } from 'lucide-react';
 
 /**
@@ -13,7 +13,7 @@ export default function StudentSemesterFilter({
   className = '',
 }) {
   return (
-    <Select
+    <CheckboxSelect
       label="Semester"
       value={value}
       onChange={onChange}

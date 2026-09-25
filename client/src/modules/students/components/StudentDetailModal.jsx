@@ -16,6 +16,7 @@ export default function StudentDetailModal({
   activeModalType, // 'active' | 'foreign' | 'intake' | 'decline'
   originRect,
   data,
+  filters,
 }) {
   if (!activeModalType) return null;
 
@@ -26,24 +27,28 @@ export default function StudentDetailModal({
         onClose={onClose}
         originRect={originRect}
         data={data}
+        filters={filters}
       />
       <ForeignStudentsModal
         isOpen={isOpen && activeModalType === 'foreign'}
         onClose={onClose}
         originRect={originRect}
         data={data}
+        filters={filters}
       />
       <IntakeStudentsModal
         isOpen={isOpen && activeModalType === 'intake'}
         onClose={onClose}
         originRect={originRect}
         data={data}
+        filters={filters}
       />
       <DeclineStudentsModal
         isOpen={isOpen && activeModalType === 'decline'}
         onClose={onClose}
         originRect={originRect}
         data={data}
+        filters={filters}
       />
     </>
   );

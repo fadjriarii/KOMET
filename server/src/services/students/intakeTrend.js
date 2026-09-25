@@ -6,13 +6,16 @@
  */
 
 const prisma = require('../../config/prisma');
-const { toAcademicYear } = require('../../utils/academicUtils');
+const { toAcademicYear, get5YearRollingAcademicYears } = require('../../utils/academicUtils');
 
-async function getIntakeTrend(baseFilter) {
+async function getIntakeTrend(baseFilter = {}) {
+    // Pastikan perhitungan intake historis mencerminkan semua mahasiswa yang diterima (intake admissions)
+    // tanpa terbatasi oleh status keaktifan saat ini jika bukan filter eksplisit
+    const queryFilter = { ...baseFilter };
+    delete queryFilter.statusKeaktifan;
+
     const students = await prisma.student.findMany({
-        where: {
-            ...baseFilter
-        },
+        where: queryFilter,
         select: { periodeMasuk: true }
     });
 
@@ -28,20 +31,22 @@ async function getIntakeTrend(baseFilter) {
         const counts = yearlyMap.get(acadYear);
         counts.total += 1;
 
-        const termDigit = s.periodeMasuk ? s.periodeMasuk.substring(4, 5) : '';
-        if (termDigit === '2') {
+        const normalizedPeriod = String(s.periodeMasuk ?? '').trim();
+        const termDigit = normalizedPeriod.substring(4, 5);
+        if (termDigit === '1') {
             counts.ganjil += 1;
-        } else if (termDigit === '1') {
+        } else if (termDigit === '2') {
             counts.genap += 1;
         } else {
             counts.ganjil += 1;
         }
     }
 
-    const sortedYears = Array.from(yearlyMap.keys()).sort();
+    const availableYears = Array.from(yearlyMap.keys());
+    const rollingYears = get5YearRollingAcademicYears(availableYears);
 
-    const rawTrend = sortedYears.map(year => {
-        const item = yearlyMap.get(year);
+    const rawTrend = rollingYears.map(year => {
+        const item = yearlyMap.get(year) || { total: 0, ganjil: 0, genap: 0 };
         return {
             tahun: year,
             intakeCount: item.total,
@@ -53,6 +58,7 @@ async function getIntakeTrend(baseFilter) {
     const trend = rawTrend.map((item, index) => {
         let growth = 0;
         let growthLabel = '0.00%';
+        let hasPrev = false;
 
         if (index > 0) {
             const prevCount = rawTrend[index - 1].intakeCount;
@@ -60,17 +66,35 @@ async function getIntakeTrend(baseFilter) {
                 growth = (item.intakeCount - prevCount) / prevCount;
                 const pct = (growth * 100).toFixed(2);
                 growthLabel = `${growth >= 0 ? '+' : ''}${pct}%`;
+                hasPrev = true;
             } else if (item.intakeCount > 0) {
                 growth = 1.0;
                 growthLabel = '+100.00%';
+                hasPrev = true;
+            }
+        } else {
+            // Untuk tahun pertama di jendela 5 tahun, periksa apakah ada data 1 tahun sebelumnya di database (yearlyMap)
+            const currentYearStart = parseInt(item.tahun.split('/')[0]);
+            const prevAcadYear = `${currentYearStart - 1}/${currentYearStart}`;
+            if (yearlyMap.has(prevAcadYear)) {
+                const prevCount = yearlyMap.get(prevAcadYear).total;
+                if (prevCount > 0) {
+                    growth = (item.intakeCount - prevCount) / prevCount;
+                    const pct = (growth * 100).toFixed(2);
+                    growthLabel = `${growth >= 0 ? '+' : ''}${pct}%`;
+                    hasPrev = true;
+                }
             }
         }
 
         return {
             tahun: item.tahun,
             intakeCount: item.intakeCount,
+            intakeCountFormatted: `${new Intl.NumberFormat('id-ID').format(item.intakeCount)} mhs`,
             growth: growthLabel,
-            rawGrowth: growth
+            growthFormatted: growthLabel,
+            rawGrowth: growth,
+            isPositive: growth >= 0
         };
     });
 
@@ -110,14 +134,17 @@ async function getIntakeTrend(baseFilter) {
     return { trend, rechartsData };
 }
 
-async function getIntakeForYear(yearStr, baseFilter) {
+async function getIntakeForYear(yearStr, baseFilter = {}) {
     if (!yearStr) return 0;
     const startYear = parseInt(yearStr.split('/')[0]);
     if (isNaN(startYear)) return 0;
 
+    const queryFilter = { ...baseFilter };
+    delete queryFilter.statusKeaktifan;
+
     return prisma.student.count({
         where: {
-            ...baseFilter,
+            ...queryFilter,
             periodeMasuk: { startsWith: `${startYear}` }
         }
     });

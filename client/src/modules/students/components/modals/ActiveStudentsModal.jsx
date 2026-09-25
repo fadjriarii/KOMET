@@ -5,12 +5,10 @@ import ModalTabNav from '../../../../components/common/modals/ModalTabNav';
 import StudentDistributionChart from './StudentDistributionChart';
 import { useTabTransition } from '../../../../hooks/useTabTransition';
 import {
-  extractStudentKpis,
   getCurrentAcademicYear,
   getStudentActiveDescription,
-  transformActiveStudentDetail,
   getActiveTabContent,
-} from '../../../../utils/logic';
+} from '../../../../utils/uiHelpers';
 import { studentsService } from '../../services/studentsService';
 import { useStudentDetailResource } from '../../hooks/useStudentDetailResource';
 import { Building2, BookOpen, Layers } from 'lucide-react';
@@ -26,9 +24,10 @@ export default function ActiveStudentsModal({
   onClose,
   originRect,
   data,
+  filters,
 }) {
   const { activeTab, handleTabChange, slideClass } = useTabTransition(STUDENT_TABS, 'fakultas');
-  const fetchActiveDetail = useCallback(() => studentsService.getActiveStudentsDetail(), []);
+  const fetchActiveDetail = useCallback(() => studentsService.getActiveStudentsDetail(filters), [filters]);
   const {
     data: activeDetailData,
     isLoading: isLoadingDetail,
@@ -39,12 +38,11 @@ export default function ActiveStudentsModal({
     'Gagal memuat rincian mahasiswa aktif'
   );
 
-  const kpis = extractStudentKpis(data);
+  const kpis = data?.kpis || {};
   const currentAcademicYear = getCurrentAcademicYear();
-  const { facultyList, prodiList, jenjangList } = transformActiveStudentDetail(
-    activeDetailData,
-    kpis.activeCount
-  );
+  const facultyList = activeDetailData?.byFaculty || [];
+  const prodiList = activeDetailData?.byProdi || [];
+  const jenjangList = activeDetailData?.byJenjang || [];
 
   const activeContent = getActiveTabContent(activeTab, {
     fakultas: (

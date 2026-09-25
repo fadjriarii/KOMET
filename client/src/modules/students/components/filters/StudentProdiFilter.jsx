@@ -1,4 +1,4 @@
-import Select from '../../../../components/common/ui/Select';
+import CheckboxSelect from '../../../../components/common/ui/CheckboxSelect';
 import { BookOpen } from 'lucide-react';
 
 /**
@@ -14,7 +14,7 @@ export default function StudentProdiFilter({
   className = '',
 }) {
   return (
-    <Select
+    <CheckboxSelect
       label="Program Studi"
       value={value}
       onChange={onChange}

@@ -3,22 +3,48 @@
  */
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
-const API_KEY = import.meta.env.VITE_SYNC_API_KEY;
+const REQUEST_TIMEOUT_MS = 30000;
+let sessionPromise;
+
+async function ensureStudentSession() {
+  if (!sessionPromise) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    sessionPromise = fetch(`${BASE_URL}/session/student`, {
+      method: 'POST',
+      credentials: 'include',
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timeout)).catch((error) => {
+      sessionPromise = undefined;
+      if (error.name === 'AbortError') throw new Error('Backend session timeout.', { cause: error });
+      throw error;
+    });
+  }
+  const response = await sessionPromise;
+  if (!response.ok) throw new Error('Student session gagal dibuat.');
+}
+
 
 export async function apiRequest(endpoint, options = {}) {
+  if (!BASE_URL) throw new Error('VITE_API_BASE_URL belum dikonfigurasi.');
+  await ensureStudentSession();
   const url = `${BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
   
   const headers = {
     'Content-Type': 'application/json',
-    'x-api-key': API_KEY,
     ...options.headers,
   };
 
   try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     const response = await fetch(url, {
       ...options,
       headers,
+      credentials: 'include',
+      signal: options.signal || controller.signal,
     });
+    clearTimeout(timeout);
 
     const data = await response.json().catch(() => null);
 
@@ -29,6 +55,9 @@ export async function apiRequest(endpoint, options = {}) {
     return data;
   } catch (error) {
     console.error(`[API Error] ${endpoint}:`, error);
+    if (error.name === 'AbortError') {
+      throw new Error('Request timeout. Silakan coba lagi.', { cause: error });
+    }
     throw error;
   }
 }

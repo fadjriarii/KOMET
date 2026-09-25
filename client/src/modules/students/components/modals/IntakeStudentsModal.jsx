@@ -6,16 +6,14 @@ import ModalTable from '../../../../components/common/modals/ModalTable';
 import EmptyState from '../../../../components/common/feedback/EmptyState';
 import Skeleton from '../../../../components/common/feedback/Skeleton';
 import { useTabTransition } from '../../../../hooks/useTabTransition';
+import { TREND_TABS } from './studentTrendConfig';
 import {
-  extractStudentKpis,
   getStudentIntakeDescription,
   formatCompactNumber,
   formatNumber,
-  transformIntakeTrend,
   reverseTrendData,
-  getIntakeTrendSource,
   getTooltipPayloadItem,
-} from '../../../../utils/logic';
+} from '../../../../utils/uiHelpers';
 import { DIGITAL_BLUE } from '../../../../utils/theme';
 import { studentsService } from '../../services/studentsService';
 import { useStudentDetailResource } from '../../hooks/useStudentDetailResource';
@@ -25,7 +23,6 @@ import {
   TrendingDown,
   Users,
   BarChart3,
-  Table,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -39,10 +36,7 @@ import {
   LabelList,
 } from 'recharts';
 
-const INTAKE_TABS = [
-  { key: 'chart', label: 'Diagram Tren', icon: BarChart3 },
-  { key: 'table', label: 'Tabel Riwayat', icon: Table },
-];
+const INTAKE_TABS = TREND_TABS;
 
 const INTAKE_TABLE_COLUMNS = [
   {
@@ -94,9 +88,10 @@ export default function IntakeStudentsModal({
   onClose,
   originRect,
   data,
+  filters,
 }) {
   const { activeTab, handleTabChange, slideClass } = useTabTransition(INTAKE_TABS, 'chart');
-  const fetchIntakeDetail = useCallback(() => studentsService.getIntakeTrend(), []);
+  const fetchIntakeDetail = useCallback(() => studentsService.getIntakeTrend(filters), [filters]);
   const {
     data: intakeData,
     isLoading,
@@ -107,8 +102,8 @@ export default function IntakeStudentsModal({
     'Gagal memuat data intake mahasiswa'
   );
 
-  const kpis = extractStudentKpis(data);
-  const trendList = transformIntakeTrend(getIntakeTrendSource(intakeData, data));
+  const kpis = data?.kpis || {};
+  const trendList = intakeData?.data || data?.summary?.intakeTrend?.trend || [];
   const tableData = reverseTrendData(trendList);
   const hasData = trendList.length > 0;
 

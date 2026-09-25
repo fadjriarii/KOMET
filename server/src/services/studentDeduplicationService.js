@@ -67,10 +67,7 @@ async function deduplicateStudents() {
 
     // 3. Evaluasi setiap kelompok
     for (const [, group] of groupMap) {
-        // Jika HANYA 1 data -> TIDAK DUPLIKAT -> TETAP ADA (Skip)
-        if (group.length <= 1) continue;
-
-        // Jika > 1 data -> ADA DUPLIKAT -> Pemilahan & Resolusi
+        // Pemilahan: Urutkan data agar data tanpa 'x' menjadi prioritas utama survivor
         group.sort((a, b) => {
             const aHasX = /x/i.test(a.nim);
             const bHasX = /x/i.test(b.nim);
@@ -86,45 +83,89 @@ async function deduplicateStudents() {
         });
 
         const survivor = group[0]; // 1 Data Utama yang diselamatkan
-        const eliminated = group.slice(1); // Data sisa yang tereliminasi
+        const eliminated = group.slice(1); // Data sisa yang tereliminasi jika ada duplikat
 
-        await prisma.$transaction(async (tx) => {
-            for (const duplicateStudent of eliminated) {
-                // Re-link / pindahkan relasi Graduate jika survivor belum memiliki Graduate
-                const duplicateGraduate = await tx.graduate.findUnique({
-                    where: { nim: duplicateStudent.nim }
-                });
-
-                if (duplicateGraduate) {
-                    const survivorGraduate = await tx.graduate.findUnique({
-                        where: { nim: survivor.nim }
+        // Jika ada duplikat, pindahkan relasi anak ke survivor NIM dan tandai duplikat untuk dihapus
+        if (eliminated.length > 0) {
+            await prisma.$transaction(async (tx) => {
+                for (const duplicateStudent of eliminated) {
+                    // Re-link / pindahkan relasi Graduate jika survivor belum memiliki Graduate
+                    const duplicateGraduate = await tx.graduate.findUnique({
+                        where: { nim: duplicateStudent.nim }
                     });
 
-                    if (!survivorGraduate) {
-                        // Pindahkan kelulusan ke survivor NIM
-                        await tx.graduate.update({
-                            where: { id: duplicateGraduate.id },
-                            data: { nim: survivor.nim }
+                    if (duplicateGraduate) {
+                        const survivorGraduate = await tx.graduate.findUnique({
+                            where: { nim: survivor.nim }
                         });
-                        relinkedGraduatesCount++;
-                    } else {
-                        // Jika survivor sudah punya kelulusan, hapus kelulusan duplikat
-                        await tx.graduate.delete({
-                            where: { id: duplicateGraduate.id }
-                        });
+
+                        if (!survivorGraduate) {
+                            // Pindahkan kelulusan ke survivor NIM
+                            await tx.graduate.update({
+                                where: { id: duplicateGraduate.id },
+                                data: { nim: survivor.nim }
+                            });
+                            relinkedGraduatesCount++;
+                        } else {
+                            // Jika survivor sudah punya kelulusan, hapus kelulusan duplikat
+                            await tx.graduate.delete({
+                                where: { id: duplicateGraduate.id }
+                            });
+                        }
                     }
+
+                    // Re-link relasi MBKM Activity ke survivor NIM
+                    const mbkmRes = await tx.mbkmActivity.updateMany({
+                        where: { nim: duplicateStudent.nim },
+                        data: { nim: survivor.nim }
+                    });
+                    relinkedMbkmCount += mbkmRes.count;
+
+                    studentIdsToDelete.push(duplicateStudent.nim);
                 }
+            });
+        }
 
-                // Re-link relasi MBKM Activity ke survivor NIM
-                const mbkmRes = await tx.mbkmActivity.updateMany({
-                    where: { nim: duplicateStudent.nim },
-                    data: { nim: survivor.nim }
-                });
-                relinkedMbkmCount += mbkmRes.count;
+        // Jika survivor masih memiliki karakter 'x' (misal hanya ada 1 data dan mengandung x),
+        // bersihkan 'x' dari NIM dan perbarui relasi ke clean NIM
+        const cleanNim = survivor.nim.replace(/x/gi, '');
+        if (cleanNim && cleanNim !== survivor.nim && !studentIdsToDelete.includes(survivor.nim)) {
+            await prisma.$transaction(async (tx) => {
+                // Periksa apakah target cleanNim sudah ada di DB
+                const existingClean = await tx.student.findUnique({ where: { nim: cleanNim } });
+                if (!existingClean) {
+                    // Buat record baru dengan clean NIM menyalin data survivor
+                    await tx.student.create({
+                        data: {
+                            nim: cleanNim,
+                            nama: survivor.nama,
+                            jenjang: survivor.jenjang,
+                            periodeMasuk: survivor.periodeMasuk,
+                            angkatan: survivor.angkatan,
+                            periode: survivor.periode,
+                            programStudi: survivor.programStudi,
+                            fakultas: survivor.fakultas,
+                            statusKeaktifan: survivor.statusKeaktifan,
+                            semester: survivor.semester,
+                            kewarganegaraan: survivor.kewarganegaraan
+                        }
+                    });
 
-                studentIdsToDelete.push(duplicateStudent.nim);
-            }
-        });
+                    // Pindahkan relasi Graduate & MBKM
+                    await tx.graduate.updateMany({
+                        where: { nim: survivor.nim },
+                        data: { nim: cleanNim }
+                    });
+                    await tx.mbkmActivity.updateMany({
+                        where: { nim: survivor.nim },
+                        data: { nim: cleanNim }
+                    });
+
+                    // Hapus record lama yang ber-x
+                    studentIdsToDelete.push(survivor.nim);
+                }
+            });
+        }
     }
 
     // 4. Bulk Delete Mahasiswa Duplikat
@@ -134,9 +175,24 @@ async function deduplicateStudents() {
             where: { nim: { in: studentIdsToDelete } }
         });
         deletedStudentsCount = deleteRes.count;
-        logger.success(`🗑️ Berhasil menghapus ${deletedStudentsCount} record mahasiswa duplikat secara masal.`);
+        logger.success(`🗑️ Berhasil menghapus ${deletedStudentsCount} record mahasiswa duplikat/ber-X secara masal.`);
     } else {
         logger.info('✨ Tidak ada data mahasiswa duplikat yang perlu dihapus.');
+    }
+
+    // 4b. Pembersihan Data Akun Lama & NIM tidak valid yang tersisa di database
+    const deleteAkunLamaRes = await prisma.student.deleteMany({
+        where: {
+            OR: [
+                { programStudi: { contains: 'Akun Lama' } },
+                { fakultas: { contains: 'Akun Lama' } },
+                { programStudi: { contains: 'keterangan akun lama' } },
+                { fakultas: { contains: 'keterangan akun lama' } }
+            ]
+        }
+    });
+    if (deleteAkunLamaRes.count > 0) {
+        logger.success(`🗑️ Berhasil membersihkan ${deleteAkunLamaRes.count} record mahasiswa berstatus Akun Lama dari database.`);
     }
 
     // 5. Pembersihan Duplikat pada Aktivitas MBKM

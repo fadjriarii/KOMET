@@ -1,4 +1,4 @@
-import Select from '../../../../components/common/ui/Select';
+import CheckboxSelect from '../../../../components/common/ui/CheckboxSelect';
 import { UserCheck } from 'lucide-react';
 
 /**
@@ -14,7 +14,7 @@ export default function StudentStatusFilter({
   className = '',
 }) {
   return (
-    <Select
+    <CheckboxSelect
       label="Status Keaktifan"
       value={value}
       onChange={onChange}
@@ -25,6 +25,7 @@ export default function StudentStatusFilter({
       disabled={disabled}
       className={className}
       id="filter-status-keaktifan"
+      defaultValue={['Aktif']}
     />
   );
 }

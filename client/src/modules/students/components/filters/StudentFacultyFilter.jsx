@@ -1,4 +1,4 @@
-import Select from '../../../../components/common/ui/Select';
+import CheckboxSelect from '../../../../components/common/ui/CheckboxSelect';
 import { Building2 } from 'lucide-react';
 
 /**
@@ -14,7 +14,7 @@ export default function StudentFacultyFilter({
   className = '',
 }) {
   return (
-    <Select
+    <CheckboxSelect
       label="Fakultas"
       value={value}
       onChange={onChange}

@@ -1,10 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { studentsService } from '../services/studentsService';
-import {
-  buildStudentListFilterKey,
-  rebuildStudentListParams,
-} from '../../../utils/logic';
-
 const SEARCH_DEBOUNCE_MS = 400;
 
 /**
@@ -20,10 +15,7 @@ export function useStudentList(queryParams, { limit = 10 } = {}) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const filterKey = useMemo(
-    () => buildStudentListFilterKey(queryParams),
-    [queryParams]
-  );
+  const filterKey = useMemo(() => JSON.stringify(queryParams || {}), [queryParams]);
 
   const debouncedFilterKey = useDebouncedValue(filterKey, SEARCH_DEBOUNCE_MS);
 
@@ -38,13 +30,13 @@ export function useStudentList(queryParams, { limit = 10 } = {}) {
 
   useEffect(() => {
     let isMounted = true;
-    const effectiveParams = rebuildStudentListParams(debouncedFilterKey, page, limit);
+    const filters = JSON.parse(debouncedFilterKey || '{}');
 
     async function fetchList() {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await studentsService.getStudentList(effectiveParams);
+        const response = await studentsService.getStudentList({ filters, page, limit });
         if (!isMounted) return;
         if (response?.success) {
           setRows(Array.isArray(response.data) ? response.data : []);

@@ -1,7 +1,7 @@
 import { GraduationCap, Users } from 'lucide-react';
 import DataTable from '../../../components/common/tables/DataTable';
 import Badge from '../../../components/common/ui/Badge';
-import { formatNumber, getStatusBadgeVariant, getRowNumber } from '../../../utils/logic';
+import { formatNumber, getStatusBadgeVariant, getRowNumber } from '../../../utils/uiHelpers';
 
 /**
  * StudentDataTable - Pure presenter tabel daftar mahasiswa
@@ -19,14 +19,14 @@ export default function StudentDataTable({
     {
       key: 'no',
       label: 'No',
-      headerClassName: 'w-[5%] text-center',
+      headerClassName: 'w-[4%] text-center',
       cellClassName: 'text-center text-gray-400 font-medium',
       render: (_row, idx) => getRowNumber(idx, page, limit),
     },
     {
       key: 'nim',
       label: 'NIM',
-      headerClassName: 'w-[10%]',
+      headerClassName: 'w-[8%]',
       cellClassName: 'break-words',
       render: (row) => (
         <span className="font-mono text-xs font-bold text-gray-800 break-words">
@@ -37,7 +37,7 @@ export default function StudentDataTable({
     {
       key: 'nama',
       label: 'Nama',
-      headerClassName: 'w-[18%]',
+      headerClassName: 'w-[16%]',
       cellClassName: 'break-words',
       render: (row) => (
         <span className="block font-bold text-gray-900 whitespace-normal break-words leading-snug">
@@ -48,7 +48,7 @@ export default function StudentDataTable({
     {
       key: 'programStudi',
       label: 'Program Studi',
-      headerClassName: 'w-[17%] whitespace-normal leading-tight',
+      headerClassName: 'w-[16%] whitespace-normal leading-tight',
       cellClassName: 'break-words',
       render: (row) => (
         <span className="block font-semibold text-gray-800 whitespace-normal break-words leading-snug">
@@ -59,13 +59,13 @@ export default function StudentDataTable({
     {
       key: 'fakultas',
       label: 'Fakultas',
-      headerClassName: 'w-[13%]',
+      headerClassName: 'w-[12%]',
       cellClassName: 'text-gray-600 whitespace-normal break-words leading-snug',
     },
     {
       key: 'angkatan',
       label: 'Angkatan',
-      headerClassName: 'w-[10%]',
+      headerClassName: 'w-[7%]',
       cellClassName: 'whitespace-normal break-words',
       render: (row) => (
         <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-700 whitespace-normal">
@@ -77,14 +77,14 @@ export default function StudentDataTable({
     {
       key: 'periode',
       label: 'Periode',
-      headerClassName: 'w-[8%] text-center',
+      headerClassName: 'w-[6%] text-center',
       cellClassName: 'text-center break-words',
-      render: (row) => row.periodeMasuk || row.periode || '-',
+      render: (row) => row.periode || row.periodeMasuk || '-',
     },
     {
       key: 'semester',
       label: 'Semester',
-      headerClassName: 'w-[8%] text-center',
+      headerClassName: 'w-[6%] text-center',
       cellClassName: 'text-center',
       render: (row) => (
         <span className="inline-flex items-center justify-center min-w-8 h-7 rounded-lg bg-gray-100 text-gray-700 text-xs font-bold">
@@ -93,15 +93,26 @@ export default function StudentDataTable({
       ),
     },
     {
+      key: 'jenjang',
+      label: 'Jenjang',
+      headerClassName: 'w-[7%] text-center',
+      cellClassName: 'text-center',
+      render: (row) => (
+        <span className="inline-flex items-center justify-center px-2 py-1 rounded-md bg-blue-50 text-blue-700 text-xs font-bold border border-blue-100/80">
+          {row.jenjang || '-'}
+        </span>
+      ),
+    },
+    {
       key: 'kewarganegaraan',
       label: 'Kewarganegaraan',
-      headerClassName: 'w-[10%] text-center whitespace-normal break-words leading-tight',
+      headerClassName: 'w-[12%] text-center whitespace-normal break-words leading-tight',
       cellClassName: 'text-center',
       render: (row) => (
         <Badge
           size="sm"
-          variant={row.kewarganegaraan === 'WNA' ? 'warning' : 'default'}
-          className="justify-center min-w-16"
+          variant={row.kewarganegaraan && row.kewarganegaraan !== 'Indonesia' ? 'warning' : 'default'}
+          className="justify-center min-w-14 text-xs"
         >
           {row.kewarganegaraan || '-'}
         </Badge>
@@ -110,7 +121,8 @@ export default function StudentDataTable({
     {
       key: 'statusKeaktifan',
       label: 'Status Keaktifan',
-      headerClassName: 'w-[11%] whitespace-normal leading-tight',
+      headerClassName: 'w-[10%] whitespace-normal leading-tight text-center',
+      cellClassName: 'text-center',
       render: (row) => (
         <Badge size="sm" variant={getStatusBadgeVariant(row.statusKeaktifan)}>
           <span className="whitespace-normal break-words">{row.statusKeaktifan || '-'}</span>
@@ -137,8 +149,9 @@ export default function StudentDataTable({
         pageSize: limit,
         onPageChange,
       }}
-      tableClassName="table-fixed"
+      tableClassName="table-fixed min-w-[760px]"
       tableViewportClassName="overflow-x-hidden overflow-y-hidden"
+      density="compact"
       className="min-h-[360px]"
     />
   );

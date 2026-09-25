@@ -1,39 +1,33 @@
 const prisma = require('../../config/prisma');
 
-async function getStudentList(whereFilter, page = 1, limit = 10) {
+/**
+ * Mengambil daftar mahasiswa dari database dengan filter, pagination, dan default sort.
+ *
+ * Default behaviour (sesuai business rules):
+ *   - Filter default: hanya mahasiswa dengan statusKeaktifan = "Aktif"
+ *     (kecuali jika caller sudah menyertakan filter statusKeaktifan di whereFilter)
+ *   - Sort default: descending berdasarkan angkatan (mahasiswa paling baru di atas),
+ *     lalu nama ascending sebagai tiebreaker
+ *
+ * @param {object} whereFilter  Prisma where clause dari buildStudentFilter()
+ * @param {number} page         Halaman (default 1)
+ * @param {number} limit        Jumlah baris per halaman (default 10)
+ */
+async function getStudentList(whereFilter, page = 1, limit = 10, cursor) {
     const skip = (page - 1) * limit;
 
-    const [data, total] = await Promise.all([
-        prisma.student.findMany({
-            where: whereFilter,
-            select: {
-                nim: true,
-                nama: true,
-                angkatan: true,
-                periodeMasuk: true,
-                programStudi: true,
-                fakultas: true,
-                semester: true,
-                kewarganegaraan: true,
-                statusKeaktifan: true
-            },
-            skip,
-            take: limit,
-            orderBy: { nama: 'asc' }
-        }),
+    const query = buildStudentListQuery(whereFilter, page, limit, cursor);
+    const [rawData, total] = await Promise.all([
+        prisma.student.findMany(query),
         prisma.student.count({ where: whereFilter })
     ]);
-    
-    // Sediakan versi camelCase & snake_case (program_studi, status_keaktifan, periode)
-    const formattedData = data.map(s => ({
-        ...s,
-        program_studi: s.programStudi,
-        status_keaktifan: s.statusKeaktifan,
-        periode: s.periodeMasuk
-    }));
 
+    const hasNextPage = rawData.length > limit;
+    const data = rawData.slice(0, limit);
     return {
-        data: formattedData,
+        data,
+        nextCursor: hasNextPage ? data[data.length - 1].nim : null,
+        hasNextPage,
         pagination: {
             page,
             limit,
@@ -43,4 +37,34 @@ async function getStudentList(whereFilter, page = 1, limit = 10) {
     };
 }
 
-module.exports = { getStudentList };
+function buildStudentListQuery(whereFilter, page, limit, cursor) {
+    const skip = (page - 1) * limit;
+    const query = {
+        where: whereFilter,
+        select: {
+            nim: true,
+            nama: true,
+            angkatan: true,
+            periode: true,
+            periodeMasuk: true,
+            programStudi: true,
+            fakultas: true,
+            jenjang: true,
+            semester: true,
+            kewarganegaraan: true,
+            statusKeaktifan: true
+        },
+        take: limit + 1,
+        orderBy: { nim: 'asc' }
+    };
+
+    if (cursor) {
+        query.cursor = { nim: cursor };
+        query.skip = 1;
+    }
+    else query.skip = skip;
+
+    return query;
+}
+
+module.exports = { getStudentList, buildStudentListQuery };

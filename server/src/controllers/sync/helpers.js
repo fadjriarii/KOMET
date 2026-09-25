@@ -10,41 +10,170 @@ function cleanText(str) {
     return str.replace(/&amp;/g, '&').trim().toLowerCase();
 }
 
-// Helper untuk memformat Angkatan sesuai mapping.xlsx:
-// "Ekstrak 4 digit pertama (contoh: "20261" -> "2026") dan digit belakang sebagai pendanda Genap/Ganjil (1 = Genap & 2 = Ganjil)"
-function formatAngkatan(idPeriode) {
-    if (!idPeriode || idPeriode.length < 4) return '';
-    const tahun = idPeriode.substring(0, 4);
-    const digitTerm = idPeriode.substring(4, 5);
-    let termText = '';
-    if (digitTerm === '1') {
-        termText = 'Genap';
-    } else if (digitTerm === '2') {
-        termText = 'Ganjil';
-    }
-    return termText ? `${tahun} ${termText}` : tahun;
+function sanitizeText(str) {
+    if (!str) return '';
+    return str.replace(/&amp;/g, '&').trim();
 }
 
-// Helper Kalkulasi Semester Akademik
+/**
+ * Helper untuk memformat Angkatan dari kode periode Sevima.
+ * Ambil 4 digit pertama sebagai tahun saja (misal: "20261" -> "2026", "20262" -> "2026").
+ */
+function formatAngkatan(idPeriode) {
+    if (!idPeriode || idPeriode.length < 4) return '';
+    return idPeriode.substring(0, 4);
+}
+
+/**
+ * Ekstrak field "Periode" dari kode periode Sevima.
+ * Digit ke-5: 1 → "Ganjil", 2 → "Genap".
+ * @param {string} idPeriode contoh "20251" atau "20252"
+ * @returns {"Ganjil"|"Genap"|""}
+ */
+function extractPeriode(idPeriode) {
+    if (!idPeriode || idPeriode.length < 5) return '';
+    const digitTerm = idPeriode.substring(4, 5);
+    if (digitTerm === '1') return 'Ganjil';
+    if (digitTerm === '2') return 'Genap';
+    return '';
+}
+
+/**
+ * Mengembalikan kode periode akademik berjalan saat ini.
+ * Semester Ganjil (term 1): Agustus–Januari → digit ke-5 = "1"
+ * Semester Genap  (term 2): Februari–Juli   → digit ke-5 = "2"
+ * @returns {string} kode periode 5 digit (contoh "20261" atau "20252")
+ */
+function getCurrentAcademicPeriode() {
+    const now = new Date();
+    const bulan = now.getMonth() + 1; // 1–12
+    const tahun = now.getFullYear();
+    // Ganjil = semester yang dimulai Agustus tahun ini
+    // Genap  = semester yang dimulai Februari tahun ini
+    const term = bulan >= 8 ? 1 : 2;
+    return `${tahun}${term}`;
+}
+
+/**
+ * Menghitung semester mahasiswa berdasarkan periode masuk dan periode referensi.
+ *
+ * - Mahasiswa Aktif / tanpa periodeTerakhir: gunakan periode akademik berjalan saat ini.
+ * - Mahasiswa Lulus/Keluar: gunakan periodeTerakhir (periode saat mereka lulus/keluar).
+ *
+ * Rumus: ((tahunAkhir - tahunMasuk) × 2) + (termAkhir - termMasuk) + 1
+ *
+ * @param {string} periodeMasuk       kode periode masuk (contoh "20221")
+ * @param {string} periodeTerakhir    kode periode akhir; jika kosong/sama = pakai periode berjalan
+ * @returns {number} semester (minimal 1)
+ */
 function hitungSemester(periodeMasuk, periodeTerakhir) {
     if (!periodeMasuk) return 1;
-    if (!periodeTerakhir) periodeTerakhir = periodeMasuk;
 
     try {
         const tahunMasuk = parseInt(periodeMasuk.substring(0, 4));
-        const termMasuk = parseInt(periodeMasuk.substring(4, 5)) || 1;
+        const termMasuk  = parseInt(periodeMasuk.substring(4, 5)) || 1;
 
-        const tahunAkhir = parseInt(periodeTerakhir.substring(0, 4));
-        const termAkhir = parseInt(periodeTerakhir.substring(4, 5)) || termMasuk;
+        if (isNaN(tahunMasuk)) return 1;
 
-        const selisihTahun = tahunAkhir - tahunMasuk;
-        const selisihTerm = termAkhir - termMasuk;
+        // Tentukan periode referensi untuk kalkulasi
+        const refPeriode = (periodeTerakhir && periodeTerakhir.length >= 5)
+            ? periodeTerakhir
+            : getCurrentAcademicPeriode();
 
-        const totalSemester = (selisihTahun * 2) + selisihTerm + 1;
+        const tahunAkhir = parseInt(refPeriode.substring(0, 4));
+        const termAkhir  = parseInt(refPeriode.substring(4, 5)) || 1;
+
+        if (isNaN(tahunAkhir)) return 1;
+
+        const totalSemester = ((tahunAkhir - tahunMasuk) * 2) + (termAkhir - termMasuk) + 1;
         return totalSemester > 0 ? totalSemester : 1;
     } catch (e) {
         return 1;
     }
+}
+
+/**
+ * Menentukan apakah status mahasiswa termasuk "sudah keluar" (lulus/DO/putus studi/dll.)
+ * berdasarkan id_status_mahasiswa dari Sevima.
+ * @param {string} idStatus kode status dari Sevima (misal "A"=Aktif, "L"=Lulus, "D"=DO)
+ * @returns {boolean}
+ */
+function isStatusKeluar(idStatus) {
+    if (!idStatus) return false;
+    // "L"=Lulus, "D"=Drop Out, "K"=Keluar, "M"=Meninggal, "P"=Pindah, "T"=Tidak Lanjut
+    const statusKeluar = ['L', 'D', 'K', 'M', 'P', 'T'];
+    return statusKeluar.includes(idStatus.toUpperCase());
+}
+
+/**
+ * Mapping kewarganegaraan: konversi kode negara / nama bahasa Inggris dari Sevima
+ * ke nama negara spesifik dalam Bahasa Indonesia.
+ *
+ * Strategi:
+ *   1. Gunakan nama_negara dari Sevima jika tersedia dan bukan kosong.
+ *   2. Fallback ke lookup tabel ISO-3 → nama Bahasa Indonesia.
+ *   3. Default: "Indonesia".
+ *
+ * @param {string} idNegara   kode ISO-3 negara (misal "IDN", "USA", "MYS")
+ * @param {string} namaNegara nama negara dari Sevima (misal "Indonesia", "Malaysia")
+ * @returns {string} Nama negara spesifik dalam Bahasa Indonesia
+ */
+function mapKewarganegaraan(idNegara, namaNegara) {
+    // Gunakan nama langsung dari Sevima jika valid
+    if (namaNegara && namaNegara.trim() !== '') {
+        return namaNegara.trim();
+    }
+
+    // Fallback: lookup berdasarkan kode ISO-3
+    if (idNegara) {
+        const kode = idNegara.toUpperCase().trim();
+        const iso3Map = {
+            IDN: 'Indonesia',
+            USA: 'Amerika Serikat',
+            MYS: 'Malaysia',
+            SGP: 'Singapura',
+            AUS: 'Australia',
+            GBR: 'Inggris',
+            DEU: 'Jerman',
+            FRA: 'Prancis',
+            JPN: 'Jepang',
+            KOR: 'Korea Selatan',
+            CHN: 'Tiongkok',
+            IND: 'India',
+            THA: 'Thailand',
+            PHL: 'Filipina',
+            VNM: 'Vietnam',
+            NLD: 'Belanda',
+            CAN: 'Kanada',
+            NZL: 'Selandia Baru',
+            SAU: 'Arab Saudi',
+            ARE: 'Uni Emirat Arab',
+            PAK: 'Pakistan',
+            BGD: 'Bangladesh',
+            NPL: 'Nepal',
+            LKA: 'Sri Lanka',
+            MMR: 'Myanmar',
+            KHM: 'Kamboja',
+            LAO: 'Laos',
+            BRN: 'Brunei Darussalam',
+            TLS: 'Timor-Leste',
+        };
+        if (iso3Map[kode]) return iso3Map[kode];
+    }
+
+    // Default: Indonesia
+    return 'Indonesia';
+}
+
+/**
+ * Memeriksa apakah nama Program Studi atau Fakultas mengandung teks
+ * yang menandakan "akun lama" (data legacy yang harus dibuang).
+ * @param {string} text  nama program studi atau fakultas
+ * @returns {boolean} true jika mengandung tanda "akun lama"
+ */
+function isAkunLama(text) {
+    if (!text) return false;
+    return /keterangan akun lama|akun lama/i.test(text);
 }
 
 // Helper Resolver NIM Bulk (Pre-fetch In-Memory Map) untuk Batch Sync tanpa N+1 Query
@@ -99,11 +228,12 @@ async function resolveTargetNimBatch(items, extractNimFn, extractNamaFn, extraDa
                     jenjang,
                     periodeMasuk: idPeriode,
                     angkatan: formatAngkatan(idPeriode),
+                    periode: extractPeriode(idPeriode),
                     programStudi: prodi,
                     fakultas: extraData.fakultas || '',
                     statusKeaktifan,
                     semester,
-                    kewarganegaraan: 'WNI'
+                    kewarganegaraan: 'Indonesia'
                 });
             }
         }
@@ -171,10 +301,15 @@ async function processInBatches(items, batchSize = 25, asyncFn) {
 module.exports = {
     sleep,
     cleanText,
+    sanitizeText,
     formatAngkatan,
+    extractPeriode,
     hitungSemester,
+    getCurrentAcademicPeriode,
+    isStatusKeluar,
+    isAkunLama,
+    mapKewarganegaraan,
     resolveTargetNimBatch,
     getProdiFakultasMap,
     processInBatches
 };
-

@@ -6,22 +6,21 @@ import ModalTable from '../../../../components/common/modals/ModalTable';
 import EmptyState from '../../../../components/common/feedback/EmptyState';
 import Skeleton from '../../../../components/common/feedback/Skeleton';
 import { useTabTransition } from '../../../../hooks/useTabTransition';
+import { TREND_TABS } from './studentTrendConfig';
 import {
-  extractStudentKpis,
   formatCompactNumber,
   formatNumber,
-  transformDeclineHistory,
   reverseTrendData,
-  getDeclineHistorySource,
   getTooltipPayloadItem,
-} from '../../../../utils/logic';
-import { DIGITAL_BLUE } from '../../../../utils/theme';
+} from '../../../../utils/uiHelpers';
+import { DIGITAL_BLUE, getTrendStyle } from '../../../../utils/theme';
 import { studentsService } from '../../services/studentsService';
 import { useStudentDetailResource } from '../../hooks/useStudentDetailResource';
 import {
   BarChart3,
-  Table,
   Calendar,
+  TrendingUp,
+  TrendingDown,
   Users,
   Percent,
 } from 'lucide-react';
@@ -37,10 +36,7 @@ import {
   LabelList,
 } from 'recharts';
 
-const DECLINE_TABS = [
-  { key: 'chart', label: 'Diagram Tren', icon: BarChart3 },
-  { key: 'table', label: 'Tabel Riwayat', icon: Table },
-];
+const DECLINE_TABS = TREND_TABS;
 
 const DECLINE_TABLE_COLUMNS = [
   {
@@ -71,6 +67,34 @@ const DECLINE_TABLE_COLUMNS = [
       </span>
     ),
   },
+  {
+    key: 'changeFromPrev',
+    label: 'Persentase Perubahan',
+    icon: TrendingUp,
+    headerClassName: 'text-right',
+    cellClassName: 'text-right',
+    render: (row) => {
+      const hasChange = row.changeFromPrev !== null && row.changeFromPrev !== undefined;
+      const isPositive = Number(row.changeFromPrev) >= 0;
+
+      if (!hasChange) {
+        return <span className="text-gray-400 font-medium">-</span>;
+      }
+
+      return (
+        <span
+          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border shadow-2xs ${
+            isPositive
+              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+              : 'bg-rose-50 text-rose-700 border-rose-200'
+          }`}
+        >
+          {isPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+          {`${isPositive ? '+' : ''}${Number(row.changeFromPrev).toFixed(1)}%`}
+        </span>
+      );
+    },
+  },
 ];
 
 export default function DeclineStudentsModal({
@@ -78,9 +102,10 @@ export default function DeclineStudentsModal({
   onClose,
   originRect,
   data,
+  filters,
 }) {
   const { activeTab, handleTabChange, slideClass } = useTabTransition(DECLINE_TABS, 'chart');
-  const fetchDeclineDetail = useCallback(() => studentsService.getDeclineTrend(), []);
+  const fetchDeclineDetail = useCallback(() => studentsService.getDeclineTrend(filters), [filters]);
   const {
     data: declineData,
     isLoading,
@@ -91,10 +116,11 @@ export default function DeclineStudentsModal({
     'Gagal memuat data penurunan mahasiswa'
   );
 
-  const kpis = extractStudentKpis(data);
-  const historyList = transformDeclineHistory(getDeclineHistorySource(declineData, data));
+  const kpis = data?.kpis || {};
+  const historyList = declineData?.data?.history || data?.summary?.newStudentDecline?.history || [];
   const chartList = reverseTrendData(historyList);
   const hasData = historyList.length > 0;
+  const trendStyle = getTrendStyle(kpis.isFluctuationPositive);
 
   return (
     <Modal
@@ -124,7 +150,9 @@ export default function DeclineStudentsModal({
           }
           label="Rata-rata Penurunan"
           value={kpis.declineAvg}
-          sublabel={kpis.isFluctuationPositive ? 'Fluktuasi Positif' : '5-Year Average'}
+          sublabel={trendStyle.label}
+          valueClassName={trendStyle.textClass}
+          sublabelClassName={trendStyle.textClass}
         />
 
         {/* TABS: Diagram Tren | Tabel Riwayat */}

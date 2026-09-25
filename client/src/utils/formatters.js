@@ -1,9 +1,9 @@
 /**
- * formatters.js - Alias / Proxy ke logic.js
+ * formatters.js - Alias untuk helper presentasi.
  * 
  * Semua logic, kalkulasi, formatting, dan transformasi data
- * dipusatkan di `logic.js`. File ini menyediakan re-export untuk backwards compatibility.
+ * dipusatkan di `uiHelpers.js`.
  */
 
-export * from './logic';
-export { default } from './logic';
+export * from './uiHelpers';
+export { default } from './uiHelpers';

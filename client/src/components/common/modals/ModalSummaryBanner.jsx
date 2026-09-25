@@ -10,6 +10,8 @@ export default function ModalSummaryBanner({
   value,
   sublabel,
   className = '',
+  valueClassName = 'text-digital-blue-900',
+  sublabelClassName = 'text-digital-blue-700',
 }) {
   return (
     <div className={`flex gap-3 shrink-0 ${className}`}>
@@ -33,11 +35,11 @@ export default function ModalSummaryBanner({
             {label}
           </span>
         )}
-        <h4 className="text-2xl sm:text-3xl font-black text-digital-blue-900 leading-none tracking-tight my-0.5 truncate max-w-full">
+        <h4 className={`text-2xl sm:text-3xl font-black leading-none tracking-tight my-0.5 truncate max-w-full ${valueClassName}`}>
           {value ?? '-'}
         </h4>
         {sublabel && (
-          <p className="text-xs font-semibold text-digital-blue-700 truncate max-w-full">
+          <p className={`text-xs font-semibold truncate max-w-full ${sublabelClassName}`}>
             {sublabel}
           </p>
         )}

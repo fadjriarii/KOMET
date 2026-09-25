@@ -17,6 +17,8 @@ export default function StatCard({
   actionDisabled = false,
   isLoading = false,
   className = '',
+  valueClassName = 'text-gray-900',
+  iconClassName = 'bg-digital-blue-50 text-digital-blue-600',
 }) {
   if (isLoading) {
     return (
@@ -57,7 +59,7 @@ export default function StatCard({
         </p>
 
         {Icon && (
-          <div className="p-2.5 rounded-xl bg-digital-blue-50 text-digital-blue-600 flex-shrink-0 transition-transform group-hover:scale-105 duration-200 -mt-0.5">
+          <div className={`p-2.5 rounded-xl flex-shrink-0 transition-transform group-hover:scale-105 duration-200 -mt-0.5 ${iconClassName}`}>
             <Icon size={20} />
           </div>
         )}
@@ -65,7 +67,7 @@ export default function StatCard({
 
       {/* 2. Bagian Tengah: Angka KPI (Value) & Subtitle tepat di atas garis pemisah */}
       <div className="mt-3 space-y-1">
-        <h3 className="text-2xl font-bold text-gray-900 tracking-tight leading-tight">
+        <h3 className={`text-2xl font-bold tracking-tight leading-tight ${valueClassName}`}>
           {value ?? '-'}
         </h3>
         <p className="text-xs text-gray-500 font-normal leading-snug min-h-[20px] flex items-center">

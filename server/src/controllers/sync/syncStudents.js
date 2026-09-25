@@ -6,15 +6,20 @@ const { deduplicateStudents } = require('../../services/studentDeduplicationServ
 const {
     sleep,
     cleanText,
+    sanitizeText,
     formatAngkatan,
+    extractPeriode,
     hitungSemester,
+    isStatusKeluar,
+    isAkunLama,
+    mapKewarganegaraan,
     getProdiFakultasMap,
     processInBatches
 } = require('./helpers');
 
-// 1. ETL Sinkronisasi Mahasiswa
+// 1. ETL Sinkronisasi Mahasiswa dengan Data Cleansing & Transformation
 const executeSyncStudents = async (startPage = 1) => {
-    logger.info('🔄 Memulai proses ETL: Mahasiswa dari SEVIMA API (Seluruh data disinkronkan)...');
+    logger.info('🔄 Memulai proses ETL: Mahasiswa dari SEVIMA API (dengan Data Cleansing & Transformation)...');
     const prodiFakultasMap = await getProdiFakultasMap();
 
     let currentPage = startPage;
@@ -38,23 +43,67 @@ const executeSyncStudents = async (startPage = 1) => {
         const validItems = [];
         for (const item of listData) {
             const attr = item.attributes;
-            const prodiName = attr.program_studi || '';
 
+            // ─── RULE 1: Filter NIM — buang record yang NIM-nya kosong ───
+            const nim = (attr.nim || '').trim();
+            if (!nim) {
+                totalSkipped++;
+                continue;
+            }
+
+            const rawProdi = attr.program_studi || '';
+            const prodiName = sanitizeText(rawProdi);
+            const namaFakultas = sanitizeText(
+                prodiFakultasMap.get(cleanText(rawProdi))
+                || prodiFakultasMap.get(rawProdi.trim().toLowerCase())
+                || ''
+            );
+
+            // ─── RULE 2: Filter Prodi & Fakultas — buang data "akun lama" ───
+            if (isAkunLama(rawProdi) || isAkunLama(namaFakultas)) {
+                totalSkipped++;
+                logger.debug(`[Skip] Prodi/Fakultas akun lama: "${rawProdi}" / "${namaFakultas}"`);
+                continue;
+            }
+
+            // ─── RULE 3: Angkatan — ekstrak 4 digit tahun masuk ───
             const periodeMasuk = attr.id_periode || '';
-            const periodeTerakhir = attr.id_periode_terakhir || periodeMasuk;
+
+            // ─── RULE 4: Periode — field baru "Ganjil"/"Genap" dari digit ke-5 periodeMasuk ───
+            const periode = extractPeriode(periodeMasuk);
+
+            // Angkatan = hanya 4 digit tahun masuk (contoh "2026")
             const angkatan = formatAngkatan(periodeMasuk);
-            const kewarganegaraan = (attr.nama_negara && attr.nama_negara.toLowerCase() === 'indonesia') ? 'WNI' : 'WNA';
-            const semesterAktif = hitungSemester(periodeMasuk, periodeTerakhir);
-            const fakultas = prodiFakultasMap.get(cleanText(prodiName)) || prodiFakultasMap.get(prodiName.trim().toLowerCase()) || '';
+
+            // ─── RULE 5: Semester — kalkulasi dinamis berdasarkan status ───
+            const idStatus = attr.id_status_mahasiswa || '';
+            const periodeTerakhir = attr.id_periode_terakhir || '';
+            let semesterAktif;
+
+            if (isStatusKeluar(idStatus)) {
+                // Mahasiswa Lulus/Keluar: hitung semester saat mereka keluar
+                // Gunakan id_periode_terakhir sebagai titik akhir
+                semesterAktif = hitungSemester(periodeMasuk, periodeTerakhir);
+            } else {
+                // Mahasiswa Aktif: hitung berdasarkan periode berjalan saat ini
+                semesterAktif = hitungSemester(periodeMasuk, null);
+            }
+
+            // ─── RULE 6: Kewarganegaraan — konversi ke nama negara spesifik ───
+            const kewarganegaraan = mapKewarganegaraan(
+                attr.id_negara || '',
+                attr.nama_negara || ''
+            );
 
             validItems.push({
-                nim: attr.nim,
+                nim,
                 nama: attr.nama || '',
                 jenjang: attr.id_jenjang || '',
                 periodeMasuk,
                 angkatan,
+                periode,
                 programStudi: prodiName,
-                fakultas,
+                fakultas: namaFakultas,
                 statusKeaktifan: attr.status_mahasiswa || '',
                 semester: semesterAktif,
                 kewarganegaraan
@@ -91,8 +140,16 @@ const executeSyncStudents = async (startPage = 1) => {
     // Jalankan deduplikasi in-memory setelah seluruh data dari API masuk ke database
     const deduplicationResult = await deduplicateStudents();
 
+    // Invalidate in-memory filter cache agar data filter baru langsung terbaca
+    try {
+        const { clearFilterCache } = require('../../services/students/filterOptions');
+        clearFilterCache();
+    } catch (e) {
+        logger.warn('Gagal membersihkan cache filter options:', e.message);
+    }
+
     syncJobTracker.updateProgress('students', { status: 'completed', synced: totalSynced, skipped: totalSkipped });
-    logger.success(`[Mahasiswa] Selesai! ${totalSynced} data disinkronkan, ${deduplicationResult.deletedStudentsCount || 0} duplikat dibersihkan.`);
+    logger.success(`[Mahasiswa] Selesai! ${totalSynced} data disinkronkan, ${totalSkipped} dilewati, ${deduplicationResult.deletedStudentsCount || 0} duplikat dibersihkan.`);
     return { totalSynced, totalSkipped, deduplication: deduplicationResult };
 };
 
@@ -139,7 +196,7 @@ const syncStudents = async (req, res) => {
         if (res) {
             return res.status(200).json({
                 success: true,
-                message: `Sinkronisasi sukses! Total ${result.totalSynced} data mahasiswa disinkronkan (${result.deduplication?.deletedStudentsCount || 0} duplikat mahasiswa dan ${result.deduplication?.deletedMbkmCount || 0} duplikat MBKM dibersihkan).`,
+                message: `Sinkronisasi sukses! Total ${result.totalSynced} data mahasiswa disinkronkan, ${result.totalSkipped} dilewati (${result.deduplication?.deletedStudentsCount || 0} duplikat dan ${result.deduplication?.deletedMbkmCount || 0} duplikat MBKM dibersihkan).`,
                 data: result
             });
         }
