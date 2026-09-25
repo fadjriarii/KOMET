@@ -57,7 +57,7 @@ async function getDefaultPeriode() {
 
 // Helper untuk menghitung periode sebelumnya
 function getPreviousPeriode(currentPeriode) {
-    if (!currentPeriode || currentPeriode.length < 5) return null;
+    if (typeof currentPeriode !== 'string' || currentPeriode.length < 5) return null;
     const year = parseInt(currentPeriode.substring(0, 4));
     const sem = parseInt(currentPeriode.substring(4));
     return sem === 1 ? `${year - 1}2` : `${year}1`;
