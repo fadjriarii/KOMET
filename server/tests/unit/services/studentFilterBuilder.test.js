@@ -22,4 +22,56 @@ describe('student filter builder', () => {
     expect(filter.periodeMasuk).toEqual({ endsWith: '1' });
     expect(filter.statusKeaktifan).toBe('Aktif');
   });
+
+  it('keeps all non-empty statuses when the UI requests all statuses', () => {
+    const filter = buildBaseFilter({ statusKeaktifan: '__ALL__' });
+    expect(filter.statusKeaktifan).toEqual({ not: '' });
+  });
+
+  it('filters by tahunAjaran academic year', () => {
+    const filter = buildStudentFilter({ tahunAjaran: '2024/2025' });
+    expect(filter.AND).toContainEqual({ periodeMasuk: { lte: '20242' } });
+    expect(filter.AND).toContainEqual({
+      OR: [
+        { periodeTerakhir: { gte: '20241' } },
+        { AND: [{ periodeTerakhir: '' }, { semester: { gte: 1 } }] },
+      ],
+    });
+    expect(filter.statusKeaktifan).toBeUndefined();
+  });
+
+  it('combines tahunAjaran with periodeMasuk Ganjil/Genap', () => {
+    const filter = buildStudentFilter({ tahunAjaran: '2024/2025', periodeMasuk: 'Ganjil' });
+    expect(filter.AND).toContainEqual({ periodeMasuk: { endsWith: '1' } });
+  });
+
+  it('uses historical active population instead of current status', () => {
+    const filter = buildStudentFilter({
+      tahunAjaran: '2020/2021',
+      statusKeaktifan: 'Aktif',
+    });
+
+    expect(filter.AND).toContainEqual({ periodeMasuk: { lte: '20202' } });
+    expect(filter.AND).toContainEqual({
+      OR: [
+        { periodeTerakhir: { gte: '20201' } },
+        { AND: [{ periodeTerakhir: '' }, { semester: { gte: 1 } }] },
+      ],
+    });
+    // Status saat ini (misalnya Lulus/Mengundurkan diri) tidak membatasi
+    // mahasiswa yang masih aktif pada tahun ajaran historis tersebut.
+    expect(filter.statusKeaktifan).toBeUndefined();
+  });
+
+  it('excludes students who leave during the selected academic year', () => {
+    const filter = buildBaseFilter({ tahunAjaran: '2015/2016' });
+
+    expect(filter.AND).toContainEqual({ periodeMasuk: { lte: '20152' } });
+    expect(filter.AND).toContainEqual({
+      OR: [
+        { periodeTerakhir: { gte: '20151' } },
+        { AND: [{ periodeTerakhir: '' }, { semester: { gte: 1 } }] },
+      ],
+    });
+  });
 });

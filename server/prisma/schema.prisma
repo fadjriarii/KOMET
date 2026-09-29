@@ -12,6 +12,8 @@ model Student {
   nama            String
   jenjang         String
   periodeMasuk    String
+  /// Periode terakhir mahasiswa (keluar/lulus), kosong untuk mahasiswa yang masih berjalan.
+  periodeTerakhir String           @default("")
   angkatan        String
   /// Periode semester masuk: "Ganjil" (kode berakhir 1) atau "Genap" (kode berakhir 2)
   periode         String           @default("")
@@ -30,10 +32,13 @@ model Student {
   @@index([semester])
   @@index([fakultas])
   @@index([programStudi])
+  @@index([jenjang])
   @@index([angkatan])
   @@index([periode])
   @@index([periodeMasuk])
+  @@index([periodeTerakhir])
   @@index([kewarganegaraan])
+  @@index([periodeMasuk, kewarganegaraan])
   @@index([statusKeaktifan, semester])
   @@index([statusKeaktifan, kewarganegaraan])
   @@map("students")

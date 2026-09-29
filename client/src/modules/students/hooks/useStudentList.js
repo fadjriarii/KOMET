@@ -1,76 +1,59 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { studentsService } from '../services/studentsService';
-const SEARCH_DEBOUNCE_MS = 400;
+import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
+import { STUDENT_SEARCH_DEBOUNCE_MS } from '../../../constants/debounce';
 
 /**
  * useStudentList - Hook fetch data paginated dari GET /api/students/students
  *
- * Mengelola: debounce pencarian, reset halaman saat filter berubah,
- * proteksi respons basi (stale response), loading & error state.
+ * Mengelola debounce pencarian, pagination, cache, dan retry via TanStack Query.
  */
 export function useStudentList(queryParams, { limit = 10 } = {}) {
-  const [rows, setRows] = useState([]);
-  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
-  const [page, setPage] = useState(1);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const debouncedSearch = useDebouncedValue(queryParams?.search || '', STUDENT_SEARCH_DEBOUNCE_MS);
+  const effectiveParams = useMemo(
+    () => ({ ...queryParams, search: debouncedSearch }),
+    [queryParams, debouncedSearch]
+  );
+  const filterKey = useMemo(
+    () => studentsService.toQueryString(effectiveParams),
+    [effectiveParams]
+  );
+  const [pageState, setPageState] = useState(() => ({ filterKey, page: 1 }));
+  const requestedPage = pageState.filterKey === filterKey ? pageState.page : 1;
 
-  const filterKey = useMemo(() => JSON.stringify(queryParams || {}), [queryParams]);
-
-  const debouncedFilterKey = useDebouncedValue(filterKey, SEARCH_DEBOUNCE_MS);
-
-  // Reset ke halaman 1 setiap filter berubah
-  const prevFilterKeyRef = useRef(filterKey);
-  useEffect(() => {
-    if (prevFilterKeyRef.current !== filterKey) {
-      prevFilterKeyRef.current = filterKey;
-      setPage(1);
-    }
+  const setPage = useCallback((nextPage) => {
+    setPageState((currentState) => {
+      const currentPage = currentState.filterKey === filterKey ? currentState.page : 1;
+      const page = typeof nextPage === 'function' ? nextPage(currentPage) : nextPage;
+      return { filterKey, page };
+    });
   }, [filterKey]);
 
-  useEffect(() => {
-    let isMounted = true;
-    const filters = JSON.parse(debouncedFilterKey || '{}');
+  const { data, isLoading, isFetching, error } = useQuery({
+    queryKey: ['students', 'list', filterKey, requestedPage, limit],
+    queryFn: ({ signal }) => studentsService.getStudentList({
+      filters: effectiveParams,
+      page: requestedPage,
+      limit,
+    }, { signal }),
+    select: (response) => (response?.success ? response : null),
+    // Keeping a previous page is useful during pagination, but showing rows
+    // from a different filter set is misleading. The filter key makes that
+    // distinction explicit.
+    placeholderData: (previousData, previousQuery) => (
+      previousQuery?.queryKey?.[2] === filterKey ? previousData : undefined
+    ),
+    staleTime: 2 * 60 * 1000,
+  });
 
-    async function fetchList() {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const response = await studentsService.getStudentList({ filters, page, limit });
-        if (!isMounted) return;
-        if (response?.success) {
-          setRows(Array.isArray(response.data) ? response.data : []);
-          setPagination({
-            page: response.pagination?.page ?? page,
-            totalPages: response.pagination?.totalPages ?? 1,
-            total: response.pagination?.total ?? 0,
-          });
-        }
-      } catch (err) {
-        if (isMounted) {
-          setError(err.message || 'Backend belum terhubung');
-          setRows([]);
-        }
-      } finally {
-        if (isMounted) setIsLoading(false);
-      }
-    }
-
-    fetchList();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [debouncedFilterKey, page, limit]);
-
-  return { rows, pagination, page, setPage, isLoading, error };
-}
-
-function useDebouncedValue(value, delayMs) {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delayMs);
-    return () => clearTimeout(timer);
-  }, [value, delayMs]);
-  return debounced;
+  return {
+    rows: Array.isArray(data?.data) ? data.data : [],
+    pagination: data?.pagination || { page: 1, totalPages: 1, total: 0 },
+    page: requestedPage,
+    setPage,
+    isLoading,
+    isFetching,
+    error: error?.message || null,
+  };
 }

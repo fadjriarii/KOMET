@@ -3,6 +3,23 @@ import { getStudentActiveFilterCount } from '../utils/studentQuery';
 
 const DEFAULT_STATUS = 'Aktif';
 
+/**
+ * useStudentFilters - Hook khusus untuk state form filter di dalam StudentFilterContainer.
+ *
+ * Filter yang dikelola di sini adalah filter lokal kontainer:
+ * - Search by Identifier / Nama
+ * - Fakultas
+ * - Program Studi
+ * - Jenjang
+ * - Angkatan (5 tahun rolling)
+ * - Semester
+ * - Kewarganegaraan (WNI/WNA)
+ * - Status Keaktifan (Aktif, dsb.)
+ * - Periode Masuk (Ganjil/Genap)
+ *
+ * Note: Pilihan Tahun Ajaran (Header) dikelola secara terpisah dan independen
+ * dari container filter ini agar reset filter tidak mempengaruhi tahun ajaran.
+ */
 export function useStudentFilters() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFaculty, setSelectedFaculty] = useState([]);
@@ -39,7 +56,7 @@ export function useStudentFilters() {
     ]
   );
 
-  const studentListQuery = filterValues;
+  const filterParams = filterValues;
 
   const activeFilterCount = useMemo(
     () => getStudentActiveFilterCount(filterValues),
@@ -58,30 +75,45 @@ export function useStudentFilters() {
     setSelectedPeriode('');
   }, []);
 
+  const values = useMemo(() => ({
+    searchQuery,
+    selectedFaculty,
+    selectedProdi,
+    selectedJenjang,
+    selectedYears,
+    selectedSemester,
+    selectedNationality,
+    selectedStatus,
+    selectedPeriode,
+  }), [
+    searchQuery,
+    selectedFaculty,
+    selectedProdi,
+    selectedJenjang,
+    selectedYears,
+    selectedSemester,
+    selectedNationality,
+    selectedStatus,
+    selectedPeriode,
+  ]);
+
+  const setters = useMemo(() => ({
+    setSearchQuery,
+    setSelectedFaculty,
+    setSelectedProdi,
+    setSelectedJenjang,
+    setSelectedYears,
+    setSelectedSemester,
+    setSelectedNationality,
+    setSelectedStatus,
+    setSelectedPeriode,
+  }), []);
+
   return {
-    values: {
-      searchQuery,
-      selectedFaculty,
-      selectedProdi,
-      selectedJenjang,
-      selectedYears,
-      selectedSemester,
-      selectedNationality,
-      selectedStatus,
-      selectedPeriode,
-    },
-    setters: {
-      setSearchQuery,
-      setSelectedFaculty,
-      setSelectedProdi,
-      setSelectedJenjang,
-      setSelectedYears,
-      setSelectedSemester,
-      setSelectedNationality,
-      setSelectedStatus,
-      setSelectedPeriode,
-    },
-    studentListQuery,
+    // `values` untuk binding komponen UI; `filterParams` untuk service/API.
+    values,
+    setters,
+    filterParams,
     activeFilterCount,
     resetFilters,
   };

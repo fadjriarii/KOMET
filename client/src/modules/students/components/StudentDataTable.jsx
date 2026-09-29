@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { GraduationCap, Users } from 'lucide-react';
 import DataTable from '../../../components/common/tables/DataTable';
 import Badge from '../../../components/common/ui/Badge';
@@ -15,7 +16,7 @@ export default function StudentDataTable({
   onPageChange,
   isLoading = false,
 }) {
-  const columns = [
+  const columns = useMemo(() => [
     {
       key: 'no',
       label: 'No',
@@ -129,7 +130,7 @@ export default function StudentDataTable({
         </Badge>
       ),
     },
-  ];
+  ], [page, limit]);
 
   return (
     <DataTable

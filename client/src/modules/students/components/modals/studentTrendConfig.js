@@ -1,4 +1,4 @@
-import { BarChart3, Table } from 'lucide-react';
+import { BarChart3, Table, Building2, BookOpen, Layers } from 'lucide-react';
 
 export const TREND_TABS = [
   { key: 'chart', label: 'Diagram Tren', icon: BarChart3 },
@@ -6,7 +6,8 @@ export const TREND_TABS = [
 ];
 
 export const STUDENT_DISTRIBUTION_TABS = [
-  { key: 'fakultas', label: 'Per Fakultas' },
-  { key: 'prodi', label: 'Per Program Studi' },
-  { key: 'jenjang', label: 'Per Jenjang' },
+  // Dipakai ActiveStudentsModal agar konfigurasi tab distribusi hanya punya satu sumber kebenaran.
+  { key: 'fakultas', label: 'Per Fakultas', icon: Building2 },
+  { key: 'prodi', label: 'Per Program Studi', icon: BookOpen },
+  { key: 'jenjang', label: 'Per Jenjang', icon: Layers },
 ];

@@ -1,0 +1,1 @@
+export const STUDENT_SEARCH_DEBOUNCE_MS = 400;

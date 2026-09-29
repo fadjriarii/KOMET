@@ -1,237 +1,71 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Users, Globe, UserPlus, TrendingDown, TrendingUp, AlertCircle } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { AlertCircle, Globe, TrendingDown, TrendingUp, UserPlus, Users } from 'lucide-react';
 import StatCard from '../../../components/common/cards/StatCard';
-import { useStudentsData } from '../hooks/useStudentsData';
-import { useStudentList } from '../hooks/useStudentList';
-import { useStudentFilters } from '../hooks/useStudentFilters';
-import { useStudentModalOrigin } from '../hooks/useStudentModalOrigin';
-import { studentsService } from '../services/studentsService';
-import {
-  getStudentKpiSubtitles,
-  formatKpiDisplay,
-} from '../../../utils/uiHelpers';
-import StudentDetailModal from '../components/StudentDetailModal';
+import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
+import { STUDENT_SEARCH_DEBOUNCE_MS } from '../../../constants/debounce';
+import { formatKpiDisplay, getCurrentAcademicYear, getRollingAcademicYears } from '../../../utils/uiHelpers';
+import { getStudentKpiFilterScope } from '../utils/studentQuery';
 import StudentDataTable from '../components/StudentDataTable';
+import StudentDetailModal from '../components/StudentDetailModal';
+import StudentAcademicYearFilter from '../components/header/StudentAcademicYearFilter';
 import { StudentFilterContainer } from '../components/filters';
-import { getTrendStyle } from '../../../utils/theme';
+import { useStudentFilterControls } from '../hooks/useStudentFilterControls';
+import { useStudentFilters } from '../hooks/useStudentFilters';
+import { useStudentKpiDisplay } from '../hooks/useStudentKpiDisplay';
+import { useStudentList } from '../hooks/useStudentList';
+import { useStudentModalOrigin } from '../hooks/useStudentModalOrigin';
+import { useStudentSummary } from '../hooks/useStudentSummary';
 
 const TABLE_LIMIT = 10;
-
 export default function StudentsPage() {
-  const { data, isLoading, error } = useStudentsData();
-  const {
-    activeModalType,
-    currentModalType,
-    originRect,
-    openModal,
-    closeModal,
-  } = useStudentModalOrigin();
+  const currentAcademicYear = useMemo(() => getCurrentAcademicYear(), []);
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState(currentAcademicYear);
+  const { values: filters, setters, filterParams, activeFilterCount, resetFilters } = useStudentFilters();
+  const debouncedSearch = useDebouncedValue(filters.searchQuery, STUDENT_SEARCH_DEBOUNCE_MS);
+  const summaryParams = useMemo(() => ({ ...filterParams, search: debouncedSearch, tahunAjaran: selectedAcademicYear }), [debouncedSearch, filterParams, selectedAcademicYear]);
+  const listParams = useMemo(() => ({ ...filterParams, tahunAjaran: selectedAcademicYear }), [filterParams, selectedAcademicYear]);
+  const summaryQuery = useStudentSummary(summaryParams);
+  const { rows, pagination, page, setPage, isLoading: isListLoading } = useStudentList(listParams, { limit: TABLE_LIMIT });
+  const { activeModalType, currentModalType, originRect, openModal, closeModal } = useStudentModalOrigin();
 
-  // Status apakah data siap ditampilkan dari backend asli
-  const isDataReady = Boolean(data && data.success);
-  const showSkeleton = isLoading || !isDataReady;
-
-  // Ekstraksi & normalisasi nilai KPI via helper terpusat
-  const kpis = data?.kpis || {};
-  // Ekstraksi opsi filter dari response backend
-  const filterOptions = data?.filterOptions || {};
-  const fakultasOptions = filterOptions.fakultas || [];
-  const prodiOptions = filterOptions.programStudi || [];
-  const jenjangOptions = filterOptions.jenjang || [];
-  const rollingYears = filterOptions.rollingYears || [];
-  const semesterOptions = filterOptions.semesterOptions || [];
-  const kewarganegaraanOptions = filterOptions.nationalityOptions || [];
-  const statusKeaktifanOptions = filterOptions.statusKeaktifan || [];
-  const periodeMasukOptions = filterOptions.periodeOptions || [];
-
-  const {
-    values: filters,
-    setters: filterSetters,
-    studentListQuery,
-    activeFilterCount,
-    resetFilters,
-  } = useStudentFilters();
-
-  const {
-    rows: studentRows,
-    pagination: studentPagination,
-    page: studentPage,
-    setPage: setStudentPage,
-    isLoading: isStudentListLoading,
-  } = useStudentList(studentListQuery, { limit: TABLE_LIMIT });
-  const hasCustomFilters = activeFilterCount > 0;
-  const kpiActionLabel = hasCustomFilters ? 'Filtered' : 'Lihat Rincian';
-  const [filteredKpis, setFilteredKpis] = useState(null);
-
-  const filteredSummaryQuery = useMemo(() => {
-    const params = studentsService.toQueryParams(studentListQuery);
-    params.delete('page');
-    params.delete('limit');
-    return params;
-  }, [studentListQuery]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    if (!hasCustomFilters) {
-      return undefined;
-    }
-
-    async function fetchFilteredKpis() {
-      try {
-        setFilteredKpis(null);
-        const response = await studentsService.getSummary(filteredSummaryQuery);
-        if (!isMounted) return;
-        setFilteredKpis(response?.kpis || null);
-      } catch {
-        if (isMounted) setFilteredKpis(null);
-      }
-    }
-
-    fetchFilteredKpis();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [filteredSummaryQuery, hasCustomFilters]);
-
-  const displayKpis = hasCustomFilters && filteredKpis ? filteredKpis : kpis;
-  const displaySubtitles = getStudentKpiSubtitles(displayKpis);
-  const declineTrendStyle = getTrendStyle(displayKpis.isFluctuationPositive);
+  const availableFilterOptions = summaryQuery.data?.filterOptions || {};
+  const academicYearOptions = useMemo(
+    () => availableFilterOptions.academicYearOptions || getRollingAcademicYears(5),
+    [availableFilterOptions.academicYearOptions]
+  );
+  const { filterControlValues, filterControlOptions, filterHandlers } = useStudentFilterControls(filters, setters, availableFilterOptions);
+  const isSearchDebouncing = filters.searchQuery !== debouncedSearch;
+  const isKpiLoading = summaryQuery.isLoading || summaryQuery.isFetching || isSearchDebouncing;
+  const { kpis, activeStudentPresentation, displaySubtitles, declineTrendStyle, isReady } = useStudentKpiDisplay(summaryQuery.data, filters, isKpiLoading);
+  const kpiScope = useMemo(() => getStudentKpiFilterScope(filterParams), [filterParams]);
+  const actionLabel = activeFilterCount ? 'Lihat Data Terfilter' : 'Lihat Rincian';
+  const cardProps = { actionLabel, actionDisabled: !isReady, isLoading: isKpiLoading };
 
   return (
     <div className="space-y-6">
-      {/* Header Halaman */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-gray-800 tracking-tight">Student Data</h1>
-          <p className="text-xs md:text-sm text-gray-500 mt-1">
-            Analitik demografi, persentase mahasiswa asing, intake mahasiswa baru, dan tren fluktuasi 5 tahun.
-          </p>
+          <p className="text-xs md:text-sm text-gray-500 mt-1">Analitik demografi, mahasiswa asing, intake, dan tren fluktuasi 5 tahun.</p>
         </div>
-
-        {/* Notifikasi jika backend belum terhubung */}
-        {error && !isDataReady && (
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200/80 text-amber-800 text-xs font-medium">
-            <AlertCircle size={14} className="text-amber-600 flex-shrink-0" />
-            <span>Backend belum terhubung ({error})</span>
-          </div>
-        )}
+        <div className="flex flex-wrap items-center gap-3">
+          <StudentAcademicYearFilter value={selectedAcademicYear} onChange={setSelectedAcademicYear} options={academicYearOptions} currentAcademicYear={currentAcademicYear} disabled={summaryQuery.isLoading} />
+          {summaryQuery.error && !summaryQuery.data && <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200/80 text-amber-800 text-xs font-medium"><AlertCircle size={14} /><span>Backend belum terhubung.</span></div>}
+        </div>
       </div>
 
-      {/* KPI Cards Grid - 4 Card Utama */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* 1. Mahasiswa Aktif */}
-        <StatCard 
-          title="Mahasiswa Aktif" 
-          value={formatKpiDisplay(displayKpis.formattedActiveCount)} 
-          subtitle={displaySubtitles.activeSubtitle}
-          icon={Users}
-          badge="Status Aktif"
-          actionLabel={kpiActionLabel}
-          onViewDetails={(e) => openModal('active', e)}
-          actionDisabled={hasCustomFilters}
-          isLoading={showSkeleton}
-        />
-
-        {/* 2. Persentase Mahasiswa Internasional */}
-        <StatCard 
-          title="Persentase Mahasiswa Internasional" 
-          value={formatKpiDisplay(displayKpis.foreignRate)} 
-          subtitle={displaySubtitles.foreignSubtitle}
-          icon={Globe}
-          badge="Non-WNI Aktif"
-          actionLabel={kpiActionLabel}
-          onViewDetails={(e) => openModal('foreign', e)}
-          actionDisabled={hasCustomFilters}
-          isLoading={showSkeleton}
-        />
-
-        {/* 3. Intake Mahasiswa Baru */}
-        <StatCard 
-          title="Intake Mahasiswa Baru" 
-          value={formatKpiDisplay(displayKpis.formattedIntakeCount)} 
-          subtitle={displaySubtitles.intakeSubtitle}
-          icon={UserPlus}
-          badge="Mhs Semester 1"
-          actionLabel={kpiActionLabel}
-          onViewDetails={(e) => openModal('intake', e)}
-          actionDisabled={hasCustomFilters}
-          isLoading={showSkeleton}
-        />
-
-        {/* 4. Penurunan Jumlah Mahasiswa Baru (5 Tahun) */}
-        <StatCard 
-          title="Penurunan Mhs Baru (5 Thn)" 
-          value={displayKpis.declineAvg} 
-          subtitle={displaySubtitles.declineSubtitle}
-          icon={displayKpis.isFluctuationPositive ? TrendingUp : TrendingDown}
-          valueClassName={declineTrendStyle.textClass}
-          badge="5-Year Avg"
-          actionLabel={kpiActionLabel}
-          onViewDetails={(e) => openModal('decline', e)}
-          actionDisabled={hasCustomFilters}
-          isLoading={showSkeleton}
-        />
+        <StatCard {...cardProps} title={activeStudentPresentation.cardTitle} value={formatKpiDisplay(kpis.formattedActiveCount)} subtitle={displaySubtitles.activeSubtitle} icon={Users} badge={activeStudentPresentation.cardBadge} onViewDetails={(event) => openModal('active', event)} isFiltered={kpiScope.active && isReady} />
+        <StatCard {...cardProps} title="Persentase Mahasiswa Internasional" value={formatKpiDisplay(kpis.foreignRate)} subtitle={displaySubtitles.foreignSubtitle} icon={Globe} badge="Non-WNI Aktif" onViewDetails={(event) => openModal('foreign', event)} isFiltered={kpiScope.foreign && isReady} />
+        <StatCard {...cardProps} title="Intake Mahasiswa Baru" value={formatKpiDisplay(kpis.formattedIntakeCount)} subtitle={displaySubtitles.intakeSubtitle} icon={UserPlus} badge="Mhs Semester 1" onViewDetails={(event) => openModal('intake', event)} isFiltered={kpiScope.intake && isReady} />
+        <StatCard {...cardProps} title="Penurunan Mhs Baru (5 Thn)" value={kpis.declineAvg} subtitle={displaySubtitles.declineSubtitle} icon={kpis.hasEnoughDeclineData === false ? AlertCircle : (kpis.isFluctuationPositive ? TrendingUp : TrendingDown)} valueClassName={declineTrendStyle.textClass} badge={kpis.hasEnoughDeclineData === false ? 'Data Belum Cukup' : '5-Year Avg'} onViewDetails={(event) => openModal('decline', event)} isFiltered={kpiScope.decline && isReady} />
       </div>
 
-      {/* Fitur Filter Container Lengkap (2 Baris Filter Selebar 4 Card di Atasnya) */}
-      <StudentFilterContainer
-        // Baris 1: 40% (Search) - 20% (Fakultas) - 20% (Prodi) - 20% (Jenjang)
-        searchValue={filters.searchQuery}
-        onSearchChange={filterSetters.setSearchQuery}
-        onSearchClear={() => filterSetters.setSearchQuery('')}
-        facultyValue={filters.selectedFaculty}
-        onFacultyChange={filterSetters.setSelectedFaculty}
-        facultyOptions={fakultasOptions}
-        prodiValue={filters.selectedProdi}
-        onProdiChange={filterSetters.setSelectedProdi}
-        prodiOptions={prodiOptions}
-        jenjangValue={filters.selectedJenjang}
-        onJenjangChange={filterSetters.setSelectedJenjang}
-        jenjangOptions={jenjangOptions}
+      {summaryQuery.error && <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-red-50 border border-red-200/80 text-red-700 text-xs font-medium"><AlertCircle size={14} /><span>Gagal memuat data terfilter. Silakan coba lagi.</span></div>}
 
-        // Baris 2: Angkatan + Semester + Kewarganegaraan + Status Keaktifan + Periode Masuk
-        selectedYears={filters.selectedYears}
-        onAngkatanChange={filterSetters.setSelectedYears}
-        rollingYears={rollingYears}
-        semesterValue={filters.selectedSemester}
-        onSemesterChange={filterSetters.setSelectedSemester}
-        semesterOptions={semesterOptions}
-        nationalityValue={filters.selectedNationality}
-        onNationalityChange={filterSetters.setSelectedNationality}
-        nationalityOptions={kewarganegaraanOptions}
-        statusValue={filters.selectedStatus}
-        onStatusChange={filterSetters.setSelectedStatus}
-        statusOptions={statusKeaktifanOptions}
-        periodeValue={filters.selectedPeriode}
-        onPeriodeChange={filterSetters.setSelectedPeriode}
-        periodeOptions={periodeMasukOptions}
-        activeCount={activeFilterCount}
-        onResetAll={resetFilters}
-
-        isLoading={showSkeleton}
-      />
-
-      {/* Tabel Daftar Mahasiswa (Data Real dari Endpoint /api/students/students) */}
-      <StudentDataTable
-        rows={studentRows}
-        page={studentPage}
-        limit={TABLE_LIMIT}
-        pagination={studentPagination}
-        onPageChange={setStudentPage}
-        isLoading={isStudentListLoading}
-      />
-
-      {/* Styled Detail Modal */}
-      <StudentDetailModal
-        isOpen={Boolean(activeModalType)}
-        onClose={closeModal}
-        activeModalType={currentModalType}
-        originRect={originRect}
-        data={data}
-        filters={filteredSummaryQuery}
-      />
+      <StudentFilterContainer filterValues={filterControlValues} filterOptions={filterControlOptions} filterHandlers={filterHandlers} activeCount={activeFilterCount} onResetAll={resetFilters} isLoading={summaryQuery.isLoading && !summaryQuery.data} />
+      <StudentDataTable rows={rows} page={page} limit={TABLE_LIMIT} pagination={pagination} onPageChange={setPage} isLoading={isListLoading} />
+      <StudentDetailModal isOpen={Boolean(activeModalType)} onClose={closeModal} activeModalType={currentModalType} originRect={originRect} data={summaryQuery.data} filters={summaryParams} />
     </div>
   );
 }

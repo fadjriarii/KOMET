@@ -16,6 +16,18 @@ const prisma = require('../../config/prisma');
 async function getStudentList(whereFilter, page = 1, limit = 10, cursor) {
     const skip = (page - 1) * limit;
 
+    if (cursor) {
+        const cursorStudent = await prisma.student.findUnique({
+            where: { nim: cursor },
+            select: { nim: true }
+        });
+        if (!cursorStudent) {
+            const error = new Error('Invalid cursor.');
+            error.statusCode = 400;
+            throw error;
+        }
+    }
+
     const query = buildStudentListQuery(whereFilter, page, limit, cursor);
     const [rawData, total] = await Promise.all([
         prisma.student.findMany(query),

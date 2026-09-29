@@ -12,13 +12,18 @@ export const studentsService = {
     if (Array.isArray(filters.status) && filters.status.length === 0) append('statusKeaktifan', '__ALL__');
     else appendMany('statusKeaktifan', filters.status);
     append('periodeMasuk', filters.periode);
+    append('tahunAjaran', filters.tahunAjaran);
+    if (filters.tahunAjaran) append('selectedPeriode', filters.tahunAjaran);
     if (pagination.page) append('page', pagination.page); if (pagination.limit) append('limit', pagination.limit);
     return params;
   },
-  getSummary: (params) => apiClient.get(`/students/summary${params ? `?${params instanceof URLSearchParams ? params : studentsService.toQueryParams(params)}` : ''}`),
-  getStudentList: ({ filters, page, limit }) => apiClient.get(`/students/students?${studentsService.toQueryParams(filters, { page, limit })}`),
-  getActiveStudentsDetail: (params) => apiClient.get(`/students/active-students${params ? `?${new URLSearchParams(params)}` : ''}`),
-  getInternationalDetail: (params) => apiClient.get(`/students/international-detail${params ? `?${new URLSearchParams(params)}` : ''}`),
-  getIntakeTrend: (params) => apiClient.get(`/students/intake-trend${params ? `?${new URLSearchParams(params)}` : ''}`),
-  getDeclineTrend: (params) => apiClient.get(`/students/decline-trend${params ? `?${new URLSearchParams(params)}` : ''}`),
+  toQueryString: (filters = {}) => (
+    filters instanceof URLSearchParams ? filters.toString() : studentsService.toQueryParams(filters).toString()
+  ),
+  getSummary: (filters, options) => apiClient.get(`/students/summary${filters ? `?${studentsService.toQueryString(filters)}` : ''}`, options),
+  getStudentList: ({ filters, page, limit }, options) => apiClient.get(`/students/students?${studentsService.toQueryParams(filters, { page, limit })}`, options),
+  getActiveStudentsDetail: (filters, options) => apiClient.get(`/students/active-students?${studentsService.toQueryString(filters)}`, options),
+  getInternationalDetail: (filters, options) => apiClient.get(`/students/international-detail?${studentsService.toQueryString(filters)}`, options),
+  getIntakeTrend: (filters, options) => apiClient.get(`/students/intake-trend?${studentsService.toQueryString(filters)}`, options),
+  getDeclineTrend: (filters, options) => apiClient.get(`/students/decline-trend?${studentsService.toQueryString(filters)}`, options),
 };
