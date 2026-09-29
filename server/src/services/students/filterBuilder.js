@@ -120,8 +120,10 @@ function buildWhereClause(query = {}, { forStats = false } = {}) {
     const where = {};
     buildMultiSelectFilters(query, where);
 
-    const targetAcademicYear = query.tahunAjaran
-        || (query.selectedPeriode?.includes('/') ? query.selectedPeriode : null);
+    const tahunAjaran = typeof query.tahunAjaran === 'string' ? query.tahunAjaran : null;
+    const selectedPeriode = typeof query.selectedPeriode === 'string' ? query.selectedPeriode : null;
+    const targetAcademicYear = tahunAjaran
+        || (selectedPeriode?.includes('/') ? selectedPeriode : null);
     const academicYear = getAcademicYear(targetAcademicYear);
     const academicConditions = buildAcademicYearFilter(academicYear);
     if (academicConditions.length) {
