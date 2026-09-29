@@ -15,6 +15,7 @@ export default function StatCard({
   actionLabel = 'Lihat Rincian',
   onViewDetails,
   actionDisabled = false,
+  isFiltered = false,
   isLoading = false,
   className = '',
   valueClassName = 'text-gray-900',
@@ -50,7 +51,7 @@ export default function StatCard({
 
   return (
     <div 
-      className={`bg-white p-5 rounded-2xl border border-gray-100/90 shadow-[0_4px_20px_rgba(0,0,0,0.03)] hover:shadow-[0_6px_24px_rgba(0,0,0,0.06)] transition-all flex flex-col justify-between h-full min-h-[185px] group ${className}`}
+      className={`relative bg-white p-5 rounded-2xl border border-gray-100/90 shadow-[0_4px_20px_rgba(0,0,0,0.03)] hover:shadow-[0_6px_24px_rgba(0,0,0,0.06)] transition-all flex flex-col justify-between h-full min-h-[185px] group ${className}`}
     >
       {/* 1. Bagian Atas: Title (min-height konsisten 2 baris) & Icon */}
       <div className="flex items-start justify-between gap-2.5">
@@ -79,9 +80,13 @@ export default function StatCard({
       <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
         {/* Kiri Bawah: Badge Status / Label */}
         <div className="flex items-center min-h-[24px]">
-          {badge ? (
-            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100/90 text-gray-700 border border-gray-200/50">
-              {badge}
+          {badge || isFiltered ? (
+            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
+              isFiltered
+                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                : 'bg-gray-100/90 text-gray-700 border-gray-200/50'
+            }`}>
+              {isFiltered ? 'Terfilter' : badge}
             </span>
           ) : (
             <span className="h-6"></span>

@@ -8,16 +8,12 @@ import {
   getCurrentAcademicYear,
   getStudentActiveDescription,
   getActiveTabContent,
+  getStudentStatusPresentation,
 } from '../../../../utils/uiHelpers';
 import { studentsService } from '../../services/studentsService';
 import { useStudentDetailResource } from '../../hooks/useStudentDetailResource';
 import { Building2, BookOpen, Layers } from 'lucide-react';
-
-const STUDENT_TABS = [
-  { key: 'fakultas', label: 'Per Fakultas', icon: Building2 },
-  { key: 'prodi', label: 'Per Program Studi', icon: BookOpen },
-  { key: 'jenjang', label: 'Per Jenjang', icon: Layers },
-];
+import { STUDENT_DISTRIBUTION_TABS } from './studentTrendConfig';
 
 export default function ActiveStudentsModal({
   isOpen,
@@ -26,20 +22,17 @@ export default function ActiveStudentsModal({
   data,
   filters,
 }) {
-  const { activeTab, handleTabChange, slideClass } = useTabTransition(STUDENT_TABS, 'fakultas');
-  const fetchActiveDetail = useCallback(() => studentsService.getActiveStudentsDetail(filters), [filters]);
+  const { activeTab, handleTabChange, slideClass } = useTabTransition(STUDENT_DISTRIBUTION_TABS, 'fakultas');
+  const fetchActiveDetail = useCallback((signal) => studentsService.getActiveStudentsDetail(filters, { signal }), [filters]);
   const {
     data: activeDetailData,
     isLoading: isLoadingDetail,
     error: detailError,
-  } = useStudentDetailResource(
-    isOpen,
-    fetchActiveDetail,
-    'Gagal memuat rincian mahasiswa aktif'
-  );
+  } = useStudentDetailResource({ isOpen, resourceKey: 'active', filters, fetcher: fetchActiveDetail, errorMessage: 'Gagal memuat rincian mahasiswa aktif' });
 
   const kpis = data?.kpis || {};
-  const currentAcademicYear = getCurrentAcademicYear();
+  const statusPresentation = getStudentStatusPresentation(filters?.status || []);
+  const currentAcademicYear = filters?.tahunAjaran || getCurrentAcademicYear();
   const facultyList = activeDetailData?.byFaculty || [];
   const prodiList = activeDetailData?.byProdi || [];
   const jenjangList = activeDetailData?.byJenjang || [];
@@ -87,8 +80,8 @@ export default function ActiveStudentsModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Rincian Mahasiswa Aktif"
-      subtitle="Informasi total student body dengan status aktif"
+      title={statusPresentation.modalTitle}
+      subtitle={statusPresentation.modalSubtitle}
       maxWidth="max-w-4xl"
       originRect={originRect}
       showCloseButton={true}
@@ -96,8 +89,13 @@ export default function ActiveStudentsModal({
       <div className="flex flex-col h-full space-y-4">
         {/* TOP: 80/20 Summary Banner */}
         <ModalSummaryBanner
-          description={getStudentActiveDescription(currentAcademicYear, kpis.formattedActiveCount)}
-          label="Total Aktif"
+          description={getStudentActiveDescription(
+            currentAcademicYear,
+            kpis.formattedActiveCount,
+            statusPresentation.statusLabel,
+            statusPresentation.isCumulative
+          )}
+          label={statusPresentation.summaryLabel}
           value={kpis.formattedActiveCount}
           sublabel="Mahasiswa"
         />
@@ -105,7 +103,7 @@ export default function ActiveStudentsModal({
         {/* TABS: Per Fakultas | Per Program Studi | Per Jenjang */}
         <div className="flex-1 flex flex-col min-h-0">
           <ModalTabNav
-            tabs={STUDENT_TABS}
+            tabs={STUDENT_DISTRIBUTION_TABS}
             activeTab={activeTab}
             onTabChange={handleTabChange}
           />

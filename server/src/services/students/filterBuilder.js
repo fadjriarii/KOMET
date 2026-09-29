@@ -1,140 +1,176 @@
 /**
- * filterBuilder.js
- * 
- * Mengkonversi query parameters dari HTTP request menjadi Prisma where clause.
- * Digunakan oleh semua service stats agar filter konsisten di setiap endpoint.
+ * Translates student query parameters into Prisma where clauses. Keeping the
+ * small builders here makes the list, KPI, and detail endpoints share exactly
+ * the same population definition.
  */
-
 const { getPaginationParams } = require('../../utils/paginationUtils');
 const { toArray } = require('../../utils/queryUtils');
-
-/**
- * Core builder internal untuk membangun where clause Prisma dari query params.
- * @param {object} query - req.query
- * @param {object} options - { forStats: boolean }
- */
-function buildWhereClause(query = {}, options = {}) {
-    const {
-        fakultas,
-        programStudi,
-        jenjang,
-        angkatan,
-        angkatanTahun,
-        semester,
-        periodeMasuk,
-        periode,
-        kewarganegaraan,
-        statusKeaktifan,
-        search
-    } = query;
-
-    const where = {};
-
-    // Multi-select: gunakan Prisma `in` operator
-    const fakultasArr = toArray(fakultas);
-    if (fakultasArr) where.fakultas = { in: fakultasArr };
-
-    const prodiArr = toArray(programStudi);
-    if (prodiArr) where.programStudi = { in: prodiArr };
-
-    const jenjangArr = toArray(jenjang);
-    if (jenjangArr) where.jenjang = { in: jenjangArr };
-
-    const angkatanArr = toArray(angkatan);
-    if (angkatanArr) where.angkatan = { in: angkatanArr };
-
-    const angkatanTahunArr = toArray(angkatanTahun);
-    if (angkatanTahunArr) addOrCondition(where, angkatanTahunArr.map(year => ({ angkatan: { startsWith: year } })));
-
-    const semArr = toArray(semester);
-    if (semArr) {
-        const semList = semArr.map(Number).filter(n => !isNaN(n) && n > 0);
-        if (semList.length > 0) where.semester = { in: semList };
-    }
-
-    // Single-select (dropdown)
-    if (periodeMasuk) where.periodeMasuk = buildPeriodeFilter(periodeMasuk);
-    if (periode) where.periode = periode;
-    if (kewarganegaraan) {
-        if (kewarganegaraan === 'WNI') {
-            where.kewarganegaraan = 'Indonesia';
-        } else if (kewarganegaraan === 'WNA') {
-            where.NOT = {
-                kewarganegaraan: 'Indonesia'
-            };
-        } else {
-            where.kewarganegaraan = kewarganegaraan;
-        }
-    }
-
-    if (options.forStats) {
-        // Default dashboard memakai populasi aktif
-        const statusArr = toArray(statusKeaktifan);
-        if (statusArr?.includes('__ALL__')) {
-            // Penanda eksplisit agar service statistik tidak menerapkan
-            // fallback default status Aktif.
-            where.statusKeaktifan = { not: '' };
-        } else {
-            where.statusKeaktifan = statusArr
-            ? (statusArr.length === 1 ? statusArr[0] : { in: statusArr })
-            : 'Aktif';
-        }
-    } else {
-        const statusArr = toArray(statusKeaktifan);
-        if (statusArr?.includes('__ALL__')) {
-            where.statusKeaktifan = { not: '' };
-        } else if (statusArr) {
-            where.statusKeaktifan = statusArr.length === 1 ? statusArr[0] : { in: statusArr };
-        } else {
-            // Tabel dan KPI harus memiliki populasi default yang sama.
-            where.statusKeaktifan = 'Aktif';
-        }
-    }
-
-    if (search && search.trim()) {
-        const searchTerm = search.trim().substring(0, 100);
-        addOrCondition(where, [
-            { nim: { contains: searchTerm } },
-            { nama: { contains: searchTerm } }
-        ]);
-    }
-
-    return where;
-}
-
-/**
- * Build filter untuk tabel mahasiswa — semua parameter user berlaku penuh.
- * Termasuk statusKeaktifan, semester, dan search.
- */
-function buildStudentFilter(query) {
-    return buildWhereClause(query, { forStats: false });
-}
-
-/**
- * Build filter "dasar" untuk kalkulasi statistik card.
- */
-function buildBaseFilter(query) {
-    return buildWhereClause(query, { forStats: true });
-}
+const { getCurrentAcademicYearStart } = require('../../utils/academicUtils');
 
 function addOrCondition(where, condition) {
     where.AND = where.AND || [];
     where.AND.push({ OR: condition });
 }
 
-/**
- * Konversi label Ganjil/Genap dari UI ke filter kode periode database.
- *
- * Mapping (sesuai business rules):
- *   Ganjil → kode periode berakhir "1" (contoh: 20261)
- *   Genap  → kode periode berakhir "2" (contoh: 20262)
- *
- * UI mengirim label "Ganjil"/"Genap"; database menyimpan kode periode mentah (contoh 20251/20252).
- */
+function getAcademicYear(targetAcademicYear) {
+    if (!targetAcademicYear) return null;
+    const value = String(targetAcademicYear);
+    const match = value.match(/^(\d{4})\/(\d{4})$/);
+    const startYear = match ? match[1] : (value.length === 4 ? value : null);
+    return startYear ? {
+        startYear,
+        endYear: match ? match[2] : String(Number(startYear) + 1),
+        isCurrent: Number(startYear) === getCurrentAcademicYearStart(),
+    } : null;
+}
+
 function buildPeriodeFilter(value) {
     if (value === 'Ganjil') return { endsWith: '1' };
-    if (value === 'Genap')  return { endsWith: '2' };
+    if (value === 'Genap') return { endsWith: '2' };
     return value;
 }
 
-module.exports = { buildStudentFilter, buildBaseFilter, getPaginationParams };
+/**
+ * Snapshot predicates for one academic year.
+ *
+ * A blank `periodeTerakhir` means that no exit period is known. The old
+ * implementation attempted to infer this with an OR clause for every cohort
+ * since 1900. Besides producing hundreds of SQL predicates, that inference
+ * was unreliable for incomplete sync records. A known intake period plus a
+ * positive semester is the direct, safe fallback; an explicit exit period
+ * remains the authoritative historical boundary.
+ */
+function buildAcademicYearFilter(academicYear) {
+    if (!academicYear) return [];
+    const academicStart = `${academicYear.startYear}1`;
+    const academicEnd = `${academicYear.startYear}2`;
+    const conditions = [{ periodeMasuk: { lte: academicEnd } }];
+
+    if (academicYear.isCurrent) {
+        conditions.push({
+            OR: [
+                { periodeTerakhir: '' },
+                { periodeTerakhir: { gte: academicStart } }
+            ]
+        });
+    } else {
+        conditions.push({
+            OR: [
+                { periodeTerakhir: { gte: academicStart } },
+                { AND: [{ periodeTerakhir: '' }, { semester: { gte: 1 } }] }
+            ]
+        });
+    }
+    return conditions;
+}
+
+function buildMultiSelectFilters(query, where) {
+    const mappings = [
+        ['fakultas', 'fakultas'],
+        ['programStudi', 'programStudi'],
+        ['jenjang', 'jenjang'],
+        ['angkatan', 'angkatan'],
+    ];
+    mappings.forEach(([queryKey, field]) => {
+        const values = toArray(query[queryKey]);
+        if (values) where[field] = { in: values };
+    });
+
+    const cohortYears = toArray(query.angkatanTahun);
+    if (cohortYears) {
+        addOrCondition(where, cohortYears.map((year) => ({ angkatan: { startsWith: year } })));
+    }
+
+    const semesters = toArray(query.semester)
+        ?.map(Number)
+        .filter((value) => Number.isInteger(value) && value > 0);
+    if (semesters?.length) where.semester = { in: semesters };
+}
+
+function buildStatusFilter(statusValues, academicYear, forStats) {
+    if (statusValues?.includes('__ALL__')) return { not: '' };
+
+    const hasDefaultActive = !statusValues
+        || (statusValues.length === 1 && statusValues[0] === 'Aktif');
+    // Historic snapshots describe the population in that year, so today's
+    // status must not remove students who were enrolled then.
+    if (academicYear && !academicYear.isCurrent && hasDefaultActive) return undefined;
+    if (academicYear && academicYear.isCurrent && hasDefaultActive) return 'Aktif';
+    if (statusValues?.length) return statusValues.length === 1 ? statusValues[0] : { in: statusValues };
+    // List and statistics deliberately share the same default population.
+    return forStats ? 'Aktif' : 'Aktif';
+}
+
+function buildSearchFilter(search) {
+    const searchTerm = typeof search === 'string' ? search.trim().substring(0, 100) : '';
+    return searchTerm ? [
+        { nim: { contains: searchTerm } },
+        { nama: { contains: searchTerm } }
+    ] : null;
+}
+
+function isAcademicSnapshot(where = {}) {
+    return Array.isArray(where.AND) && where.AND.some((condition) => (
+        condition?.periodeMasuk?.lte
+        || condition?.OR?.some((item) => item?.periodeTerakhir?.gte)
+    ));
+}
+
+function buildWhereClause(query = {}, { forStats = false } = {}) {
+    const where = {};
+    buildMultiSelectFilters(query, where);
+
+    const targetAcademicYear = query.tahunAjaran
+        || (query.selectedPeriode?.includes('/') ? query.selectedPeriode : null);
+    const academicYear = getAcademicYear(targetAcademicYear);
+    const academicConditions = buildAcademicYearFilter(academicYear);
+    if (academicConditions.length) {
+        where.AND = [...(where.AND || []), ...academicConditions];
+        if (query.periodeMasuk) {
+            const periodeFilter = buildPeriodeFilter(query.periodeMasuk);
+            if (periodeFilter?.endsWith) where.AND.push({ periodeMasuk: periodeFilter });
+        }
+    } else if (query.periodeMasuk && academicYear) {
+        const periodeFilter = buildPeriodeFilter(query.periodeMasuk);
+        where.periodeMasuk = periodeFilter?.endsWith
+            ? { startsWith: academicYear.startYear, endsWith: periodeFilter.endsWith }
+            : { startsWith: academicYear.startYear };
+    } else if (query.periodeMasuk) {
+        where.periodeMasuk = buildPeriodeFilter(query.periodeMasuk);
+    } else if (academicYear) {
+        where.periodeMasuk = { startsWith: academicYear.startYear };
+    }
+
+    if (query.periode) where.periode = query.periode;
+    if (query.kewarganegaraan === 'WNI') where.kewarganegaraan = 'Indonesia';
+    else if (query.kewarganegaraan === 'WNA') where.NOT = { kewarganegaraan: 'Indonesia' };
+    else if (query.kewarganegaraan) where.kewarganegaraan = query.kewarganegaraan;
+
+    const statusFilter = buildStatusFilter(toArray(query.statusKeaktifan), academicYear, forStats);
+    if (statusFilter !== undefined) where.statusKeaktifan = statusFilter;
+
+    const searchFilter = buildSearchFilter(query.search);
+    if (searchFilter) addOrCondition(where, searchFilter);
+    return where;
+}
+
+function buildStudentFilter(query) {
+    return buildWhereClause(query, { forStats: false });
+}
+
+function buildBaseFilter(query) {
+    return buildWhereClause(query, { forStats: true });
+}
+
+module.exports = {
+    buildStudentFilter,
+    buildBaseFilter,
+    buildWhereClause,
+    buildAcademicYearFilter,
+    buildPeriodeFilter,
+    buildStatusFilter,
+    buildSearchFilter,
+    buildMultiSelectFilters,
+    isAcademicSnapshot,
+    getPaginationParams,
+};

@@ -4,7 +4,9 @@ const COOKIE_NAME = 'komet_student_session';
 const MAX_AGE_SECONDS = 60 * 60 * 8;
 
 function getSecret() {
-    return process.env.SESSION_SECRET || process.env.SYNC_API_KEY;
+    // Session cookies and the sync API key are separate credentials. Reusing
+    // the latter would allow a sync credential to access student-data routes.
+    return process.env.SESSION_SECRET;
 }
 
 function sign(value) {
@@ -27,10 +29,18 @@ function isValidSessionToken(token) {
 }
 
 function parseCookies(header = '') {
-    return Object.fromEntries(header.split(';').map(item => item.trim().split('=')));
+    return Object.fromEntries(
+        header.split(';').map(item => {
+            const [name, ...rest] = item.trim().split('=');
+            return [name, rest.join('=')];
+        })
+    );
 }
 
 function issueStudentSession(req, res) {
+    if (!getSecret()) {
+        return res.status(500).json({ success: false, message: 'Student session is not configured.' });
+    }
     const token = createSessionToken();
     const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
     res.setHeader('Set-Cookie', `${COOKIE_NAME}=${token}; HttpOnly; SameSite=Strict; Path=/api/students; Max-Age=${MAX_AGE_SECONDS}${secure}`);
@@ -39,10 +49,7 @@ function issueStudentSession(req, res) {
 
 function studentSessionAuth(req, res, next) {
     if (isValidSessionToken(parseCookies(req.headers.cookie || '')[COOKIE_NAME])) return next();
-    // Backward compatibility for trusted server-to-server callers during migration.
-    const hasApiKey = req.headers['x-api-key'] || req.headers.authorization;
-    if (hasApiKey && require('./auth').authenticateApiKey(req)) return next();
     return res.status(401).json({ success: false, message: 'Student session is required.' });
 }
 
-module.exports = { issueStudentSession, studentSessionAuth };
+module.exports = { issueStudentSession, studentSessionAuth, parseCookies };

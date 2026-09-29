@@ -1,21 +1,21 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import Modal from '../../../../components/common/modals/Modal';
 import ModalSummaryBanner from '../../../../components/common/modals/ModalSummaryBanner';
 import ModalTabNav from '../../../../components/common/modals/ModalTabNav';
 import ModalTable from '../../../../components/common/modals/ModalTable';
 import EmptyState from '../../../../components/common/feedback/EmptyState';
-import Skeleton from '../../../../components/common/feedback/Skeleton';
+import ChartLoadingSkeleton from '../../../../components/common/feedback/ChartLoadingSkeleton';
+import ModalTabContent from '../../../../components/common/modals/ModalTabContent';
 import { useTabTransition } from '../../../../hooks/useTabTransition';
 import { TREND_TABS } from './studentTrendConfig';
 import {
-  formatCompactNumber,
-  formatNumber,
   reverseTrendData,
-  getTooltipPayloadItem,
 } from '../../../../utils/uiHelpers';
-import { DIGITAL_BLUE, getTrendStyle } from '../../../../utils/theme';
+import { getTrendStyle } from '../../../../utils/theme';
 import { studentsService } from '../../services/studentsService';
 import { useStudentDetailResource } from '../../hooks/useStudentDetailResource';
+import TrendBarChart from './TrendBarChart';
+import TrendChartTooltip from './TrendChartTooltip';
 import {
   BarChart3,
   Calendar,
@@ -24,19 +24,6 @@ import {
   Users,
   Percent,
 } from 'lucide-react';
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  LabelList,
-} from 'recharts';
-
-const DECLINE_TABS = TREND_TABS;
 
 const DECLINE_TABLE_COLUMNS = [
   {
@@ -104,23 +91,28 @@ export default function DeclineStudentsModal({
   data,
   filters,
 }) {
-  const { activeTab, handleTabChange, slideClass } = useTabTransition(DECLINE_TABS, 'chart');
-  const fetchDeclineDetail = useCallback(() => studentsService.getDeclineTrend(filters), [filters]);
+  const { activeTab, handleTabChange, slideClass } = useTabTransition(TREND_TABS, 'chart');
+  const fetchDeclineDetail = useCallback((signal) => studentsService.getDeclineTrend(filters, { signal }), [filters]);
   const {
     data: declineData,
     isLoading,
     error,
-  } = useStudentDetailResource(
-    isOpen,
-    fetchDeclineDetail,
-    'Gagal memuat data penurunan mahasiswa'
-  );
+  } = useStudentDetailResource({ isOpen, resourceKey: 'decline', filters, fetcher: fetchDeclineDetail, errorMessage: 'Gagal memuat data penurunan mahasiswa' });
 
   const kpis = data?.kpis || {};
-  const historyList = declineData?.data?.history || data?.summary?.newStudentDecline?.history || [];
+  // Backend mengirim history dari terbaru ke terlama (A → E), cocok untuk tabel.
+  const historyList = useMemo(() => declineData?.data?.history || data?.summary?.newStudentDecline?.history || [], [data, declineData]);
+  // Chart dibaca kiri ke kanan, maka urutannya diubah menjadi terlama ke terbaru.
   const chartList = reverseTrendData(historyList);
   const hasData = historyList.length > 0;
-  const trendStyle = getTrendStyle(kpis.isFluctuationPositive);
+  const hasEnoughDeclineData = kpis.hasEnoughDeclineData !== false;
+  const trendStyle = hasEnoughDeclineData
+    ? getTrendStyle(kpis.isFluctuationPositive)
+    : { textClass: 'text-gray-500', label: 'Data belum cukup' };
+  const content = useMemo(() => ({
+    chart: <div className="h-full flex flex-col pt-0.5 px-1">{isLoading ? <ChartLoadingSkeleton /> : !hasData ? <EmptyState title="Tidak Ada Data Penurunan" description={error || 'Belum ada data fluktuasi mahasiswa baru dari backend.'} icon={BarChart3} /> : <div className="h-48 sm:h-56 md:h-64 w-full"><TrendBarChart data={chartList} xDataKey="academicYear" legendLabel="Jumlah Intake Mahasiswa Baru (5 Periode)" tooltipContent={<TrendChartTooltip rows={[{ key: 'intakeCount', label: 'Jumlah Intake', colorClass: 'bg-digital-blue-600' }]} titleAccessory={(item) => item.label && <span className="w-5 h-5 rounded-full bg-digital-blue-50 text-digital-blue-700 font-bold inline-flex items-center justify-center text-[10px] border border-digital-blue-200">{item.label}</span>} />} /></div>}</div>,
+    table: <div className="h-full flex flex-col pt-0.5 pb-1"><ModalTable columns={DECLINE_TABLE_COLUMNS} data={historyList} isLoading={isLoading} error={error} emptyTitle="Tidak Ada Riwayat Fluktuasi" emptyDescription="Belum ada data riwayat penurunan mahasiswa dari backend." /></div>,
+  }), [chartList, error, hasData, historyList, isLoading]);
 
   return (
     <Modal
@@ -158,7 +150,7 @@ export default function DeclineStudentsModal({
         {/* TABS: Diagram Tren | Tabel Riwayat */}
         <div className="flex-1 flex flex-col min-h-0">
           <ModalTabNav
-            tabs={DECLINE_TABS}
+            tabs={TREND_TABS}
             activeTab={activeTab}
             onTabChange={handleTabChange}
           />
@@ -166,114 +158,7 @@ export default function DeclineStudentsModal({
           {/* Tab content area */}
           <div className="flex-1 min-h-0 overflow-x-hidden w-full">
             <div key={activeTab} className={`h-full ${slideClass}`}>
-              {/* TAB 1: Diagram Tren — Recharts BarChart */}
-              {activeTab === 'chart' && (
-                <div className="h-full flex flex-col pt-0.5 px-1">
-                  {isLoading ? (
-                    <div className="space-y-3 py-6">
-                      <Skeleton className="h-6 w-1/3 rounded-lg" />
-                      <Skeleton className="h-44 w-full rounded-2xl" />
-                    </div>
-                  ) : !hasData ? (
-                    <EmptyState
-                      title="Tidak Ada Data Penurunan"
-                      description={error || 'Belum ada data fluktuasi mahasiswa baru dari backend.'}
-                      icon={BarChart3}
-                    />
-                  ) : (
-                    <ResponsiveContainer width="100%" height={230}>
-                      <BarChart
-                        data={chartList}
-                        margin={{ top: 8, right: 24, left: 4, bottom: 44 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
-                        <XAxis
-                          dataKey="academicYear"
-                          tick={{ fontSize: 10, fill: '#6b7280' }}
-                          angle={-25}
-                          textAnchor="end"
-                          interval={0}
-                          tickLine={false}
-                          axisLine={{ stroke: '#e5e7eb' }}
-                          dy={6}
-                        />
-                        <YAxis
-                          tick={{ fontSize: 10, fill: '#9ca3af' }}
-                          tickFormatter={formatCompactNumber}
-                          tickLine={false}
-                          axisLine={false}
-                          width={44}
-                        />
-                        <Tooltip
-                          content={({ active, payload, label }) => {
-                            if (!active || !payload?.length) return null;
-                            const item = getTooltipPayloadItem(payload);
-                            if (!item) return null;
-
-                            return (
-                              <div className="bg-white border border-gray-200 rounded-xl shadow-lg px-4 py-3 text-xs min-w-[180px]">
-                                <div className="flex items-center justify-between mb-2">
-                                  <p className="font-bold text-gray-800">{label}</p>
-                                  {item.label && (
-                                    <span className="w-5 h-5 rounded-full bg-digital-blue-50 text-digital-blue-700 font-bold inline-flex items-center justify-center text-[10px] border border-digital-blue-200">
-                                      {item.label}
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="flex items-center justify-between gap-4 mb-1">
-                                  <span className="flex items-center gap-1.5 text-gray-500">
-                                    <span className="inline-block w-3 h-3 rounded-sm bg-digital-blue-600" />
-                                    Jumlah Intake
-                                  </span>
-                                  <span className="font-semibold text-gray-800">
-                                    {formatNumber(item.intakeCount)} mhs
-                                  </span>
-                                </div>
-                              </div>
-                            );
-                          }}
-                          cursor={{ fill: 'rgba(219,234,254,0.3)' }}
-                        />
-                        <Legend
-                          verticalAlign="top"
-                          height={32}
-                          formatter={() => 'Jumlah Intake Mahasiswa Baru (5 Periode)'}
-                          iconType="square"
-                          wrapperStyle={{ fontSize: '11px', color: '#6b7280', paddingBottom: '50px' }}
-                        />
-                        <Bar
-                          dataKey="intakeCount"
-                          name="intakeCount"
-                          fill={DIGITAL_BLUE[600]}
-                          radius={[4, 4, 0, 0]}
-                          maxBarSize={48}
-                          animationDuration={800}
-                        >
-                          <LabelList
-                            dataKey="intakeCountFormatted"
-                            position="top"
-                            style={{ fill: DIGITAL_BLUE[800], fontSize: 10, fontWeight: 700 }}
-                          />
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  )}
-                </div>
-              )}
-
-              {/* TAB 2: Tabel Riwayat */}
-              {activeTab === 'table' && (
-                <div className="h-full flex flex-col pt-0.5 pb-1">
-                  <ModalTable
-                    columns={DECLINE_TABLE_COLUMNS}
-                    data={historyList}
-                    isLoading={isLoading}
-                    error={error}
-                    emptyTitle="Tidak Ada Riwayat Fluktuasi"
-                    emptyDescription="Belum ada data riwayat penurunan mahasiswa dari backend."
-                  />
-                </div>
-              )}
+              <ModalTabContent activeTab={activeTab} content={content} />
             </div>
           </div>
         </div>

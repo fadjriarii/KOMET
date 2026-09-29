@@ -24,7 +24,7 @@
  *   (positif = naik dari B ke A, negatif = turun)
  */
 
-const { getIntakeForYear } = require('./intakeTrend');
+const { getIntakeCountsForYears } = require('./intakeTrend');
 const logger = require('../../utils/logger');
 
 /**
@@ -42,7 +42,8 @@ function getDefaultYear(intakeTrendData) {
  * 
  * @param {string|null} selectedPeriode - Tahun akademik pilihan user format "YYYY/YYYY", atau null untuk default terbaru
  * @param {object} baseFilter - Filter dari buildBaseFilter() (tanpa semester & statusKeaktifan)
- * @param {Array} intakeTrendData - Hasil dari getIntakeTrend() — digunakan untuk menentukan tahun default
+ * @param {Array} intakeTrendData - Hasil `trend` dari getIntakeTrend(). Ketika
+ * kosong, tahun yang tidak tersedia di cache diambil dalam satu batch query.
  * @returns {Promise<object|null>} Data decline atau null jika tidak ada data
  */
 async function getNewStudentDecline(selectedPeriode, baseFilter, intakeTrendData) {
@@ -63,17 +64,22 @@ async function getNewStudentDecline(selectedPeriode, baseFilter, intakeTrendData
         return null;
     }
 
-    // Ambil intake untuk 5 tahun (A = terbaru, E = paling lama)
-    const [A, B, C, D, E, F] = await Promise.all([
-        getIntakeForYear(`${startYear}/${startYear + 1}`, baseFilter),
-        getIntakeForYear(`${startYear - 1}/${startYear}`, baseFilter),
-        getIntakeForYear(`${startYear - 2}/${startYear - 1}`, baseFilter),
-        getIntakeForYear(`${startYear - 3}/${startYear - 2}`, baseFilter),
-        getIntakeForYear(`${startYear - 4}/${startYear - 3}`, baseFilter),
-        // Satu tahun tambahan hanya digunakan sebagai pembanding untuk
-        // baris tahun paling lama di tabel 5 tahun.
-        getIntakeForYear(`${startYear - 5}/${startYear - 4}`, baseFilter)
-    ]);
+    const academicYears = Array.from({ length: 6 }, (_, index) => {
+        const year = startYear - index;
+        return `${year}/${year + 1}`;
+    });
+    const trendCounts = new Map(
+        (Array.isArray(intakeTrendData) ? intakeTrendData : [])
+            .map(({ tahun, intakeCount }) => [tahun, intakeCount])
+    );
+    // Reuse A–E from getIntakeTrend when available. Usually only F (the
+    // comparison year for E) needs a database lookup, avoiding five queries.
+    const missingYears = academicYears.filter((academicYear) => !trendCounts.has(academicYear));
+    const queriedCounts = await getIntakeCountsForYears(missingYears, baseFilter);
+    const counts = academicYears.map((academicYear) => (
+        trendCounts.has(academicYear) ? trendCounts.get(academicYear) : (queriedCounts.get(academicYear) || 0)
+    ));
+    const [A, B, C, D, E, F] = counts;
 
     const terms = [A, B, C, D, E]
         .slice(0, -1)
@@ -89,7 +95,7 @@ async function getNewStudentDecline(selectedPeriode, baseFilter, intakeTrendData
             selectedPeriod: selectedYear,
             declinePercentage: null,
             history: [
-            ...buildHistory(startYear, [A, B, C, D, E], false, null, F)
+            ...buildHistory(startYear, [A, B, C, D, E], false, F)
             ],
             formula: 'avg((A-B)/B + (B-C)/C + (C-D)/D + (D-E)/E)'
         };
@@ -97,24 +103,10 @@ async function getNewStudentDecline(selectedPeriode, baseFilter, intakeTrendData
 
     const declinePercentage = parseFloat((validTerms.reduce((sum, term) => sum + term, 0) / validTerms.length * 100).toFixed(2));
 
-    /**
-     * FIX BUG calcChange direction:
-     * changeFromPrev pada setiap titik menunjukkan perubahan dari titik TERSEBUT ke titik BERIKUTNYA (lebih baru).
-     * - B.changeFromPrev = (A - B) / B * 100  → perubahan dari tahun B ke tahun A
-     * - C.changeFromPrev = (B - C) / C * 100  → perubahan dari tahun C ke tahun B
-     * - dst.
-     * Positif = naik menuju tahun yang lebih baru, negatif = turun.
-     * A.changeFromPrev = null karena A adalah titik terbaru (tidak ada titik setelahnya).
-     */
-    const calcChange = (newerCount, olderCount) =>
-        olderCount > 0
-            ? parseFloat(((newerCount - olderCount) / olderCount * 100).toFixed(2))
-            : null;
-
     return {
         selectedPeriod: selectedYear,
         declinePercentage,
-        history: buildHistory(startYear, [A, B, C, D, E], true, calcChange, F),
+        history: buildHistory(startYear, [A, B, C, D, E], true, F),
         formula: 'avg((A-B)/B + (B-C)/C + (C-D)/D + (D-E)/E)'
     };
 }
@@ -127,12 +119,13 @@ function calculateAverageChange(counts) {
     const terms = counts.slice(0, -1)
         .map((newerCount, index) => calculateChange(newerCount, counts[index + 1]))
         .filter(term => term !== null);
+
     return terms.length
         ? parseFloat((terms.reduce((sum, term) => sum + term, 0) / terms.length * 100).toFixed(2))
         : null;
 }
 
-function buildHistory(startYear, counts, includeChanges, calcChange, olderCount = null) {
+function buildHistory(startYear, counts, includeChanges, olderCount = null) {
     return counts.map((intakeCount, index) => ({
         label: String.fromCharCode(65 + index),
         academicYear: `${startYear - index}/${startYear + 1 - index}`,
@@ -142,9 +135,13 @@ function buildHistory(startYear, counts, includeChanges, calcChange, olderCount 
         // Dengan demikian tahun terbaru tetap memiliki persentase jika
         // tahun sebelumnya tersedia.
         changeFromPrev: includeChanges && (index < counts.length - 1 || olderCount !== null)
-            ? calcChange(intakeCount, index < counts.length - 1 ? counts[index + 1] : olderCount)
+            ? toPercentage(calculateChange(intakeCount, index < counts.length - 1 ? counts[index + 1] : olderCount))
             : null
     }));
+}
+
+function toPercentage(value) {
+    return value === null ? null : Number((value * 100).toFixed(2));
 }
 
 module.exports = { getNewStudentDecline, calculateAverageChange };

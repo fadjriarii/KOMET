@@ -1,4 +1,5 @@
 const prisma = require('../../config/prisma');
+const { toAcademicYear, get5YearRollingAcademicYears } = require('../../utils/academicUtils');
 
 let studentsFilterCache = null;
 let studentsFilterCacheTime = 0;
@@ -30,6 +31,7 @@ async function getFilterOptions(forceRefresh = false) {
         statusKeaktifan: statusRes.map(r => r.statusKeaktifan).filter(Boolean).sort(),
         jenjang: await getDistinctJenjang(),
         rollingYears: getRollingYears(angkatanRes.map(r => r.angkatan)),
+        academicYears: [...new Set(periodeRes.map(r => toAcademicYear(r.periodeMasuk)).filter(Boolean))].sort().reverse(),
         nationalityOptions: [
             { value: 'WNI', label: 'WNI' },
             { value: 'WNA', label: 'WNA' }
@@ -38,6 +40,11 @@ async function getFilterOptions(forceRefresh = false) {
             { value: 'Ganjil', label: 'Ganjil' },
             { value: 'Genap', label: 'Genap' }
         ],
+        // Dropdown Tahun Ajaran mengikuti tahun akademik terbaru yang benar-benar
+        // tersedia di database, sehingga otomatis bergeser setelah sync Sevima.
+        academicYearOptions: get5YearRollingAcademicYears(
+            periodeRes.map(r => toAcademicYear(r.periodeMasuk)).filter(Boolean)
+        ).reverse(),
         semesterOptions: semesterRes
             .map(r => r.semester)
             .filter(value => value !== null && value !== undefined)

@@ -25,6 +25,7 @@ export default function Select({
   icon: Icon,
   disabled = false,
   className = '',
+  buttonClassName = '',
   id,
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -92,7 +93,11 @@ export default function Select({
           disabled={disabled}
           aria-expanded={isOpen}
           aria-haspopup="listbox"
-          className={`w-full h-11 flex items-center justify-between bg-gray-50/80 hover:bg-gray-50/50 focus:bg-white text-xs sm:text-sm rounded-xl border border-gray-200/90 hover:border-gray-300 focus:border-digital-blue-600 focus:ring-3 focus:ring-digital-blue-500/15 shadow-2xs transition-all outline-none cursor-pointer ${
+          className={`w-full ${
+            buttonClassName
+              ? buttonClassName
+              : 'h-11 bg-gray-50/80 hover:bg-gray-50/50 focus:bg-white border-gray-200/90'
+          } flex items-center justify-between text-xs sm:text-sm rounded-xl border hover:border-gray-300 focus:border-digital-blue-600 focus:ring-3 focus:ring-digital-blue-500/15 shadow-2xs transition-all outline-none cursor-pointer ${
             Icon ? 'pl-9.5 pr-3.5' : 'px-3.5'
           } ${disabled ? 'opacity-60 cursor-not-allowed bg-gray-100 border-gray-200' : ''}`}
         >

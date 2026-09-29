@@ -2,31 +2,29 @@ const { buildStudentFilter, buildBaseFilter, getPaginationParams } = require('..
 const { getFilterOptions } = require('../services/students/filterOptions');
 const { getTotalActiveStudents, getActiveStudentsMultisector } = require('../services/students/activeStudents');
 const { getInternationalStudentsTrend, getTotalInternationalStudents } = require('../services/students/internationalTrend');
-const { getIntakeTrend } = require('../services/students/intakeTrend');
+const { getIntakeTrend, getIntakeForYear } = require('../services/students/intakeTrend');
 const { getNewStudentDecline } = require('../services/students/declineTrend');
 const { getStudentList } = require('../services/students/studentList');
 const { sendError } = require('../utils/errorHandler');
+const { formatNumber } = require('../utils/formatUtils');
 
-const formatNumber = (value) => value === null || value === undefined ? '-' : new Intl.NumberFormat('id-ID').format(value);
-
-function buildActiveKpiFilter(query) {
-    const baseFilter = buildBaseFilter(query);
-    const statuses = Array.isArray(query.statusKeaktifan)
-        ? query.statusKeaktifan
-        : [query.statusKeaktifan];
-    return statuses.includes('__ALL__')
-        ? { ...baseFilter, statusKeaktifan: 'Aktif' }
-        : baseFilter;
+function buildStudentPopulationFilter(query) {
+    return buildBaseFilter(query);
 }
 
 // GET /api/students/summary — Data 4 card utama dashboard + filter options
 const getSummary = async (req, res) => {
     try {
         const baseFilter = buildBaseFilter(req.query);
-        // "Semua Status" berlaku untuk tabel, tetapi KPI Mahasiswa Aktif
-        // tetap memiliki definisi tetap: hanya status Aktif.
-        const activeKpiFilter = buildActiveKpiFilter(req.query);
-        const { selectedPeriode } = req.query;
+        // Seluruh KPI berbasis populasi yang sama dengan filter status pengguna.
+        // Nilai __ALL__ dari UI diterjemahkan oleh buildBaseFilter menjadi semua
+        // status yang tidak kosong, bukan dipaksa kembali ke status Aktif.
+        const studentPopulationFilter = buildStudentPopulationFilter(req.query);
+        // `selectedPeriode` is retained for backward-compatible detail links;
+        // the header now sends `tahunAjaran`. Both identify the same academic
+        // year in this endpoint, while `periodeMasuk` remains the Ganjil/Genap
+        // intake filter and may legitimately differ from either value.
+        const selectedPeriode = req.query.selectedPeriode || req.query.tahunAjaran;
         
         const [
             filterOptions,
@@ -36,9 +34,9 @@ const getSummary = async (req, res) => {
             intakeTrendResult
         ] = await Promise.all([
             getFilterOptions(),
-            getTotalActiveStudents(activeKpiFilter),  // Card 1: Total Mahasiswa Aktif
-            getTotalInternationalStudents(activeKpiFilter), // Card 2: Total Mahasiswa Asing (WNA) Aktif
-            getInternationalStudentsTrend(activeKpiFilter),
+            getTotalActiveStudents(studentPopulationFilter),
+            getTotalInternationalStudents(studentPopulationFilter),
+            getInternationalStudentsTrend(studentPopulationFilter),
             getIntakeTrend(baseFilter)                 // Card 3: Intake Mahasiswa Baru
         ]);
         
@@ -53,11 +51,37 @@ const getSummary = async (req, res) => {
         const foreignStudentsRate = totalActiveStudents > 0
             ? `${((totalInternationalStudents / totalActiveStudents) * 100).toFixed(1)}%`
             : "0.0%";
-        const latestIntake = intakeTrend[intakeTrend.length - 1];
+        // Card Intake mengikuti tahun ajaran yang dipilih, bukan selalu tahun
+        // terakhir pada rolling trend.
+        let selectedIntake = selectedPeriode
+            ? intakeTrend.find((item) => item.tahun === selectedPeriode)
+            : null;
+        // Tahun pilihan bisa berada di luar rolling window trend. Hitung
+        // langsung dari cohort agar card tetap berubah sesuai pilihan user.
+        if (!selectedIntake && selectedPeriode) {
+            const intakeCount = await getIntakeForYear(selectedPeriode, baseFilter);
+            selectedIntake = {
+                tahun: selectedPeriode,
+                intakeCount,
+                intakeCountFormatted: `${new Intl.NumberFormat('id-ID').format(intakeCount)} mhs`,
+                growth: '0.00%',
+                growthFormatted: '0.00%',
+                rawGrowth: 0,
+                isPositive: true
+            };
+        }
+        const latestIntake = selectedIntake || intakeTrend[intakeTrend.length - 1];
         const intakeCohortCount = latestIntake ? (latestIntake.intakeCount || latestIntake.count || 0) : 0;
-        const declinePct = newStudentDecline?.declinePercentage ?? 0;
-        const intakeFluctuationAvg = `${declinePct >= 0 ? '+' : ''}${declinePct.toFixed(1)}%`;
-        const isFluctuationPositive = declinePct >= 0;
+        // A missing comparison baseline is materially different from a 0%
+        // fluctuation. Keep that distinction in the API so the UI can explain
+        // that the historical data is insufficient instead of implying a flat
+        // trend.
+        const declinePct = newStudentDecline?.declinePercentage;
+        const hasEnoughDeclineData = Number.isFinite(declinePct);
+        const intakeFluctuationAvg = hasEnoughDeclineData
+            ? `${declinePct >= 0 ? '+' : ''}${declinePct.toFixed(1)}%`
+            : '-';
+        const isFluctuationPositive = hasEnoughDeclineData && declinePct >= 0;
 
         const intlTrendData = internationalTrend?.trendData || [];
 
@@ -94,7 +118,8 @@ const getSummary = async (req, res) => {
                 intakeCount: intakeCohortCount,
                 intakePeriod: latestIntake?.tahun || null,
                 declinePeriod: newStudentDecline?.selectedPeriod || null,
-                declineAvg: intakeFluctuationAvg
+                declineAvg: intakeFluctuationAvg,
+                hasEnoughDeclineData
             },
             filterOptions
         });
@@ -106,7 +131,7 @@ const getSummary = async (req, res) => {
 // GET /api/students/international-detail — Detail chart mahasiswa asing per negara (TODO-12)
 const getInternationalDetail = async (req, res) => {
     try {
-        const baseFilter = buildActiveKpiFilter(req.query);
+        const baseFilter = buildStudentPopulationFilter(req.query);
         const result = await getInternationalStudentsTrend(baseFilter);
         return res.status(200).json({ success: true, ...result });
     } catch (error) {
@@ -117,7 +142,7 @@ const getInternationalDetail = async (req, res) => {
 // GET /api/students/active-students — Detail chart totalActiveStudents (multisector breakdown)
 const getActiveStudentsDetail = async (req, res) => {
     try {
-        const baseFilter = buildActiveKpiFilter(req.query);
+        const baseFilter = buildStudentPopulationFilter(req.query);
         const multisector = await getActiveStudentsMultisector(baseFilter);
         return res.status(200).json({ success: true, ...multisector });
     } catch (error) {
@@ -141,8 +166,11 @@ const getIntakeTrendDetail = async (req, res) => {
 const getDeclineTrendDetail = async (req, res) => {
     try {
         const baseFilter = buildBaseFilter(req.query);
+        // getNewStudentDecline reuses the five-year intake trend and only
+        // queries a year that is absent from that cache when necessary.
         const { trend: intakeTrend } = await getIntakeTrend(baseFilter);
-        const data = await getNewStudentDecline(req.query.selectedPeriode, baseFilter, intakeTrend);
+        const selectedPeriode = req.query.selectedPeriode || req.query.tahunAjaran;
+        const data = await getNewStudentDecline(selectedPeriode, baseFilter, intakeTrend);
         
         const declinePercentage = data?.declinePercentage;
         const isPositive = declinePercentage === null || declinePercentage === undefined || declinePercentage >= 0;
@@ -151,7 +179,7 @@ const getDeclineTrendDetail = async (req, res) => {
             : `${isPositive ? '+' : ''}${declinePercentage.toFixed(1)}%`;
         const trendBadge = isPositive ? 'Peningkatan' : 'Penurunan';
 
-        const chartData = (data.history || []).map(h => ({
+        const chartData = (data?.history || []).map(h => ({
             year: h.year || h.academicYear,
             absolutCount: h.intakeCount || 0,
             deltaFormatted: h.changeFromPrev === null || h.changeFromPrev === undefined ? '-' : `${h.changeFromPrev >= 0 ? '+' : ''}${h.changeFromPrev.toFixed(1)}%`,
@@ -162,6 +190,7 @@ const getDeclineTrendDetail = async (req, res) => {
             success: true,
             data,
             declineTrend: data,
+            hasEnoughData: Boolean(declinePercentage !== null && declinePercentage !== undefined),
             // Properti persis yang diharapkan oleh IntakeFluctuationView.jsx & apiClient.js:
             isPositive,
             finalAverage,
@@ -169,6 +198,7 @@ const getDeclineTrendDetail = async (req, res) => {
             chartData,
             fluctuationData: {
                 isPositive,
+                hasEnoughData: Boolean(declinePercentage !== null && declinePercentage !== undefined),
                 finalAverage,
                 trendBadge,
                 chartData
@@ -189,7 +219,7 @@ const getStudents = async (req, res) => {
         const result = await (services.getStudentList || getStudentList)(whereFilter, page, limit, req.query.cursor);
         return res.status(200).json({ success: true, ...result });
     } catch (error) {
-        return sendError(res, 500, 'Gagal mengambil daftar mahasiswa.', error, 'students/getStudents');
+        return sendError(res, error.statusCode || 500, error.statusCode === 400 ? error.message : 'Gagal mengambil daftar mahasiswa.', error, 'students/getStudents');
     }
 };
 

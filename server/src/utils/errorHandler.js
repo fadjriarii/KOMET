@@ -1,5 +1,12 @@
 const logger = require('./logger');
-const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const TECHNICAL_ERROR_PATTERN = /(prisma|sql|constraint|column|table|stack|\bat\s+\w+\s*\()/i;
+
+function safePublicMessage(message) {
+    if (!message || TECHNICAL_ERROR_PATTERN.test(message)) {
+        return 'Terjadi kesalahan pada server. Silakan coba lagi.';
+    }
+    return message;
+}
 
 /**
  * Helper terpusat untuk mengirim error response & logging.
@@ -9,12 +16,14 @@ function sendError(res, statusCode, publicMessage, error, context = '') {
     const errObj = typeof error === 'string' ? new Error(error) : error;
     logger.error(`[${context}] ${errObj.message}`, { stack: errObj.stack });
 
-    // Response ke client: detail error hanya ditampilkan pada environment non-production
+    // Never expose database/stack details. Development retains the extra field
+    // for diagnostics, while production only receives a safe public message.
+    const isProduction = process.env.NODE_ENV === 'production';
     return res.status(statusCode).json({
         success: false,
-        message: publicMessage,
-        ...(IS_PRODUCTION ? {} : { error: errObj.message })
+        message: safePublicMessage(publicMessage),
+        ...(isProduction ? {} : { error: errObj.message })
     });
 }
 
-module.exports = { sendError };
+module.exports = { sendError, safePublicMessage };

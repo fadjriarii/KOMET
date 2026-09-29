@@ -1,4 +1,5 @@
-import { SlidersHorizontal, RotateCcw } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Check, SlidersHorizontal, RotateCcw } from 'lucide-react';
 import FilterContainerCard from '../../../../components/common/cards/FilterContainerCard';
 import StudentSearchFilter from './StudentSearchFilter';
 import StudentFacultyFilter from './StudentFacultyFilter';
@@ -29,47 +30,58 @@ import StudentPeriodeFilter from './StudentPeriodeFilter';
  * - Footer: Tombol Reset Filter di Kanan Bawah
  */
 export default function StudentFilterContainer({
-  // Baris 1
-  searchValue = '',
-  onSearchChange,
-  onSearchClear,
-  facultyValue = '',
-  onFacultyChange,
-  facultyOptions = [],
-  prodiValue = '',
-  onProdiChange,
-  prodiOptions = [],
-  jenjangValue = '',
-  onJenjangChange,
-  jenjangOptions = [],
-
-  // Baris 2
-  selectedYears = [],
-  onAngkatanChange,
-  rollingYears = ['2026', '2025', '2024', '2023', '2022'],
-  semesterValue = '',
-  onSemesterChange,
-  semesterOptions = [],
-  nationalityValue = '',
-  onNationalityChange,
-  nationalityOptions = [],
-  statusValue = '',
-  onStatusChange,
-  statusOptions = [],
-  periodeValue = '',
-  onPeriodeChange,
-  periodeOptions = [],
-
-  // Reset Callback
+  filterValues = {},
+  filterOptions = {},
+  filterHandlers = {},
   activeCount = 0,
   onResetAll,
-
   isLoading = false,
   className = '',
   children,
 }) {
+  const [resetFlash, setResetFlash] = useState(false);
+  const resetTimerRef = useRef(null);
+  const {
+    searchValue = '',
+    facultyValue = '',
+    prodiValue = '',
+    jenjangValue = '',
+    selectedYears = [],
+    semesterValue = '',
+    nationalityValue = '',
+    statusValue = '',
+    periodeValue = '',
+  } = filterValues;
+  const {
+    facultyOptions = [],
+    prodiOptions = [],
+    jenjangOptions = [],
+    rollingYears = ['2026', '2025', '2024', '2023', '2022'],
+    semesterOptions = [],
+    nationalityOptions = [],
+    statusOptions = [],
+    periodeOptions = [],
+  } = filterOptions;
+  const {
+    onSearchChange,
+    onSearchClear,
+    onFacultyChange,
+    onProdiChange,
+    onJenjangChange,
+    onAngkatanChange,
+    onSemesterChange,
+    onNationalityChange,
+    onStatusChange,
+    onPeriodeChange,
+  } = filterHandlers;
+
+  useEffect(() => () => clearTimeout(resetTimerRef.current), []);
+
   const handleReset = () => {
     onResetAll?.();
+    setResetFlash(true);
+    clearTimeout(resetTimerRef.current);
+    resetTimerRef.current = setTimeout(() => setResetFlash(false), 1200);
   };
 
   return (
@@ -199,19 +211,23 @@ export default function StudentFilterContainer({
                 onClick={handleReset}
                 disabled={activeCount === 0 || isLoading}
                 className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shadow-2xs group ${
-                  activeCount > 0
+                  resetFlash
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    : activeCount > 0
                     ? 'bg-gray-100 hover:bg-red-50 text-gray-700 hover:text-red-600 border border-gray-200 hover:border-red-200 active:scale-98'
                     : 'bg-gray-50 text-gray-400 border border-gray-100 cursor-not-allowed opacity-60'
                 }`}
                 title="Reset semua filter ke kondisi awal"
               >
-                <RotateCcw
-                  size={14}
-                  className={`transition-transform duration-300 ${
-                    activeCount > 0 ? 'group-hover:-rotate-45' : ''
-                  }`}
-                />
-                <span>Reset Filter</span>
+                {resetFlash ? <Check size={14} /> : (
+                  <RotateCcw
+                    size={14}
+                    className={`transition-transform duration-300 ${
+                      activeCount > 0 ? 'group-hover:-rotate-45' : ''
+                    }`}
+                  />
+                )}
+                <span>{resetFlash ? 'Filter direset' : 'Reset Filter'}</span>
               </button>
             </div>
           </div>

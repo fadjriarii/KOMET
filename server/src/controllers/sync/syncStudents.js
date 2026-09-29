@@ -100,6 +100,7 @@ const executeSyncStudents = async (startPage = 1) => {
                 nama: attr.nama || '',
                 jenjang: attr.id_jenjang || '',
                 periodeMasuk,
+                periodeTerakhir,
                 angkatan,
                 periode,
                 programStudi: prodiName,

@@ -5,6 +5,16 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 const REQUEST_TIMEOUT_MS = 30000;
 let sessionPromise;
+const TECHNICAL_ERROR_PATTERN = /(prisma|sql|constraint|column|table|stack|\bat\s+\w+\s*\()/i;
+
+export function normalizeApiError(data, status) {
+  if (status >= 500) return 'Terjadi kesalahan server. Silakan coba lagi.';
+  const message = typeof data?.message === 'string' ? data.message.trim() : '';
+  if (message && !TECHNICAL_ERROR_PATTERN.test(message)) return message;
+  if (status === 401 || status === 403) return 'Sesi Anda telah berakhir. Silakan muat ulang halaman.';
+  if (status === 404) return 'Data yang diminta tidak ditemukan.';
+  return 'Permintaan tidak dapat diproses. Periksa masukan Anda dan coba lagi.';
+}
 
 async function ensureStudentSession() {
   if (!sessionPromise) {
@@ -35,27 +45,31 @@ export async function apiRequest(endpoint, options = {}) {
     ...options.headers,
   };
 
+  const controller = options.signal ? null : new AbortController();
+  const timeout = controller ? setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS) : null;
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     const response = await fetch(url, {
       ...options,
       headers,
       credentials: 'include',
-      signal: options.signal || controller.signal,
+      signal: options.signal || controller?.signal,
     });
-    clearTimeout(timeout);
+    if (timeout) clearTimeout(timeout);
 
     const data = await response.json().catch(() => null);
 
     if (!response.ok) {
-      throw new Error(data?.message || `HTTP error! status: ${response.status}`);
+      throw new Error(normalizeApiError(data, response.status));
     }
 
     return data;
   } catch (error) {
-    console.error(`[API Error] ${endpoint}:`, error);
+    if (timeout) clearTimeout(timeout);
+    if (error.name !== 'AbortError') console.error(`[API Error] ${endpoint}:`, error);
     if (error.name === 'AbortError') {
+      // A caller-provided signal is normally TanStack Query cancelling stale
+      // work; preserve it rather than presenting it as a user-facing timeout.
+      if (options.signal?.aborted) throw error;
       throw new Error('Request timeout. Silakan coba lagi.', { cause: error });
     }
     throw error;

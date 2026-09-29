@@ -20,4 +20,19 @@ describe('student query validation', () => {
     expect(req.query.page).toBe(3);
     expect(next).toHaveBeenCalled();
   });
+
+  it('rejects invalid student filter values and accepts the UI filter contract', () => {
+    expect(studentQuerySchema.safeParse({
+      kewarganegaraan: 'Unknown',
+      periodeMasuk: 'Musim Panas',
+      periode: 'invalid',
+      selectedPeriode: '2025',
+    }).success).toBe(false);
+    expect(studentQuerySchema.safeParse({
+      kewarganegaraan: 'WNA',
+      periodeMasuk: 'Genap',
+      periode: '2025/2026',
+      selectedPeriode: '2025/2026',
+    }).success).toBe(true);
+  });
 });

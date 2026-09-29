@@ -12,12 +12,22 @@ node_modules/
 !.env.example
 !*.env.example
 
+# AI / Agent & Workflow Tooling Metadata
+.agents/
+.codex/
+.kilo/
+ai-context/
+
+# Project Requirements & Internal Documentation
+requirements/
+client/requirements/
+server/requirements/
+
 # Logs
 logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
-yarn-error.log*
 pnpm-debug.log*
 
 # Build & Output
@@ -33,11 +43,14 @@ coverage/
 
 # Temporary / Scratch & Test Dumps
 scratch/
+server/scratch/
+client/scratch/
 tmp/
 temp/
 test-*.js
 test_*.js
 test.json
+server/test.json
 *.tmp
 
 # Database & SQLite files

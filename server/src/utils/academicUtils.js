@@ -76,9 +76,11 @@ function getReferenceYear() {
  */
 function toAcademicYear(periodeMasuk) {
     const normalized = String(periodeMasuk ?? '').trim();
-    if (normalized.length < 4) return null;
-    const yr = parseInt(normalized.substring(0, 4), 10);
-    return isNaN(yr) ? null : `${yr}/${yr + 1}`;
+    // Kode periode Sevima selalu YYYY1 (Ganjil) atau YYYY2 (Genap).
+    // Jangan mengubah nilai parsial/invalid menjadi tahun ajaran yang terlihat valid.
+    if (!/^\d{5}$/.test(normalized) || !['1', '2'].includes(normalized[4])) return null;
+    const yr = Number(normalized.substring(0, 4));
+    return yr >= 1900 ? `${yr}/${yr + 1}` : null;
 }
 
 module.exports = {

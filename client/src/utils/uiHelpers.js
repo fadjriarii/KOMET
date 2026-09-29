@@ -16,22 +16,85 @@ export function getCurrentAcademicYear(date = new Date()) {
   const year = value.getFullYear();
   return value.getMonth() >= 8 ? `${year}/${year + 1}` : `${year - 1}/${year}`;
 }
+
+export function getRollingAcademicYears(count = 5, date = new Date()) {
+  const value = new Date(date);
+  const year = value.getFullYear();
+  const currentStartYear = value.getMonth() >= 8 ? year : year - 1;
+  return Array.from({ length: count }, (_, i) => {
+    const start = currentStartYear - i;
+    return `${start}/${start + 1}`;
+  });
+}
 export function getStudentIntakeDescription(period, count) {
   return `Menampilkan total penerimaan mahasiswa baru (intake) sebanyak ${count} mahasiswa yang terdaftar aktif pada semester 1 untuk tahun akademik ${period || 'aktif'}.`;
 }
 export function formatKpiDisplay(value) { return value === '-' || value === null || value === undefined || value === '' ? null : value; }
-export function getStudentKpiSubtitles({ foreignCount, intakePeriod, declinePeriod } = {}) {
+export function getStudentKpiSubtitles({ foreignCount, intakePeriod, declinePeriod } = {}, activeStatusLabel = 'Aktif') {
   return {
-    activeSubtitle: 'Total Student Body status aktif',
+    activeSubtitle: `Total Student Body status ${activeStatusLabel.toLowerCase()}`,
     foreignSubtitle: foreignCount !== undefined && foreignCount !== null ? `${formatNumber(foreignCount)} Mahasiswa Non-WNI` : 'Non-WNI status aktif',
     intakeSubtitle: intakePeriod ? `Semester 1 (Periode ${intakePeriod})` : 'Semester 1',
     declineSubtitle: declinePeriod ? `Rata-rata 5 Tahun (${declinePeriod})` : 'Rata-rata 5 Tahun',
   };
 }
-export function toggleAngkatanYear(selected = [], year) { const value = String(year); return selected.includes(value) ? selected.filter((item) => item !== value) : [...selected, value]; }
-export function getAngkatanDisplayText(selected = [], placeholder = 'Pilih Tahun') { return selected.length ? selected.join(', ') : placeholder; }
-export function getStudentActiveDescription(year, count) {
-  return `Menampilkan seluruh student body aktif pada tahun akademik ${year} dengan total ${count} mahasiswa yang terdistribusi ke dalam fakultas, program studi, dan jenjang pendidikan.`;
+export function getStudentStatusPresentation(statuses = ['Aktif']) {
+  const rawStatuses = Array.isArray(statuses) ? statuses : [statuses];
+  const isAllStatuses = rawStatuses.length === 0 || rawStatuses.includes('__ALL__');
+  const selectedStatuses = rawStatuses
+    .map((status) => String(status || '').trim())
+    .filter((status) => status && status !== '__ALL__');
+
+  if (isAllStatuses) {
+    return {
+      cardTitle: 'Mahasiswa Semua Status',
+      cardBadge: 'Semua Status',
+      modalTitle: 'Rincian Mahasiswa Semua Status',
+      modalSubtitle: 'Informasi total student body untuk seluruh status keaktifan',
+      summaryLabel: 'Total Semua Status',
+      statusLabel: 'semua status',
+      isCumulative: true,
+    };
+  }
+
+  if (selectedStatuses.length === 1) {
+    const [status] = selectedStatuses;
+    return {
+      cardTitle: `Mahasiswa ${status}`,
+      cardBadge: `Status ${status}`,
+      modalTitle: `Rincian Mahasiswa ${status}`,
+      modalSubtitle: `Informasi total student body dengan status ${status.toLowerCase()}`,
+      summaryLabel: `Total ${status}`,
+      statusLabel: status,
+      isCumulative: status !== 'Aktif',
+    };
+  }
+
+  if (selectedStatuses.length > 1) {
+    return {
+      cardTitle: 'Mahasiswa Status Terpilih',
+      cardBadge: 'Status Terpilih',
+      modalTitle: 'Rincian Mahasiswa Status Terpilih',
+      modalSubtitle: 'Informasi total student body dengan status yang dipilih',
+      summaryLabel: 'Total Terpilih',
+      statusLabel: selectedStatuses.join(', '),
+      isCumulative: true,
+    };
+  }
+
+  return {
+    cardTitle: 'Mahasiswa Aktif',
+    cardBadge: 'Status Aktif',
+    modalTitle: 'Rincian Mahasiswa Aktif',
+    modalSubtitle: 'Informasi total student body dengan status aktif',
+    summaryLabel: 'Total Aktif',
+    statusLabel: 'Aktif',
+    isCumulative: false,
+  };
+}
+export function getStudentActiveDescription(year, count, statusLabel = 'Aktif', isCumulative = false) {
+  const periodLabel = isCumulative ? `sampai tahun akademik ${year}` : `pada tahun akademik ${year}`;
+  return `Menampilkan seluruh student body dengan status ${statusLabel} ${periodLabel} dengan total ${count} mahasiswa yang terdistribusi ke dalam fakultas, program studi, dan jenjang pendidikan.`;
 }
 export function getActiveTabContent(activeTab, content) { return content[activeTab] || null; }
 export function getStatusBadgeVariant(status) {
@@ -69,6 +132,7 @@ export default {
   getCurrentAcademicYear,
   getStudentIntakeDescription,
   getStudentActiveDescription,
+  getStudentStatusPresentation,
   getStudentKpiSubtitles,
   formatKpiDisplay,
   getActiveTabContent,
@@ -77,6 +141,4 @@ export default {
   getModalOriginRectFromEvent,
   getPaginationMeta,
   getPaginationItems,
-  toggleAngkatanYear,
-  getAngkatanDisplayText,
 };

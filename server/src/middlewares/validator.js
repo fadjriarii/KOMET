@@ -17,11 +17,12 @@ const studentQuerySchema = z.object({
     angkatanTahun: stringOrArray,
     jenjang: stringOrArray,
     semester: stringOrArray,
-    periodeMasuk: z.string().optional(),
-    periode: z.string().optional(),
-    kewarganegaraan: z.string().optional(),
+    periodeMasuk: z.enum(['Ganjil', 'Genap']).optional(),
+    periode: z.string().max(20).regex(/^\d{4}(\/\d{4})?$/).optional(),
+    kewarganegaraan: z.enum(['WNI', 'WNA']).optional(),
     statusKeaktifan: stringOrArray,
-    selectedPeriode: z.string().max(50).optional()
+    selectedPeriode: z.string().max(20).regex(/^\d{4}\/\d{4}$/).optional(),
+    tahunAjaran: z.string().max(20).regex(/^\d{4}\/\d{4}$/).optional()
 });
 
 // Schema Query Parameter Kelulusan (Graduates)
