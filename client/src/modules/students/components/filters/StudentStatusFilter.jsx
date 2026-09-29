@@ -9,7 +9,7 @@ export default function StudentStatusFilter({
   onChange,
   options = [],
   placeholder = 'Semua Status',
-  defaultValue = 'Aktif',
+  defaultValue = ['Aktif'],
   disabled = false,
   className = '',
 }) {
@@ -25,7 +25,6 @@ export default function StudentStatusFilter({
       disabled={disabled}
       className={className}
       id="filter-status-keaktifan"
-      defaultValue={['Aktif']}
     />
   );
 }
