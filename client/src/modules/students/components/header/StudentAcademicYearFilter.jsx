@@ -158,7 +158,7 @@ export default function StudentAcademicYearFilter({
         </div>
         <ChevronDown
           size={15}
-          className={`text-gray-400 transition-transform duration-300 ml-1 flex-shrink-0 ${
+          className={`text-gray-400 transition-transform duration-500 ease-out ml-1 flex-shrink-0 ${
             isOpen ? 'rotate-180 text-digital-blue-600' : 'group-hover:text-gray-600'
           }`}
         />
@@ -167,7 +167,7 @@ export default function StudentAcademicYearFilter({
       {/* ── Dropdown ─────────────────────────────────────────── */}
       <div
         role="listbox"
-        className={`absolute right-0 mt-2 w-full bg-white/98 backdrop-blur-xl border border-gray-100 shadow-[0_18px_40px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.04)] p-1.5 z-[80] text-gray-900 rounded-2xl origin-top-right transition-all duration-200 ease-out ${
+        className={`absolute right-0 mt-2 w-full bg-white/98 backdrop-blur-xl border border-gray-100 shadow-[0_18px_40px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.04)] p-1.5 z-[80] text-gray-900 rounded-2xl origin-top-right transition-all duration-500 ease-out ${
           isOpen
             ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto visible'
             : 'opacity-0 scale-95 -translate-y-2 pointer-events-none invisible'
