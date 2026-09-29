@@ -45,6 +45,12 @@ describe('student filter builder', () => {
     expect(filter.AND).toContainEqual({ periodeMasuk: { endsWith: '1' } });
   });
 
+  it('ignores non-string selectedPeriode values', () => {
+    const filter = buildStudentFilter({ selectedPeriode: ['2024/2025'] });
+    expect(filter.AND).toBeUndefined();
+    expect(filter.statusKeaktifan).toBe('Aktif');
+  });
+
   it('uses historical active population instead of current status', () => {
     const filter = buildStudentFilter({
       tahunAjaran: '2020/2021',
