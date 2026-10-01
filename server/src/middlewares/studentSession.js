@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const { authenticateApiKey } = require('./auth');
 
 const COOKIE_NAME = 'komet_student_session';
 const MAX_AGE_SECONDS = 60 * 60 * 8;
@@ -42,13 +43,16 @@ function issueStudentSession(req, res) {
         return res.status(500).json({ success: false, message: 'Student session is not configured.' });
     }
     const token = createSessionToken();
-    const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
-    res.setHeader('Set-Cookie', `${COOKIE_NAME}=${token}; HttpOnly; SameSite=Strict; Path=/api/students; Max-Age=${MAX_AGE_SECONDS}${secure}`);
+    // SameSite=Lax for dev cross-origin (port 5173 to port 3000), Strict for prod
+    const sameSiteMode = process.env.NODE_ENV === 'production' ? 'Strict' : 'Lax';
+    const secureFlag = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+    res.setHeader('Set-Cookie', `${COOKIE_NAME}=${token}; HttpOnly; SameSite=${sameSiteMode}; Path=/api; Max-Age=${MAX_AGE_SECONDS}${secureFlag}`);
     return res.status(204).send();
 }
 
 function studentSessionAuth(req, res, next) {
     if (isValidSessionToken(parseCookies(req.headers.cookie || '')[COOKIE_NAME])) return next();
+    if (authenticateApiKey(req)) return next();
     return res.status(401).json({ success: false, message: 'Student session is required.' });
 }
 

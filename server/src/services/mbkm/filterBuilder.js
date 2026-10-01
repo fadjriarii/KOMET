@@ -15,9 +15,11 @@ function buildMbkmFilter(query) {
     // Filter langsung di tabel mbkm_activities
     if (periode) where.periode = periode;
 
-    if (statusAktivitas) where.statusAktivitas = statusAktivitas;
+    const statusArr = toArray(statusAktivitas);
+    if (statusArr && statusArr.length > 0) where.statusAktivitas = { in: statusArr };
 
-    if (jenjang) where.jenjang = jenjang;
+    const jenjangArr = toArray(jenjang);
+    if (jenjangArr && jenjangArr.length > 0) where.jenjang = { in: jenjangArr };
 
     const fakultasArr = toArray(fakultas);
     if (fakultasArr && fakultasArr.length > 0) where.fakultas = { in: fakultasArr };
@@ -81,7 +83,10 @@ function buildStudentFilterFromMbkmQuery(query) {
         const list = Array.isArray(query.programStudi) ? query.programStudi : [query.programStudi];
         if (list.length > 0) studentFilter.programStudi = { in: list };
     }
-    if (query.jenjang) studentFilter.jenjang = query.jenjang;
+    if (query.jenjang) {
+        const list = Array.isArray(query.jenjang) ? query.jenjang : [query.jenjang];
+        if (list.length > 0) studentFilter.jenjang = { in: list };
+    }
     return studentFilter;
 }
 

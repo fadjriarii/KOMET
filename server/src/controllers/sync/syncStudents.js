@@ -7,11 +7,12 @@ const {
     sleep,
     cleanText,
     sanitizeText,
+    sanitizeProdiName,
+    getPeriodeFromTanggalTransfer,
     formatAngkatan,
     extractPeriode,
     hitungSemester,
     isStatusKeluar,
-    isAkunLama,
     mapKewarganegaraan,
     getProdiFakultasMap,
     processInBatches
@@ -51,23 +52,25 @@ const executeSyncStudents = async (startPage = 1) => {
                 continue;
             }
 
+            // ─── RULE 2: Normalisasi Nama Program Studi & Lookup Fakultas ───
             const rawProdi = attr.program_studi || '';
-            const prodiName = sanitizeText(rawProdi);
+            const prodiName = sanitizeProdiName(rawProdi);
             const namaFakultas = sanitizeText(
                 prodiFakultasMap.get(cleanText(rawProdi))
+                || prodiFakultasMap.get(cleanText(prodiName))
                 || prodiFakultasMap.get(rawProdi.trim().toLowerCase())
+                || prodiFakultasMap.get(prodiName.trim().toLowerCase())
+                || attr.nama_fakultas
                 || ''
             );
 
-            // ─── RULE 2: Filter Prodi & Fakultas — buang data "akun lama" ───
-            if (isAkunLama(rawProdi) || isAkunLama(namaFakultas)) {
-                totalSkipped++;
-                logger.debug(`[Skip] Prodi/Fakultas akun lama: "${rawProdi}" / "${namaFakultas}"`);
-                continue;
-            }
-
-            // ─── RULE 3: Angkatan — ekstrak 4 digit tahun masuk ───
-            const periodeMasuk = attr.id_periode || '';
+            // ─── RULE 3: Angkatan & Periode Masuk — Khusus S2 gunakan tanggal_transfer jika ada (atau fallback ke id_periode) ───
+            const jenjang = (attr.id_jenjang || 'S1').trim().toUpperCase();
+            const tanggalTransfer = (attr.tanggal_transfer || '').trim();
+            const periodeFromTransfer = (jenjang === 'S2' && tanggalTransfer)
+                ? getPeriodeFromTanggalTransfer(tanggalTransfer)
+                : '';
+            const periodeMasuk = periodeFromTransfer || (attr.id_periode || '').trim();
 
             // ─── RULE 4: Periode — field baru "Ganjil"/"Genap" dari digit ke-5 periodeMasuk ───
             const periode = extractPeriode(periodeMasuk);
@@ -75,18 +78,30 @@ const executeSyncStudents = async (startPage = 1) => {
             // Angkatan = hanya 4 digit tahun masuk (contoh "2026")
             const angkatan = formatAngkatan(periodeMasuk);
 
-            // ─── RULE 5: Semester — kalkulasi dinamis berdasarkan status ───
-            const idStatus = attr.id_status_mahasiswa || '';
-            const periodeTerakhir = attr.id_periode_terakhir || '';
-            let semesterAktif;
+            // ─── RULE 5: Status Keaktifan & Semester — kalkulasi dinamis berdasarkan status ───
+            const idStatus = (attr.id_status_mahasiswa || '').trim();
+            const statusName = (attr.status_mahasiswa || '').trim();
+            const periodeTerakhir = (attr.id_periode_terakhir || '').trim();
+            const isKeluar = isStatusKeluar(idStatus) || /lulus|drop\s*out|keluar|putus\s*studi|meninggal/i.test(statusName);
 
-            if (isStatusKeluar(idStatus)) {
-                // Mahasiswa Lulus/Keluar: hitung semester saat mereka keluar
-                // Gunakan id_periode_terakhir sebagai titik akhir
-                semesterAktif = hitungSemester(periodeMasuk, periodeTerakhir);
+            let statusKeaktifan = statusName;
+            if (!statusKeaktifan) {
+                if (idStatus === 'L') statusKeaktifan = 'Lulus';
+                else if (idStatus === 'D') statusKeaktifan = 'Drop Out';
+                else if (idStatus === 'C') statusKeaktifan = 'Cuti';
+                else if (idStatus === 'K') statusKeaktifan = 'Keluar';
+                else if (idStatus === 'A') statusKeaktifan = 'Aktif';
+                else statusKeaktifan = isKeluar ? 'Lulus' : 'Aktif';
+            }
+
+            let semesterAktif;
+            if (isKeluar) {
+                // Mahasiswa Lulus/Keluar: hitung semester saat mereka keluar/lulus
+                semesterAktif = hitungSemester(periodeMasuk, periodeTerakhir || null);
             } else {
-                // Mahasiswa Aktif: hitung berdasarkan periode berjalan saat ini
-                semesterAktif = hitungSemester(periodeMasuk, null);
+                // Mahasiswa Aktif: jika ada id_periode_terakhir dari Sevima, gunakan itu.
+                // Jika tidak ada, fallback ke periode akademik berjalan saat ini.
+                semesterAktif = hitungSemester(periodeMasuk, periodeTerakhir || null);
             }
 
             // ─── RULE 6: Kewarganegaraan — konversi ke nama negara spesifik ───
@@ -98,16 +113,18 @@ const executeSyncStudents = async (startPage = 1) => {
             validItems.push({
                 nim,
                 nama: attr.nama || '',
-                jenjang: attr.id_jenjang || '',
+                jenjang: attr.id_jenjang || 'S1',
                 periodeMasuk,
                 periodeTerakhir,
                 angkatan,
                 periode,
                 programStudi: prodiName,
                 fakultas: namaFakultas,
-                statusKeaktifan: attr.status_mahasiswa || '',
+                statusKeaktifan,
                 semester: semesterAktif,
-                kewarganegaraan
+                kewarganegaraan,
+                nik: (attr.nik || '').trim(),
+                tanggalLahir: (attr.tanggal_lahir || '').trim()
             });
         }
 

@@ -5,7 +5,7 @@ const syncJobTracker = require('../../utils/syncJobTracker');
 const { deduplicateStudents } = require('../../services/studentDeduplicationService');
 const {
     sleep,
-    formatAngkatan,
+    sanitizeProdiName,
     resolveTargetNimBatch,
     processInBatches
 } = require('./helpers');
@@ -37,7 +37,7 @@ const executeSyncGraduates = async (startPage = 1) => {
             const attr = item.attributes;
             if (!attr.nim) continue;
 
-            const prodiName = attr.program_studi || '';
+            const prodiName = sanitizeProdiName(attr.program_studi || '');
 
             // Ekstrak Tahun Lulus
             let tahunLulus = '';
@@ -56,7 +56,7 @@ const executeSyncGraduates = async (startPage = 1) => {
             validItems.push({
                 nim: attr.nim,
                 nama: attr.nama || '',
-                jenjang: attr.id_jenjang || '',
+                jenjang: attr.id_jenjang || 'S1',
                 id_periode_akademik: attr.id_periode_akademik || '',
                 programStudi: prodiName,
                 statusKelulusan,
@@ -78,7 +78,7 @@ const executeSyncGraduates = async (startPage = 1) => {
             await processInBatches(validItems, 25, async (item) => {
                 const targetNim = nimMap.get(item) || item.nim;
 
-                return prisma.graduate.upsert({
+                const gradUpsert = prisma.graduate.upsert({
                     where: { nim: targetNim },
                     update: {
                         jenjang: item.jenjang,
@@ -98,6 +98,17 @@ const executeSyncGraduates = async (startPage = 1) => {
                         sksLulus: item.sksLulus
                     }
                 });
+
+                // Sinkronkan status pada tabel Student agar dipastikan tercatat sebagai "Lulus"
+                const studentUpdate = prisma.student.updateMany({
+                    where: { nim: targetNim },
+                    data: {
+                        statusKeaktifan: 'Lulus',
+                        ...(item.id_periode_akademik ? { periodeTerakhir: item.id_periode_akademik } : {})
+                    }
+                });
+
+                return Promise.all([gradUpsert, studentUpdate]);
             });
             totalSynced += validItems.length;
         }
@@ -121,7 +132,7 @@ const executeSyncGraduates = async (startPage = 1) => {
     const deduplicationResult = await deduplicateStudents();
 
     syncJobTracker.updateProgress('graduates', { status: 'completed', synced: totalSynced, skipped: totalSkipped });
-    logger.success(`[Kelulusan] Selesai! ${totalSynced} data disinkronkan, ${deduplicationResult.deletedCount} duplikat dibersihkan.`);
+    logger.success(`[Kelulusan] Selesai! ${totalSynced} data disinkronkan, ${deduplicationResult.deletedCount || 0} duplikat dibersihkan.`);
     return { totalSynced, totalSkipped, deduplication: deduplicationResult };
 };
 

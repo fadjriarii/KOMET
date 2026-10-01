@@ -53,7 +53,9 @@ const getSummary = async (req, res) => {
                 evaluasiCount,
                 berjalanCount,
                 participationRate,
-                eligibleCount
+                meetsIkuTarget: rateData.eligibleRate.meetsTarget,
+                eligibleCount,
+                totalMitra: totalMitraData.totalPartners
             },
             filterOptions
         });

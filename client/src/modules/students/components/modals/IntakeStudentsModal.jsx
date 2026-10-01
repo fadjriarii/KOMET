@@ -82,10 +82,10 @@ export default function IntakeStudentsModal({
     data: intakeData,
     isLoading,
     error,
-  } = useStudentDetailResource({ isOpen, resourceKey: 'intake', filters, fetcher: fetchIntakeDetail, errorMessage: 'Gagal memuat data intake mahasiswa' });
+  } = useStudentDetailResource({ isOpen, resourceKey: 'intake', filters, fetcher: fetchIntakeDetail, errorMessage: 'Gagal memuat data intake mahasiswa', summaryData: data, summaryKey: 'intakeTrend' });
 
   const kpis = data?.kpis || {};
-  const trendList = useMemo(() => intakeData?.data || data?.summary?.intakeTrend?.trend || [], [data, intakeData]);
+  const trendList = useMemo(() => intakeData?.data?.trend || intakeData?.trend || data?.summary?.intakeTrend?.trend || [], [data, intakeData]);
   const tableData = reverseTrendData(trendList);
   const hasData = trendList.length > 0;
   const content = useMemo(() => ({

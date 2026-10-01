@@ -97,11 +97,11 @@ export default function DeclineStudentsModal({
     data: declineData,
     isLoading,
     error,
-  } = useStudentDetailResource({ isOpen, resourceKey: 'decline', filters, fetcher: fetchDeclineDetail, errorMessage: 'Gagal memuat data penurunan mahasiswa' });
+  } = useStudentDetailResource({ isOpen, resourceKey: 'decline', filters, fetcher: fetchDeclineDetail, errorMessage: 'Gagal memuat data penurunan mahasiswa', summaryData: data, summaryKey: 'newStudentDecline' });
 
   const kpis = data?.kpis || {};
   // Backend mengirim history dari terbaru ke terlama (A → E), cocok untuk tabel.
-  const historyList = useMemo(() => declineData?.data?.history || data?.summary?.newStudentDecline?.history || [], [data, declineData]);
+  const historyList = useMemo(() => declineData?.data?.history || declineData?.history || data?.summary?.newStudentDecline?.history || [], [data, declineData]);
   // Chart dibaca kiri ke kanan, maka urutannya diubah menjadi terlama ke terbaru.
   const chartList = reverseTrendData(historyList);
   const hasData = historyList.length > 0;

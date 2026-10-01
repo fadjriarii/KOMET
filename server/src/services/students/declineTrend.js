@@ -25,6 +25,7 @@
  */
 
 const { getIntakeCountsForYears } = require('./intakeTrend');
+const { calculatePercentageChange } = require('../../utils/trendCalculation');
 const logger = require('../../utils/logger');
 
 /**
@@ -91,28 +92,35 @@ async function getNewStudentDecline(selectedPeriode, baseFilter, intakeTrendData
     // Handle edge case: tidak ada data yang cukup untuk menghitung
     if (validTerms.length === 0) {
         logger.info(`[declineTrend] Tidak cukup data untuk menghitung penurunan MB pada periode ${selectedYear}.`);
+        const hist = buildHistory(startYear, [A, B, C, D, E], false, F);
         return {
             selectedPeriod: selectedYear,
             declinePercentage: null,
-            history: [
-            ...buildHistory(startYear, [A, B, C, D, E], false, F)
-            ],
+            history: hist,
+            historyOldestFirst: [...hist].reverse(),
+            historyNewestFirst: hist,
             formula: 'avg((A-B)/B + (B-C)/C + (C-D)/D + (D-E)/E)'
         };
     }
 
     const declinePercentage = parseFloat((validTerms.reduce((sum, term) => sum + term, 0) / validTerms.length * 100).toFixed(2));
 
+    const historyOldestFirst = buildHistory(startYear, [A, B, C, D, E], true, F).reverse();
+    const historyNewestFirst = [...historyOldestFirst].reverse();
+
     return {
         selectedPeriod: selectedYear,
         declinePercentage,
-        history: buildHistory(startYear, [A, B, C, D, E], true, F),
+        history: historyNewestFirst,          // Backward compatibility
+        historyOldestFirst,                   // For charts
+        historyNewestFirst,                   // For tables
         formula: 'avg((A-B)/B + (B-C)/C + (C-D)/D + (D-E)/E)'
     };
 }
 
 function calculateChange(newerCount, olderCount) {
-    return olderCount > 0 ? (newerCount - olderCount) / olderCount : null;
+    const result = calculatePercentageChange(newerCount, olderCount);
+    return result ? result.rawGrowth : null;
 }
 
 function calculateAverageChange(counts) {

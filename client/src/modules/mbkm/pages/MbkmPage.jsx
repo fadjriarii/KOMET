@@ -1,99 +1,149 @@
-import { useState, useEffect } from 'react';
-import { Briefcase, Building2, UserCheck, Award } from 'lucide-react';
+import { useMemo } from 'react';
+import { AlertCircle, Award, Briefcase, Building2, UserCheck } from 'lucide-react';
 import StatCard from '../../../components/common/cards/StatCard';
-import ChartCard from '../../../components/common/cards/ChartCard';
-import { mbkmService } from '../services/mbkmService';
+import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
+import { STUDENT_SEARCH_DEBOUNCE_MS } from '../../../constants/debounce';
+import { formatKpiDisplay } from '../../../utils/uiHelpers';
+import { getMbkmKpiFilterScope } from '../utils/mbkmQuery';
+import MbkmDataTable from '../components/MbkmDataTable';
+import MbkmDetailModal from '../components/MbkmDetailModal';
+import { MbkmFilterContainer } from '../components/filters';
+import { useMbkmFilterControls } from '../hooks/useMbkmFilterControls';
+import { useMbkmFilters } from '../hooks/useMbkmFilters';
+import { useMbkmKpiDisplay } from '../hooks/useMbkmKpiDisplay';
+import { useMbkmList } from '../hooks/useMbkmList';
+import { useMbkmModalOrigin } from '../hooks/useMbkmModalOrigin';
+import { useMbkmSummary } from '../hooks/useMbkmSummary';
+
+const TABLE_LIMIT = 10;
 
 export default function MbkmPage() {
-  const [data, setData] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { values: filters, setters, filterParams, activeFilterCount, resetFilters } = useMbkmFilters();
+  const debouncedSearch = useDebouncedValue(filters.searchQuery, STUDENT_SEARCH_DEBOUNCE_MS);
 
-  useEffect(() => {
-    let isMounted = true;
-    async function load() {
-      setIsLoading(true);
-      try {
-        const res = await mbkmService.getSummary();
-        if (isMounted && res?.success) {
-          setData(res);
-        }
-      } catch {
-        // Backend offline
-      } finally {
-        if (isMounted) setIsLoading(false);
-      }
-    }
-    load();
-    return () => { isMounted = false; };
-  }, []);
+  const summaryParams = useMemo(() => ({ ...filterParams, search: debouncedSearch }), [debouncedSearch, filterParams]);
+  const listParams = useMemo(() => ({ ...filterParams, search: debouncedSearch }), [debouncedSearch, filterParams]);
 
-  const isDataReady = Boolean(data && data.success);
-  const showSkeleton = isLoading || !isDataReady;
+  const summaryQuery = useMbkmSummary(summaryParams);
+  const { rows, pagination, page, setPage, isLoading: isListLoading } = useMbkmList(listParams, { limit: TABLE_LIMIT });
+  const { activeModalType, currentModalType, originRect, openModal, closeModal } = useMbkmModalOrigin();
+
+  const availableFilterOptions = summaryQuery.data?.filterOptions || {};
+
+  const { filterControlValues, filterControlOptions, filterHandlers } = useMbkmFilterControls(
+    filters,
+    setters,
+    availableFilterOptions
+  );
+
+  const isSearchDebouncing = filters.searchQuery !== debouncedSearch;
+  const isKpiLoading = summaryQuery.isLoading || summaryQuery.isFetching || isSearchDebouncing;
+  const { kpis, displaySubtitles, isReady } = useMbkmKpiDisplay(summaryQuery.data, isKpiLoading);
+  const kpiScope = useMemo(() => getMbkmKpiFilterScope(filterParams), [filterParams]);
+
+  const actionLabel = activeFilterCount ? 'Lihat Data Terfilter' : 'Lihat Rincian';
+  const cardProps = { actionLabel, actionDisabled: !isReady, isLoading: isKpiLoading };
 
   return (
     <div className="space-y-6">
       {/* Header Halaman */}
-      <div>
-        <h1 className="text-xl md:text-2xl font-bold text-gray-800 tracking-tight">MBKM Data</h1>
-        <p className="text-xs md:text-sm text-gray-500 mt-1">
-          Monitoring partisipasi Merdeka Belajar Kampus Merdeka (Magang, Studi Independen, IISMA, Riset).
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl md:text-2xl font-bold text-gray-800 tracking-tight">MBKM Data</h1>
+          <p className="text-xs md:text-sm text-gray-500 mt-1">
+            Monitoring partisipasi Merdeka Belajar Kampus Merdeka, ketercapaian target IKU-2, dan jejaring mitra industri.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          {summaryQuery.error && !summaryQuery.data && (
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200/80 text-amber-800 text-xs font-medium">
+              <AlertCircle size={14} />
+              <span>Backend belum terhubung.</span>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* KPI Cards Grid */}
+      {/* 4 KPI Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard 
-          title="Total Partisipan MBKM" 
-          value={data?.totalParticipants} 
-          subtitle="Semester Aktif"
-          icon={Briefcase}
-          isLoading={showSkeleton}
-        />
-        <StatCard 
-          title="Mitra Industri & Kampus" 
-          value={data?.totalPartners} 
-          subtitle="Organisasi Mitra Resmi"
-          icon={Building2}
-          isLoading={showSkeleton}
-        />
-        <StatCard 
-          title="Mahasiswa Eligible" 
-          value={data?.eligibleStudentsCount} 
-          subtitle="Semester 5 - 7"
-          icon={UserCheck}
-          isLoading={showSkeleton}
-        />
-        <StatCard 
-          title="Tingkat Konversi SKS" 
-          value={data?.conversionRate} 
-          subtitle="Rata-rata Konversi"
+        <StatCard
+          {...cardProps}
+          title="Tingkat Partisipasi MBKM"
+          value={formatKpiDisplay(kpis.participationRate)}
+          subtitle={displaySubtitles.rate}
           icon={Award}
-          isLoading={showSkeleton}
+          badge="Target IKU-2: ≥ 20%"
+          onViewDetails={(event) => openModal('rate', event)}
+          isFiltered={kpiScope.rate && isReady}
+        />
+        <StatCard
+          {...cardProps}
+          title="Total Partisipan MBKM"
+          value={formatKpiDisplay(kpis.totalParticipants)}
+          subtitle={displaySubtitles.participants}
+          icon={Briefcase}
+          badge="BKP MBKM"
+          onViewDetails={(event) => openModal('activities', event)}
+          isFiltered={kpiScope.participants && isReady}
+        />
+        <StatCard
+          {...cardProps}
+          title="Mahasiswa Eligible"
+          value={formatKpiDisplay(kpis.eligibleCount)}
+          subtitle={displaySubtitles.eligible}
+          icon={UserCheck}
+          badge="Semester 7 Aktif"
+          onViewDetails={(event) => openModal('eligible', event)}
+          isFiltered={kpiScope.eligible && isReady}
+        />
+        <StatCard
+          {...cardProps}
+          title="Mitra MBKM & Industri"
+          value={formatKpiDisplay(kpis.totalMitra)}
+          subtitle={displaySubtitles.mitra}
+          icon={Building2}
+          badge="Mitra Terverifikasi"
+          onViewDetails={(event) => openModal('partners', event)}
+          isFiltered={kpiScope.mitra && isReady}
         />
       </div>
 
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartCard 
-          title="Sebaran Kategori Kegiatan MBKM" 
-          subtitle="Magang Bersertifikat, Studi Independen, Pertukaran Mahasiswa"
-          isLoading={showSkeleton}
-        >
-          <div className="text-center text-gray-400 text-sm py-12">
-            Area visualisasi grafik sebaran kategori MBKM
-          </div>
-        </ChartCard>
+      {summaryQuery.error && (
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-red-50 border border-red-200/80 text-red-700 text-xs font-medium">
+          <AlertCircle size={14} />
+          <span>Gagal memuat data terfilter. Silakan coba lagi.</span>
+        </div>
+      )}
 
-        <ChartCard 
-          title="Top 5 Mitra MBKM Terbanyak" 
-          subtitle="Berdasarkan jumlah mahasiswa yang diterima"
-          isLoading={showSkeleton}
-        >
-          <div className="text-center text-gray-400 text-sm py-12">
-            Area visualisasi grafik top mitra industri
-          </div>
-        </ChartCard>
-      </div>
+      {/* Filter Container */}
+      <MbkmFilterContainer
+        filterValues={filterControlValues}
+        filterOptions={filterControlOptions}
+        filterHandlers={filterHandlers}
+        activeCount={activeFilterCount}
+        onResetAll={resetFilters}
+        isLoading={summaryQuery.isLoading && !summaryQuery.data}
+      />
+
+      {/* Tabel Data MBKM */}
+      <MbkmDataTable
+        rows={rows}
+        page={page}
+        limit={TABLE_LIMIT}
+        pagination={pagination}
+        onPageChange={setPage}
+        isLoading={isListLoading}
+      />
+
+      {/* Modal Detail Popups */}
+      <MbkmDetailModal
+        isOpen={Boolean(activeModalType)}
+        onClose={closeModal}
+        activeModalType={currentModalType}
+        originRect={originRect}
+        data={summaryQuery.data}
+        filters={summaryParams}
+      />
     </div>
   );
 }

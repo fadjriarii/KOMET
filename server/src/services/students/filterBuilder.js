@@ -40,26 +40,29 @@ function buildPeriodeFilter(value) {
  * positive semester is the direct, safe fallback; an explicit exit period
  * remains the authoritative historical boundary.
  */
-function buildAcademicYearFilter(academicYear) {
+function buildAcademicYearFilter(academicYear, statusValues) {
     if (!academicYear) return [];
     const academicStart = `${academicYear.startYear}1`;
     const academicEnd = `${academicYear.startYear}2`;
     const conditions = [{ periodeMasuk: { lte: academicEnd } }];
 
-    if (academicYear.isCurrent) {
-        conditions.push({
-            OR: [
-                { periodeTerakhir: '' },
-                { periodeTerakhir: { gte: academicStart } }
-            ]
-        });
-    } else {
-        conditions.push({
-            OR: [
-                { periodeTerakhir: { gte: academicStart } },
-                { AND: [{ periodeTerakhir: '' }, { semester: { gte: 1 } }] }
-            ]
-        });
+    const isAllStatus = Array.isArray(statusValues)
+        ? (statusValues.length === 0 || statusValues.includes('ALL') || statusValues.includes('__ALL__'))
+        : (statusValues === 'ALL' || statusValues === '__ALL__');
+
+    const isOnlyActive = Array.isArray(statusValues)
+        ? (statusValues.length === 1 && statusValues[0] === 'Aktif')
+        : (statusValues === 'Aktif' || statusValues === undefined || statusValues === null);
+
+    if (isOnlyActive && !isAllStatus) {
+        if (!academicYear.isCurrent) {
+            conditions.push({
+                OR: [
+                    { periodeTerakhir: '' },
+                    { periodeTerakhir: { gte: academicStart } }
+                ]
+            });
+        }
     }
     return conditions;
 }
@@ -87,18 +90,17 @@ function buildMultiSelectFilters(query, where) {
     if (semesters?.length) where.semester = { in: semesters };
 }
 
-function buildStatusFilter(statusValues, academicYear, forStats) {
-    if (statusValues?.includes('__ALL__')) return { not: '' };
+function buildStatusFilter(statusValues) {
+    // statusValues can be: undefined (not sent), [] (explicit empty = no filter), 
+    // ['Aktif'] (default), ['ALL'] or ['__ALL__'] (legacy no filter), or array of statuses.
+    const isExplicitlyEmpty = Array.isArray(statusValues) && statusValues.length === 0;
+    const isNotSent = statusValues === undefined || statusValues === null;
 
-    const hasDefaultActive = !statusValues
-        || (statusValues.length === 1 && statusValues[0] === 'Aktif');
-    // Historic snapshots describe the population in that year, so today's
-    // status must not remove students who were enrolled then.
-    if (academicYear && !academicYear.isCurrent && hasDefaultActive) return undefined;
-    if (academicYear && academicYear.isCurrent && hasDefaultActive) return 'Aktif';
-    if (statusValues?.length) return statusValues.length === 1 ? statusValues[0] : { in: statusValues };
-    // List and statistics deliberately share the same default population.
-    return forStats ? 'Aktif' : 'Aktif';
+    if (isExplicitlyEmpty) return undefined;
+    if (statusValues?.includes('__ALL__') || statusValues?.includes('ALL')) return undefined;
+    if (isNotSent) return 'Aktif';
+
+    return statusValues.length === 1 ? statusValues[0] : { in: statusValues };
 }
 
 function buildSearchFilter(search) {
@@ -116,6 +118,62 @@ function isAcademicSnapshot(where = {}) {
     ));
 }
 
+/**
+ * Ensure consistent population filter across all student services.
+ * If statusKeaktifan is not explicitly set and we're not in academic snapshot mode,
+ * default to 'Aktif' status.
+ * 
+ * This eliminates duplicate logic in activeStudents.js and internationalTrend.js.
+ * 
+ * @param {object} baseFilter - The base filter from buildBaseFilter()
+ * @returns {object} Filter with guaranteed statusKeaktifan handling
+ */
+function ensurePopulationFilter(baseFilter = {}) {
+    if (baseFilter.statusKeaktifan || isAcademicSnapshot(baseFilter)) {
+        return baseFilter;
+    }
+    return { ...baseFilter, statusKeaktifan: 'Aktif' };
+}
+
+/**
+ * Build a stateless filter for historical cohort queries (intake/decline trends).
+ * These queries intentionally ignore statusKeaktifan because they count ALL students
+ * who entered in a given year, regardless of their current status.
+ * 
+ * @param {object} baseFilter - The base filter from buildBaseFilter()
+ * @returns {object} Filter without statusKeaktifan predicate
+ */
+function buildStatelessFilter(baseFilter = {}) {
+    const result = { ...baseFilter };
+    delete result.statusKeaktifan;
+    
+    // Also remove academic snapshot conditions for intake queries
+    if (Array.isArray(result.AND)) {
+        result.AND = result.AND.filter((condition) => {
+            if (condition?.periodeMasuk?.lte) return false;
+            if (condition?.OR?.some((item) => item?.periodeTerakhir !== undefined)) return false;
+            return true;
+        });
+        if (!result.AND.length) delete result.AND;
+    }
+    
+    return result;
+}
+
+/**
+ * buildWhereClause — translates all filter query params to a Prisma where clause.
+ *
+ * Tahun Ajaran + Status logic:
+ *  - Status 'Aktif' (default) + Tahun Ajaran:
+ *      Tampilkan mahasiswa AKTIF yang masuk s.d. akhir tahun ajaran.
+ *      Untuk TA historis: tambah filter periodeTerakhir (masih terdaftar).
+ *  - 'Semua Status' (ALL/__ALL__/[]) + Tahun Ajaran:
+ *      Tampilkan SEMUA mahasiswa (dari awal berdiri) yang masuk s.d. TA,
+ *      tanpa filter status. Tidak ada batas periodeTerakhir.
+ *  - 'Lulus' / 'Transfer' / status lain + Tahun Ajaran:
+ *      Tampilkan mahasiswa dengan status tersebut yang masuk s.d. akhir TA.
+ *      Tidak perlu filter periodeTerakhir — statusKeaktifan sudah cukup.
+ */
 function buildWhereClause(query = {}, { forStats = false } = {}) {
     const where = {};
     buildMultiSelectFilters(query, where);
@@ -125,30 +183,33 @@ function buildWhereClause(query = {}, { forStats = false } = {}) {
     const targetAcademicYear = tahunAjaran
         || (selectedPeriode?.includes('/') ? selectedPeriode : null);
     const academicYear = getAcademicYear(targetAcademicYear);
-    const academicConditions = buildAcademicYearFilter(academicYear);
+    const statusValues = toArray(query.statusKeaktifan);
+
+    // ── Tahun Ajaran filter ──────────────────────────────────────────────────
+    // Pass statusValues so buildAcademicYearFilter knows whether to add the
+    // periodeTerakhir snapshot boundary (only for status 'Aktif' + historis).
+    const academicConditions = buildAcademicYearFilter(academicYear, statusValues);
     if (academicConditions.length) {
         where.AND = [...(where.AND || []), ...academicConditions];
         if (query.periodeMasuk) {
             const periodeFilter = buildPeriodeFilter(query.periodeMasuk);
             if (periodeFilter?.endsWith) where.AND.push({ periodeMasuk: periodeFilter });
         }
-    } else if (query.periodeMasuk && academicYear) {
-        const periodeFilter = buildPeriodeFilter(query.periodeMasuk);
-        where.periodeMasuk = periodeFilter?.endsWith
-            ? { startsWith: academicYear.startYear, endsWith: periodeFilter.endsWith }
-            : { startsWith: academicYear.startYear };
     } else if (query.periodeMasuk) {
+        // Tidak ada Tahun Ajaran — terapkan filter periodeMasuk sendiri.
         where.periodeMasuk = buildPeriodeFilter(query.periodeMasuk);
-    } else if (academicYear) {
-        where.periodeMasuk = { startsWith: academicYear.startYear };
     }
+    // CATATAN: Saat academicYear dipilih, kondisi periodeMasuk { lte } sudah ada
+    // di dalam AND di atas. Kita TIDAK menambah periodeMasuk: { startsWith }
+    // karena itu akan mempersempit hasil ke satu angkatan saja, bukan
+    // seluruh histori s.d. tahun ajaran yang dipilih.
 
     if (query.periode) where.periode = query.periode;
     if (query.kewarganegaraan === 'WNI') where.kewarganegaraan = 'Indonesia';
     else if (query.kewarganegaraan === 'WNA') where.NOT = { kewarganegaraan: 'Indonesia' };
     else if (query.kewarganegaraan) where.kewarganegaraan = query.kewarganegaraan;
 
-    const statusFilter = buildStatusFilter(toArray(query.statusKeaktifan), academicYear, forStats);
+    const statusFilter = buildStatusFilter(statusValues);
     if (statusFilter !== undefined) where.statusKeaktifan = statusFilter;
 
     const searchFilter = buildSearchFilter(query.search);
@@ -174,5 +235,7 @@ module.exports = {
     buildSearchFilter,
     buildMultiSelectFilters,
     isAcademicSnapshot,
+    ensurePopulationFilter,
+    buildStatelessFilter,
     getPaginationParams,
 };

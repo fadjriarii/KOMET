@@ -65,10 +65,50 @@ async function deduplicateStudents() {
     let relinkedGraduatesCount = 0;
     let relinkedMbkmCount = 0;
 
-    // 3. Evaluasi setiap kelompok
+    // 2. Grouping & Deduplikasi berdasarkan:
+    // (a) Nama + NIM bersih
+    // (b) NIK + Tanggal Lahir (khusus S2 Akun Lama vs S2 Resmi tanpa Akun Lama)
+    const personGroupMap = new Map();
+
     for (const [, group] of groupMap) {
-        // Pemilahan: Urutkan data agar data tanpa 'x' menjadi prioritas utama survivor
+        for (const student of group) {
+            const jenjang = (student.jenjang || '').toUpperCase().trim();
+            const rawProdi = (student.programStudi || '').toLowerCase();
+            const isAkunLama = rawProdi.includes('akun lama');
+            const cleanNik = (student.nik || '').trim();
+            const cleanTglLahir = (student.tanggalLahir || '').trim();
+            const cleanNama = (student.nama || '').toLowerCase().trim();
+
+            // Jika S2 dan mempunyai identitas (NIK / tanggalLahir), buat personKey gabungan
+            let personKey = null;
+            if (jenjang === 'S2' && (cleanNik || cleanTglLahir)) {
+                personKey = `S2_${cleanNama}_${cleanNik}_${cleanTglLahir}`;
+            } else {
+                const nimBersih = (student.nim || '').toLowerCase().trim().replace(/x/g, '');
+                personKey = `${cleanNama}_${nimBersih}`;
+            }
+
+            if (!personGroupMap.has(personKey)) {
+                personGroupMap.set(personKey, []);
+            }
+            personGroupMap.get(personKey).push(student);
+        }
+    }
+
+    // 3. Evaluasi setiap kelompok orang
+    for (const [, group] of personGroupMap) {
+        // Pemilahan: Urutkan data agar data tanpa 'Akun Lama', tanpa 'x', dan updatedAt terbaru menjadi survivor utama
         group.sort((a, b) => {
+            const aProdi = (a.programStudi || '').toLowerCase();
+            const bProdi = (b.programStudi || '').toLowerCase();
+            const aIsAkunLama = aProdi.includes('akun lama');
+            const bIsAkunLama = bProdi.includes('akun lama');
+
+            // UTAMAKAN data resmi yang TIDAK mengandung 'Akun Lama'
+            if (!aIsAkunLama && bIsAkunLama) return -1; // a resmi -> utamakan a
+            if (aIsAkunLama && !bIsAkunLama) return 1;  // b resmi -> utamakan b
+
+            // Jika status Akun Lama sama, utamakan NIM bersih dari X
             const aHasX = /x/i.test(a.nim);
             const bHasX = /x/i.test(b.nim);
 
@@ -238,6 +278,20 @@ async function deduplicateStudents() {
     };
 }
 
+function isSamePerson(studentA, studentB) {
+    if (!studentA || !studentB) return false;
+    const nikA = (studentA.nik || '').trim();
+    const nikB = (studentB.nik || '').trim();
+    if (nikA && nikB && nikA === nikB) return true;
+
+    const tglA = (studentA.tanggalLahir || '').trim();
+    const tglB = (studentB.tanggalLahir || '').trim();
+    if (tglA && tglB && tglA === tglB) return true;
+
+    return false;
+}
+
 module.exports = {
-    deduplicateStudents
+    deduplicateStudents,
+    isSamePerson
 };

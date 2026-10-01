@@ -5,17 +5,14 @@
  */
 
 const prisma = require('../../config/prisma');
-const { isAcademicSnapshot } = require('./filterBuilder');
+const { ensurePopulationFilter } = require('./filterBuilder');
 
 /**
  * Hitung total mahasiswa aktif sesuai base filter.
  */
 async function getTotalActiveStudents(baseFilter) {
     return prisma.student.count({
-        where: {
-            ...baseFilter,
-            ...(baseFilter.statusKeaktifan || isAcademicSnapshot(baseFilter) ? {} : { statusKeaktifan: 'Aktif' })
-        }
+        where: ensurePopulationFilter(baseFilter)
     });
 }
 
@@ -26,10 +23,7 @@ async function getTotalActiveStudents(baseFilter) {
  * - byJenjang: [{ name: "Sarjana (S1)", count }]
  */
 async function getActiveStudentsMultisector(baseFilter) {
-    const where = {
-        ...baseFilter,
-        ...(baseFilter.statusKeaktifan || isAcademicSnapshot(baseFilter) ? {} : { statusKeaktifan: 'Aktif' })
-    };
+    const where = ensurePopulationFilter(baseFilter);
 
     const [totalCount, rawProdi, rawFaculty, rawJenjang] = await Promise.all([
         prisma.student.count({ where }),

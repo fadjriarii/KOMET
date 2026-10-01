@@ -14,7 +14,7 @@ import { TREND_TABS } from './studentTrendConfig';
 
 const FOREIGN_TABLE_COLUMNS = [
   { key: 'academicYear', label: 'Tahun Akademik', icon: Calendar, render: (row) => <div className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-digital-blue-500" /><span className="font-semibold text-gray-900">{row.academicYear}</span></div> },
-  { key: 'foreignCount', label: 'Mahasiswa Asing (Non-WNI)', icon: Globe, headerClassName: 'text-right', cellClassName: 'text-right', render: (row) => <span className="bg-digital-blue-50/80 text-digital-blue-800 px-2 py-0.5 rounded-md border border-digital-blue-100 font-medium">{formatNumber(row.foreignCount)} mhs</span> },
+  { key: 'foreignCount', label: 'Mahasiswa Asing (Non-WNI)', icon: Globe, headerClassName: 'text-right', cellClassName: 'text-right font-medium text-digital-blue-900', render: (row) => <span className="bg-digital-blue-50/80 text-digital-blue-800 px-2 py-0.5 rounded-md border border-digital-blue-100 font-medium">{formatNumber(row.foreignCount)} mhs</span> },
   { key: 'totalCount', label: 'Total Mahasiswa Aktif', icon: Users, headerClassName: 'text-right', cellClassName: 'text-right font-medium text-gray-800', render: (row) => `${formatNumber(row.rawTotal)} mhs` },
   { key: 'percentage', label: 'Persentase Mahasiswa Asing', icon: Percent, headerClassName: 'text-right', cellClassName: 'text-right', render: (row) => <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-digital-blue-100/70 text-digital-blue-800 border border-digital-blue-200 shadow-2xs">{row.percentage}</span> },
 ];
@@ -22,10 +22,10 @@ const FOREIGN_TABLE_COLUMNS = [
 export default function ForeignStudentsModal({ isOpen, onClose, originRect, data, filters }) {
   const { activeTab, handleTabChange, slideClass } = useTabTransition(TREND_TABS, 'chart');
   const fetchInternationalDetail = useCallback((signal) => studentsService.getInternationalDetail(filters, { signal }), [filters]);
-  const { data: detailData, isLoading, error } = useStudentDetailResource({ isOpen, resourceKey: 'foreign', filters, fetcher: fetchInternationalDetail, errorMessage: 'Gagal memuat data mahasiswa asing' });
+  const { data: detailData, isLoading, error } = useStudentDetailResource({ isOpen, resourceKey: 'foreign', filters, fetcher: fetchInternationalDetail, errorMessage: 'Gagal memuat data mahasiswa asing', summaryData: data, summaryKey: 'internationalStudentsTrend' });
   const kpis = data?.kpis || {};
   const trendData = useMemo(
-    () => detailData?.trendData || data?.summary?.internationalStudentsTrend?.trend || [],
+    () => detailData?.data?.trendData || detailData?.trendData || data?.summary?.internationalStudentsTrend?.trend || [],
     [data, detailData]
   );
   const content = useMemo(() => ({

@@ -20,6 +20,8 @@ async function ensureStudentSession() {
   if (!sessionPromise) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    // BASE_URL sudah mengandung /api (e.g. http://localhost:3000/api),
+    // jadi jangan tambahkan /api lagi agar tidak menjadi /api/api/session/student
     sessionPromise = fetch(`${BASE_URL}/session/student`, {
       method: 'POST',
       credentials: 'include',

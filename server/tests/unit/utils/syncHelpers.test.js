@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 const {
+    getPeriodeFromTanggalTransfer,
     formatAngkatan,
     extractPeriode,
     hitungSemester,
@@ -11,6 +12,35 @@ const {
 } = require('../../../src/controllers/sync/helpers');
 
 describe('sync helpers — Data Cleansing & Transformation', () => {
+
+    // ─── getPeriodeFromTanggalTransfer ───
+    describe('getPeriodeFromTanggalTransfer', () => {
+        it('tanggal transfer September - Maret -> YYYY1 (Ganjil)', () => {
+            // Sep 2024 -> 20241
+            expect(getPeriodeFromTanggalTransfer('2024-09-02')).toBe('20241');
+            // Des 2024 -> 20241
+            expect(getPeriodeFromTanggalTransfer('2024-12-15')).toBe('20241');
+            // Jan 2025 -> 20241 (Masih bagian dari TA 2024 Ganjil)
+            expect(getPeriodeFromTanggalTransfer('2025-01-10')).toBe('20241');
+            // Mar 2025 -> 20241 (Sampai Maret)
+            expect(getPeriodeFromTanggalTransfer('2025-03-01')).toBe('20241');
+        });
+
+        it('tanggal transfer Maret ke September -> YYYY2 (Genap)', () => {
+            // Apr 2025 -> 20242
+            expect(getPeriodeFromTanggalTransfer('2025-04-10')).toBe('20242');
+            // Mei 2025 -> 20242
+            expect(getPeriodeFromTanggalTransfer('2025-05-20')).toBe('20242');
+            // Agu 2025 -> 20242
+            expect(getPeriodeFromTanggalTransfer('2025-08-31')).toBe('20242');
+        });
+
+        it('input kosong/invalid -> string kosong', () => {
+            expect(getPeriodeFromTanggalTransfer('')).toBe('');
+            expect(getPeriodeFromTanggalTransfer(null)).toBe('');
+            expect(getPeriodeFromTanggalTransfer('invalid-date')).toBe('');
+        });
+    });
 
     // ─── formatAngkatan ───
     describe('formatAngkatan', () => {
@@ -82,6 +112,11 @@ describe('sync helpers — Data Cleansing & Transformation', () => {
 
             expect(hitungSemester('20221', null)).toBe(Math.max(1, expected));
         });
+
+        it('menggunakan periode masuk awal untuk mahasiswa transfer', () => {
+            expect(hitungSemester('20252', '20252', '20231')).toBe(6);
+            expect(hitungSemester('20231', '20252')).toBe(6);
+        });
     });
 
     // ─── getCurrentAcademicPeriode ───
@@ -90,10 +125,17 @@ describe('sync helpers — Data Cleansing & Transformation', () => {
             expect(getCurrentAcademicPeriode()).toMatch(/^\d{5}$/);
         });
 
-        it('digit ke-5 adalah 1 atau 2', () => {
-            const periode = getCurrentAcademicPeriode();
-            const term = periode.substring(4, 5);
-            expect(['1', '2']).toContain(term);
+        it('September - Februari -> YYYY1 (Ganjil)', () => {
+            expect(getCurrentAcademicPeriode(new Date('2026-10-01'))).toBe('20261');
+            expect(getCurrentAcademicPeriode(new Date('2026-12-15'))).toBe('20261');
+            expect(getCurrentAcademicPeriode(new Date('2027-01-20'))).toBe('20261');
+            expect(getCurrentAcademicPeriode(new Date('2027-02-28'))).toBe('20261');
+        });
+
+        it('Maret - Agustus -> YYYY2 (Genap)', () => {
+            expect(getCurrentAcademicPeriode(new Date('2027-03-01'))).toBe('20262');
+            expect(getCurrentAcademicPeriode(new Date('2027-05-15'))).toBe('20262');
+            expect(getCurrentAcademicPeriode(new Date('2027-08-31'))).toBe('20262');
         });
     });
 

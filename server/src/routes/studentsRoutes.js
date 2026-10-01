@@ -13,6 +13,7 @@ router.use(validateQuery(studentQuerySchema));
 
 // Endpoint utama dashboard (4 card + filter options)
 router.get('/summary', studentsController.getSummary);
+router.get('/filter-options', studentsController.getFilterOptionsHandler);
 
 // Endpoint detail per card (untuk chart saat card diklik)
 router.get('/active-students', studentsController.getActiveStudentsDetail);

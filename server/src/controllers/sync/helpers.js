@@ -15,6 +15,70 @@ function sanitizeText(str) {
     return str.replace(/&amp;/g, '&').trim();
 }
 
+const PRODI_RENAME_MAP = {
+    'biomanajemen': 'Magister Bio Manajemen',
+    'magister biomanajemen': 'Magister Bio Manajemen',
+    'magister bio manajemen': 'Magister Bio Manajemen',
+    'apoteker': 'Pendidikan Profesi Apoteker',
+    'pendidikan profesi apoteker': 'Pendidikan Profesi Apoteker'
+};
+
+/**
+ * Helper untuk menormalisasi nama Program Studi dari Sevima API.
+ * Menghapus label seperti "(Akun Lama)" atau "(keterangan akun lama)"
+ * dan memetakan nama lama ke nama program studi resmi terbaru (misal Biomanajemen -> Magister Bio Manajemen).
+ */
+function sanitizeProdiName(str) {
+    if (!str) return '';
+    const cleaned = str
+        .replace(/&amp;/g, '&')
+        .replace(/\s*\((?:keterangan\s+)?akun\s+lama\)/gi, '')
+        .trim();
+
+    const lowerKey = cleaned.toLowerCase();
+    if (PRODI_RENAME_MAP[lowerKey]) {
+        return PRODI_RENAME_MAP[lowerKey];
+    }
+    return cleaned;
+}
+
+/**
+ * Helper untuk menghitung kode periode (YYYY1 / YYYY2) dari tanggal transfer (misal "2024-09-02").
+ * Aturan:
+ * - September (bulan 9) hingga Maret (bulan 3): Ganjil (YYYY1). Note: Sep-Des tahun Y, Jan-Mar tahun Y+1?
+ *   Khususnya: Sep–Des Y -> Y1. Jan–Mar Y -> (Y-1)1.
+ * - Maret (bulan 3) ke September (bulan 9): Genap (YYYY2). Maret–Agustus Y -> (Y-1)2.
+ *
+ * Penjelasan Tahun Akademik berdasarkan Tanggal Transfer:
+ * - September Y s.d. Maret Y+1 -> Semester Ganjil Tahun Akademik Y (YYYY1).
+ *   - Jika bulan Sep-Des Y: YYYY1 (misal 2024-09-02 -> 20241)
+ *   - Jika bulan Jan-Mar Y: (Y-1)1 (misal 2025-01-15 -> 20241)
+ * - Maret Y s.d. September Y -> Semester Genap Tahun Akademik Y-1 (YYYY2).
+ *   - Jika bulan Mar-Agu Y: (Y-1)2 (misal 2024-04-10 -> 20232)
+ */
+function getPeriodeFromTanggalTransfer(tanggalTransferStr) {
+    if (!tanggalTransferStr) return '';
+    const date = new Date(tanggalTransferStr);
+    if (isNaN(date.getTime())) return '';
+
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1; // 1-12
+
+    // September (9) s.d. Desember (12) -> year + "1"
+    if (month >= 9 && month <= 12) {
+        return `${year}1`;
+    }
+    // Januari (1) s.d. Maret (3) -> (year - 1) + "1"
+    if (month >= 1 && month <= 3) {
+        return `${year - 1}1`;
+    }
+    // April (4) s.d. Agustus (8) -> (year - 1) + "2"
+    if (month >= 4 && month <= 8) {
+        return `${year - 1}2`;
+    }
+    return '';
+}
+
 /**
  * Helper untuk memformat Angkatan dari kode periode Sevima.
  * Ambil 4 digit pertama sebagai tahun saja (misal: "20261" -> "2026", "20262" -> "2026").
@@ -40,18 +104,27 @@ function extractPeriode(idPeriode) {
 
 /**
  * Mengembalikan kode periode akademik berjalan saat ini.
- * Semester Ganjil (term 1): Agustus–Januari → digit ke-5 = "1"
- * Semester Genap  (term 2): Februari–Juli   → digit ke-5 = "2"
- * @returns {string} kode periode 5 digit (contoh "20261" atau "20252")
+ * Aturan:
+ * - September (bulan 9) hingga Februari (bulan 2): Ganjil (YYYY1).
+ *   - Sep-Des tahun Y -> YYYY1 (misal Okt 2026 -> 20261)
+ *   - Jan-Feb tahun Y -> (YYYY-1)1 (misal Jan 2027 -> 20261)
+ * - Maret (bulan 3) hingga Agustus (bulan 8): Genap (YYYY2).
+ *   - Mar-Agu tahun Y -> (YYYY-1)2 (misal Mar 2027 -> 20262)
+ * @returns {string} kode periode 5 digit (contoh "20261" atau "20262")
  */
-function getCurrentAcademicPeriode() {
-    const now = new Date();
-    const bulan = now.getMonth() + 1; // 1–12
-    const tahun = now.getFullYear();
-    // Ganjil = semester yang dimulai Agustus tahun ini
-    // Genap  = semester yang dimulai Februari tahun ini
-    const term = bulan >= 8 ? 1 : 2;
-    return `${tahun}${term}`;
+function getCurrentAcademicPeriode(date = new Date()) {
+    const d = new Date(date);
+    const bulan = d.getMonth() + 1; // 1–12
+    const tahun = d.getFullYear();
+
+    if (bulan >= 9 && bulan <= 12) {
+        return `${tahun}1`;
+    }
+    if (bulan >= 1 && bulan <= 2) {
+        return `${tahun - 1}1`;
+    }
+    // Bulan 3 (Maret) s.d. 8 (Agustus)
+    return `${tahun - 1}2`;
 }
 
 /**
@@ -64,14 +137,16 @@ function getCurrentAcademicPeriode() {
  *
  * @param {string} periodeMasuk       kode periode masuk (contoh "20221")
  * @param {string} periodeTerakhir    kode periode akhir; jika kosong/sama = pakai periode berjalan
+ * @param {string} periodeMasukAwal   kode periode masuk awal jika mahasiswa transfer
  * @returns {number} semester (minimal 1)
  */
-function hitungSemester(periodeMasuk, periodeTerakhir) {
-    if (!periodeMasuk) return 1;
+function hitungSemester(periodeMasuk, periodeTerakhir, periodeMasukAwal = null) {
+    const startPeriode = periodeMasukAwal || periodeMasuk;
+    if (!startPeriode) return 1;
 
     try {
-        const tahunMasuk = parseInt(periodeMasuk.substring(0, 4));
-        const termMasuk  = parseInt(periodeMasuk.substring(4, 5)) || 1;
+        const tahunMasuk = parseInt(startPeriode.substring(0, 4));
+        const termMasuk  = parseInt(startPeriode.substring(4, 5)) || 1;
 
         if (isNaN(tahunMasuk)) return 1;
 
@@ -95,7 +170,7 @@ function hitungSemester(periodeMasuk, periodeTerakhir) {
 /**
  * Menentukan apakah status mahasiswa termasuk "sudah keluar" (lulus/DO/putus studi/dll.)
  * berdasarkan id_status_mahasiswa dari Sevima.
- * @param {string} idStatus kode status dari Sevima (misal "A"=Aktif, "L"=Lulus, "D"=DO)
+ * @param {string} idStatus kode status dari Sevima (misal "L"=Lulus, "D"=DO)
  * @returns {boolean}
  */
 function isStatusKeluar(idStatus) {
@@ -103,6 +178,16 @@ function isStatusKeluar(idStatus) {
     // "L"=Lulus, "D"=Drop Out, "K"=Keluar, "M"=Meninggal, "P"=Pindah, "T"=Tidak Lanjut
     const statusKeluar = ['L', 'D', 'K', 'M', 'P', 'T'];
     return statusKeluar.includes(idStatus.toUpperCase());
+}
+
+/**
+ * Memeriksa apakah nama Program Studi atau Fakultas mengandung teks "akun lama".
+ * @param {string} text  nama program studi atau fakultas
+ * @returns {boolean} true jika mengandung tanda "akun lama"
+ */
+function isAkunLama(text) {
+    if (!text) return false;
+    return /keterangan akun lama|akun lama/i.test(text);
 }
 
 /**
@@ -165,20 +250,11 @@ function mapKewarganegaraan(idNegara, namaNegara) {
     return 'Indonesia';
 }
 
-/**
- * Memeriksa apakah nama Program Studi atau Fakultas mengandung teks
- * yang menandakan "akun lama" (data legacy yang harus dibuang).
- * @param {string} text  nama program studi atau fakultas
- * @returns {boolean} true jika mengandung tanda "akun lama"
- */
-function isAkunLama(text) {
-    if (!text) return false;
-    return /keterangan akun lama|akun lama/i.test(text);
-}
-
 // Helper Resolver NIM Bulk (Pre-fetch In-Memory Map) untuk Batch Sync tanpa N+1 Query
 async function resolveTargetNimBatch(items, extractNimFn, extractNamaFn, extraDataFn = () => ({})) {
     if (!items || items.length === 0) return new Map();
+
+    const prodiFakultasMap = await getProdiFakultasMap();
 
     const nimsToLookup = new Set();
     items.forEach(item => {
@@ -217,20 +293,27 @@ async function resolveTargetNimBatch(items, extractNimFn, extractNamaFn, extraDa
                 existingNimSet.add(targetNim); // Hindari duplikat create dalam batch yang sama
                 const extraData = extraDataFn(item) || {};
                 const idPeriode = extraData.id_periode_akademik || extraData.id_periode || '';
-                const prodi = extraData.programStudi || extraData.prodiName || '';
-                const jenjang = extraData.jenjang || extraData.id_jenjang_program_studi || '';
+                const rawProdi = extraData.programStudi || extraData.prodiName || '';
+                const prodi = sanitizeProdiName(rawProdi);
+                const jenjang = extraData.jenjang || extraData.id_jenjang_program_studi || 'S1';
                 const statusKeaktifan = extraData.defaultStatusKeaktifan || 'Aktif';
-                const semester = extraData.defaultSemester || 1;
+                const fakultas = extraData.fakultas
+                    || prodiFakultasMap.get(cleanText(rawProdi))
+                    || prodiFakultasMap.get(cleanText(prodi))
+                    || '';
+                const semester = extraData.defaultSemester
+                    || (statusKeaktifan === 'Lulus' ? hitungSemester(idPeriode, idPeriode) : 1);
 
                 studentsToCreate.push({
                     nim: targetNim,
                     nama: extractNamaFn(item) || '',
                     jenjang,
                     periodeMasuk: idPeriode,
+                    periodeTerakhir: statusKeaktifan === 'Lulus' ? idPeriode : '',
                     angkatan: formatAngkatan(idPeriode),
                     periode: extractPeriode(idPeriode),
                     programStudi: prodi,
-                    fakultas: extraData.fakultas || '',
+                    fakultas,
                     statusKeaktifan,
                     semester,
                     kewarganegaraan: 'Indonesia'
@@ -272,9 +355,16 @@ async function getProdiFakultasMap(forceRefresh = false) {
             const attr = item.attributes;
             const rawName = attr.nama_program_studi || '';
             const namaFakultas = attr.nama_fakultas || '';
+            const cleanName = sanitizeProdiName(rawName);
 
-            map.set(cleanText(rawName), namaFakultas);
-            map.set(rawName.trim().toLowerCase(), namaFakultas);
+            if (rawName) {
+                map.set(cleanText(rawName), namaFakultas);
+                map.set(rawName.trim().toLowerCase(), namaFakultas);
+            }
+            if (cleanName) {
+                map.set(cleanText(cleanName), namaFakultas);
+                map.set(cleanName.trim().toLowerCase(), namaFakultas);
+            }
         }
 
         prodiCache = map;
@@ -302,6 +392,8 @@ module.exports = {
     sleep,
     cleanText,
     sanitizeText,
+    sanitizeProdiName,
+    getPeriodeFromTanggalTransfer,
     formatAngkatan,
     extractPeriode,
     hitungSemester,
