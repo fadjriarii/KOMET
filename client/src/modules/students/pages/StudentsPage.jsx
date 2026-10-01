@@ -15,6 +15,7 @@ import { useStudentKpiDisplay } from '../hooks/useStudentKpiDisplay';
 import { useStudentList } from '../hooks/useStudentList';
 import { useStudentModalOrigin } from '../hooks/useStudentModalOrigin';
 import { useStudentSummary } from '../hooks/useStudentSummary';
+import { useStudentFilterOptions } from '../hooks/useStudentFilterOptions';
 
 const TABLE_LIMIT = 10;
 export default function StudentsPage() {
@@ -22,13 +23,19 @@ export default function StudentsPage() {
   const [selectedAcademicYear, setSelectedAcademicYear] = useState(currentAcademicYear);
   const { values: filters, setters, filterParams, activeFilterCount, resetFilters } = useStudentFilters();
   const debouncedSearch = useDebouncedValue(filters.searchQuery, STUDENT_SEARCH_DEBOUNCE_MS);
+  
+  // Both summary and list now use debounced search consistently
   const summaryParams = useMemo(() => ({ ...filterParams, search: debouncedSearch, tahunAjaran: selectedAcademicYear }), [debouncedSearch, filterParams, selectedAcademicYear]);
-  const listParams = useMemo(() => ({ ...filterParams, tahunAjaran: selectedAcademicYear }), [filterParams, selectedAcademicYear]);
+  const listParams = useMemo(() => ({ ...filterParams, search: debouncedSearch, tahunAjaran: selectedAcademicYear }), [debouncedSearch, filterParams, selectedAcademicYear]);
+  
   const summaryQuery = useStudentSummary(summaryParams);
   const { rows, pagination, page, setPage, isLoading: isListLoading } = useStudentList(listParams, { limit: TABLE_LIMIT });
   const { activeModalType, currentModalType, originRect, openModal, closeModal } = useStudentModalOrigin();
-
-  const availableFilterOptions = summaryQuery.data?.filterOptions || {};
+  
+  // Fetch filter options from dedicated endpoint (cached 10 min)
+  const { filterOptions: filterOptionsQuery, isLoading: filterOptionsLoading } = useStudentFilterOptions();
+  const availableFilterOptions = filterOptionsQuery || {};
+  
   const academicYearOptions = useMemo(
     () => availableFilterOptions.academicYearOptions || getRollingAcademicYears(5),
     [availableFilterOptions.academicYearOptions]

@@ -22,12 +22,15 @@ model Student {
   statusKeaktifan String
   semester        Int
   kewarganegaraan String
+  nik             String           @default("")
+  tanggalLahir    String           @default("")
   updatedAt       DateTime         @updatedAt
   
   // Relasi
   graduate        Graduate?
   mbkmActivities  MbkmActivity[]
 
+  @@index([nik])
   @@index([statusKeaktifan])
   @@index([semester])
   @@index([fakultas])

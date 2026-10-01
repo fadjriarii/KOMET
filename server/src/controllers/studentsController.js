@@ -27,13 +27,11 @@ const getSummary = async (req, res) => {
         const selectedPeriode = req.query.selectedPeriode || req.query.tahunAjaran;
         
         const [
-            filterOptions,
             totalActiveStudents,
             totalInternationalStudents,
             internationalTrend,
             intakeTrendResult
         ] = await Promise.all([
-            getFilterOptions(),
             getTotalActiveStudents(studentPopulationFilter),
             getTotalInternationalStudents(studentPopulationFilter),
             getInternationalStudentsTrend(studentPopulationFilter),
@@ -120,8 +118,7 @@ const getSummary = async (req, res) => {
                 declinePeriod: newStudentDecline?.selectedPeriod || null,
                 declineAvg: intakeFluctuationAvg,
                 hasEnoughDeclineData
-            },
-            filterOptions
+            }
         });
     } catch (error) {
         return sendError(res, 500, 'Gagal mengambil summary statistik.', error, 'students/getSummary');
@@ -223,11 +220,25 @@ const getStudents = async (req, res) => {
     }
 };
 
+// GET /api/students/filter-options — Filter options untuk dropdown (dapat di-cache lebih lama)
+const getFilterOptionsHandler = async (req, res) => {
+    try {
+        const options = await getFilterOptions();
+        return res.status(200).json({
+            success: true,
+            data: options,
+        });
+    } catch (error) {
+        return sendError(res, 500, 'Gagal mengambil opsi filter.', error, 'students/getFilterOptions');
+    }
+};
+
 module.exports = {
     getSummary,
     getActiveStudentsDetail,
     getIntakeTrendDetail,
     getDeclineTrendDetail,
     getStudents,
-    getInternationalDetail
+    getInternationalDetail,
+    getFilterOptionsHandler
 };

@@ -2,6 +2,18 @@ import { useState, useMemo, useCallback } from 'react';
 import { getStudentActiveFilterCount } from '../utils/studentQuery';
 
 const DEFAULT_STATUS = 'Aktif';
+const MAX_SEARCH_LENGTH = 100;
+
+/**
+ * Sanitize search input: trim, strip control characters, enforce max length.
+ */
+function sanitizeSearchInput(value) {
+  if (typeof value !== 'string') return '';
+  return value
+    .replace(/[\u0000-\u001F\u007F]/g, '') // Remove control characters
+    .trim()
+    .substring(0, MAX_SEARCH_LENGTH);
+}
 
 /**
  * useStudentFilters - Hook khusus untuk state form filter di dalam StudentFilterContainer.
@@ -21,7 +33,7 @@ const DEFAULT_STATUS = 'Aktif';
  * dari container filter ini agar reset filter tidak mempengaruhi tahun ajaran.
  */
 export function useStudentFilters() {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQueryState] = useState('');
   const [selectedFaculty, setSelectedFaculty] = useState([]);
   const [selectedProdi, setSelectedProdi] = useState([]);
   const [selectedJenjang, setSelectedJenjang] = useState([]);
@@ -30,6 +42,12 @@ export function useStudentFilters() {
   const [selectedNationality, setSelectedNationality] = useState('');
   const [selectedStatus, setSelectedStatus] = useState([DEFAULT_STATUS]);
   const [selectedPeriode, setSelectedPeriode] = useState('');
+
+  // Sanitized setter for search query
+  const setSearchQuery = useCallback((value) => {
+    const sanitized = sanitizeSearchInput(value);
+    setSearchQueryState(sanitized);
+  }, []);
 
   const filterValues = useMemo(
     () => ({
@@ -73,7 +91,7 @@ export function useStudentFilters() {
     setSelectedNationality('');
     setSelectedStatus([DEFAULT_STATUS]);
     setSelectedPeriode('');
-  }, []);
+  }, [setSearchQuery]);
 
   const values = useMemo(() => ({
     searchQuery,
@@ -107,7 +125,7 @@ export function useStudentFilters() {
     setSelectedNationality,
     setSelectedStatus,
     setSelectedPeriode,
-  }), []);
+  }), [setSearchQuery]);
 
   return {
     // `values` untuk binding komponen UI; `filterParams` untuk service/API.

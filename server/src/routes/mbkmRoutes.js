@@ -3,7 +3,7 @@
  */
 const express = require('express');
 const router = express.Router();
-const authMiddleware = require('../middlewares/auth');
+const { studentSessionAuth } = require('../middlewares/studentSession');
 const { statsLimiter } = require('../middlewares/rateLimiter');
 const { mbkmQuerySchema, validateQuery } = require('../middlewares/validator');
 const {
@@ -18,9 +18,9 @@ const {
     getMbkmDistributionHandler
 } = require('../controllers/mbkmController');
 
-// Semua routes dilindungi oleh API Key middleware & Rate Limiter & Validasi Query
-router.use(authMiddleware);
+// Semua routes dilindungi oleh Session & API Key middleware & Rate Limiter & Validasi Query
 router.use(statsLimiter);
+router.use(studentSessionAuth);
 router.use(validateQuery(mbkmQuerySchema));
 
 // Endpoint utama tab MBKM (4 card + filter options)

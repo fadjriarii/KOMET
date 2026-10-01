@@ -47,9 +47,10 @@ const mbkmQuerySchema = z.object({
     fakultas: stringOrArray,
     programStudi: stringOrArray,
     angkatan: stringOrArray,
-    statusAktivitas: z.string().optional(),
-    jenjang: z.string().optional(),
-    periode: z.string().optional()
+    statusAktivitas: stringOrArray,
+    jenjang: stringOrArray,
+    periode: z.string().optional(),
+    topN: z.union([z.string(), z.number()]).optional()
 });
 
 /**

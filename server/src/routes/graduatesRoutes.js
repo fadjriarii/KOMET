@@ -6,14 +6,14 @@
 
 const express = require('express');
 const router = express.Router();
-const authMiddleware = require('../middlewares/auth');
+const { studentSessionAuth } = require('../middlewares/studentSession');
 const { statsLimiter } = require('../middlewares/rateLimiter');
 const { graduateQuerySchema, validateQuery } = require('../middlewares/validator');
 const graduates = require('../controllers/graduatesController');
 
-// Semua routes dilindungi oleh API Key middleware & Rate Limiter & Validasi Query
+// Semua routes dilindungi oleh Session & API Key middleware & Rate Limiter & Validasi Query
 router.use(statsLimiter);
-router.use(authMiddleware);
+router.use(studentSessionAuth);
 router.use(validateQuery(graduateQuerySchema));
 
 // Endpoint utama tab lulusan (4 card + filter options)

@@ -28,14 +28,14 @@ export default function ActiveStudentsModal({
     data: activeDetailData,
     isLoading: isLoadingDetail,
     error: detailError,
-  } = useStudentDetailResource({ isOpen, resourceKey: 'active', filters, fetcher: fetchActiveDetail, errorMessage: 'Gagal memuat rincian mahasiswa aktif' });
+  } = useStudentDetailResource({ isOpen, resourceKey: 'active', filters, fetcher: fetchActiveDetail, errorMessage: 'Gagal memuat rincian mahasiswa aktif', summaryData: data, summaryKey: 'activeStudentsMultisector' });
 
   const kpis = data?.kpis || {};
   const statusPresentation = getStudentStatusPresentation(filters?.status || []);
   const currentAcademicYear = filters?.tahunAjaran || getCurrentAcademicYear();
-  const facultyList = activeDetailData?.byFaculty || [];
-  const prodiList = activeDetailData?.byProdi || [];
-  const jenjangList = activeDetailData?.byJenjang || [];
+  const facultyList = activeDetailData?.data?.byFaculty || activeDetailData?.byFaculty || [];
+  const prodiList = activeDetailData?.data?.byProdi || activeDetailData?.byProdi || [];
+  const jenjangList = activeDetailData?.data?.byJenjang || activeDetailData?.byJenjang || [];
 
   const activeContent = getActiveTabContent(activeTab, {
     fakultas: (

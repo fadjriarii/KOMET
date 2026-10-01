@@ -1,13 +1,10 @@
 /** Aggregates international-student trends directly in MySQL. */
 const prisma = require('../../config/prisma');
 const { toAcademicYear, get5YearRollingAcademicYears } = require('../../utils/academicUtils');
-const { isAcademicSnapshot } = require('./filterBuilder');
+const { ensurePopulationFilter } = require('./filterBuilder');
 
 function getPopulationWhere(baseFilter = {}) {
-    return {
-        ...baseFilter,
-        ...(baseFilter.statusKeaktifan || isAcademicSnapshot(baseFilter) ? {} : { statusKeaktifan: 'Aktif' }),
-    };
+    return ensurePopulationFilter(baseFilter);
 }
 
 function appendNot(where, condition) {

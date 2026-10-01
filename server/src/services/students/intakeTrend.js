@@ -1,6 +1,8 @@
 /** Calculates new-student intake trends in the database, not application memory. */
 const prisma = require('../../config/prisma');
 const { toAcademicYear, get5YearRollingAcademicYears } = require('../../utils/academicUtils');
+const { calculatePercentageChange } = require('../../utils/trendCalculation');
+const { buildStatelessFilter } = require('./filterBuilder');
 
 function withoutAcademicSnapshot(where = {}) {
     const result = { ...where };
@@ -15,16 +17,9 @@ function withoutAcademicSnapshot(where = {}) {
     return result;
 }
 
+// Backward compatibility alias
 function calculateGrowth(currentCount, previousCount, decimals = 2) {
-    if (previousCount > 0) {
-        const rawGrowth = (currentCount - previousCount) / previousCount;
-        return {
-            rawGrowth,
-            label: `${rawGrowth >= 0 ? '+' : ''}${(rawGrowth * 100).toFixed(decimals)}%`,
-        };
-    }
-    if (currentCount > 0) return { rawGrowth: 1, label: `+${(100).toFixed(decimals)}%` };
-    return { rawGrowth: 0, label: `${(0).toFixed(decimals)}%` };
+    return calculatePercentageChange(currentCount, previousCount, decimals);
 }
 
 function addGroupCount(yearlyMap, periodeMasuk, count) {
@@ -39,8 +34,7 @@ function addGroupCount(yearlyMap, periodeMasuk, count) {
 }
 
 async function getIntakeTrend(baseFilter = {}) {
-    const queryFilter = withoutAcademicSnapshot(baseFilter);
-    delete queryFilter.statusKeaktifan;
+    const queryFilter = buildStatelessFilter(baseFilter);
 
     const groupedRows = await prisma.student.groupBy({
         by: ['periodeMasuk'],
@@ -67,21 +61,29 @@ async function getIntakeTrend(baseFilter = {}) {
         const chartGrowth = calculateGrowth(item.intakeCount, index > 0 ? previousCount : undefined, 1);
         const total = item.intakeCount || 1;
 
+        // Handle case where growth calculation returns null (invalid state)
+        const growthLabel = (growth && growth.label !== null && growth.label !== undefined)
+            ? growth.label
+            : '0.00%';
+        const chartGrowthLabel = (chartGrowth && chartGrowth.label !== null && chartGrowth.label !== undefined)
+            ? chartGrowth.label
+            : '0.00%';
+
         trend.push({
             tahun: item.tahun,
             intakeCount: item.intakeCount,
             intakeCountFormatted: `${formatter.format(item.intakeCount)} mhs`,
-            growth: growth.label,
-            growthFormatted: growth.label,
-            rawGrowth: growth.rawGrowth,
-            isPositive: growth.rawGrowth >= 0,
+            growth: growthLabel,
+            growthFormatted: growthLabel,
+            rawGrowth: growth ? (growth.rawGrowth ?? 0) : 0,
+            isPositive: (!isNaN(growth?.rawGrowth ?? 0) && growth?.rawGrowth >= 0),
         });
         rechartsData.push({
             tahun: item.tahun,
             intakeCount: item.intakeCount,
-            value: Number(chartGrowth.rawGrowth.toFixed(4)),
-            label: chartGrowth.label,
-            growth: chartGrowth.label,
+            value: Number(chartGrowthLabel),
+            label: chartGrowthLabel,
+            growth: chartGrowthLabel,
             ganjil: item.ganjil,
             ganjilPct: Math.round((item.ganjil / total) * 100),
             genap: item.genap,
@@ -92,8 +94,7 @@ async function getIntakeTrend(baseFilter = {}) {
 }
 
 function withIntakeYears(baseFilter, startYears) {
-    const where = withoutAcademicSnapshot(baseFilter);
-    delete where.statusKeaktifan;
+    const where = buildStatelessFilter(baseFilter);
     return {
         ...where,
         AND: [
@@ -128,4 +129,4 @@ async function getIntakeForYear(yearStr, baseFilter = {}) {
     return counts.get(yearStr) || 0;
 }
 
-module.exports = { getIntakeTrend, getIntakeForYear, getIntakeCountsForYears, calculateGrowth };
+module.exports = { getIntakeTrend, getIntakeForYear, getIntakeCountsForYears, calculateGrowth, calculatePercentageChange };

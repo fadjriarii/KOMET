@@ -6,7 +6,8 @@ const { deduplicateStudents } = require('../../services/studentDeduplicationServ
 const {
     sleep,
     cleanText,
-    formatAngkatan,
+    sanitizeText,
+    sanitizeProdiName,
     resolveTargetNimBatch,
     getProdiFakultasMap,
     processInBatches
@@ -42,13 +43,20 @@ const executeSyncMbkm = async (startPage = 1) => {
             const attr = item.attributes;
             if (!attr.nim) continue;
 
-            const prodiName = attr.program_studi || '';
-            const fakultas = prodiFakultasMap.get(cleanText(prodiName)) || prodiFakultasMap.get(prodiName.trim().toLowerCase()) || '';
+            const rawProdi = attr.program_studi || '';
+            const prodiName = sanitizeProdiName(rawProdi);
+            const fakultas = sanitizeText(
+                prodiFakultasMap.get(cleanText(rawProdi))
+                || prodiFakultasMap.get(cleanText(prodiName))
+                || prodiFakultasMap.get(rawProdi.trim().toLowerCase())
+                || prodiFakultasMap.get(prodiName.trim().toLowerCase())
+                || ''
+            );
 
             validItems.push({
                 nim: attr.nim,
                 nama_mahasiswa: attr.nama_mahasiswa || '',
-                id_jenjang_program_studi: attr.id_jenjang_program_studi || '',
+                id_jenjang_program_studi: attr.id_jenjang_program_studi || 'S1',
                 id_periode: attr.id_periode || '',
                 prodiName,
                 fakultas,
@@ -109,7 +117,7 @@ const executeSyncMbkm = async (startPage = 1) => {
     const deduplicationResult = await deduplicateStudents();
 
     syncJobTracker.updateProgress('mbkm', { status: 'completed', synced: totalSynced, skipped: totalSkipped });
-    logger.success(`[MBKM] Selesai! ${totalSynced} data aktivitas MBKM disinkronkan, ${deduplicationResult.deletedCount} duplikat dibersihkan.`);
+    logger.success(`[MBKM] Selesai! ${totalSynced} data aktivitas MBKM disinkronkan, ${deduplicationResult.deletedCount || 0} duplikat dibersihkan.`);
     return { totalSynced, totalSkipped, deduplication: deduplicationResult };
 };
 
