@@ -73,7 +73,7 @@ async function getKeberhasilanStudiByAngkatan(whereFilter) {
                 cohort: cohortNum,
                 cohortLabel: `Angkatan ${angkatanStr}`,
                 isIncomplete: false,
-                rateFormatted: `${rate.toFixed(1)}%`,
+                rate: total > 0 ? rate : null,
                 successCount: lulus,
                 lulus,
                 total,

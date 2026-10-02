@@ -2,11 +2,10 @@ const { buildStudentFilter, buildBaseFilter, getPaginationParams } = require('..
 const { getFilterOptions } = require('../services/students/filterOptions');
 const { getTotalActiveStudents, getActiveStudentsMultisector } = require('../services/students/activeStudents');
 const { getInternationalStudentsTrend, getTotalInternationalStudents } = require('../services/students/internationalTrend');
-const { getIntakeTrend, getIntakeForYear } = require('../services/students/intakeTrend');
+const { getIntakeTrend, getIntakeCountsForYears } = require('../services/students/intakeTrend');
 const { getNewStudentDecline } = require('../services/students/declineTrend');
 const { getStudentList } = require('../services/students/studentList');
 const { sendError } = require('../utils/errorHandler');
-const { formatNumber } = require('../utils/formatUtils');
 
 function buildStudentPopulationFilter(query) {
     return buildBaseFilter(query);
@@ -26,46 +25,55 @@ const getSummary = async (req, res) => {
         // intake filter and may legitimately differ from either value.
         const selectedPeriode = req.query.selectedPeriode || req.query.tahunAjaran;
         
+        const selectedStartYear = /^\d{4}\/\d{4}$/.test(selectedPeriode || '')
+            ? Number(selectedPeriode.slice(0, 4))
+            : null;
+        const declineYears = selectedStartYear
+            ? Array.from({ length: 6 }, (_, index) => `${selectedStartYear - index}/${selectedStartYear + 1 - index}`)
+            : [];
         const [
             totalActiveStudents,
             totalInternationalStudents,
             internationalTrend,
-            intakeTrendResult
+            intakeTrendResult,
+            declineCounts
         ] = await Promise.all([
             getTotalActiveStudents(studentPopulationFilter),
             getTotalInternationalStudents(studentPopulationFilter),
             getInternationalStudentsTrend(studentPopulationFilter),
-            getIntakeTrend(baseFilter)                 // Card 3: Intake Mahasiswa Baru
+            getIntakeTrend(baseFilter),                // Card 3: Intake Mahasiswa Baru
+            // Fetch the six decline cohorts alongside the other KPI queries.
+            // getNewStudentDecline then performs only in-memory calculation.
+            getIntakeCountsForYears(declineYears, baseFilter)
         ]);
         
         // Destructure since getIntakeTrend returns { trend, rechartsData }
         const intakeTrend = intakeTrendResult.trend || [];
+        const declineTrendCache = [...intakeTrend];
+        declineCounts.forEach((intakeCount, tahun) => {
+            if (!declineTrendCache.some((item) => item.tahun === tahun)) declineTrendCache.push({ tahun, intakeCount });
+        });
         
         // Card 4: Persentase Penurunan Mahasiswa Baru (Rentang 5 Tahun)
-        const newStudentDecline = await getNewStudentDecline(selectedPeriode, baseFilter, intakeTrend);
+        const newStudentDecline = await getNewStudentDecline(selectedPeriode, baseFilter, declineTrendCache);
 
         const activeStudentsCount = totalActiveStudents;
         const foreignStudentsCount = totalInternationalStudents;
-        const foreignStudentsRate = totalActiveStudents > 0
-            ? `${((totalInternationalStudents / totalActiveStudents) * 100).toFixed(1)}%`
-            : "0.0%";
+        const foreignRate = totalActiveStudents > 0
+            ? (totalInternationalStudents / totalActiveStudents) * 100
+            : 0;
         // Card Intake mengikuti tahun ajaran yang dipilih, bukan selalu tahun
         // terakhir pada rolling trend.
         let selectedIntake = selectedPeriode
             ? intakeTrend.find((item) => item.tahun === selectedPeriode)
             : null;
-        // Tahun pilihan bisa berada di luar rolling window trend. Hitung
-        // langsung dari cohort agar card tetap berubah sesuai pilihan user.
+        // Tahun pilihan bisa berada di luar rolling window trend. Reuse the
+        // already-fetched cohort counts instead of adding a serial query.
         if (!selectedIntake && selectedPeriode) {
-            const intakeCount = await getIntakeForYear(selectedPeriode, baseFilter);
+            const intakeCount = declineCounts.get(selectedPeriode) || 0;
             selectedIntake = {
                 tahun: selectedPeriode,
                 intakeCount,
-                intakeCountFormatted: `${new Intl.NumberFormat('id-ID').format(intakeCount)} mhs`,
-                growth: '0.00%',
-                growthFormatted: '0.00%',
-                rawGrowth: 0,
-                isPositive: true
             };
         }
         const latestIntake = selectedIntake || intakeTrend[intakeTrend.length - 1];
@@ -76,9 +84,6 @@ const getSummary = async (req, res) => {
         // trend.
         const declinePct = newStudentDecline?.declinePercentage;
         const hasEnoughDeclineData = Number.isFinite(declinePct);
-        const intakeFluctuationAvg = hasEnoughDeclineData
-            ? `${declinePct >= 0 ? '+' : ''}${declinePct.toFixed(1)}%`
-            : '-';
         const isFluctuationPositive = hasEnoughDeclineData && declinePct >= 0;
 
         const intlTrendData = internationalTrend?.trendData || [];
@@ -103,20 +108,15 @@ const getSummary = async (req, res) => {
             // Flat kpis object persis sesuai harapan StudentDataPage.jsx:
             kpis: {
                 activeStudentsCount,
-                foreignRate: foreignStudentsRate,
-                foreignStudentsRate,
+                foreignRate,
                 foreignStudentsCount,
                 intakeCohortCount,
-                intakeFluctuationAvg,
+                declinePercentage: hasEnoughDeclineData ? declinePct : null,
                 isFluctuationPositive,
-                formattedActiveCount: formatNumber(activeStudentsCount),
-                formattedForeignCount: formatNumber(foreignStudentsCount),
-                formattedIntakeCount: formatNumber(intakeCohortCount),
                 foreignCount: foreignStudentsCount,
                 intakeCount: intakeCohortCount,
                 intakePeriod: latestIntake?.tahun || null,
                 declinePeriod: newStudentDecline?.selectedPeriod || null,
-                declineAvg: intakeFluctuationAvg,
                 hasEnoughDeclineData
             }
         });
@@ -171,15 +171,11 @@ const getDeclineTrendDetail = async (req, res) => {
         
         const declinePercentage = data?.declinePercentage;
         const isPositive = declinePercentage === null || declinePercentage === undefined || declinePercentage >= 0;
-        const finalAverage = declinePercentage === null || declinePercentage === undefined
-            ? '-'
-            : `${isPositive ? '+' : ''}${declinePercentage.toFixed(1)}%`;
         const trendBadge = isPositive ? 'Peningkatan' : 'Penurunan';
 
         const chartData = (data?.history || []).map(h => ({
             year: h.year || h.academicYear,
             absolutCount: h.intakeCount || 0,
-            deltaFormatted: h.changeFromPrev === null || h.changeFromPrev === undefined ? '-' : `${h.changeFromPrev >= 0 ? '+' : ''}${h.changeFromPrev.toFixed(1)}%`,
             deltaPercentage: h.changeFromPrev || 0
         }));
 
@@ -190,13 +186,13 @@ const getDeclineTrendDetail = async (req, res) => {
             hasEnoughData: Boolean(declinePercentage !== null && declinePercentage !== undefined),
             // Properti persis yang diharapkan oleh IntakeFluctuationView.jsx & apiClient.js:
             isPositive,
-            finalAverage,
+            declinePercentage: declinePercentage ?? null,
             trendBadge,
             chartData,
             fluctuationData: {
                 isPositive,
                 hasEnoughData: Boolean(declinePercentage !== null && declinePercentage !== undefined),
-                finalAverage,
+                declinePercentage: declinePercentage ?? null,
                 trendBadge,
                 chartData
             }
@@ -213,7 +209,7 @@ const getStudents = async (req, res) => {
         const whereFilter = (services.buildStudentFilter || buildStudentFilter)(req.query);
         const { limit, page } = (services.getPaginationParams || getPaginationParams)(req.query);
         
-        const result = await (services.getStudentList || getStudentList)(whereFilter, page, limit, req.query.cursor);
+        const result = await (services.getStudentList || getStudentList)(whereFilter, page, limit, req.query.cursor, req.query);
         return res.status(200).json({ success: true, ...result });
     } catch (error) {
         return sendError(res, error.statusCode || 500, error.statusCode === 400 ? error.message : 'Gagal mengambil daftar mahasiswa.', error, 'students/getStudents');

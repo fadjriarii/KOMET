@@ -5,7 +5,7 @@
 
 const prisma = require('../../config/prisma');
 const { getPaginationParams } = require('../../utils/paginationUtils');
-const { toArray } = require('../../utils/queryUtils');
+const { addInFilter, addSearchFilter, hasFilters } = require('../shared/filterUtils');
 
 function buildMbkmFilter(query) {
     const { search, fakultas, programStudi, angkatan, statusAktivitas, jenjang, periode } = query;
@@ -15,33 +15,18 @@ function buildMbkmFilter(query) {
     // Filter langsung di tabel mbkm_activities
     if (periode) where.periode = periode;
 
-    const statusArr = toArray(statusAktivitas);
-    if (statusArr && statusArr.length > 0) where.statusAktivitas = { in: statusArr };
-
-    const jenjangArr = toArray(jenjang);
-    if (jenjangArr && jenjangArr.length > 0) where.jenjang = { in: jenjangArr };
-
-    const fakultasArr = toArray(fakultas);
-    if (fakultasArr && fakultasArr.length > 0) where.fakultas = { in: fakultasArr };
-
-    const prodiArr = toArray(programStudi);
-    if (prodiArr && prodiArr.length > 0) where.programStudi = { in: prodiArr };
+    addInFilter(where, 'statusAktivitas', statusAktivitas);
+    addInFilter(where, 'jenjang', jenjang);
+    addInFilter(where, 'fakultas', fakultas);
+    addInFilter(where, 'programStudi', programStudi);
 
     // Filter via relasi ke student
     const studentFilter = {};
 
-    const angkatanArr = toArray(angkatan);
-    if (angkatanArr && angkatanArr.length > 0) studentFilter.angkatan = { in: angkatanArr };
+    addInFilter(studentFilter, 'angkatan', angkatan);
+    addSearchFilter(studentFilter, search);
 
-    if (search && search.trim()) {
-        const searchTerm = search.trim().substring(0, 100); // Batasi 100 karakter
-        studentFilter.OR = [
-            { nim: { contains: searchTerm } },
-            { nama: { contains: searchTerm } }
-        ];
-    }
-
-    if (Object.keys(studentFilter).length > 0) {
+    if (hasFilters(studentFilter)) {
         where.student = studentFilter;
     }
 
@@ -71,22 +56,10 @@ function getPreviousPeriode(currentPeriode) {
  */
 function buildStudentFilterFromMbkmQuery(query) {
     const studentFilter = {};
-    if (query.angkatan) {
-        const list = Array.isArray(query.angkatan) ? query.angkatan : [query.angkatan];
-        if (list.length > 0) studentFilter.angkatan = { in: list };
-    }
-    if (query.fakultas) {
-        const list = Array.isArray(query.fakultas) ? query.fakultas : [query.fakultas];
-        if (list.length > 0) studentFilter.fakultas = { in: list };
-    }
-    if (query.programStudi) {
-        const list = Array.isArray(query.programStudi) ? query.programStudi : [query.programStudi];
-        if (list.length > 0) studentFilter.programStudi = { in: list };
-    }
-    if (query.jenjang) {
-        const list = Array.isArray(query.jenjang) ? query.jenjang : [query.jenjang];
-        if (list.length > 0) studentFilter.jenjang = { in: list };
-    }
+    addInFilter(studentFilter, 'angkatan', query.angkatan);
+    addInFilter(studentFilter, 'fakultas', query.fakultas);
+    addInFilter(studentFilter, 'programStudi', query.programStudi);
+    addInFilter(studentFilter, 'jenjang', query.jenjang);
     return studentFilter;
 }
 

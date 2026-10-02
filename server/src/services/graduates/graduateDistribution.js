@@ -41,7 +41,7 @@ async function getGraduateDistribution(whereFilter) {
     const byPredikat = Object.entries(predikatMap).map(([name, count]) => ({
         name,
         count,
-        percentage: totalGraduates > 0 ? `${((count / totalGraduates) * 100).toFixed(1)}%` : "0%"
+        percentage: totalGraduates > 0 ? (count / totalGraduates) * 100 : 0
     }));
 
     return { total: totalGraduates, byYear, byPredikat };

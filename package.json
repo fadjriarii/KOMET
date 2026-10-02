@@ -11,10 +11,11 @@
   "scripts": {
     "client": "npm --prefix client run dev",
     "server": "npm --prefix server run dev",
+    "lint": "npm --prefix client run lint",
+    "build": "npm --prefix client run build",
     "test": "npm --prefix server test",
     "dev": "concurrently \"npm run client\" \"npm run server\""
   },
-
   "repository": {
     "type": "git",
     "url": "git+https://github.com/fadjriarii/KOMET.git"

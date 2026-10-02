@@ -1,21 +1,39 @@
 const rateLimit = require('express-rate-limit');
+const { RedisStore } = require('rate-limit-redis');
+const { redisClient } = require('../config/redis');
 
-// Rate limiter untuk endpoint stats & analytics (lebih longgar)
-const statsLimiter = rateLimit({
-    windowMs: 60 * 1000,     // 1 menit
-    max: 60,                  // maks 60 request/menit per IP
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { success: false, message: 'Too many requests, please try again later.' }
+function createStore(prefix) {
+    if (!redisClient) return undefined;
+    return new RedisStore({
+        prefix,
+        sendCommand: (...args) => redisClient.sendCommand(args),
+    });
+}
+
+function createLimiter({ max, message, prefix }) {
+    return rateLimit({
+        windowMs: 60 * 1000,
+        max,
+        store: createStore(prefix),
+        standardHeaders: true,
+        legacyHeaders: false,
+        message: { success: false, message },
+    });
+}
+
+// Set REDIS_URL in clustered/PM2 deployments to share counters between workers.
+// Local development intentionally uses the built-in memory store with no Redis
+// service requirement.
+const statsLimiter = createLimiter({
+    max: 60,
+    prefix: 'komet:rate-limit:stats:',
+    message: 'Too many requests, please try again later.',
 });
 
-// Rate limiter untuk endpoint sync (lebih ketat, proses berat)
-const syncLimiter = rateLimit({
-    windowMs: 60 * 1000,     // 1 menit
-    max: 5,                   // maks 5 request/menit per IP
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { success: false, message: 'Sync rate limit exceeded. Please wait before syncing again.' }
+const syncLimiter = createLimiter({
+    max: 5,
+    prefix: 'komet:rate-limit:sync:',
+    message: 'Sync rate limit exceeded. Please wait before syncing again.',
 });
 
 module.exports = { statsLimiter, syncLimiter };

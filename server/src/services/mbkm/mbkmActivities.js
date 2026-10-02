@@ -24,7 +24,7 @@ async function getActivityDistribution(whereFilter = {}, selectedPeriode) {
     const items = sorted.map(g => ({
         name: g.jenisAktivitas,
         count: g._count,
-        percentage: total > 0 ? `${((g._count / total) * 100).toFixed(1)}%` : '0.0%'
+        percentage: total > 0 ? (g._count / total) * 100 : 0
     }));
 
     return { total, items };
@@ -54,7 +54,7 @@ async function getProdiDistribution(whereFilter = {}, selectedPeriode) {
     const items = sorted.map(g => ({
         name: g.programStudi,
         count: g._count,
-        percentage: total > 0 ? `${((g._count / total) * 100).toFixed(1)}%` : '0.0%'
+        percentage: total > 0 ? (g._count / total) * 100 : 0
     }));
 
     return { total, items };
@@ -83,7 +83,7 @@ async function getStatusDistribution(whereFilter = {}, selectedPeriode) {
     const items = sorted.map(g => ({
         name: g.statusAktivitas,
         count: g._count,
-        percentage: total > 0 ? `${((g._count / total) * 100).toFixed(1)}%` : '0.0%'
+        percentage: total > 0 ? (g._count / total) * 100 : 0
     }));
 
     return { total, items };

@@ -47,10 +47,6 @@ async function getActiveStudentsMultisector(baseFilter) {
         })
     ]);
 
-    const formatter = new Intl.NumberFormat('id-ID');
-    const toPercentage = (count) => (
-        totalCount > 0 ? ((count / totalCount) * 100).toFixed(1) : '0'
-    );
     const mapResult = (raw, nameKey, countKey) => raw.map((item) => {
         let name = item[nameKey] || 'Lainnya';
         if (nameKey === 'jenjang') {
@@ -59,13 +55,10 @@ async function getActiveStudentsMultisector(baseFilter) {
         }
 
         const count = item._count[countKey];
-        const percentage = `${toPercentage(count)}%`;
         return {
             name,
             count,
-            formattedCount: formatter.format(count),
-            percentage,
-            percentageFormatted: percentage
+            percentage: totalCount > 0 ? (count / totalCount) * 100 : 0
         };
     });
 

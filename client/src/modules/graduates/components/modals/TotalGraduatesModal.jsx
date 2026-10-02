@@ -10,10 +10,12 @@ import { formatNumber } from '../../../../utils/uiHelpers';
 import { DIGITAL_BLUE } from '../../../../utils/theme';
 import { graduatesService } from '../../services/graduatesService';
 import { useGraduateDetailResource } from '../../hooks/useGraduateDetailResource';
-import GraduateTrendBarChart from './GraduateTrendBarChart';
+import TrendBarChart from '../../../../components/common/charts/TrendBarChart';
 import GraduateDistributionChart from './GraduateDistributionChart';
-import GraduateTrendChartTooltip from './GraduateTrendChartTooltip';
+import TrendChartTooltip from '../../../../components/common/charts/TrendChartTooltip';
 import { TOTAL_GRADUATE_TABS } from './graduateTrendConfig';
+
+const EMPTY_ITEMS = [];
 
 const TOTAL_TABLE_COLUMNS = [
   {
@@ -85,8 +87,6 @@ export default function TotalGraduatesModal({
     filters,
     fetcher: fetchTotalDetail,
     errorMessage: 'Gagal memuat tren total lulusan',
-    summaryData: data,
-    summaryKey: 'totalLulusan',
   });
 
   const {
@@ -104,26 +104,7 @@ export default function TotalGraduatesModal({
   const kpis = data?.kpis || {};
   const summary = data?.summary || {};
 
-  const s1List = totalData?.data?.s1 || totalData?.s1 || [];
-  const s2List = totalData?.data?.s2 || totalData?.s2 || [];
-
-  const combinedTrend = useMemo(() => {
-    const yearMap = {};
-    s1List.forEach((item) => {
-      yearMap[item.tahun] = { tahun: String(item.tahun), s1Count: item.count || 0, s2Count: 0 };
-    });
-    s2List.forEach((item) => {
-      if (!yearMap[item.tahun]) {
-        yearMap[item.tahun] = { tahun: String(item.tahun), s1Count: 0, s2Count: item.count || 0 };
-      } else {
-        yearMap[item.tahun].s2Count = item.count || 0;
-      }
-    });
-
-    return Object.values(yearMap)
-      .map((item) => ({ ...item, total: item.s1Count + item.s2Count }))
-      .sort((a, b) => a.tahun.localeCompare(b.tahun));
-  }, [s1List, s2List]);
+  const combinedTrend = totalData?.data?.byYear || totalData?.byYear || EMPTY_ITEMS;
 
   const predikatList = useMemo(() => {
     return distData?.data?.byPredikat || distData?.byPredikat || [];
@@ -133,7 +114,7 @@ export default function TotalGraduatesModal({
     tren: (
       <div className="h-full flex flex-col pt-0.5 px-1">
         <div className="h-56 sm:h-64 md:h-72 w-full">
-          <GraduateTrendBarChart
+          <TrendBarChart
             data={combinedTrend}
             xDataKey="tahun"
             bars={[
@@ -141,7 +122,7 @@ export default function TotalGraduatesModal({
               { dataKey: 's2Count', name: 'Lulusan S2', color: DIGITAL_BLUE[400], labelKey: 's2Count' },
             ]}
             tooltipContent={
-              <GraduateTrendChartTooltip
+              <TrendChartTooltip
                 titleKey="tahun"
                 rows={[
                   { key: 's1Count', label: 'Lulusan S1', colorClass: 'bg-digital-blue-600' },

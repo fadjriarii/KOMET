@@ -10,12 +10,14 @@ import { useTabTransition } from '../../../../hooks/useTabTransition';
 import { TREND_TABS } from './studentTrendConfig';
 import {
   getStudentIntakeDescription,
+  formatNumber,
+  formatSignedPercentage,
   reverseTrendData,
 } from '../../../../utils/uiHelpers';
 import { studentsService } from '../../services/studentsService';
 import { useStudentDetailResource } from '../../hooks/useStudentDetailResource';
-import TrendBarChart from './TrendBarChart';
-import TrendChartTooltip from './TrendChartTooltip';
+import TrendBarChart from '../../../../components/common/charts/TrendBarChart';
+import TrendChartTooltip from '../../../../components/common/charts/TrendChartTooltip';
 import {
   Calendar,
   TrendingUp,
@@ -44,12 +46,12 @@ const INTAKE_TABLE_COLUMNS = [
     cellClassName: 'text-right font-medium text-digital-blue-900',
     render: (row) => (
       <span className="bg-digital-blue-50/80 text-digital-blue-800 px-2.5 py-0.5 rounded-md border border-digital-blue-100 font-semibold">
-        {row.intakeCountFormatted}
+        {formatNumber(row.intakeCount)} mhs
       </span>
     ),
   },
   {
-    key: 'growthFormatted',
+    key: 'growthPercentage',
     label: 'Pertumbuhan Intake',
     icon: TrendingUp,
     headerClassName: 'text-right',
@@ -63,7 +65,7 @@ const INTAKE_TABLE_COLUMNS = [
         }`}
       >
         {row.isPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-        {row.growthFormatted}
+        {formatSignedPercentage(row.growthPercentage)}
       </span>
     ),
   },
@@ -85,11 +87,12 @@ export default function IntakeStudentsModal({
   } = useStudentDetailResource({ isOpen, resourceKey: 'intake', filters, fetcher: fetchIntakeDetail, errorMessage: 'Gagal memuat data intake mahasiswa', summaryData: data, summaryKey: 'intakeTrend' });
 
   const kpis = data?.kpis || {};
+  const intakeCount = formatNumber(kpis.intakeCohortCount);
   const trendList = useMemo(() => intakeData?.data?.trend || intakeData?.trend || data?.summary?.intakeTrend?.trend || [], [data, intakeData]);
   const tableData = reverseTrendData(trendList);
   const hasData = trendList.length > 0;
   const content = useMemo(() => ({
-    chart: <div className="h-full flex flex-col pt-0.5 px-1">{isLoading ? <ChartLoadingSkeleton /> : !hasData ? <EmptyState title="Tidak Ada Data Tren Intake" description={error || 'Belum ada data tren intake mahasiswa baru dari backend.'} icon={BarChart3} /> : <div className="h-48 sm:h-56 md:h-64 w-full"><TrendBarChart data={trendList} legendLabel="Jumlah Intake Mahasiswa Baru (Semester 1)" tooltipContent={<TrendChartTooltip titleKey="tahun" rows={[{ key: 'intakeCount', label: 'Intake Mahasiswa', colorClass: 'bg-digital-blue-600' }]} footer={{ key: 'growthFormatted', label: 'Pertumbuhan', valueClassName: (_value, item) => `font-bold px-1.5 py-0.5 rounded text-[11px] ${item.isPositive ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}` }} />} /></div>}</div>,
+    chart: <div className="h-full flex flex-col pt-0.5 px-1">{isLoading ? <ChartLoadingSkeleton /> : !hasData ? <EmptyState title="Tidak Ada Data Tren Intake" description={error || 'Belum ada data tren intake mahasiswa baru dari backend.'} icon={BarChart3} /> : <div className="h-48 sm:h-56 md:h-64 w-full"><TrendBarChart data={trendList} bars={[{ dataKey: 'intakeCount', name: 'Jumlah Intake Mahasiswa Baru (Semester 1)', color: '#2563eb', labelKey: 'intakeCount' }]} tooltipContent={<TrendChartTooltip titleKey="tahun" rows={[{ key: 'intakeCount', label: 'Intake Mahasiswa', colorClass: 'bg-digital-blue-600' }]} footer={{ key: 'growthPercentage', label: 'Pertumbuhan', format: formatSignedPercentage, valueClassName: (_value, item) => `font-bold px-1.5 py-0.5 rounded text-[11px] ${item.isPositive ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}` }} />} /></div>}</div>,
     table: <div className="h-full flex flex-col pt-0.5 pb-1"><ModalTable columns={INTAKE_TABLE_COLUMNS} data={tableData} isLoading={isLoading} error={error} emptyTitle="Tidak Ada Riwayat Intake" emptyDescription="Belum ada data riwayat intake mahasiswa baru dari backend." /></div>,
   }), [error, hasData, isLoading, tableData, trendList]);
 
@@ -106,9 +109,9 @@ export default function IntakeStudentsModal({
       <div className="flex flex-col h-full space-y-4">
         {/* TOP: 80/20 Summary Banner */}
         <ModalSummaryBanner
-          description={getStudentIntakeDescription(kpis.intakePeriod, kpis.formattedIntakeCount)}
+          description={getStudentIntakeDescription(kpis.intakePeriod, intakeCount)}
           label="Intake Semester 1"
-          value={kpis.formattedIntakeCount}
+          value={intakeCount}
           sublabel={kpis.intakePeriod ? `Periode ${kpis.intakePeriod}` : 'Mahasiswa Baru'}
         />
 

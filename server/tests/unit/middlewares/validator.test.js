@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { studentQuerySchema, validateQuery } = require('../../../src/middlewares/validator');
+const { studentQuerySchema, graduateQuerySchema, mbkmQuerySchema, validateQuery } = require('../../../src/middlewares/validator');
 
 describe('student query validation', () => {
   it('rejects invalid pagination and accepts combined filters', () => {
@@ -34,5 +34,12 @@ describe('student query validation', () => {
       periode: '2025/2026',
       selectedPeriode: '2025/2026',
     }).success).toBe(true);
+  });
+
+  it('bounds graduate and MBKM filter fields to their accepted formats', () => {
+    expect(graduateQuerySchema.safeParse({ periodeMasuk: '20251', jenjang: ['S1', 'S2'] }).success).toBe(true);
+    expect(graduateQuerySchema.safeParse({ periodeMasuk: '2025/2026' }).success).toBe(false);
+    expect(mbkmQuerySchema.safeParse({ periode: '20252', topN: '10' }).success).toBe(true);
+    expect(mbkmQuerySchema.safeParse({ periode: '2025/2026', topN: '-1' }).success).toBe(false);
   });
 });

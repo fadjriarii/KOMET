@@ -30,7 +30,7 @@ const getSummary = async (req, res) => {
         const evaluasiCount = 0;
         const berjalanCount = rateData.participantStats.disetujuiCount || 0;
         const eligibleCount = totalEligibleData.eligibleCount;
-        const participationRate = `${rateData.eligibleRate.numPercentage.toFixed(1)}%`;
+        const participationRate = rateData.eligibleRate.numPercentage || 0;
 
         return res.status(200).json({
             success: true,
@@ -79,7 +79,7 @@ const getMbkmData = async (req, res) => {
 // GET /api/mbkm/analytics/rate — Detail Card 1: % MBKM vs Eligible
 const getRate = async (req, res) => {
     try {
-        const selectedPeriode = req.query.periode || await getDefaultPeriode(prisma);
+        const selectedPeriode = req.query.periode || await getDefaultPeriode();
         const whereFilter = buildMbkmFilter({ ...req.query, periode: selectedPeriode });
         const studentFilter = buildStudentFilterFromMbkmQuery(req.query);
         const data = await getMbkmRate(whereFilter, selectedPeriode, studentFilter);
@@ -97,7 +97,7 @@ const getRate = async (req, res) => {
 // GET /api/mbkm/analytics/activity-distribution — Detail Card 2 Tab A
 const getActivityDistributionHandler = async (req, res) => {
     try {
-        const selectedPeriode = req.query.periode || await getDefaultPeriode(prisma);
+        const selectedPeriode = req.query.periode || await getDefaultPeriode();
         const whereFilter = buildMbkmFilter({ ...req.query, periode: selectedPeriode });
         const data = await getActivityDistribution(whereFilter, selectedPeriode);
         return res.status(200).json({
@@ -114,7 +114,7 @@ const getActivityDistributionHandler = async (req, res) => {
 // GET /api/mbkm/analytics/prodi-distribution — Detail Card 2 Tab B
 const getProdiDistributionHandler = async (req, res) => {
     try {
-        const selectedPeriode = req.query.periode || await getDefaultPeriode(prisma);
+        const selectedPeriode = req.query.periode || await getDefaultPeriode();
         const whereFilter = buildMbkmFilter({ ...req.query, periode: selectedPeriode });
         const data = await getProdiDistribution(whereFilter, selectedPeriode);
         return res.status(200).json({
@@ -131,7 +131,7 @@ const getProdiDistributionHandler = async (req, res) => {
 // GET /api/mbkm/analytics/status-distribution — Detail Card 2 Tab C
 const getStatusDistributionHandler = async (req, res) => {
     try {
-        const selectedPeriode = req.query.periode || await getDefaultPeriode(prisma);
+        const selectedPeriode = req.query.periode || await getDefaultPeriode();
         const whereFilter = buildMbkmFilter({ ...req.query, periode: selectedPeriode });
         const data = await getStatusDistribution(whereFilter, selectedPeriode);
         return res.status(200).json({
@@ -163,7 +163,7 @@ const getEligibleStudentsHandler = async (req, res) => {
 // GET /api/mbkm/analytics/mitra-distribution — Detail Card 4
 const getMitraDistributionHandler = async (req, res) => {
     try {
-        const defaultLatest = await getDefaultPeriode(prisma);
+        const defaultLatest = await getDefaultPeriode();
         const previousPeriode = getPreviousPeriode(defaultLatest);
         const selectedPeriode = req.query.periode || previousPeriode;
         const topN = Math.min(50, Math.max(1, parseInt(req.query.topN) || 10));
@@ -182,7 +182,7 @@ const getMitraDistributionHandler = async (req, res) => {
 // GET /api/mbkm/distribution — Endpoint gabungan untuk MbkmDataPage.jsx modal detail
 const getMbkmDistributionHandler = async (req, res) => {
     try {
-        const selectedPeriode = req.query.periode || await getDefaultPeriode(prisma);
+        const selectedPeriode = req.query.periode || await getDefaultPeriode();
         const previousPeriode = getPreviousPeriode(selectedPeriode);
         const whereFilter = buildMbkmFilter({ ...req.query, periode: selectedPeriode });
 
@@ -202,11 +202,6 @@ const getMbkmDistributionHandler = async (req, res) => {
         return res.status(200).json({
             success: true,
             selectedPeriode,
-            byActivityType,
-            byProdi,
-            byFaculty,
-            byMitra,
-            byStatus,
             data: {
                 byActivityType,
                 byProdi,

@@ -10,12 +10,14 @@ import { useTabTransition } from '../../../../hooks/useTabTransition';
 import { TREND_TABS } from './studentTrendConfig';
 import {
   reverseTrendData,
+  formatNumber,
+  formatSignedPercentage,
 } from '../../../../utils/uiHelpers';
 import { getTrendStyle } from '../../../../utils/theme';
 import { studentsService } from '../../services/studentsService';
 import { useStudentDetailResource } from '../../hooks/useStudentDetailResource';
-import TrendBarChart from './TrendBarChart';
-import TrendChartTooltip from './TrendChartTooltip';
+import TrendBarChart from '../../../../components/common/charts/TrendBarChart';
+import TrendChartTooltip from '../../../../components/common/charts/TrendChartTooltip';
 import {
   BarChart3,
   Calendar,
@@ -50,7 +52,7 @@ const DECLINE_TABLE_COLUMNS = [
     cellClassName: 'text-right font-medium text-digital-blue-900',
     render: (row) => (
       <span className="bg-digital-blue-50/80 text-digital-blue-800 px-2.5 py-0.5 rounded-md border border-digital-blue-100 font-semibold">
-        {row.intakeCountFormatted}
+        {formatNumber(row.intakeCount)} mhs
       </span>
     ),
   },
@@ -100,6 +102,7 @@ export default function DeclineStudentsModal({
   } = useStudentDetailResource({ isOpen, resourceKey: 'decline', filters, fetcher: fetchDeclineDetail, errorMessage: 'Gagal memuat data penurunan mahasiswa', summaryData: data, summaryKey: 'newStudentDecline' });
 
   const kpis = data?.kpis || {};
+  const declineAverage = kpis.hasEnoughDeclineData ? formatSignedPercentage(kpis.declinePercentage) : '-';
   // Backend mengirim history dari terbaru ke terlama (A → E), cocok untuk tabel.
   const historyList = useMemo(() => declineData?.data?.history || declineData?.history || data?.summary?.newStudentDecline?.history || [], [data, declineData]);
   // Chart dibaca kiri ke kanan, maka urutannya diubah menjadi terlama ke terbaru.
@@ -110,7 +113,7 @@ export default function DeclineStudentsModal({
     ? getTrendStyle(kpis.isFluctuationPositive)
     : { textClass: 'text-gray-500', label: 'Data belum cukup' };
   const content = useMemo(() => ({
-    chart: <div className="h-full flex flex-col pt-0.5 px-1">{isLoading ? <ChartLoadingSkeleton /> : !hasData ? <EmptyState title="Tidak Ada Data Penurunan" description={error || 'Belum ada data fluktuasi mahasiswa baru dari backend.'} icon={BarChart3} /> : <div className="h-48 sm:h-56 md:h-64 w-full"><TrendBarChart data={chartList} xDataKey="academicYear" legendLabel="Jumlah Intake Mahasiswa Baru (5 Periode)" tooltipContent={<TrendChartTooltip rows={[{ key: 'intakeCount', label: 'Jumlah Intake', colorClass: 'bg-digital-blue-600' }]} titleAccessory={(item) => item.label && <span className="w-5 h-5 rounded-full bg-digital-blue-50 text-digital-blue-700 font-bold inline-flex items-center justify-center text-[10px] border border-digital-blue-200">{item.label}</span>} />} /></div>}</div>,
+    chart: <div className="h-full flex flex-col pt-0.5 px-1">{isLoading ? <ChartLoadingSkeleton /> : !hasData ? <EmptyState title="Tidak Ada Data Penurunan" description={error || 'Belum ada data fluktuasi mahasiswa baru dari backend.'} icon={BarChart3} /> : <div className="h-48 sm:h-56 md:h-64 w-full"><TrendBarChart data={chartList} xDataKey="academicYear" bars={[{ dataKey: 'intakeCount', name: 'Jumlah Intake Mahasiswa Baru (5 Periode)', color: '#2563eb', labelKey: 'intakeCount' }]} tooltipContent={<TrendChartTooltip rows={[{ key: 'intakeCount', label: 'Jumlah Intake', colorClass: 'bg-digital-blue-600' }]} titleAccessory={(item) => item.label && <span className="w-5 h-5 rounded-full bg-digital-blue-50 text-digital-blue-700 font-bold inline-flex items-center justify-center text-[10px] border border-digital-blue-200">{item.label}</span>} />} /></div>}</div>,
     table: <div className="h-full flex flex-col pt-0.5 pb-1"><ModalTable columns={DECLINE_TABLE_COLUMNS} data={historyList} isLoading={isLoading} error={error} emptyTitle="Tidak Ada Riwayat Fluktuasi" emptyDescription="Belum ada data riwayat penurunan mahasiswa dari backend." /></div>,
   }), [chartList, error, hasData, historyList, isLoading]);
 
@@ -130,7 +133,7 @@ export default function DeclineStudentsModal({
           description={
             <div className="space-y-1.5 text-justify">
               <p>
-                Penurunan jumlah mahasiswa baru dihitung selama periode 5 tahun bergulir (periode aktif {kpis.declinePeriod || '-'}). Rata-rata fluktuasi saat ini tercatat sebesar <strong className="text-digital-blue-900 font-bold">{kpis.declineAvg}</strong>.
+                Penurunan jumlah mahasiswa baru dihitung selama periode 5 tahun bergulir (periode aktif {kpis.declinePeriod || '-'}). Rata-rata fluktuasi saat ini tercatat sebesar <strong className="text-digital-blue-900 font-bold">{declineAverage}</strong>.
               </p>
               <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
                 <span className="font-bold text-digital-blue-900 text-[11px] uppercase tracking-wider">Formula:</span>
@@ -141,7 +144,7 @@ export default function DeclineStudentsModal({
             </div>
           }
           label="Rata-rata Penurunan"
-          value={kpis.declineAvg}
+          value={declineAverage}
           sublabel={trendStyle.label}
           valueClassName={trendStyle.textClass}
           sublabelClassName={trendStyle.textClass}

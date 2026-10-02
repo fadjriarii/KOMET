@@ -14,7 +14,11 @@ export default class ErrorBoundary extends Component {
   }
 
   render() {
-    if (this.state.hasError) return this.props.fallback || null;
+    if (this.state.hasError) {
+      return typeof this.props.fallback === 'function'
+        ? this.props.fallback()
+        : this.props.fallback || null;
+    }
     return this.props.children;
   }
 }

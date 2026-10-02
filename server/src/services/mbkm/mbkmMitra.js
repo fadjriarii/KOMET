@@ -31,9 +31,7 @@ async function getMitraDistribution(selectedPeriode, topN = 10) {
         .map(g => ({
             name: g.mitra,
             count: g._count,
-            percentage: totalPlacements > 0
-                ? `${((g._count / totalPlacements) * 100).toFixed(1)}%`
-                : '0.0%'
+            percentage: totalPlacements > 0 ? (g._count / totalPlacements) * 100 : 0
         }));
 
     return { totalPartners, totalPlacements, mitraData: topMitra };

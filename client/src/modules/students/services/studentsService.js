@@ -1,22 +1,13 @@
 import apiClient from '../../../services/apiClient';
 import { validateStudentQueryParams } from '../utils/studentQueryValidator';
+import { createQueryParams } from '../../../services/queryParams';
 
 export const studentsService = {
   toQueryParams: (filters = {}, pagination = {}) => {
     // Validate and sanitize first
     const { sanitized } = validateStudentQueryParams(filters);
 
-    const params = new URLSearchParams();
-    const append = (key, value) => {
-      if (value !== undefined && value !== null && String(value).trim()) {
-        params.append(key, String(value).trim());
-      }
-    };
-    const appendMany = (key, values) => {
-      (Array.isArray(values) ? values : [values])
-        .filter(Boolean)
-        .forEach((value) => append(key, value));
-    };
+    const { params, append, appendMany } = createQueryParams();
 
     // Multi-select filters
     appendMany('fakultas', sanitized.faculty);
@@ -47,10 +38,10 @@ export const studentsService = {
       append('periodeMasuk', sanitized.periode);
     }
 
-    // Academic Year
+    // One canonical academic-year parameter. `selectedPeriode` remains accepted
+    // by the server only for old bookmarked links.
     if (sanitized.tahunAjaran) {
       append('tahunAjaran', sanitized.tahunAjaran);
-      append('selectedPeriode', sanitized.tahunAjaran);
     }
 
     // Search query

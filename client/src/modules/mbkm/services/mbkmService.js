@@ -1,21 +1,12 @@
 import apiClient from '../../../services/apiClient';
 import { validateMbkmQueryParams } from '../utils/mbkmQueryValidator';
+import { createQueryParams } from '../../../services/queryParams';
 
 export const mbkmService = {
   toQueryParams: (filters = {}, pagination = {}) => {
     const { sanitized } = validateMbkmQueryParams(filters);
 
-    const params = new URLSearchParams();
-    const append = (key, value) => {
-      if (value !== undefined && value !== null && String(value).trim()) {
-        params.append(key, String(value).trim());
-      }
-    };
-    const appendMany = (key, values) => {
-      (Array.isArray(values) ? values : [values])
-        .filter(Boolean)
-        .forEach((value) => append(key, value));
-    };
+    const { params, append, appendMany } = createQueryParams();
 
     appendMany('fakultas', sanitized.faculty);
     appendMany('programStudi', sanitized.prodi);

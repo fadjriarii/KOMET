@@ -1,4 +1,4 @@
-import { BarChart3, Building2, BookOpen, Award, CheckCircle2, Table, Users } from 'lucide-react';
+import { Building2, BookOpen, Award, CheckCircle2, Table } from 'lucide-react';
 
 export const MBKM_RATE_TABS = [
   { key: 'fakultas', label: 'Sebaran Fakultas', icon: Building2 },

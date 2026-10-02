@@ -1,16 +1,18 @@
 import { useCallback, useMemo } from 'react';
-import { Building2, Users, Table, Award } from 'lucide-react';
+import { Building2, Users, Award } from 'lucide-react';
 import Modal from '../../../../components/common/modals/Modal';
 import ModalSummaryBanner from '../../../../components/common/modals/ModalSummaryBanner';
 import ModalTabNav from '../../../../components/common/modals/ModalTabNav';
 import ModalTable from '../../../../components/common/modals/ModalTable';
 import ModalTabContent from '../../../../components/common/modals/ModalTabContent';
 import { useTabTransition } from '../../../../hooks/useTabTransition';
-import { formatNumber } from '../../../../utils/uiHelpers';
+import { formatNumber, formatPercentage } from '../../../../utils/uiHelpers';
 import { mbkmService } from '../../services/mbkmService';
 import { useMbkmDetailResource } from '../../hooks/useMbkmDetailResource';
 import MbkmDistributionChart from './MbkmDistributionChart';
 import { MBKM_PARTNERS_TABS } from './mbkmTrendConfig';
+
+const EMPTY_ITEMS = [];
 
 const PARTNERS_TABLE_COLUMNS = [
   {
@@ -42,7 +44,7 @@ const PARTNERS_TABLE_COLUMNS = [
     icon: Award,
     headerClassName: 'text-right',
     cellClassName: 'text-right font-bold text-gray-900',
-    render: (row) => row.percentage || '0.0%',
+    render: (row) => formatPercentage(row.percentage, 1, '0.0%'),
   },
 ];
 
@@ -74,7 +76,7 @@ export default function MbkmPartnersModal({
 
   const kpis = data?.kpis || {};
   const payload = partnersData?.data || partnersData || {};
-  const mitraList = payload.mitraData || [];
+  const mitraList = payload.mitraData || EMPTY_ITEMS;
 
   const content = useMemo(() => ({
     mitra: (

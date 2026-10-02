@@ -1,12 +1,12 @@
 import { useCallback, useMemo } from 'react';
-import { BookOpen, UserCheck, Table, Users } from 'lucide-react';
+import { BookOpen, UserCheck, Users } from 'lucide-react';
 import Modal from '../../../../components/common/modals/Modal';
 import ModalSummaryBanner from '../../../../components/common/modals/ModalSummaryBanner';
 import ModalTabNav from '../../../../components/common/modals/ModalTabNav';
 import ModalTable from '../../../../components/common/modals/ModalTable';
 import ModalTabContent from '../../../../components/common/modals/ModalTabContent';
 import { useTabTransition } from '../../../../hooks/useTabTransition';
-import { formatNumber } from '../../../../utils/uiHelpers';
+import { formatNumber, formatPercentage } from '../../../../utils/uiHelpers';
 import { mbkmService } from '../../services/mbkmService';
 import { useMbkmDetailResource } from '../../hooks/useMbkmDetailResource';
 import MbkmDistributionChart from './MbkmDistributionChart';
@@ -42,9 +42,10 @@ const ELIGIBLE_TABLE_COLUMNS = [
     icon: UserCheck,
     headerClassName: 'text-right',
     cellClassName: 'text-right font-bold text-gray-900',
-    render: (row) => row.percentage || '0.0%',
+    render: (row) => formatPercentage(row.percentage, 1, '0.0%'),
   },
 ];
+const EMPTY_LIST = [];
 
 export default function MbkmEligibleModal({
   isOpen,
@@ -74,7 +75,7 @@ export default function MbkmEligibleModal({
 
   const kpis = data?.kpis || {};
   const payload = eligibleData?.data || eligibleData || {};
-  const prodiList = payload.prodiData || [];
+  const prodiList = payload.prodiData || EMPTY_LIST;
 
   const content = useMemo(() => ({
     prodi: (
@@ -106,7 +107,7 @@ export default function MbkmEligibleModal({
         />
       </div>
     ),
-  }), [eligibleError, eligibleData, isLoadingEligible, prodiList]);
+  }), [eligibleError, isLoadingEligible, prodiList]);
 
   return (
     <Modal

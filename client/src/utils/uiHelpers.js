@@ -3,6 +3,23 @@ export function formatNumber(value) {
   return new Intl.NumberFormat('id-ID').format(value);
 }
 
+/** Presentation-only formatting for raw numeric API KPI values. */
+export function formatPercentage(value, fractionDigits = 1, fallback = '-') {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? `${numericValue.toFixed(fractionDigits)}%` : fallback;
+}
+
+export function formatSignedPercentage(value, fractionDigits = 1, fallback = '-') {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return fallback;
+  return `${numericValue >= 0 ? '+' : ''}${numericValue.toFixed(fractionDigits)}%`;
+}
+
+export function formatDecimal(value, fractionDigits = 2, fallback = '-') {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue.toFixed(fractionDigits) : fallback;
+}
+
 export function formatCompactNumber(value) {
   const number = Number(value || 0);
   return number >= 1000 ? `${(number / 1000).toFixed(number % 1000 === 0 ? 0 : 1)}k` : number;
@@ -125,6 +142,9 @@ export function getPaginationItems(currentPage = 1, totalPages = 1, siblingCount
 
 export default {
   formatNumber,
+  formatPercentage,
+  formatSignedPercentage,
+  formatDecimal,
   formatCompactNumber,
   reverseTrendData,
   getTooltipPayloadItem,

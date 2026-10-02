@@ -3,7 +3,7 @@ const MAX_SEARCH_LENGTH = 100;
 export function sanitizeSearchInput(value) {
   if (typeof value !== 'string') return '';
   return value
-    .replace(/[\u0000-\u001F\u007F]/g, '')
+    .split('').filter((character) => character >= ' ' && character !== '\u007F').join('')
     .trim()
     .substring(0, MAX_SEARCH_LENGTH);
 }

@@ -40,7 +40,14 @@ async function getTotalLulusanByYear(whereFilter) {
         return { tahun, count: found ? found._count : 0 };
     });
 
-    return { s1, s2 };
+    const byYear = yearRange.map((tahun, index) => ({
+        tahun,
+        s1Count: s1[index].count,
+        s2Count: s2[index].count,
+        total: s1[index].count + s2[index].count,
+    }));
+
+    return { s1, s2, byYear };
 }
 
 module.exports = { getTotalLulusan, getTotalLulusanByYear, getYearRange };

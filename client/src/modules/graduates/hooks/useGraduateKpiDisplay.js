@@ -1,22 +1,19 @@
 import { useMemo } from 'react';
-import { formatNumber } from '../../../utils/uiHelpers';
+import { formatDecimal, formatNumber, formatPercentage } from '../../../utils/uiHelpers';
 
 export function useGraduateKpiDisplay(summaryData, isLoading) {
   return useMemo(() => {
     const kpis = summaryData?.kpis || {};
     const summary = summaryData?.summary || {};
 
-    const s1Total = summary.totalLulusan?.s1 ?? 0;
-    const s2Total = summary.totalLulusan?.s2 ?? 0;
-    const totalCount = kpis.totalGraduates ?? (s1Total + s2Total);
-
-    const s1Gpa = kpis.averageGpaS1 ?? (typeof summary.avgIpk?.s1?.average === 'number' ? summary.avgIpk.s1.average.toFixed(2) : '0.00');
-    const s2Gpa = kpis.averageGpaS2 ?? (typeof summary.avgIpk?.s2?.average === 'number' ? summary.avgIpk.s2.average.toFixed(2) : '0.00');
-
-    const s1OnTime = kpis.onTimeGraduationRateS1 ?? (summary.tepatWaktu?.s1 !== null && summary.tepatWaktu?.s1 !== undefined ? `${summary.tepatWaktu.s1}%` : '0.0%');
-    const s2OnTime = kpis.onTimeGraduationRateS2 ?? (summary.tepatWaktu?.s2 !== null && summary.tepatWaktu?.s2 !== undefined ? `${summary.tepatWaktu.s2}%` : '0.0%');
-
-    const s1StudySuccess = kpis.studySuccessRateS1 ?? (summary.keberhasilanStudi?.s1 !== null && summary.keberhasilanStudi?.s1 !== undefined ? `${summary.keberhasilanStudi.s1}%` : '0.0%');
+    const s1Total = Number(kpis.totalGraduatesS1) || 0;
+    const s2Total = Number(kpis.totalGraduatesS2) || 0;
+    const totalCount = Number(kpis.totalGraduates) || 0;
+    const s1Gpa = formatDecimal(kpis.averageGpaS1, 2, '0.00');
+    const s2Gpa = formatDecimal(kpis.averageGpaS2, 2, '0.00');
+    const s1OnTime = formatPercentage(kpis.onTimeGraduationRateS1, 1, '0.0%');
+    const s2OnTime = formatPercentage(kpis.onTimeGraduationRateS2, 1, '0.0%');
+    const s1StudySuccess = formatPercentage(kpis.studySuccessRateS1, 1, '0.0%');
 
     const subtitles = {
       total: `S1: ${formatNumber(s1Total)} • S2: ${formatNumber(s2Total)} Wisudawan`,

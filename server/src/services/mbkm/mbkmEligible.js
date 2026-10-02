@@ -26,7 +26,7 @@ async function getEligibleStudents(studentFilter = {}) {
     const prodiData = sorted.map(g => ({
         name: g.programStudi,
         count: g._count,
-        percentage: eligibleCount > 0 ? `${((g._count / eligibleCount) * 100).toFixed(1)}%` : '0.0%'
+        percentage: eligibleCount > 0 ? (g._count / eligibleCount) * 100 : 0
     }));
 
     return { eligibleCount, prodiData };
