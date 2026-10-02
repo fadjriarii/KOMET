@@ -73,8 +73,6 @@ async function deduplicateStudents() {
     for (const [, group] of groupMap) {
         for (const student of group) {
             const jenjang = (student.jenjang || '').toUpperCase().trim();
-            const rawProdi = (student.programStudi || '').toLowerCase();
-            const isAkunLama = rawProdi.includes('akun lama');
             const cleanNik = (student.nik || '').trim();
             const cleanTglLahir = (student.tanggalLahir || '').trim();
             const cleanNama = (student.nama || '').toLowerCase().trim();

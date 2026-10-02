@@ -1,7 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { createRequire } from 'node:module';
-
-const require = createRequire(import.meta.url);
 
 describe('intakeTrend calculations and term assignments', () => {
   it('correctly maps digit 1 to Ganjil and digit 2 to Genap', () => {

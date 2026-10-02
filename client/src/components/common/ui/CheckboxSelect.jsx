@@ -37,11 +37,11 @@ export default function CheckboxSelect({
 
   const selected = Array.isArray(value)
     ? value.map(String)
-    : (value !== undefined && value !== null && value !== '' ? [String(value)] : []);
+    : (value !== null && value !== '' ? [String(value)] : []);
 
   const defaults = Array.isArray(defaultValue)
     ? defaultValue.map(String)
-    : (defaultValue !== undefined && defaultValue !== null && defaultValue !== '' ? [String(defaultValue)] : []);
+    : (defaultValue !== null && defaultValue !== '' ? [String(defaultValue)] : []);
 
   const isDefault = selected.length === defaults.length && selected.every((item) => defaults.includes(item));
   const isAllSelected = selected.length === 0;
@@ -85,7 +85,7 @@ export default function CheckboxSelect({
         return val === selected[0];
       });
       if (match) {
-        return typeof match === 'object' && match !== null ? match.label : match;
+        return typeof match === 'object' ? match.label : match;
       }
       return selected[0];
     }
