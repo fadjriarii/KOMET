@@ -30,8 +30,43 @@ describe('student list pagination query', () => {
     });
   });
 
+  it('marks a student terminal in the same year after an odd number of semesters', () => {
+    const student = {
+      statusKeaktifan: 'Keluar',
+      periodeMasuk: '20141',
+      periodeTerakhir: '20142',
+    };
+    expect(getSnapshotStatus(student, { startYear: '2014' })).toBe('Keluar');
+    expect(getSnapshotStatus(student, { startYear: '2015' })).toBe('Keluar');
+  });
+
+  it('handles a legacy four-digit entry period consistently', () => {
+    const student = {
+      statusKeaktifan: 'Keluar',
+      periodeMasuk: '2014',
+      periodeTerakhir: '20142',
+    };
+    expect(getSnapshotStatus(student, { startYear: '2014' })).toBe('Keluar');
+  });
+
+  it('defers terminal status to the following academic year after an even number of semesters', () => {
+    const student = {
+      statusKeaktifan: 'Keluar',
+      periodeMasuk: '20241',
+      periodeTerakhir: '20251',
+    };
+    expect(getSnapshotStatus(student, { startYear: '2024' })).toBe('Aktif');
+    expect(getSnapshotStatus(student, { startYear: '2025' })).toBe('Keluar');
+    expect(getSnapshotStatus(student, { startYear: '2026' })).toBe('Keluar');
+  });
+
+  it('preserves terminal status when a terminal status filter is selected', () => {
+    const student = { statusKeaktifan: 'Keluar', periodeTerakhir: '20152' };
+    expect(getSnapshotStatus(student, { startYear: '2015' }, 'Keluar')).toBe('Keluar');
+  });
+
   it('renders a completed historical status after its final period has occurred', () => {
     const student = { statusKeaktifan: 'Lulus', periodeTerakhir: '20252' };
-    expect(getSnapshotStatus(student, { startYear: '2025' })).toBe('Lulus');
+    expect(getSnapshotStatus(student, { startYear: '2026' })).toBe('Lulus');
   });
 });

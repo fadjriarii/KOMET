@@ -16,8 +16,8 @@ export default function ForeignTrendComposedChart({ data = [], isLoading, error 
         <ComposedChart data={data} margin={{ top: 8, right: 24, left: 4, bottom: 52 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
           <XAxis dataKey="academicYear" tick={{ fontSize: 10, fill: '#6b7280' }} angle={-38} textAnchor="end" interval={0} tickLine={false} axisLine={{ stroke: '#e5e7eb' }} dy={6} />
-          <YAxis yAxisId="left" orientation="left" tick={{ fontSize: 10, fill: '#9ca3af' }} tickFormatter={formatCompactNumber} tickLine={false} axisLine={false} width={44} />
-          <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10, fill: DIGITAL_BLUE[600] }} tickFormatter={(value) => `${value}%`} tickLine={false} axisLine={false} width={40} />
+          <YAxis yAxisId="left" orientation="left" domain={[0, 'auto']} tick={{ fontSize: 10, fill: '#9ca3af' }} tickFormatter={formatCompactNumber} tickLine={false} axisLine={false} width={44} />
+          <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tick={{ fontSize: 10, fill: DIGITAL_BLUE[600] }} tickFormatter={(value) => `${value}%`} tickLine={false} axisLine={false} width={40} />
           <Tooltip content={<TrendChartTooltip rows={[{ key: 'rawTotal', label: 'Total Mahasiswa', colorClass: 'bg-digital-blue-300 opacity-75' }, { key: 'foreignCount', label: 'Mahasiswa Asing', colorClass: 'bg-digital-blue-700', indicatorClassName: 'w-3 h-1.5 rounded-full' }]} footer={{ key: 'percentage', label: 'Persentase (Rasio)', format: formatPercentage }} />} cursor={{ fill: 'rgba(219,234,254,0.3)' }} />
           <Legend verticalAlign="top" height={32} formatter={(value) => value === 'rawTotal' ? 'Total Mahasiswa (Orang)' : 'Rasio Mhs Asing (%)'} iconType="square" wrapperStyle={{ fontSize: '11px', color: '#6b7280', paddingBottom: '50px' }} />
           <Bar yAxisId="left" dataKey="rawTotal" name="rawTotal" fill={DIGITAL_BLUE[300]} opacity={0.75} radius={[4, 4, 0, 0]} maxBarSize={38} />

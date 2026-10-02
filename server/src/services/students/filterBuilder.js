@@ -51,27 +51,72 @@ function getSnapshotStatusSelection(statusValues) {
  * student who graduated in a later year. Conversely, applying `Lulus`
  * directly leaks future graduations into older snapshots.
  *
- * At the end of target academic year T:
+ * For target academic year T:
  * - Aktif: current Aktif records, records without an exit period, or records
- *   whose exit period is after T. They were still active at T.
- * - Other statuses: their latest status is included only after its recorded
- *   period has occurred (cumulative through T).
+ *   whose exit period falls within or after T. They were still active during T.
+ * - Other statuses: their latest status is included only from the academic year
+ *   after its recorded exit period. This prevents one record from being both
+ *   Aktif and terminal in the same academic year.
  * - Semua status: every student admitted by T is present; each row's display
  *   status is projected separately by `studentList`.
  */
-function buildSnapshotStatusCondition(academicEnd, statusValues) {
+function buildTerminalPeriodCondition(academicStart, academicEnd) {
+    return {
+        OR: [
+            { periodeTerakhir: { not: '', lt: academicStart } },
+            { periodeTerakhir: academicStart },
+            {
+                AND: [
+                    { periodeTerakhir: academicEnd },
+                    { periodeMasuk: { endsWith: '1' } },
+                ],
+            },
+        ],
+    };
+}
+
+function buildActiveSnapshotCondition(academicStart, academicEnd) {
+    return {
+        OR: [
+            { statusKeaktifan: 'Aktif' },
+            { periodeTerakhir: '' },
+            { periodeTerakhir: { gt: academicEnd } },
+            {
+                AND: [
+                    { periodeTerakhir: academicEnd },
+                    { periodeMasuk: { endsWith: '2' } },
+                ],
+            },
+        ],
+    };
+}
+
+function isTerminalInAcademicYear(student, academicYear) {
+    const academicStart = `${academicYear.startYear}1`;
+    const academicEnd = `${academicYear.startYear}2`;
+    const exitPeriod = String(student.periodeTerakhir || '').trim();
+    const entryPeriod = String(student.periodeMasuk || '').trim().replace(/[\/\-\s]+/g, '');
+
+    return Boolean(
+        exitPeriod &&
+        (
+            exitPeriod < academicStart ||
+            exitPeriod === academicStart ||
+            (
+                exitPeriod === academicEnd &&
+                (entryPeriod.endsWith('1') || entryPeriod === academicEnd.slice(0, 4))
+            )
+        )
+    );
+}
+
+function buildSnapshotStatusCondition(academicStart, academicEnd, statusValues) {
     const { isAllStatus, statuses } = getSnapshotStatusSelection(statusValues);
     if (isAllStatus) return null;
 
     const branches = [];
     if (statuses.includes('Aktif')) {
-        branches.push({
-            OR: [
-                { statusKeaktifan: 'Aktif' },
-                { periodeTerakhir: '' },
-                { periodeTerakhir: { gt: academicEnd } },
-            ],
-        });
+        branches.push(buildActiveSnapshotCondition(academicStart, academicEnd));
     }
 
     const terminalStatuses = statuses.filter((status) => status !== 'Aktif');
@@ -83,7 +128,7 @@ function buildSnapshotStatusCondition(academicEnd, statusValues) {
                         ? terminalStatuses[0]
                         : { in: terminalStatuses },
                 },
-                { periodeTerakhir: { not: '', lte: academicEnd } },
+                buildTerminalPeriodCondition(academicStart, academicEnd),
             ],
         });
     }
@@ -94,9 +139,10 @@ function buildSnapshotStatusCondition(academicEnd, statusValues) {
 /** Snapshot predicates for one academic year. */
 function buildAcademicYearFilter(academicYear, statusValues) {
     if (!academicYear) return [];
+    const academicStart = `${academicYear.startYear}1`;
     const academicEnd = `${academicYear.startYear}2`;
     const conditions = [{ periodeMasuk: { lte: academicEnd } }];
-    const snapshotStatusCondition = buildSnapshotStatusCondition(academicEnd, statusValues);
+    const snapshotStatusCondition = buildSnapshotStatusCondition(academicStart, academicEnd, statusValues);
     if (snapshotStatusCondition) conditions.push(snapshotStatusCondition);
     return conditions;
 }
@@ -261,6 +307,9 @@ module.exports = {
     buildWhereClause,
     buildAcademicYearFilter,
     buildSnapshotStatusCondition,
+    buildTerminalPeriodCondition,
+    buildActiveSnapshotCondition,
+    isTerminalInAcademicYear,
     getSnapshotStatusSelection,
     getAcademicYear,
     buildPeriodeFilter,

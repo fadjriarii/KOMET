@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 const {
     getPeriodeFromTanggalTransfer,
     formatAngkatan,
+    normalizeAcademicPeriod,
     extractPeriode,
     hitungSemester,
     getCurrentAcademicPeriode,
@@ -47,6 +48,14 @@ describe('sync helpers — Data Cleansing & Transformation', () => {
         it('digit 1 atau 2 → hanya tahun (4 digit)', () => {
             expect(formatAngkatan('20261')).toBe('2026');
             expect(formatAngkatan('20262')).toBe('2026');
+        });
+
+        describe('normalizeAcademicPeriod', () => {
+            it('normalizes legacy separators and infers the missing term', () => {
+                expect(normalizeAcademicPeriod('2014/2')).toBe('20142');
+                expect(normalizeAcademicPeriod('2014-1')).toBe('20141');
+                expect(normalizeAcademicPeriod('2014')).toBe('20141');
+            });
         });
 
         it('4 digit tahun → hanya tahun', () => {

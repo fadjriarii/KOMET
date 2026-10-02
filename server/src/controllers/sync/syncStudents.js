@@ -10,6 +10,7 @@ const {
     sanitizeProdiName,
     getPeriodeFromTanggalTransfer,
     formatAngkatan,
+    normalizeAcademicPeriod,
     extractPeriode,
     hitungSemester,
     isStatusKeluar,
@@ -70,7 +71,7 @@ const executeSyncStudents = async (startPage = 1) => {
             const periodeFromTransfer = (jenjang === 'S2' && tanggalTransfer)
                 ? getPeriodeFromTanggalTransfer(tanggalTransfer)
                 : '';
-            const periodeMasuk = periodeFromTransfer || (attr.id_periode || '').trim();
+            const periodeMasuk = normalizeAcademicPeriod(periodeFromTransfer || attr.id_periode);
 
             // ─── RULE 4: Periode — field baru "Ganjil"/"Genap" dari digit ke-5 periodeMasuk ───
             const periode = extractPeriode(periodeMasuk);
@@ -81,7 +82,7 @@ const executeSyncStudents = async (startPage = 1) => {
             // ─── RULE 5: Status Keaktifan & Semester — kalkulasi dinamis berdasarkan status ───
             const idStatus = (attr.id_status_mahasiswa || '').trim();
             const statusName = (attr.status_mahasiswa || '').trim();
-            const periodeTerakhir = (attr.id_periode_terakhir || '').trim();
+            const periodeTerakhir = normalizeAcademicPeriod(attr.id_periode_terakhir);
             const isKeluar = isStatusKeluar(idStatus) || /lulus|drop\s*out|keluar|putus\s*studi|meninggal/i.test(statusName);
 
             let statusKeaktifan = statusName;

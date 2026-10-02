@@ -24,13 +24,32 @@ export default function ForeignStudentsModal({ isOpen, onClose, originRect, data
   const fetchInternationalDetail = useCallback((signal) => studentsService.getInternationalDetail(filters, { signal }), [filters]);
   const { data: detailData, isLoading, error } = useStudentDetailResource({ isOpen, resourceKey: 'foreign', filters, fetcher: fetchInternationalDetail, errorMessage: 'Gagal memuat data mahasiswa asing', summaryData: data, summaryKey: 'internationalStudentsTrend' });
   const kpis = data?.kpis || {};
-  const foreignRate = formatPercentage(kpis.foreignRate, 1, '0.0%');
-  const foreignCount = formatNumber(kpis.foreignStudentsCount);
-  const activeCount = formatNumber(kpis.activeStudentsCount);
   const trendData = useMemo(
     () => detailData?.data?.trendData || detailData?.trendData || data?.summary?.internationalStudentsTrend?.trend || [],
     [data, detailData]
   );
+  const targetItem = useMemo(() => {
+    if (!trendData.length) return null;
+    if (filters?.tahunAjaran) {
+      const found = trendData.find((item) => item.academicYear === filters.tahunAjaran);
+      if (found) return found;
+    }
+    return trendData[trendData.length - 1];
+  }, [trendData, filters?.tahunAjaran]);
+
+  const foreignRate = formatPercentage(
+    targetItem?.percentage ?? targetItem?.rate ?? kpis.foreignRate,
+    1,
+    '0.0%'
+  );
+  const foreignCount = formatNumber(
+    targetItem?.foreignCount ?? targetItem?.foreignActive ?? kpis.foreignStudentsCount
+  );
+  const activeCount = formatNumber(
+    targetItem?.rawTotal ?? targetItem?.totalActive ?? targetItem?.totalCount ?? kpis.activeStudentsCount
+  );
+  const displayAcademicYear = filters?.tahunAjaran || targetItem?.academicYear || getCurrentAcademicYear();
+
   const content = useMemo(() => ({
     chart: <div className="h-full flex flex-col pt-0.5 px-1"><ForeignTrendComposedChart data={trendData} isLoading={isLoading} error={error} /></div>,
     table: <div className="h-full flex flex-col pt-0.5 pb-1"><ModalTable columns={FOREIGN_TABLE_COLUMNS} data={reverseTrendData(trendData)} isLoading={isLoading} error={error} emptyTitle="Tidak Ada Data Riwayat" emptyDescription="Belum ada data riwayat mahasiswa asing dari backend." /></div>,
@@ -39,7 +58,7 @@ export default function ForeignStudentsModal({ isOpen, onClose, originRect, data
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Rincian Mahasiswa Asing (Non-WNI)" subtitle="Distribusi dan tren rasio mahasiswa berkewarganegaraan asing" maxWidth="max-w-4xl" originRect={originRect} showCloseButton>
       <div className="flex flex-col h-full space-y-4">
-        <ModalSummaryBanner description={<div className="space-y-1.5 text-justify"><p>Persentase mahasiswa asing ({foreignRate}) dihitung berdasarkan rasio total mahasiswa berkewarganegaraan Non-WNI yang berstatus aktif ({foreignCount} mahasiswa) terhadap keseluruhan total student body aktif ({activeCount} mahasiswa) pada tahun ajaran {filters?.tahunAjaran || getCurrentAcademicYear()}.</p><div className="flex flex-wrap items-center gap-1.5 pt-0.5"><span className="font-bold text-digital-blue-900 text-[11px] uppercase tracking-wider">Rumus:</span><code className="px-2.5 py-0.5 rounded-md bg-white/95 border border-digital-blue-200/90 text-digital-blue-900 font-mono font-bold text-[11px] shadow-2xs">(Jumlah Mahasiswa Non-WNI Aktif / Total Student Body Aktif) × 100%</code></div></div>} label="Mahasiswa Asing" value={foreignRate} sublabel={`${activeCount} Total Mahasiswa`} />
+        <ModalSummaryBanner description={<div className="space-y-1.5 text-justify"><p>Persentase mahasiswa asing ({foreignRate}) dihitung berdasarkan rasio total mahasiswa berkewarganegaraan Non-WNI yang berstatus aktif ({foreignCount} mahasiswa) terhadap keseluruhan total student body aktif ({activeCount} mahasiswa) pada tahun ajaran {displayAcademicYear}.</p><div className="flex flex-wrap items-center gap-1.5 pt-0.5"><span className="font-bold text-digital-blue-900 text-[11px] uppercase tracking-wider">Rumus:</span><code className="px-2.5 py-0.5 rounded-md bg-white/95 border border-digital-blue-200/90 text-digital-blue-900 font-mono font-bold text-[11px] shadow-2xs">(Jumlah Mahasiswa Non-WNI Aktif / Total Student Body Aktif) × 100%</code></div></div>} label="Mahasiswa Asing" value={foreignRate} sublabel={`${activeCount} Total Mahasiswa`} />
         <div className="flex-1 flex flex-col min-h-0"><ModalTabNav tabs={TREND_TABS} activeTab={activeTab} onTabChange={handleTabChange} /><div className="flex-1 min-h-0 overflow-x-hidden w-full"><div key={activeTab} className={`h-full ${slideClass}`}><ModalTabContent activeTab={activeTab} content={content} /></div></div></div>
       </div>
     </Modal>
