@@ -48,8 +48,6 @@ function projectSnapshotStudent(student, academicYear) {
  * @param {number} limit        Jumlah baris per halaman (default 10)
  */
 async function getStudentList(whereFilter, page = 1, limit = 10, cursor, query = {}) {
-    const skip = (page - 1) * limit;
-
     if (cursor) {
         const cursorStudent = await prisma.student.findUnique({
             where: { nim: cursor },
