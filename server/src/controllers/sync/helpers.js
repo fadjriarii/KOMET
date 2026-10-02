@@ -88,6 +88,16 @@ function formatAngkatan(idPeriode) {
     return idPeriode.substring(0, 4);
 }
 
+function normalizeAcademicPeriod(value, defaultTerm = '1') {
+    const raw = String(value ?? '').trim();
+    if (!raw) return '';
+    const compact = raw.replace(/[\/\-\s]+/g, '');
+    if (/^\d{5}$/.test(compact) && ['1', '2'].includes(compact[4])) return compact;
+    if (/^\d{4}$/.test(compact)) return `${compact}${defaultTerm}`;
+    const match = raw.match(/^(\d{4}).*?([12])$/);
+    return match ? `${match[1]}${match[2]}` : raw;
+}
+
 /**
  * Ekstrak field "Periode" dari kode periode Sevima.
  * Digit ke-5: 1 → "Ganjil", 2 → "Genap".
@@ -395,6 +405,7 @@ module.exports = {
     sanitizeProdiName,
     getPeriodeFromTanggalTransfer,
     formatAngkatan,
+    normalizeAcademicPeriod,
     extractPeriode,
     hitungSemester,
     getCurrentAcademicPeriode,

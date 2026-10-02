@@ -1,5 +1,6 @@
 const prisma = require('../../config/prisma');
-const { getAcademicYear } = require('./filterBuilder');
+const { getAcademicYear, isTerminalInAcademicYear } = require('./filterBuilder');
+const { toArray } = require('../../utils/queryUtils');
 
 function getRequestedAcademicYear(query = {}) {
     const tahunAjaran = typeof query.tahunAjaran === 'string' ? query.tahunAjaran : null;
@@ -12,19 +13,23 @@ function getRequestedAcademicYear(query = {}) {
  * table must instead show the status at the selected year boundary. A future
  * graduation/exit is therefore rendered as Aktif in an earlier snapshot.
  */
-function getSnapshotStatus(student, academicYear) {
+function getSnapshotStatus(student, academicYear, statusValues) {
     if (!academicYear) return student.statusKeaktifan;
-    const academicEnd = `${academicYear.startYear}2`;
-    const finalPeriod = String(student.periodeTerakhir || '').trim();
-    const hasReachedFinalStatus = finalPeriod
-        && finalPeriod <= academicEnd
+    const requestedStatuses = toArray(statusValues);
+    const hasExplicitTerminalFilter = requestedStatuses?.length
+        && !requestedStatuses.includes('ALL')
+        && !requestedStatuses.includes('__ALL__')
+        && !requestedStatuses.includes('Aktif');
+    if (hasExplicitTerminalFilter) return student.statusKeaktifan;
+
+    const hasReachedFinalStatus = isTerminalInAcademicYear(student, academicYear)
         && student.statusKeaktifan !== 'Aktif';
     return hasReachedFinalStatus ? student.statusKeaktifan : 'Aktif';
 }
 
-function projectSnapshotStudent(student, academicYear) {
+function projectSnapshotStudent(student, academicYear, statusValues) {
     if (!academicYear) return student;
-    const snapshotStatus = getSnapshotStatus(student, academicYear);
+    const snapshotStatus = getSnapshotStatus(student, academicYear, statusValues);
     return {
         ...student,
         // Preserve the current value for API consumers that need auditing,
@@ -68,7 +73,11 @@ async function getStudentList(whereFilter, page = 1, limit = 10, cursor, query =
 
     const hasNextPage = rawData.length > limit;
     const academicYear = getRequestedAcademicYear(query);
-    const data = rawData.slice(0, limit).map((student) => projectSnapshotStudent(student, academicYear));
+    const data = rawData.slice(0, limit).map((student) => projectSnapshotStudent(
+        student,
+        academicYear,
+        query.statusKeaktifan
+    ));
     return {
         data,
         nextCursor: hasNextPage ? data[data.length - 1].nim : null,

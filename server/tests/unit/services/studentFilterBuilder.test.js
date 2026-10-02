@@ -46,7 +46,7 @@ describe('student filter builder', () => {
   it('TA historis + status Aktif (default): memproyeksikan status Aktif pada batas akhir TA', () => {
     const filter = buildStudentFilter({ tahunAjaran: '2023/2024' });
     expect(filter.AND).toContainEqual({ periodeMasuk: { lte: '20232' } });
-    // Current Lulus/DO yang keluar sesudah 2023/2024 tetap Aktif pada snapshot.
+    // Status aktif historis memperhitungkan paritas semester yang ditempuh.
     expect(filter.AND).toContainEqual({
       OR: [
         {
@@ -54,6 +54,7 @@ describe('student filter builder', () => {
             { statusKeaktifan: 'Aktif' },
             { periodeTerakhir: '' },
             { periodeTerakhir: { gt: '20232' } },
+            { AND: [{ periodeTerakhir: '20232' }, { periodeMasuk: { endsWith: '2' } }] },
           ],
         },
       ],
@@ -71,6 +72,7 @@ describe('student filter builder', () => {
             { statusKeaktifan: 'Aktif' },
             { periodeTerakhir: '' },
             { periodeTerakhir: { gt: '20202' } },
+            { AND: [{ periodeTerakhir: '20202' }, { periodeMasuk: { endsWith: '2' } }] },
           ],
         },
       ],
@@ -101,28 +103,40 @@ describe('student filter builder', () => {
 
   // ── Tahun Ajaran + Status spesifik (Lulus / Transfer / dll.) ───────────────
 
-  it('TA + Lulus: hanya kelulusan kumulatif sampai akhir TA yang dipilih', () => {
+  it('TA + Lulus: hanya kelulusan sebelum awal TA yang dipilih', () => {
     const filter = buildStudentFilter({ tahunAjaran: '2026/2027', statusKeaktifan: 'Lulus' });
     expect(filter.AND).toContainEqual({ periodeMasuk: { lte: '20262' } });
     expect(filter.AND).toContainEqual({
       OR: [{
         AND: [
           { statusKeaktifan: 'Lulus' },
-          { periodeTerakhir: { not: '', lte: '20262' } },
+          {
+            OR: [
+              { periodeTerakhir: { not: '', lt: '20261' } },
+              { periodeTerakhir: '20261' },
+              { AND: [{ periodeTerakhir: '20262' }, { periodeMasuk: { endsWith: '1' } }] },
+            ],
+          },
         ],
       }],
     });
     expect(filter.statusKeaktifan).toBeUndefined();
   });
 
-  it('TA + Transfer: status terminal juga dibatasi sampai akhir TA', () => {
+  it('TA + Transfer: keluar pada TA berjalan tetap Aktif sampai TA berikutnya', () => {
     const filter = buildStudentFilter({ tahunAjaran: '2025/2026', statusKeaktifan: 'Transfer' });
     expect(filter.AND).toContainEqual({ periodeMasuk: { lte: '20252' } });
     expect(filter.AND).toContainEqual({
       OR: [{
         AND: [
           { statusKeaktifan: 'Transfer' },
-          { periodeTerakhir: { not: '', lte: '20252' } },
+          {
+            OR: [
+              { periodeTerakhir: { not: '', lt: '20251' } },
+              { periodeTerakhir: '20251' },
+              { AND: [{ periodeTerakhir: '20252' }, { periodeMasuk: { endsWith: '1' } }] },
+            ],
+          },
         ],
       }],
     });
@@ -139,11 +153,40 @@ describe('student filter builder', () => {
       OR: [{
         AND: [
           { statusKeaktifan: { in: ['Lulus', 'Drop Out'] } },
-          { periodeTerakhir: { not: '', lte: '20242' } },
+          {
+            OR: [
+              { periodeTerakhir: { not: '', lt: '20241' } },
+              { periodeTerakhir: '20241' },
+              { AND: [{ periodeTerakhir: '20242' }, { periodeMasuk: { endsWith: '1' } }] },
+            ],
+          },
         ],
       }],
     });
+
     expect(filter.statusKeaktifan).toBeUndefined();
+  });
+
+  it('does not return a student who left during the selected academic year as terminal', () => {
+    const filter = buildStudentFilter({
+      tahunAjaran: '2014/2015',
+      statusKeaktifan: 'Keluar',
+    });
+
+    expect(filter.AND).toContainEqual({
+      OR: [{
+        AND: [
+          { statusKeaktifan: 'Keluar' },
+          {
+            OR: [
+              { periodeTerakhir: { not: '', lt: '20141' } },
+              { periodeTerakhir: '20141' },
+              { AND: [{ periodeTerakhir: '20142' }, { periodeMasuk: { endsWith: '1' } }] },
+            ],
+          },
+        ],
+      }],
+    });
   });
 
   it('TA + Aktif dan Lulus: menggabungkan state aktif historis dan kelulusan kumulatif', () => {
@@ -158,12 +201,19 @@ describe('student filter builder', () => {
             { statusKeaktifan: 'Aktif' },
             { periodeTerakhir: '' },
             { periodeTerakhir: { gt: '20252' } },
+            { AND: [{ periodeTerakhir: '20252' }, { periodeMasuk: { endsWith: '2' } }] },
           ],
         },
         {
           AND: [
             { statusKeaktifan: 'Lulus' },
-            { periodeTerakhir: { not: '', lte: '20252' } },
+            {
+              OR: [
+                { periodeTerakhir: { not: '', lt: '20251' } },
+                { periodeTerakhir: '20251' },
+                { AND: [{ periodeTerakhir: '20252' }, { periodeMasuk: { endsWith: '1' } }] },
+              ],
+            },
           ],
         },
       ],
