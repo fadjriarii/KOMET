@@ -23,7 +23,8 @@ const getSummary = async (req, res) => {
         // the header now sends `tahunAjaran`. Both identify the same academic
         // year in this endpoint, while `periodeMasuk` remains the Ganjil/Genap
         // intake filter and may legitimately differ from either value.
-        const selectedPeriode = req.query.selectedPeriode || req.query.tahunAjaran;
+        const selectedPeriodeParam = req.query.selectedPeriode || req.query.tahunAjaran;
+        const selectedPeriode = typeof selectedPeriodeParam === 'string' ? selectedPeriodeParam : null;
         
         const selectedStartYear = /^\d{4}\/\d{4}$/.test(selectedPeriode || '')
             ? Number(selectedPeriode.slice(0, 4))
@@ -166,7 +167,8 @@ const getDeclineTrendDetail = async (req, res) => {
         // getNewStudentDecline reuses the five-year intake trend and only
         // queries a year that is absent from that cache when necessary.
         const { trend: intakeTrend } = await getIntakeTrend(baseFilter);
-        const selectedPeriode = req.query.selectedPeriode || req.query.tahunAjaran;
+        const selectedPeriodeParam = req.query.selectedPeriode || req.query.tahunAjaran;
+        const selectedPeriode = typeof selectedPeriodeParam === 'string' ? selectedPeriodeParam : null;
         const data = await getNewStudentDecline(selectedPeriode, baseFilter, intakeTrend);
         
         const declinePercentage = data?.declinePercentage;
