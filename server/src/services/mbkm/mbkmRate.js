@@ -54,9 +54,7 @@ async function getMbkmRate(whereFilter = {}, selectedPeriode, studentFilter = {}
     const facultyData = sortedFaculty.map(g => ({
         name: g.fakultas,
         count: g._count,
-        percentage: mbkmCount > 0
-            ? `${((g._count / mbkmCount) * 100).toFixed(1)}%`
-            : '0.0%'
+        percentage: mbkmCount > 0 ? (g._count / mbkmCount) * 100 : 0
     }));
 
     return {
@@ -67,7 +65,6 @@ async function getMbkmRate(whereFilter = {}, selectedPeriode, studentFilter = {}
         },
         eligibleCount,
         eligibleRate: {
-            percentage: `${numPercentage.toFixed(1)}%`,
             numPercentage,
             meetsTarget,
             targetIku2: TARGET_IKU2,

@@ -10,7 +10,6 @@
 const MAX_SEARCH_LENGTH = 100;
 const MAX_ARRAY_ITEMS = 50;
 const ACADEMIC_YEAR_REGEX = /^\d{4}\/\d{4}$/;
-const PERIODE_REGEX = /^\d{4}(\/\d{4})?$/;
 
 /**
  * Sanitize a search string: trim, strip control characters, enforce max length.
@@ -18,7 +17,7 @@ const PERIODE_REGEX = /^\d{4}(\/\d{4})?$/;
 export function sanitizeSearch(value) {
   if (typeof value !== 'string') return '';
   return value
-    .replace(/[\u0000-\u001F\u007F]/g, '') // Remove control characters
+    .split('').filter((character) => character >= ' ' && character !== '\u007F').join('')
     .trim()
     .substring(0, MAX_SEARCH_LENGTH);
 }

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { AlertCircle, Award, BookOpenCheck, Clock, GraduationCap } from 'lucide-react';
-import StatCard from '../../../components/common/cards/StatCard';
+import MetricSummaryGrid from '../../../components/common/cards/MetricSummaryGrid';
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
 import { STUDENT_SEARCH_DEBOUNCE_MS } from '../../../constants/debounce';
 import { formatKpiDisplay } from '../../../utils/uiHelpers';
@@ -37,12 +37,20 @@ export default function GraduatesPage() {
   );
 
   const isSearchDebouncing = filters.searchQuery !== debouncedSearch;
-  const isKpiLoading = summaryQuery.isLoading || summaryQuery.isFetching || isSearchDebouncing;
+  // Keep an existing KPI interactive during an unobtrusive background refetch.
+  const isKpiLoading = summaryQuery.isLoading || isSearchDebouncing;
   const { kpis, displaySubtitles, isReady } = useGraduateKpiDisplay(summaryQuery.data, isKpiLoading);
   const kpiScope = useMemo(() => getGraduateKpiFilterScope(filterParams), [filterParams]);
 
   const actionLabel = activeFilterCount ? 'Lihat Data Terfilter' : 'Lihat Rincian';
-  const cardProps = { actionLabel, actionDisabled: !isReady, isLoading: isKpiLoading };
+  const cardProps = { actionLabel, actionDisabled: false, isLoading: isKpiLoading };
+
+  const metricCards = useMemo(() => [
+    { key: 'total', title: 'Total Wisudawan', value: formatKpiDisplay(kpis.totalGraduates), subtitle: displaySubtitles.total, icon: GraduationCap, badge: '5 Tahun Terakhir', onViewDetails: (event) => openModal('total', event), isFiltered: kpiScope.total && isReady },
+    { key: 'gpa', title: 'Rata-rata IPK Lulusan', value: formatKpiDisplay(kpis.averageGpaS1), subtitle: displaySubtitles.gpa, icon: Award, badge: 'Skala 4.00', onViewDetails: (event) => openModal('gpa', event), isFiltered: kpiScope.gpa && isReady },
+    { key: 'onTime', title: 'Kelulusan Tepat Waktu', value: formatKpiDisplay(kpis.onTimeGraduationRateS1), subtitle: displaySubtitles.onTime, icon: Clock, badge: 'Masa Studi Standar', onViewDetails: (event) => openModal('onTime', event), isFiltered: kpiScope.onTime && isReady },
+    { key: 'studySuccess', title: 'Keberhasilan Studi', value: formatKpiDisplay(kpis.studySuccessRateS1), subtitle: displaySubtitles.studySuccess, icon: BookOpenCheck, badge: 'Evaluasi Akhir Studi', onViewDetails: (event) => openModal('studySuccess', event), isFiltered: kpiScope.studySuccess && isReady },
+  ], [displaySubtitles, isReady, kpiScope, kpis, openModal]);
 
   return (
     <div className="space-y-6">
@@ -65,48 +73,7 @@ export default function GraduatesPage() {
       </div>
 
       {/* 4 KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          {...cardProps}
-          title="Total Wisudawan"
-          value={formatKpiDisplay(kpis.totalGraduates)}
-          subtitle={displaySubtitles.total}
-          icon={GraduationCap}
-          badge="5 Tahun Terakhir"
-          onViewDetails={(event) => openModal('total', event)}
-          isFiltered={kpiScope.total && isReady}
-        />
-        <StatCard
-          {...cardProps}
-          title="Rata-rata IPK Lulusan"
-          value={formatKpiDisplay(kpis.averageGpaS1)}
-          subtitle={displaySubtitles.gpa}
-          icon={Award}
-          badge="Skala 4.00"
-          onViewDetails={(event) => openModal('gpa', event)}
-          isFiltered={kpiScope.gpa && isReady}
-        />
-        <StatCard
-          {...cardProps}
-          title="Kelulusan Tepat Waktu"
-          value={formatKpiDisplay(kpis.onTimeGraduationRateS1)}
-          subtitle={displaySubtitles.onTime}
-          icon={Clock}
-          badge="Masa Studi Standar"
-          onViewDetails={(event) => openModal('onTime', event)}
-          isFiltered={kpiScope.onTime && isReady}
-        />
-        <StatCard
-          {...cardProps}
-          title="Keberhasilan Studi"
-          value={formatKpiDisplay(kpis.studySuccessRateS1)}
-          subtitle={displaySubtitles.studySuccess}
-          icon={BookOpenCheck}
-          badge="Evaluasi Akhir Studi"
-          onViewDetails={(event) => openModal('studySuccess', event)}
-          isFiltered={kpiScope.studySuccess && isReady}
-        />
-      </div>
+      <MetricSummaryGrid cards={metricCards} cardProps={cardProps} />
 
       {summaryQuery.error && (
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-red-50 border border-red-200/80 text-red-700 text-xs font-medium">

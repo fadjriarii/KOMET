@@ -2,6 +2,13 @@
 
 > **Generated:** 2026-09-22T02:26:42.017Z | **Server:** `http://localhost:3000` | **Status:** ✅ Live-tested against running server & database
 
+> **Contract update (2026-10-02):** Dashboard `kpis` now expose raw numeric
+> values (`foreignRate`, `declinePercentage`, `participationRate`, totals, and
+> GPA/rates) plus booleans. The React client owns locale and percentage
+> formatting. Older examples below that show `foreignStudentsRate`,
+> `intakeFluctuationAvg`, or `finalAverage` are historical and must not be used
+> as the current API contract.
+
 ---
 
 ## 1. Project Overview & Workflow
@@ -31,6 +38,8 @@
 | `SEVIMA_SECRET_KEY` | **Yes** | SEVIMA platform `X-Secret-Key` header |
 | `SYNC_API_KEY` | **Yes** | Shared secret used to authenticate all API requests |
 | `ALLOWED_ORIGINS` | No | Comma-separated CORS origins |
+| `TRUST_PROXY` | No | Exact trusted proxy hop count; leave `false` for local/direct deployments |
+| `REDIS_URL` | Production cluster | Redis URL for rate-limit counters shared by all workers |
 
 ### Running the Server
 ```bash

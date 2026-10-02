@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const { authenticateApiKey } = require('./auth');
+const { createSession, hasSession, revokeSession } = require('../services/sessionStore');
 
 const COOKIE_NAME = 'komet_student_session';
 const MAX_AGE_SECONDS = 60 * 60 * 8;
@@ -19,7 +20,7 @@ function createSessionToken() {
     return `${payload}.${sign(payload)}`;
 }
 
-function isValidSessionToken(token) {
+function hasValidSignature(token) {
     if (!token || !getSecret()) return false;
     const parts = token.split('.');
     if (parts.length !== 3 || Date.now() - Number(parts[0]) > MAX_AGE_SECONDS * 1000) return false;
@@ -38,22 +39,42 @@ function parseCookies(header = '') {
     );
 }
 
-function issueStudentSession(req, res) {
+function setSessionCookie(res, token, maxAge = MAX_AGE_SECONDS) {
+    const sameSiteMode = process.env.NODE_ENV === 'production' ? 'Strict' : 'Lax';
+    const secureFlag = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+    res.setHeader('Set-Cookie', `${COOKIE_NAME}=${token}; HttpOnly; SameSite=${sameSiteMode}; Path=/api; Max-Age=${maxAge}${secureFlag}`);
+}
+
+async function issueStudentSession(req, res, next) {
     if (!getSecret()) {
         return res.status(500).json({ success: false, message: 'Student session is not configured.' });
     }
-    const token = createSessionToken();
-    // SameSite=Lax for dev cross-origin (port 5173 to port 3000), Strict for prod
-    const sameSiteMode = process.env.NODE_ENV === 'production' ? 'Strict' : 'Lax';
-    const secureFlag = process.env.NODE_ENV === 'production' ? '; Secure' : '';
-    res.setHeader('Set-Cookie', `${COOKIE_NAME}=${token}; HttpOnly; SameSite=${sameSiteMode}; Path=/api; Max-Age=${MAX_AGE_SECONDS}${secureFlag}`);
-    return res.status(204).send();
+    try {
+        const token = createSessionToken();
+        await createSession(token, MAX_AGE_SECONDS);
+        setSessionCookie(res, token);
+        return res.status(204).send();
+    } catch (error) {
+        return next(error);
+    }
 }
 
-function studentSessionAuth(req, res, next) {
-    if (isValidSessionToken(parseCookies(req.headers.cookie || '')[COOKIE_NAME])) return next();
+async function revokeStudentSession(req, res, next) {
+    try {
+        const token = parseCookies(req.headers.cookie || '')[COOKIE_NAME];
+        if (token) await revokeSession(token);
+        setSessionCookie(res, '', 0);
+        return res.status(204).send();
+    } catch (error) {
+        return next(error);
+    }
+}
+
+async function studentSessionAuth(req, res, next) {
+    const token = parseCookies(req.headers.cookie || '')[COOKIE_NAME];
+    if (hasValidSignature(token) && await hasSession(token)) return next();
     if (authenticateApiKey(req)) return next();
     return res.status(401).json({ success: false, message: 'Student session is required.' });
 }
 
-module.exports = { issueStudentSession, studentSessionAuth, parseCookies };
+module.exports = { issueStudentSession, revokeStudentSession, studentSessionAuth, parseCookies, hasValidSignature };

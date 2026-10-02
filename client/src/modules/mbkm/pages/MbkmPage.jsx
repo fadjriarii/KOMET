@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { AlertCircle, Award, Briefcase, Building2, UserCheck } from 'lucide-react';
-import StatCard from '../../../components/common/cards/StatCard';
+import MetricSummaryGrid from '../../../components/common/cards/MetricSummaryGrid';
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
 import { STUDENT_SEARCH_DEBOUNCE_MS } from '../../../constants/debounce';
 import { formatKpiDisplay } from '../../../utils/uiHelpers';
@@ -37,12 +37,20 @@ export default function MbkmPage() {
   );
 
   const isSearchDebouncing = filters.searchQuery !== debouncedSearch;
-  const isKpiLoading = summaryQuery.isLoading || summaryQuery.isFetching || isSearchDebouncing;
+  // Keep an existing KPI interactive during an unobtrusive background refetch.
+  const isKpiLoading = summaryQuery.isLoading || isSearchDebouncing;
   const { kpis, displaySubtitles, isReady } = useMbkmKpiDisplay(summaryQuery.data, isKpiLoading);
   const kpiScope = useMemo(() => getMbkmKpiFilterScope(filterParams), [filterParams]);
 
   const actionLabel = activeFilterCount ? 'Lihat Data Terfilter' : 'Lihat Rincian';
-  const cardProps = { actionLabel, actionDisabled: !isReady, isLoading: isKpiLoading };
+  const cardProps = { actionLabel, actionDisabled: false, isLoading: isKpiLoading };
+
+  const metricCards = useMemo(() => [
+    { key: 'rate', title: 'Tingkat Partisipasi MBKM', value: formatKpiDisplay(kpis.participationRate), subtitle: displaySubtitles.rate, icon: Award, badge: 'Target IKU-2: ≥ 20%', onViewDetails: (event) => openModal('rate', event), isFiltered: kpiScope.rate && isReady },
+    { key: 'participants', title: 'Total Partisipan MBKM', value: formatKpiDisplay(kpis.totalParticipants), subtitle: displaySubtitles.participants, icon: Briefcase, badge: 'BKP MBKM', onViewDetails: (event) => openModal('activities', event), isFiltered: kpiScope.participants && isReady },
+    { key: 'eligible', title: 'Mahasiswa Eligible', value: formatKpiDisplay(kpis.eligibleCount), subtitle: displaySubtitles.eligible, icon: UserCheck, badge: 'Semester 7 Aktif', onViewDetails: (event) => openModal('eligible', event), isFiltered: kpiScope.eligible && isReady },
+    { key: 'mitra', title: 'Mitra MBKM & Industri', value: formatKpiDisplay(kpis.totalMitra), subtitle: displaySubtitles.mitra, icon: Building2, badge: 'Mitra Terverifikasi', onViewDetails: (event) => openModal('partners', event), isFiltered: kpiScope.mitra && isReady },
+  ], [displaySubtitles, isReady, kpiScope, kpis, openModal]);
 
   return (
     <div className="space-y-6">
@@ -65,48 +73,7 @@ export default function MbkmPage() {
       </div>
 
       {/* 4 KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          {...cardProps}
-          title="Tingkat Partisipasi MBKM"
-          value={formatKpiDisplay(kpis.participationRate)}
-          subtitle={displaySubtitles.rate}
-          icon={Award}
-          badge="Target IKU-2: ≥ 20%"
-          onViewDetails={(event) => openModal('rate', event)}
-          isFiltered={kpiScope.rate && isReady}
-        />
-        <StatCard
-          {...cardProps}
-          title="Total Partisipan MBKM"
-          value={formatKpiDisplay(kpis.totalParticipants)}
-          subtitle={displaySubtitles.participants}
-          icon={Briefcase}
-          badge="BKP MBKM"
-          onViewDetails={(event) => openModal('activities', event)}
-          isFiltered={kpiScope.participants && isReady}
-        />
-        <StatCard
-          {...cardProps}
-          title="Mahasiswa Eligible"
-          value={formatKpiDisplay(kpis.eligibleCount)}
-          subtitle={displaySubtitles.eligible}
-          icon={UserCheck}
-          badge="Semester 7 Aktif"
-          onViewDetails={(event) => openModal('eligible', event)}
-          isFiltered={kpiScope.eligible && isReady}
-        />
-        <StatCard
-          {...cardProps}
-          title="Mitra MBKM & Industri"
-          value={formatKpiDisplay(kpis.totalMitra)}
-          subtitle={displaySubtitles.mitra}
-          icon={Building2}
-          badge="Mitra Terverifikasi"
-          onViewDetails={(event) => openModal('partners', event)}
-          isFiltered={kpiScope.mitra && isReady}
-        />
-      </div>
+      <MetricSummaryGrid cards={metricCards} cardProps={cardProps} />
 
       {summaryQuery.error && (
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-red-50 border border-red-200/80 text-red-700 text-xs font-medium">

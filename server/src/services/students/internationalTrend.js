@@ -77,14 +77,12 @@ async function getInternationalStudentsTrend(baseFilter = {}) {
             foreignCount: item.wna,
             totalActive: item.total,
             totalCount: item.total,
-            percentage: `${rate.toFixed(1)}%`,
+            percentage: rate,
             rate,
         };
     });
     const maxForeign = Math.max(...trendData.map((row) => row.foreignActive), 1);
-    const formatter = new Intl.NumberFormat('id-ID');
     trendData.forEach((row) => {
-        row.formattedForeignCount = `${formatter.format(row.foreignActive)} mhs`;
         row.rawTotal = row.totalActive;
         row.rawRate = row.rate;
         row.barWidth = Math.min(100, Math.max(0, (row.foreignActive / maxForeign) * 100));

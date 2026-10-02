@@ -1,19 +1,17 @@
 import { useMemo } from 'react';
-import { formatNumber } from '../../../utils/uiHelpers';
+import { formatNumber, formatPercentage } from '../../../utils/uiHelpers';
 
 export function useMbkmKpiDisplay(summaryData, isLoading) {
   return useMemo(() => {
     const kpis = summaryData?.kpis || {};
     const summary = summaryData?.summary || {};
 
-    const totalParticipants = kpis.totalParticipants ?? (summary.persentaseMbkm?.mbkmCount || 0);
-    const eligibleCount = kpis.eligibleCount ?? (summary.totalEligible || 0);
-    const selesaiCount = kpis.selesaiCount ?? 0;
-    const berjalanCount = kpis.berjalanCount ?? (summary.totalMbkmAktif || 0);
-    const totalMitra = kpis.totalMitra ?? (summary.totalMitra || 0);
-
-    const ratePct = summary.persentaseMbkm?.percentage ?? 0;
-    const participationRate = kpis.participationRate || `${Number(ratePct).toFixed(1)}%`;
+    const totalParticipants = Number(kpis.totalParticipants) || 0;
+    const eligibleCount = Number(kpis.eligibleCount) || 0;
+    const selesaiCount = Number(kpis.selesaiCount) || 0;
+    const berjalanCount = Number(kpis.berjalanCount) || 0;
+    const totalMitra = Number(kpis.totalMitra) || 0;
+    const participationRate = formatPercentage(kpis.participationRate, 1, '0.0%');
 
     const subtitles = {
       rate: `${formatNumber(totalParticipants)} dari ${formatNumber(eligibleCount)} Mhs Eligible`,

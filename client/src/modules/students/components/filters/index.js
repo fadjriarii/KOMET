@@ -1,8 +1,4 @@
 export { default as StudentFilterContainer } from './StudentFilterContainer';
-export { default as StudentSearchFilter } from './StudentSearchFilter';
-export { default as StudentFacultyFilter } from './StudentFacultyFilter';
-export { default as StudentProdiFilter } from './StudentProdiFilter';
-export { default as StudentJenjangFilter } from './StudentJenjangFilter';
 export { default as StudentAngkatanFilter } from './StudentAngkatanFilter';
 export { default as StudentSemesterFilter } from './StudentSemesterFilter';
 export { default as StudentNationalityFilter } from './StudentNationalityFilter';

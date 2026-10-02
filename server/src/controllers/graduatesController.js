@@ -29,12 +29,14 @@ const getSummary = async (req, res) => {
             getKeberhasilanStudi(whereFilter)
         ]);
 
-        const totalGraduates = (totalLulusan?.s1 || 0) + (totalLulusan?.s2 || 0);
-        const onTimeGraduationRateS1 = tepatWaktu?.s1 !== null ? `${tepatWaktu.s1}%` : '0.0%';
-        const onTimeGraduationRateS2 = tepatWaktu?.s2 !== null ? `${tepatWaktu.s2}%` : '0.0%';
-        const studySuccessRateS1 = keberhasilan?.s1 !== null ? `${keberhasilan.s1}%` : '0.0%';
-        const averageGpaS1 = avgIpk?.s1?.average !== undefined ? String(avgIpk.s1.average) : (typeof avgIpk?.s1 === 'number' ? String(avgIpk.s1) : '0.00');
-        const averageGpaS2 = avgIpk?.s2?.average !== undefined ? String(avgIpk.s2.average) : (typeof avgIpk?.s2 === 'number' ? String(avgIpk.s2) : '0.00');
+        const totalGraduatesS1 = Number(totalLulusan?.s1) || 0;
+        const totalGraduatesS2 = Number(totalLulusan?.s2) || 0;
+        const totalGraduates = totalGraduatesS1 + totalGraduatesS2;
+        const onTimeGraduationRateS1 = Number(tepatWaktu?.s1) || 0;
+        const onTimeGraduationRateS2 = Number(tepatWaktu?.s2) || 0;
+        const studySuccessRateS1 = Number(keberhasilan?.s1) || 0;
+        const averageGpaS1 = Number(avgIpk?.s1?.average ?? avgIpk?.s1) || 0;
+        const averageGpaS2 = Number(avgIpk?.s2?.average ?? avgIpk?.s2) || 0;
 
         return res.status(200).json({
             success: true,
@@ -49,6 +51,8 @@ const getSummary = async (req, res) => {
             // Flat kpis object persis sesuai harapan GraduateDataPage.jsx:
             kpis: {
                 totalGraduates,
+                totalGraduatesS1,
+                totalGraduatesS2,
                 onTimeGraduationRateS1,
                 onTimeGraduationRateS2,
                 studySuccessRateS1,

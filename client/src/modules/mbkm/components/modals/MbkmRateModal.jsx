@@ -1,16 +1,18 @@
 import { useCallback, useMemo } from 'react';
-import { Building2, Award, Users, CheckCircle2, TrendingUp } from 'lucide-react';
+import { Building2, Award, Users, TrendingUp } from 'lucide-react';
 import Modal from '../../../../components/common/modals/Modal';
 import ModalSummaryBanner from '../../../../components/common/modals/ModalSummaryBanner';
 import ModalTabNav from '../../../../components/common/modals/ModalTabNav';
 import ModalTable from '../../../../components/common/modals/ModalTable';
 import ModalTabContent from '../../../../components/common/modals/ModalTabContent';
 import { useTabTransition } from '../../../../hooks/useTabTransition';
-import { formatNumber } from '../../../../utils/uiHelpers';
+import { formatNumber, formatPercentage } from '../../../../utils/uiHelpers';
 import { mbkmService } from '../../services/mbkmService';
 import { useMbkmDetailResource } from '../../hooks/useMbkmDetailResource';
 import MbkmDistributionChart from './MbkmDistributionChart';
 import { MBKM_RATE_TABS } from './mbkmTrendConfig';
+
+const EMPTY_ITEMS = [];
 
 const RATE_TABLE_COLUMNS = [
   {
@@ -42,7 +44,7 @@ const RATE_TABLE_COLUMNS = [
     icon: Award,
     headerClassName: 'text-right',
     cellClassName: 'text-right font-bold text-gray-900',
-    render: (row) => row.percentage || '0.0%',
+    render: (row) => formatPercentage(row.percentage, 1, '0.0%'),
   },
 ];
 
@@ -74,8 +76,9 @@ export default function MbkmRateModal({
 
   const kpis = data?.kpis || {};
   const payload = rateData?.data || rateData || {};
-  const facultyData = payload.facultyData || [];
+  const facultyData = payload.facultyData || EMPTY_ITEMS;
   const eligibleRate = payload.eligibleRate || {};
+  const participationRate = formatPercentage(kpis.participationRate ?? eligibleRate.numPercentage, 1, '0.0%');
   const meetsTarget = eligibleRate.meetsTarget ?? true;
 
   const content = useMemo(() => ({
@@ -125,7 +128,7 @@ export default function MbkmRateModal({
           description={
             <div className="space-y-1.5 text-justify">
               <p>
-                Tingkat partisipasi MBKM mencapai <strong className="text-digital-blue-900 font-bold">{kpis.participationRate || eligibleRate.percentage || '0.0%'}</strong> dari total <strong>{formatNumber(kpis.eligibleCount || payload.eligibleCount || 0)} mahasiswa eligible</strong> semester 7.
+                Tingkat partisipasi MBKM mencapai <strong className="text-digital-blue-900 font-bold">{participationRate}</strong> dari total <strong>{formatNumber(kpis.eligibleCount || payload.eligibleCount || 0)} mahasiswa eligible</strong> semester 7.
               </p>
               <div className="flex items-center gap-2 pt-1 text-xs">
                 <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-bold border ${
@@ -140,7 +143,7 @@ export default function MbkmRateModal({
             </div>
           }
           label="Tingkat Partisipasi"
-          value={kpis.participationRate || eligibleRate.percentage || '0%'}
+          value={participationRate}
           sublabel="IKU-2 Dikti"
         />
 

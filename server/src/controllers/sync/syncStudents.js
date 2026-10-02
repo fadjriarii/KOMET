@@ -94,15 +94,9 @@ const executeSyncStudents = async (startPage = 1) => {
                 else statusKeaktifan = isKeluar ? 'Lulus' : 'Aktif';
             }
 
-            let semesterAktif;
-            if (isKeluar) {
-                // Mahasiswa Lulus/Keluar: hitung semester saat mereka keluar/lulus
-                semesterAktif = hitungSemester(periodeMasuk, periodeTerakhir || null);
-            } else {
-                // Mahasiswa Aktif: jika ada id_periode_terakhir dari Sevima, gunakan itu.
-                // Jika tidak ada, fallback ke periode akademik berjalan saat ini.
-                semesterAktif = hitungSemester(periodeMasuk, periodeTerakhir || null);
-            }
+            // Gunakan periode terakhir untuk mahasiswa keluar maupun aktif bila tersedia;
+            // jika kosong, helper memakai periode akademik berjalan sebagai fallback.
+            const semesterAktif = hitungSemester(periodeMasuk, periodeTerakhir || null);
 
             // ─── RULE 6: Kewarganegaraan — konversi ke nama negara spesifik ───
             const kewarganegaraan = mapKewarganegaraan(

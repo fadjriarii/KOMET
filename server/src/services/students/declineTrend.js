@@ -138,7 +138,6 @@ function buildHistory(startYear, counts, includeChanges, olderCount = null) {
         label: String.fromCharCode(65 + index),
         academicYear: `${startYear - index}/${startYear + 1 - index}`,
         intakeCount,
-        intakeCountFormatted: `${new Intl.NumberFormat('id-ID').format(intakeCount)} mhs`,
         // Perubahan tahun ini dibandingkan tahun akademik sebelumnya.
         // Dengan demikian tahun terbaru tetap memiliki persentase jika
         // tahun sebelumnya tersedia.

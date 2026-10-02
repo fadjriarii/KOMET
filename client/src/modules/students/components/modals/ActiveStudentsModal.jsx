@@ -9,6 +9,7 @@ import {
   getStudentActiveDescription,
   getActiveTabContent,
   getStudentStatusPresentation,
+  formatNumber,
 } from '../../../../utils/uiHelpers';
 import { studentsService } from '../../services/studentsService';
 import { useStudentDetailResource } from '../../hooks/useStudentDetailResource';
@@ -31,6 +32,7 @@ export default function ActiveStudentsModal({
   } = useStudentDetailResource({ isOpen, resourceKey: 'active', filters, fetcher: fetchActiveDetail, errorMessage: 'Gagal memuat rincian mahasiswa aktif', summaryData: data, summaryKey: 'activeStudentsMultisector' });
 
   const kpis = data?.kpis || {};
+  const activeCount = formatNumber(kpis.activeStudentsCount);
   const statusPresentation = getStudentStatusPresentation(filters?.status || []);
   const currentAcademicYear = filters?.tahunAjaran || getCurrentAcademicYear();
   const facultyList = activeDetailData?.data?.byFaculty || activeDetailData?.byFaculty || [];
@@ -91,12 +93,12 @@ export default function ActiveStudentsModal({
         <ModalSummaryBanner
           description={getStudentActiveDescription(
             currentAcademicYear,
-            kpis.formattedActiveCount,
+            activeCount,
             statusPresentation.statusLabel,
             statusPresentation.isCumulative
           )}
           label={statusPresentation.summaryLabel}
-          value={kpis.formattedActiveCount}
+          value={activeCount}
           sublabel="Mahasiswa"
         />
 

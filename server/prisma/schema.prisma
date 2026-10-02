@@ -44,6 +44,9 @@ model Student {
   @@index([periodeMasuk, kewarganegaraan])
   @@index([statusKeaktifan, semester])
   @@index([statusKeaktifan, kewarganegaraan])
+  @@index([statusKeaktifan, fakultas, programStudi])
+  @@index([statusKeaktifan, angkatan])
+  @@index([statusKeaktifan, periodeMasuk])
   @@map("students")
 }
 

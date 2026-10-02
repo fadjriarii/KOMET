@@ -1,7 +1,8 @@
 const { z } = require('zod');
 
 // Schema pembantu untuk mengizinkan string tunggal atau array of string
-const stringOrArray = z.union([z.string(), z.array(z.string()).max(50)]).optional();
+const safeString = z.string().trim().min(1).max(100).regex(/^[^\u0000-\u001F\u007F]+$/);
+const stringOrArray = z.union([safeString, z.array(safeString).max(50)]).optional();
 const pageParam = z.string().regex(/^\d+$/).transform(Number).pipe(z.number().int().min(1).max(100000)).optional();
 const limitParam = z.string().regex(/^\d+$/).transform(Number).pipe(z.number().int().min(1).max(100)).optional();
 
@@ -10,7 +11,7 @@ const studentQuerySchema = z.object({
     page: pageParam,
     limit: limitParam,
     cursor: z.string().max(200).regex(/^[A-Za-z0-9._~-]+$/).optional(),
-    search: z.string().max(100).optional(),
+    search: z.string().trim().max(100).optional(),
     fakultas: stringOrArray,
     programStudi: stringOrArray,
     angkatan: stringOrArray,
@@ -29,28 +30,28 @@ const studentQuerySchema = z.object({
 const graduateQuerySchema = z.object({
     page: pageParam,
     limit: limitParam,
-    search: z.string().max(100).optional(),
+    search: z.string().trim().max(100).optional(),
     fakultas: stringOrArray,
     programStudi: stringOrArray,
     tahunLulus: stringOrArray,
     periodeWisuda: stringOrArray,
     statusKelulusan: stringOrArray,
-    periodeMasuk: z.string().optional(),
-    jenjang: z.string().optional()
+    periodeMasuk: z.string().trim().max(20).regex(/^\d{4}[12]$/).optional(),
+    jenjang: stringOrArray
 });
 
 // Schema Query Parameter MBKM
 const mbkmQuerySchema = z.object({
     page: pageParam,
     limit: limitParam,
-    search: z.string().max(100).optional(),
+    search: z.string().trim().max(100).optional(),
     fakultas: stringOrArray,
     programStudi: stringOrArray,
     angkatan: stringOrArray,
     statusAktivitas: stringOrArray,
     jenjang: stringOrArray,
-    periode: z.string().optional(),
-    topN: z.union([z.string(), z.number()]).optional()
+    periode: z.string().trim().max(20).regex(/^\d{4}[12]$/).optional(),
+    topN: z.union([z.string().regex(/^\d+$/), z.number().int()]).optional()
 });
 
 /**

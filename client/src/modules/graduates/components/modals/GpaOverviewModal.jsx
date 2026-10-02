@@ -5,13 +5,16 @@ import ModalSummaryBanner from '../../../../components/common/modals/ModalSummar
 import ModalTabNav from '../../../../components/common/modals/ModalTabNav';
 import ModalTabContent from '../../../../components/common/modals/ModalTabContent';
 import { useTabTransition } from '../../../../hooks/useTabTransition';
+import { formatDecimal } from '../../../../utils/uiHelpers';
 import { DIGITAL_BLUE } from '../../../../utils/theme';
 import { graduatesService } from '../../services/graduatesService';
 import { useGraduateDetailResource } from '../../hooks/useGraduateDetailResource';
-import GraduateTrendBarChart from './GraduateTrendBarChart';
+import TrendBarChart from '../../../../components/common/charts/TrendBarChart';
 import GraduateDistributionChart from './GraduateDistributionChart';
-import GraduateTrendChartTooltip from './GraduateTrendChartTooltip';
+import TrendChartTooltip from '../../../../components/common/charts/TrendChartTooltip';
 import { GPA_OVERVIEW_TABS } from './graduateTrendConfig';
+
+const EMPTY_ITEMS = [];
 
 export default function GpaOverviewModal({
   isOpen,
@@ -40,10 +43,12 @@ export default function GpaOverviewModal({
   });
 
   const kpis = data?.kpis || {};
+  const gpaS1 = formatDecimal(kpis.averageGpaS1, 2, '0.00');
+  const gpaS2 = formatDecimal(kpis.averageGpaS2, 2, '0.00');
   const ipkDetail = ipkData?.data || ipkData || {};
 
-  const byYearS1 = ipkDetail.byYearS1 || [];
-  const byYearS2 = ipkDetail.byYearS2 || [];
+  const byYearS1 = ipkDetail.byYearS1 || EMPTY_ITEMS;
+  const byYearS2 = ipkDetail.byYearS2 || EMPTY_ITEMS;
 
   const combinedTrend = useMemo(() => {
     const yearMap = {};
@@ -74,23 +79,15 @@ export default function GpaOverviewModal({
     return Object.values(yearMap).sort((a, b) => a.tahun.localeCompare(b.tahun));
   }, [byYearS1, byYearS2]);
 
-  const prodiList = ipkDetail.prodiGpaData || [];
-  const facultyList = ipkDetail.facultyGpaData || [];
-  const gpaBandsList = useMemo(() => {
-    const raw = ipkDetail.gpaBandsData || [];
-    const totalCount = raw.reduce((sum, item) => sum + (item.count || 0), 0);
-    return raw.map((item) => ({
-      ...item,
-      percentage: totalCount > 0 ? `${((item.count / totalCount) * 100).toFixed(1)}%` : '0%',
-      percentageFormatted: `${item.count} lulusan (${totalCount > 0 ? ((item.count / totalCount) * 100).toFixed(1) : 0}%)`,
-    }));
-  }, [ipkDetail.gpaBandsData]);
+  const prodiList = ipkDetail.prodiGpaData || EMPTY_ITEMS;
+  const facultyList = ipkDetail.facultyGpaData || EMPTY_ITEMS;
+  const gpaBandsList = ipkDetail.gpaBandsData || EMPTY_ITEMS;
 
   const content = useMemo(() => ({
     tren: (
       <div className="h-full flex flex-col pt-0.5 px-1">
         <div className="h-56 sm:h-64 md:h-72 w-full">
-          <GraduateTrendBarChart
+          <TrendBarChart
             data={combinedTrend}
             xDataKey="tahun"
             bars={[
@@ -98,7 +95,7 @@ export default function GpaOverviewModal({
               { dataKey: 's2Gpa', name: 'IPK S2', color: DIGITAL_BLUE[400], labelKey: 's2Formatted' },
             ]}
             tooltipContent={
-              <GraduateTrendChartTooltip
+              <TrendChartTooltip
                 titleKey="tahun"
                 rows={[
                   { key: 's1Gpa', label: 'Rata-rata IPK S1', colorClass: 'bg-digital-blue-600', format: (val) => val ? val.toFixed(2) : '-' },
@@ -116,7 +113,7 @@ export default function GpaOverviewModal({
           items={gpaBandsList}
           dataKey="count"
           nameKey="range"
-          labelKey="percentageFormatted"
+          labelKey="percentage"
           isLoading={isLoading}
           error={error}
           emptyIcon={PieChart}
@@ -176,13 +173,13 @@ export default function GpaOverviewModal({
           description={
             <div className="space-y-1.5 text-justify">
               <p>
-                Rata-rata Indeks Prestasi Kumulatif (IPK) lulusan adalah <strong className="text-digital-blue-900 font-bold">{kpis.averageGpaS1 || '0.00'} (Jenjang S1)</strong> dan <strong className="text-digital-blue-900 font-bold">{kpis.averageGpaS2 || '0.00'} (Jenjang S2)</strong> dari skala maksimal 4.00.
+                Rata-rata Indeks Prestasi Kumulatif (IPK) lulusan adalah <strong className="text-digital-blue-900 font-bold">{gpaS1} (Jenjang S1)</strong> dan <strong className="text-digital-blue-900 font-bold">{gpaS2} (Jenjang S2)</strong> dari skala maksimal 4.00.
               </p>
             </div>
           }
           label="Rata-rata IPK"
-          value={kpis.averageGpaS1 || '0.00'}
-          sublabel={`S2: ${kpis.averageGpaS2 || '0.00'}`}
+          value={gpaS1}
+          sublabel={`S2: ${gpaS2}`}
         />
 
         <div className="flex-1 flex flex-col min-h-0">

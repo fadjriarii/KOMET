@@ -127,9 +127,11 @@ async function getIpkOverview(whereFilter) {
         count: total
     })).sort((a, b) => b.gpaValue - a.gpaValue);
 
+    const totalGraduates = results.length;
     const gpaBandsData = Object.entries(bandsMap).map(([range, count]) => ({
         range,
-        count
+        count,
+        percentage: totalGraduates > 0 ? (count / totalGraduates) * 100 : 0,
     }));
 
     return { prodiGpaData, facultyGpaData, gpaBandsData };

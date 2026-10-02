@@ -1,4 +1,4 @@
-import { BarChart3, Table, Building2, BookOpen, Award, PieChart, Layers } from 'lucide-react';
+import { BarChart3, Table, Building2, BookOpen, Award, PieChart } from 'lucide-react';
 
 export const TOTAL_GRADUATE_TABS = [
   { key: 'tren', label: 'Tren Tahunan (S1 & S2)', icon: BarChart3 },

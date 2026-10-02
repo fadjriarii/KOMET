@@ -40,7 +40,7 @@ async function getTepatWaktu(whereFilter) {
 
 /**
  * Format data komposit untuk OnTimeGraduationView.jsx:
- * [{ cohort, cohortLabel, tahunLulusTepat, isIncomplete, rateFormatted, fastCount, onTimeCount, lateCount, intake }]
+ * [{ cohort, cohortLabel, tahunLulusTepat, isIncomplete, rate, fastCount, onTimeCount, lateCount, intake }]
  */
 async function getTepatWaktuByYear(whereFilter) {
     const yearRange = getYearRange();
@@ -81,7 +81,7 @@ async function getTepatWaktuByYear(whereFilter) {
                 cohortLabel: `Angkatan ${cohortNum}`,
                 tahunLulusTepat: tahunLulusNum,
                 isIncomplete: false,
-                rateFormatted: `${rate.toFixed(1)}%`,
+                rate,
                 fastCount,
                 onTimeCount,
                 lateCount,

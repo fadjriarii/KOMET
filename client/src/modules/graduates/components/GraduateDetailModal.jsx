@@ -1,6 +1,5 @@
-import { lazy, Suspense } from 'react';
-import Skeleton from '../../../components/common/feedback/Skeleton';
-import ErrorBoundary from '../../../components/common/feedback/ErrorBoundary';
+import { lazy } from 'react';
+import DetailModalOrchestrator from '../../../components/common/modals/DetailModalOrchestrator';
 
 const MODAL_MAP = {
   total: lazy(() => import('./modals/TotalGraduatesModal')),
@@ -21,21 +20,5 @@ export default function GraduateDetailModal({
   data,
   filters,
 }) {
-  if (!activeModalType) return null;
-
-  const ModalComponent = MODAL_MAP[activeModalType];
-  if (!ModalComponent) return null;
-
-  const commonProps = { isOpen, onClose, originRect, data, filters };
-
-  return (
-    <ErrorBoundary
-      resetKey={activeModalType}
-      fallback={<div className="fixed inset-0 z-50 grid place-items-center text-sm text-gray-600">Gagal memuat rincian kelulusan. Silakan tutup lalu coba lagi.</div>}
-    >
-      <Suspense fallback={isOpen ? <div className="fixed inset-0 z-50 grid place-items-center"><Skeleton className="h-10 w-64 rounded-xl" /></div> : null}>
-        <ModalComponent {...commonProps} />
-      </Suspense>
-    </ErrorBoundary>
-  );
+  return <DetailModalOrchestrator modalMap={MODAL_MAP} fallbackMessage="Gagal memuat rincian kelulusan. Silakan tutup lalu coba lagi." isOpen={isOpen} onClose={onClose} activeModalType={activeModalType} originRect={originRect} data={data} filters={filters} />;
 }

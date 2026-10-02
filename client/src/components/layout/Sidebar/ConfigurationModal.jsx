@@ -3,7 +3,6 @@ import {
   ChevronDown, 
   Activity, 
   CheckCircle2, 
-  AlertTriangle, 
   XCircle, 
   RefreshCw, 
   Zap, 
@@ -15,7 +14,7 @@ import syncService from '../../../services/syncService';
 export default function ConfigurationModal({ isOpen, onClose, originRect }) {
   const [isCard1Open, setIsCard1Open] = useState(true);
   const [isCard2Open, setIsCard2Open] = useState(true);
-  const [isSyncRunning, setIsSyncRunning] = useState(false); // Flag penentu apakah step 2 telah dijalankan
+  const [isSyncRunning] = useState(false); // Flag penentu apakah step 2 telah dijalankan
 
   // State untuk Step 1: Check SEVIMA API Latency
   const [isTestingLatency, setIsTestingLatency] = useState(false);

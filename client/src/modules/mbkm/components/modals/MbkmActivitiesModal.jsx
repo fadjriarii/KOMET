@@ -1,16 +1,18 @@
 import { useCallback, useMemo } from 'react';
-import { Award, BookOpen, CheckCircle2, Table, Users } from 'lucide-react';
+import { Award, BookOpen, CheckCircle2, Users } from 'lucide-react';
 import Modal from '../../../../components/common/modals/Modal';
 import ModalSummaryBanner from '../../../../components/common/modals/ModalSummaryBanner';
 import ModalTabNav from '../../../../components/common/modals/ModalTabNav';
 import ModalTable from '../../../../components/common/modals/ModalTable';
 import ModalTabContent from '../../../../components/common/modals/ModalTabContent';
 import { useTabTransition } from '../../../../hooks/useTabTransition';
-import { formatNumber } from '../../../../utils/uiHelpers';
+import { formatNumber, formatPercentage } from '../../../../utils/uiHelpers';
 import { mbkmService } from '../../services/mbkmService';
 import { useMbkmDetailResource } from '../../hooks/useMbkmDetailResource';
 import MbkmDistributionChart from './MbkmDistributionChart';
 import { MBKM_ACTIVITIES_TABS } from './mbkmTrendConfig';
+
+const EMPTY_ITEMS = [];
 
 const ACTIVITIES_TABLE_COLUMNS = [
   {
@@ -42,7 +44,7 @@ const ACTIVITIES_TABLE_COLUMNS = [
     icon: Award,
     headerClassName: 'text-right',
     cellClassName: 'text-right font-bold text-gray-900',
-    render: (row) => row.percentage || '0.0%',
+    render: (row) => formatPercentage(row.percentage, 1, '0.0%'),
   },
 ];
 
@@ -105,9 +107,9 @@ export default function MbkmActivitiesModal({
   });
 
   const kpis = data?.kpis || {};
-  const activityList = activityData?.data?.items || activityData?.items || [];
-  const prodiList = prodiData?.data?.items || prodiData?.items || [];
-  const statusList = statusData?.data?.items || statusData?.items || [];
+  const activityList = activityData?.data?.items || activityData?.items || EMPTY_ITEMS;
+  const prodiList = prodiData?.data?.items || prodiData?.items || EMPTY_ITEMS;
+  const statusList = statusData?.data?.items || statusData?.items || EMPTY_ITEMS;
 
   const content = useMemo(() => ({
     aktivitas: (

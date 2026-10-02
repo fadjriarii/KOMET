@@ -6,12 +6,12 @@ import ModalTabNav from '../../../../components/common/modals/ModalTabNav';
 import ModalTable from '../../../../components/common/modals/ModalTable';
 import ModalTabContent from '../../../../components/common/modals/ModalTabContent';
 import { useTabTransition } from '../../../../hooks/useTabTransition';
-import { formatNumber } from '../../../../utils/uiHelpers';
+import { formatNumber, formatPercentage } from '../../../../utils/uiHelpers';
 import { DIGITAL_BLUE } from '../../../../utils/theme';
 import { graduatesService } from '../../services/graduatesService';
 import { useGraduateDetailResource } from '../../hooks/useGraduateDetailResource';
-import GraduateTrendBarChart from './GraduateTrendBarChart';
-import GraduateTrendChartTooltip from './GraduateTrendChartTooltip';
+import TrendBarChart from '../../../../components/common/charts/TrendBarChart';
+import TrendChartTooltip from '../../../../components/common/charts/TrendChartTooltip';
 import { ON_TIME_TABS } from './graduateTrendConfig';
 
 const ON_TIME_TABLE_COLUMNS = [
@@ -55,14 +55,14 @@ const ON_TIME_TABLE_COLUMNS = [
     render: (row) => `${formatNumber(row.lateCount)} mhs`,
   },
   {
-    key: 'rateFormatted',
+    key: 'rate',
     label: 'Persentase Tepat Waktu',
     icon: Clock,
     headerClassName: 'text-right',
     cellClassName: 'text-right font-bold text-digital-blue-700',
     render: (row) => (
       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-digital-blue-50 text-digital-blue-800 border border-digital-blue-200">
-        {row.rateFormatted || '0.0%'}
+        {formatPercentage(row.rate, 1, '0.0%')}
       </span>
     ),
   },
@@ -92,11 +92,11 @@ export default function OnTimeGraduationModal({
     filters,
     fetcher: fetchOnTimeDetail,
     errorMessage: 'Gagal memuat data kelulusan tepat waktu',
-    summaryData: data,
-    summaryKey: 'tepatWaktu',
   });
 
   const kpis = data?.kpis || {};
+  const onTimeS1 = formatPercentage(kpis.onTimeGraduationRateS1, 1, '0.0%');
+  const onTimeS2 = formatPercentage(kpis.onTimeGraduationRateS2, 1, '0.0%');
 
   const s1Cohorts = useMemo(() => {
     return detailData?.onTimeCohortData || detailData?.data?.s1 || [];
@@ -110,23 +110,23 @@ export default function OnTimeGraduationModal({
     s1: (
       <div className="h-full flex flex-col pt-0.5 px-1">
         <div className="h-56 sm:h-64 md:h-72 w-full">
-          <GraduateTrendBarChart
+          <TrendBarChart
             data={s1Cohorts}
             xDataKey="cohortLabel"
             bars={[
-              { dataKey: 'onTimeCount', name: 'Tepat Waktu (≤ 4 Thn)', color: DIGITAL_BLUE[600], labelKey: 'rateFormatted' },
+              { dataKey: 'onTimeCount', name: 'Tepat Waktu (≤ 4 Thn)', color: DIGITAL_BLUE[600], labelKey: 'rate', labelFormatter: (value) => formatPercentage(value) },
               { dataKey: 'fastCount', name: 'Lebih Cepat (< 4 Thn)', color: '#10B981', labelKey: 'fastCount' },
               { dataKey: 'lateCount', name: 'Lewat Waktu (> 4 Thn)', color: '#F59E0B', labelKey: 'lateCount' },
             ]}
             tooltipContent={
-              <GraduateTrendChartTooltip
+              <TrendChartTooltip
                 titleKey="cohortLabel"
                 rows={[
                   { key: 'onTimeCount', label: 'Tepat Waktu', colorClass: 'bg-digital-blue-600' },
                   { key: 'fastCount', label: 'Lebih Cepat', colorClass: 'bg-emerald-500' },
                   { key: 'lateCount', label: 'Lewat Batas', colorClass: 'bg-amber-500' },
                 ]}
-                footer={{ key: 'rateFormatted', label: 'Persentase Tepat Waktu' }}
+                footer={{ key: 'rate', label: 'Persentase Tepat Waktu', format: formatPercentage }}
               />
             }
           />
@@ -136,23 +136,23 @@ export default function OnTimeGraduationModal({
     s2: (
       <div className="h-full flex flex-col pt-0.5 px-1">
         <div className="h-56 sm:h-64 md:h-72 w-full">
-          <GraduateTrendBarChart
+          <TrendBarChart
             data={s2Cohorts}
             xDataKey="cohortLabel"
             bars={[
-              { dataKey: 'onTimeCount', name: 'Tepat Waktu (≤ 2 Thn)', color: DIGITAL_BLUE[600], labelKey: 'rateFormatted' },
+              { dataKey: 'onTimeCount', name: 'Tepat Waktu (≤ 2 Thn)', color: DIGITAL_BLUE[600], labelKey: 'rate', labelFormatter: (value) => formatPercentage(value) },
               { dataKey: 'fastCount', name: 'Lebih Cepat (< 2 Thn)', color: '#10B981', labelKey: 'fastCount' },
               { dataKey: 'lateCount', name: 'Lewat Waktu (> 2 Thn)', color: '#F59E0B', labelKey: 'lateCount' },
             ]}
             tooltipContent={
-              <GraduateTrendChartTooltip
+              <TrendChartTooltip
                 titleKey="cohortLabel"
                 rows={[
                   { key: 'onTimeCount', label: 'Tepat Waktu', colorClass: 'bg-digital-blue-600' },
                   { key: 'fastCount', label: 'Lebih Cepat', colorClass: 'bg-emerald-500' },
                   { key: 'lateCount', label: 'Lewat Batas', colorClass: 'bg-amber-500' },
                 ]}
-                footer={{ key: 'rateFormatted', label: 'Persentase Tepat Waktu' }}
+                footer={{ key: 'rate', label: 'Persentase Tepat Waktu', format: formatPercentage }}
               />
             }
           />
@@ -188,13 +188,13 @@ export default function OnTimeGraduationModal({
           description={
             <div className="space-y-1.5 text-justify">
               <p>
-                Tingkat kelulusan tepat waktu mencapai <strong className="text-digital-blue-900 font-bold">{kpis.onTimeGraduationRateS1 || '0.0%'} (Jenjang S1)</strong> dan <strong className="text-digital-blue-900 font-bold">{kpis.onTimeGraduationRateS2 || '0.0%'} (Jenjang S2)</strong> dihitung berdasarkan rasio mahasiswa yang lulus dalam kurun waktu masa studi standar.
+                Tingkat kelulusan tepat waktu mencapai <strong className="text-digital-blue-900 font-bold">{onTimeS1} (Jenjang S1)</strong> dan <strong className="text-digital-blue-900 font-bold">{onTimeS2} (Jenjang S2)</strong> dihitung berdasarkan rasio mahasiswa yang lulus dalam kurun waktu masa studi standar.
               </p>
             </div>
           }
           label="Tepat Waktu (S1)"
-          value={kpis.onTimeGraduationRateS1 || '0.0%'}
-          sublabel={`S2: ${kpis.onTimeGraduationRateS2 || '0.0%'}`}
+          value={onTimeS1}
+          sublabel={`S2: ${onTimeS2}`}
         />
 
         <div className="flex-1 flex flex-col min-h-0">

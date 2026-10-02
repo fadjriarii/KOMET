@@ -6,8 +6,10 @@ const morgan = require('morgan');
 const hpp = require('hpp');
 const validateEnv = require('./config/envValidator');
 const logger = require('./utils/logger');
+const { sendError } = require('./utils/errorHandler');
 const prisma = require('./config/prisma');
-const { issueStudentSession } = require('./middlewares/studentSession');
+const { connectRedis, disconnectRedis } = require('./config/redis');
+const { issueStudentSession, revokeStudentSession } = require('./middlewares/studentSession');
 
 // Handler Global untuk Unhandled Rejection & Uncaught Exception (mencegah silent crash)
 process.on('unhandledRejection', (reason, promise) => {
@@ -24,6 +26,14 @@ validateEnv();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// `req.ip` is used by rate limiting. Trust only the explicitly configured
+// number of reverse-proxy hops; direct/local deployments remain untrusted.
+const trustProxy = process.env.TRUST_PROXY;
+if (trustProxy && trustProxy !== 'false') {
+    const proxyHops = Number.parseInt(trustProxy, 10);
+    app.set('trust proxy', Number.isInteger(proxyHops) && proxyHops >= 0 ? proxyHops : trustProxy);
+}
 
 // Security & Utility Middlewares: Helmet & HPP
 app.use(helmet());
@@ -66,72 +76,74 @@ app.use((req, res, next) => {
 
 app.use(express.json());
 app.post('/api/session/student', issueStudentSession);
+app.delete('/api/session/student', revokeStudentSession);
 
-// 3. Daftarkan Routes Sinkronisasi, Mahasiswa (Students), Kelulusan (Graduates), & MBKM
-const syncRoutes = require('./routes/syncRoutes');
-const studentsRoutes = require('./routes/studentsRoutes');
-const graduatesRoutes = require('./routes/graduatesRoutes');
-const mbkmRoutes = require('./routes/mbkmRoutes');
+function registerApplicationRoutes() {
+    // Loading these routers after Redis is ready prevents rate-limit-redis
+    // from issuing commands against an offline client during process startup.
+    app.use('/api/sync', require('./routes/syncRoutes'));
+    app.use('/api/students', require('./routes/studentsRoutes'));
+    app.use('/api/graduates', require('./routes/graduatesRoutes'));
+    app.use('/api/mbkm', require('./routes/mbkmRoutes'));
 
-app.use('/api/sync', syncRoutes);
-app.use('/api/students', studentsRoutes);
-app.use('/api/graduates', graduatesRoutes);
-app.use('/api/mbkm', mbkmRoutes);
-
-// 4. Health Check Route (dengan Database Check)
-app.get('/api/health', async (req, res) => {
-    let dbStatus = 'ok';
-    let dbLatencyMs = null;
-    try {
-        const start = Date.now();
-        await prisma.$queryRaw`SELECT 1`;
-        dbLatencyMs = Date.now() - start;
-    } catch (e) {
-        dbStatus = 'error';
-    }
-
-    const isHealthy = dbStatus === 'ok';
-    res.status(isHealthy ? 200 : 503).json({
-        status: isHealthy ? 'OK' : 'DEGRADED',
-        uptime: process.uptime(),
-        timestamp: new Date(),
-        database: { status: dbStatus, latencyMs: dbLatencyMs }
+    app.get('/api/health', async (req, res) => {
+        let dbStatus = 'ok';
+        let dbLatencyMs = null;
+        try {
+            const start = Date.now();
+            await prisma.$queryRaw`SELECT 1`;
+            dbLatencyMs = Date.now() - start;
+        } catch (error) {
+            dbStatus = 'error';
+        }
+        const isHealthy = dbStatus === 'ok';
+        res.status(isHealthy ? 200 : 503).json({
+            status: isHealthy ? 'OK' : 'DEGRADED',
+            uptime: process.uptime(),
+            timestamp: new Date(),
+            database: { status: dbStatus, latencyMs: dbLatencyMs },
+        });
     });
-});
 
-// 5. 404 Handler — untuk route yang tidak ditemukan
-app.use((req, res) => {
-    res.status(404).json({
+    app.use((req, res) => res.status(404).json({
         success: false,
-        message: `Endpoint tidak ditemukan: ${req.method} ${req.originalUrl}`
-    });
-});
+        message: `Endpoint tidak ditemukan: ${req.method} ${req.originalUrl}`,
+    }));
 
-// 6. Global Error Handler — menangkap unhandled error dari Express
-app.use((err, req, res, next) => {
-    // CORS error — security block yang diharapkan, log sebagai warn bukan error
-    if (err.message && err.message.startsWith('CORS:')) {
-        logger.warn(`[CORS] ${err.message}`);
-        return res.status(403).json({ success: false, message: err.message });
-    }
-    logger.error(`[GlobalErrorHandler] Unhandled error: ${err.message}`, { stack: err.stack });
-    const isProduction = process.env.NODE_ENV === 'production';
-    res.status(err.status || 500).json({
-        success: false,
-        message: isProduction ? 'Terjadi kesalahan internal server.' : err.message
+    app.use((err, req, res, next) => {
+        if (err.message?.startsWith('CORS:')) {
+            return sendError(res, 403, err.message, err, 'cors');
+        }
+        const statusCode = Number.isInteger(err.statusCode) ? err.statusCode : (Number.isInteger(err.status) ? err.status : 500);
+        const publicMessage = statusCode >= 500 ? 'Terjadi kesalahan internal server.' : err.message;
+        return sendError(res, statusCode, publicMessage, err, 'global');
     });
-});
+}
 
-// 7. Menjalankan Server & Graceful Shutdown
-const server = app.listen(PORT, () => {
-    logger.success(`🚀 Server Komet berjalan di http://localhost:${PORT}`);
-});
+// 3. Menjalankan Server & Graceful Shutdown
+let server;
+
+async function startServer() {
+    // A configured Redis backend is mandatory: silently falling back to local
+    // counters would make a clustered production deployment bypassable.
+    await connectRedis();
+    registerApplicationRoutes();
+    server = app.listen(PORT, () => {
+        logger.success(`🚀 Server Komet berjalan di http://localhost:${PORT}`);
+    });
+}
 
 async function gracefulShutdown(signal) {
     logger.info(`🛑 Menerima signal ${signal}. Memulai graceful shutdown...`);
+    if (!server) {
+        await disconnectRedis();
+        process.exit(0);
+        return;
+    }
     server.close(async () => {
         logger.info('✅ HTTP server ditutup. Menutup koneksi database...');
         await prisma.$disconnect();
+        await disconnectRedis();
         logger.info('✅ Koneksi database ditutup. Server berhenti dengan bersih.');
         process.exit(0);
     });
@@ -144,3 +156,9 @@ async function gracefulShutdown(signal) {
 
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+startServer().catch(async (error) => {
+    logger.error('[Startup] Server gagal dijalankan.', { error: error.message, stack: error.stack });
+    await disconnectRedis();
+    process.exit(1);
+});

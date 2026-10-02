@@ -6,7 +6,7 @@
  */
 
 const { getPaginationParams } = require('../../utils/paginationUtils');
-const { toArray } = require('../../utils/queryUtils');
+const { addInFilter, addSearchFilter, hasFilters } = require('../shared/filterUtils');
 
 function buildGraduateFilter(query) {
     const {
@@ -23,33 +23,19 @@ function buildGraduateFilter(query) {
     const where = {};
 
     // Filter langsung di tabel graduates
-    if (jenjang) where.jenjang = jenjang;
-
-    const tahunLulusArr = toArray(tahunLulus);
-    if (tahunLulusArr && tahunLulusArr.length > 0) where.tahunLulus = { in: tahunLulusArr };
-
-    const periodeWisudaArr = toArray(periodeWisuda);
-    if (periodeWisudaArr && periodeWisudaArr.length > 0) where.periodeWisuda = { in: periodeWisudaArr };
-
-    const statusKelulusanArr = toArray(statusKelulusan);
-    if (statusKelulusanArr && statusKelulusanArr.length > 0) where.statusKelulusan = { in: statusKelulusanArr };
+    addInFilter(where, 'jenjang', jenjang);
+    addInFilter(where, 'tahunLulus', tahunLulus);
+    addInFilter(where, 'periodeWisuda', periodeWisuda);
+    addInFilter(where, 'statusKelulusan', statusKelulusan);
 
     // Filter lewat relasi ke student
     const studentFilter = {};
-    const prodiArr = toArray(programStudi);
-    if (prodiArr) studentFilter.programStudi = { in: prodiArr };
-
-    if (fakultas) studentFilter.fakultas = fakultas;
+    addInFilter(studentFilter, 'programStudi', programStudi);
+    addInFilter(studentFilter, 'fakultas', fakultas);
     if (periodeMasuk) studentFilter.periodeMasuk = periodeMasuk;
-    if (search && search.trim()) {
-        const searchTerm = search.trim().substring(0, 100); // Batasi 100 karakter
-        studentFilter.OR = [
-            { nim: { contains: searchTerm } },
-            { nama: { contains: searchTerm } }
-        ];
-    }
+    addSearchFilter(studentFilter, search);
 
-    if (Object.keys(studentFilter).length > 0) {
+    if (hasFilters(studentFilter)) {
         where.student = studentFilter;
     }
 

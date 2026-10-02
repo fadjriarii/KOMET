@@ -30,40 +30,74 @@ function buildPeriodeFilter(value) {
     return value;
 }
 
+function getSnapshotStatusSelection(statusValues) {
+    const values = toArray(statusValues);
+    const isNotSent = statusValues === undefined || statusValues === null;
+    const isAllStatus = !isNotSent && (!values?.length || values.includes('ALL') || values.includes('__ALL__'));
+    return {
+        isAllStatus,
+        // The dashboard's omitted status is explicitly the historical
+        // "Aktif" population, not the student's current status.
+        statuses: isAllStatus ? [] : (values || ['Aktif']),
+    };
+}
+
 /**
- * Snapshot predicates for one academic year.
+ * Builds the status predicate for a historical academic-year snapshot.
  *
- * A blank `periodeTerakhir` means that no exit period is known. The old
- * implementation attempted to infer this with an OR clause for every cohort
- * since 1900. Besides producing hundreds of SQL predicates, that inference
- * was unreliable for incomplete sync records. A known intake period plus a
- * positive semester is the direct, safe fallback; an explicit exit period
- * remains the authoritative historical boundary.
+ * `statusKeaktifan` is the latest state from SEVIMA, while
+ * `periodeTerakhir` is the period in which a non-active student left/changed
+ * status. Applying `statusKeaktifan = 'Aktif'` directly therefore loses a
+ * student who graduated in a later year. Conversely, applying `Lulus`
+ * directly leaks future graduations into older snapshots.
+ *
+ * At the end of target academic year T:
+ * - Aktif: current Aktif records, records without an exit period, or records
+ *   whose exit period is after T. They were still active at T.
+ * - Other statuses: their latest status is included only after its recorded
+ *   period has occurred (cumulative through T).
+ * - Semua status: every student admitted by T is present; each row's display
+ *   status is projected separately by `studentList`.
  */
+function buildSnapshotStatusCondition(academicEnd, statusValues) {
+    const { isAllStatus, statuses } = getSnapshotStatusSelection(statusValues);
+    if (isAllStatus) return null;
+
+    const branches = [];
+    if (statuses.includes('Aktif')) {
+        branches.push({
+            OR: [
+                { statusKeaktifan: 'Aktif' },
+                { periodeTerakhir: '' },
+                { periodeTerakhir: { gt: academicEnd } },
+            ],
+        });
+    }
+
+    const terminalStatuses = statuses.filter((status) => status !== 'Aktif');
+    if (terminalStatuses.length) {
+        branches.push({
+            AND: [
+                {
+                    statusKeaktifan: terminalStatuses.length === 1
+                        ? terminalStatuses[0]
+                        : { in: terminalStatuses },
+                },
+                { periodeTerakhir: { not: '', lte: academicEnd } },
+            ],
+        });
+    }
+
+    return branches.length ? { OR: branches } : null;
+}
+
+/** Snapshot predicates for one academic year. */
 function buildAcademicYearFilter(academicYear, statusValues) {
     if (!academicYear) return [];
-    const academicStart = `${academicYear.startYear}1`;
     const academicEnd = `${academicYear.startYear}2`;
     const conditions = [{ periodeMasuk: { lte: academicEnd } }];
-
-    const isAllStatus = Array.isArray(statusValues)
-        ? (statusValues.length === 0 || statusValues.includes('ALL') || statusValues.includes('__ALL__'))
-        : (statusValues === 'ALL' || statusValues === '__ALL__');
-
-    const isOnlyActive = Array.isArray(statusValues)
-        ? (statusValues.length === 1 && statusValues[0] === 'Aktif')
-        : (statusValues === 'Aktif' || statusValues === undefined || statusValues === null);
-
-    if (isOnlyActive && !isAllStatus) {
-        if (!academicYear.isCurrent) {
-            conditions.push({
-                OR: [
-                    { periodeTerakhir: '' },
-                    { periodeTerakhir: { gte: academicStart } }
-                ]
-            });
-        }
-    }
+    const snapshotStatusCondition = buildSnapshotStatusCondition(academicEnd, statusValues);
+    if (snapshotStatusCondition) conditions.push(snapshotStatusCondition);
     return conditions;
 }
 
@@ -146,13 +180,14 @@ function ensurePopulationFilter(baseFilter = {}) {
 function buildStatelessFilter(baseFilter = {}) {
     const result = { ...baseFilter };
     delete result.statusKeaktifan;
-    
-    // Also remove academic snapshot conditions for intake queries
+
+    // Intake is independent of status, but must still respect the selected
+    // year. Keep `periodeMasuk <= akhir TA` and only remove the snapshot
+    // status condition that refers to `periodeTerakhir`.
     if (Array.isArray(result.AND)) {
         result.AND = result.AND.filter((condition) => {
-            if (condition?.periodeMasuk?.lte) return false;
-            if (condition?.OR?.some((item) => item?.periodeTerakhir !== undefined)) return false;
-            return true;
+            const serialized = JSON.stringify(condition);
+            return !serialized.includes('periodeTerakhir');
         });
         if (!result.AND.length) delete result.AND;
     }
@@ -163,16 +198,9 @@ function buildStatelessFilter(baseFilter = {}) {
 /**
  * buildWhereClause — translates all filter query params to a Prisma where clause.
  *
- * Tahun Ajaran + Status logic:
- *  - Status 'Aktif' (default) + Tahun Ajaran:
- *      Tampilkan mahasiswa AKTIF yang masuk s.d. akhir tahun ajaran.
- *      Untuk TA historis: tambah filter periodeTerakhir (masih terdaftar).
- *  - 'Semua Status' (ALL/__ALL__/[]) + Tahun Ajaran:
- *      Tampilkan SEMUA mahasiswa (dari awal berdiri) yang masuk s.d. TA,
- *      tanpa filter status. Tidak ada batas periodeTerakhir.
- *  - 'Lulus' / 'Transfer' / status lain + Tahun Ajaran:
- *      Tampilkan mahasiswa dengan status tersebut yang masuk s.d. akhir TA.
- *      Tidak perlu filter periodeTerakhir — statusKeaktifan sudah cukup.
+ * Tahun Ajaran is a historical snapshot. A status filter is translated to
+ * its state at the selected academic-year boundary, never compared blindly
+ * with the latest status stored in the current Student row.
  */
 function buildWhereClause(query = {}, { forStats = false } = {}) {
     const where = {};
@@ -185,9 +213,7 @@ function buildWhereClause(query = {}, { forStats = false } = {}) {
     const academicYear = getAcademicYear(targetAcademicYear);
     const statusValues = toArray(query.statusKeaktifan);
 
-    // ── Tahun Ajaran filter ──────────────────────────────────────────────────
-    // Pass statusValues so buildAcademicYearFilter knows whether to add the
-    // periodeTerakhir snapshot boundary (only for status 'Aktif' + historis).
+    // ── Tahun Ajaran snapshot ─────────────────────────────────────────────────
     const academicConditions = buildAcademicYearFilter(academicYear, statusValues);
     if (academicConditions.length) {
         where.AND = [...(where.AND || []), ...academicConditions];
@@ -209,8 +235,12 @@ function buildWhereClause(query = {}, { forStats = false } = {}) {
     else if (query.kewarganegaraan === 'WNA') where.NOT = { kewarganegaraan: 'Indonesia' };
     else if (query.kewarganegaraan) where.kewarganegaraan = query.kewarganegaraan;
 
-    const statusFilter = buildStatusFilter(statusValues);
-    if (statusFilter !== undefined) where.statusKeaktifan = statusFilter;
+    // Outside a snapshot, current status is the correct predicate. Within a
+    // snapshot it has already been represented in the time-aware OR branches.
+    if (!academicYear) {
+        const statusFilter = buildStatusFilter(statusValues);
+        if (statusFilter !== undefined) where.statusKeaktifan = statusFilter;
+    }
 
     const searchFilter = buildSearchFilter(query.search);
     if (searchFilter) addOrCondition(where, searchFilter);
@@ -230,6 +260,9 @@ module.exports = {
     buildBaseFilter,
     buildWhereClause,
     buildAcademicYearFilter,
+    buildSnapshotStatusCondition,
+    getSnapshotStatusSelection,
+    getAcademicYear,
     buildPeriodeFilter,
     buildStatusFilter,
     buildSearchFilter,

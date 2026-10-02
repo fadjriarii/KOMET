@@ -1,4 +1,38 @@
 const prisma = require('../../config/prisma');
+const { getAcademicYear } = require('./filterBuilder');
+
+function getRequestedAcademicYear(query = {}) {
+    const tahunAjaran = typeof query.tahunAjaran === 'string' ? query.tahunAjaran : null;
+    const selectedPeriode = typeof query.selectedPeriode === 'string' ? query.selectedPeriode : null;
+    return getAcademicYear(tahunAjaran || (selectedPeriode?.includes('/') ? selectedPeriode : null));
+}
+
+/**
+ * A Student row stores the latest SEVIMA status. For historical snapshots the
+ * table must instead show the status at the selected year boundary. A future
+ * graduation/exit is therefore rendered as Aktif in an earlier snapshot.
+ */
+function getSnapshotStatus(student, academicYear) {
+    if (!academicYear) return student.statusKeaktifan;
+    const academicEnd = `${academicYear.startYear}2`;
+    const finalPeriod = String(student.periodeTerakhir || '').trim();
+    const hasReachedFinalStatus = finalPeriod
+        && finalPeriod <= academicEnd
+        && student.statusKeaktifan !== 'Aktif';
+    return hasReachedFinalStatus ? student.statusKeaktifan : 'Aktif';
+}
+
+function projectSnapshotStudent(student, academicYear) {
+    if (!academicYear) return student;
+    const snapshotStatus = getSnapshotStatus(student, academicYear);
+    return {
+        ...student,
+        // Preserve the current value for API consumers that need auditing,
+        // while the standard status field represents the requested snapshot.
+        currentStatusKeaktifan: student.statusKeaktifan,
+        statusKeaktifan: snapshotStatus,
+    };
+}
 
 /**
  * Mengambil daftar mahasiswa dari database dengan filter, pagination, dan default sort.
@@ -13,7 +47,7 @@ const prisma = require('../../config/prisma');
  * @param {number} page         Halaman (default 1)
  * @param {number} limit        Jumlah baris per halaman (default 10)
  */
-async function getStudentList(whereFilter, page = 1, limit = 10, cursor) {
+async function getStudentList(whereFilter, page = 1, limit = 10, cursor, query = {}) {
     const skip = (page - 1) * limit;
 
     if (cursor) {
@@ -28,14 +62,15 @@ async function getStudentList(whereFilter, page = 1, limit = 10, cursor) {
         }
     }
 
-    const query = buildStudentListQuery(whereFilter, page, limit, cursor);
+    const listQuery = buildStudentListQuery(whereFilter, page, limit, cursor);
     const [rawData, total] = await Promise.all([
-        prisma.student.findMany(query),
+        prisma.student.findMany(listQuery),
         prisma.student.count({ where: whereFilter })
     ]);
 
     const hasNextPage = rawData.length > limit;
-    const data = rawData.slice(0, limit);
+    const academicYear = getRequestedAcademicYear(query);
+    const data = rawData.slice(0, limit).map((student) => projectSnapshotStudent(student, academicYear));
     return {
         data,
         nextCursor: hasNextPage ? data[data.length - 1].nim : null,
@@ -59,6 +94,7 @@ function buildStudentListQuery(whereFilter, page, limit, cursor) {
             angkatan: true,
             periode: true,
             periodeMasuk: true,
+            periodeTerakhir: true,
             programStudi: true,
             fakultas: true,
             jenjang: true,
@@ -79,4 +115,10 @@ function buildStudentListQuery(whereFilter, page, limit, cursor) {
     return query;
 }
 
-module.exports = { getStudentList, buildStudentListQuery };
+module.exports = {
+    getStudentList,
+    buildStudentListQuery,
+    getRequestedAcademicYear,
+    getSnapshotStatus,
+    projectSnapshotStudent,
+};

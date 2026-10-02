@@ -4,19 +4,6 @@ const { toAcademicYear, get5YearRollingAcademicYears } = require('../../utils/ac
 const { calculatePercentageChange } = require('../../utils/trendCalculation');
 const { buildStatelessFilter } = require('./filterBuilder');
 
-function withoutAcademicSnapshot(where = {}) {
-    const result = { ...where };
-    if (Array.isArray(where.AND)) {
-        result.AND = where.AND.filter((condition) => {
-            if (condition?.periodeMasuk?.lte) return false;
-            if (condition?.OR?.some((item) => item?.periodeTerakhir !== undefined)) return false;
-            return true;
-        });
-        if (!result.AND.length) delete result.AND;
-    }
-    return result;
-}
-
 // Backward compatibility alias
 function calculateGrowth(currentCount, previousCount, decimals = 2) {
     return calculatePercentageChange(currentCount, previousCount, decimals);
@@ -50,7 +37,6 @@ async function getIntakeTrend(baseFilter = {}) {
         return { tahun, intakeCount: item.total, ganjil: item.ganjil, genap: item.genap };
     });
 
-    const formatter = new Intl.NumberFormat('id-ID');
     const trend = [];
     const rechartsData = [];
     rawTrend.forEach((item, index) => {
@@ -61,29 +47,19 @@ async function getIntakeTrend(baseFilter = {}) {
         const chartGrowth = calculateGrowth(item.intakeCount, index > 0 ? previousCount : undefined, 1);
         const total = item.intakeCount || 1;
 
-        // Handle case where growth calculation returns null (invalid state)
-        const growthLabel = (growth && growth.label !== null && growth.label !== undefined)
-            ? growth.label
-            : '0.00%';
-        const chartGrowthLabel = (chartGrowth && chartGrowth.label !== null && chartGrowth.label !== undefined)
-            ? chartGrowth.label
-            : '0.00%';
+        const growthPercentage = growth ? growth.rawGrowth * 100 : null;
+        const chartGrowthPercentage = chartGrowth ? chartGrowth.rawGrowth * 100 : null;
 
         trend.push({
             tahun: item.tahun,
             intakeCount: item.intakeCount,
-            intakeCountFormatted: `${formatter.format(item.intakeCount)} mhs`,
-            growth: growthLabel,
-            growthFormatted: growthLabel,
-            rawGrowth: growth ? (growth.rawGrowth ?? 0) : 0,
-            isPositive: (!isNaN(growth?.rawGrowth ?? 0) && growth?.rawGrowth >= 0),
+            growthPercentage,
+            isPositive: growthPercentage === null || growthPercentage >= 0,
         });
         rechartsData.push({
             tahun: item.tahun,
             intakeCount: item.intakeCount,
-            value: Number(chartGrowthLabel),
-            label: chartGrowthLabel,
-            growth: chartGrowthLabel,
+            growthPercentage: chartGrowthPercentage,
             ganjil: item.ganjil,
             ganjilPct: Math.round((item.ganjil / total) * 100),
             genap: item.genap,
