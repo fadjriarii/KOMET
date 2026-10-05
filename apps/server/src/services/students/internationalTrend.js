@@ -33,14 +33,6 @@ function getInternationalWhere(baseFilter = {}) {
   };
 }
 
-function addGroupedCount(map, periodeMasuk, count, key = 'total') {
-  const year = toAcademicYear(periodeMasuk);
-  if (!year) return;
-  const item = map.get(year) || { total: 0, wna: 0 };
-  item[key] += count;
-  map.set(year, item);
-}
-
 function stripAcademicYearConditions(filter = {}) {
   const { AND, ...rest } = filter;
   if (!Array.isArray(AND)) return filter;
