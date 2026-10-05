@@ -20,8 +20,8 @@ ai-context/
 
 # Project Requirements & Internal Documentation
 requirements/
-client/requirements/
-server/requirements/
+apps/frontend/requirements/
+apps/backend/requirements/
 
 # Logs
 logs/
@@ -43,14 +43,14 @@ coverage/
 
 # Temporary / Scratch & Test Dumps
 scratch/
-server/scratch/
-client/scratch/
+apps/backend/scratch/
+apps/frontend/scratch/
 tmp/
 temp/
 test-*.js
 test_*.js
 test.json
-server/test.json
+apps/backend/test.json
 *.tmp
 
 # Database & SQLite files
@@ -84,3 +84,4 @@ ehthumbs.db
 aider/
 .aws/
 graphify-out/
+AGENTS.md
