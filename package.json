@@ -2,7 +2,7 @@
   "name": "komet",
   "version": "1.0.0",
   "private": true,
-  "description": "",
+  "description": "KPI Observation, Monitoring and Evaluation Tool",
   "main": "index.js",
   "workspaces": [
     "client",
