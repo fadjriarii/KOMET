@@ -3,7 +3,15 @@ const globals = require('globals');
 
 module.exports = [
   {
-    ignores: ['**/dist', '**/node_modules', '**/coverage', '**/prisma', '**/logs', '**/tests'],
+    ignores: [
+      '**/dist',
+      '**/node_modules',
+      '**/coverage',
+      '**/prisma',
+      '**/logs',
+      '**/tests',
+      '**/public',
+    ],
   },
   {
     files: ['**/*.{js,cjs}'],

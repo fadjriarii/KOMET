@@ -80,6 +80,7 @@ ai-context/
 .aider*
 aider/
 AGENTS.md
+.qoder/
 
 # Project-specific ignores
 requirements/

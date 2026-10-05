@@ -1,82 +1,123 @@
-import { useState } from 'react';
-import { ChevronDown, Activity, CheckCircle2, XCircle, RefreshCw, Zap, Clock } from 'lucide-react';
+import { useEffect, useMemo, useRef } from 'react';
+import {
+  Check,
+  CheckCircle2,
+  Clock,
+  Globe,
+  GraduationCap,
+  Loader2,
+  Minus,
+  RefreshCw,
+  Users,
+  XCircle,
+} from 'lucide-react';
 import Modal from '../../common/modals/Modal';
-import syncService from '../../../services/syncService';
+import useSyncJob from './useSyncJob';
+
+const MODULE_OPTIONS = [
+  {
+    key: 'students',
+    label: 'Data Mahasiswa',
+    description: 'Seluruh data mahasiswa aktif maupun non-aktif',
+    icon: Users,
+  },
+  {
+    key: 'graduates',
+    label: 'Data Lulusan',
+    description: 'Data lulusan beserta tanggal kelulusan',
+    icon: GraduationCap,
+  },
+  {
+    key: 'mbkm',
+    label: 'Data MBKM',
+    description: 'Aktivitas MBKM dan penyetaraan nilai',
+    icon: Globe,
+  },
+];
+
+const ROW_STATUS = {
+  idle: { dot: 'bg-gray-300', text: 'text-gray-500', label: 'Menunggu' },
+  pending: { dot: 'bg-gray-300', text: 'text-gray-500', label: 'Menunggu' },
+  running: {
+    dot: 'bg-digital-blue-500 animate-pulse',
+    text: 'text-digital-blue-600',
+    label: 'Menyinkronkan',
+  },
+  completed: { dot: 'bg-emerald-500', text: 'text-emerald-600', label: 'Selesai' },
+};
+
+const formatNumber = (value) => new Intl.NumberFormat('id-ID').format(value || 0);
+
+const formatDateTime = (iso) =>
+  iso
+    ? new Date(iso).toLocaleString('id-ID', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : null;
+
+function CheckboxBox({ checked, indeterminate = false }) {
+  const active = checked || indeterminate;
+  return (
+    <span
+      className={`w-4.5 h-4.5 shrink-0 rounded-md border flex items-center justify-center transition-all duration-200 ${
+        active
+          ? 'border-digital-blue-600 bg-digital-blue-600 text-white'
+          : 'border-gray-300 bg-white text-transparent'
+      }`}
+    >
+      {checked ? (
+        <Check size={12} strokeWidth={3.5} />
+      ) : indeterminate ? (
+        <Minus size={12} strokeWidth={3.5} />
+      ) : null}
+    </span>
+  );
+}
 
 export default function ConfigurationModal({ isOpen, onClose, originRect }) {
-  const [isCard1Open, setIsCard1Open] = useState(true);
-  const [isCard2Open, setIsCard2Open] = useState(true);
-  const [isSyncRunning] = useState(false); // Flag penentu apakah step 2 telah dijalankan
+  const job = useSyncJob({ isOpen });
+  const masterRef = useRef(null);
 
-  // State untuk Step 1: Check SEVIMA API Latency
-  const [isTestingLatency, setIsTestingLatency] = useState(false);
-  const [latencyResult, setLatencyResult] = useState(null);
+  useEffect(() => {
+    if (masterRef.current) {
+      masterRef.current.indeterminate = job.someSelected && !job.allSelected;
+    }
+  }, [job.allSelected, job.someSelected]);
 
-  const handleTestLatency = async () => {
-    setIsTestingLatency(true);
-    try {
-      const res = await syncService.checkConnection();
-      setLatencyResult({
-        success: Boolean(res?.success),
-        status: res?.status || (res?.success ? 'CONNECTED' : 'ERROR'),
-        latencyMs: res?.latencyMs ?? 0,
-        endpoint: res?.endpoint || 'https://api.sevimaplatform.com/siakadcloud/v1/*',
-        message:
-          res?.message ||
-          (res?.success
-            ? 'Koneksi ke SEVIMA Cloud API berhasil.'
-            : 'Gagal terhubung ke SEVIMA API.'),
-        timestamp: new Date().toLocaleTimeString('id-ID', {
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-        }),
-      });
-    } catch (err) {
-      setLatencyResult({
-        success: false,
-        status: 'ERROR',
-        latencyMs: 0,
-        endpoint: 'https://api.sevimaplatform.com/siakadcloud/v1/*',
-        message: err?.message || 'Gagal menghubungi server.',
-        timestamp: new Date().toLocaleTimeString('id-ID', {
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-        }),
-      });
-    } finally {
-      setIsTestingLatency(false);
-    }
-  };
+  const selectedCount = useMemo(
+    () => MODULE_OPTIONS.filter((option) => job.selected[option.key]).length,
+    [job.selected],
+  );
 
-  const getLatencyBadge = (latencyMs, success) => {
-    if (!success) {
-      return {
-        bg: 'bg-red-50 text-red-700 border-red-200/80',
-        dot: 'bg-red-500',
-        text: 'Disconnected',
-      };
-    }
-    if (latencyMs < 300) {
-      return {
-        bg: 'bg-emerald-50 text-emerald-700 border-emerald-200/80',
-        dot: 'bg-emerald-500',
-        text: `${latencyMs} ms (Optimal)`,
-      };
-    }
-    if (latencyMs < 1000) {
-      return {
-        bg: 'bg-amber-50 text-amber-700 border-amber-200/80',
-        dot: 'bg-amber-500',
-        text: `${latencyMs} ms (Normal)`,
-      };
-    }
-    return {
-      bg: 'bg-orange-50 text-orange-700 border-orange-200/80',
-      dot: 'bg-orange-500',
-      text: `${latencyMs} ms (Slow)`,
-    };
+  const totalSynced = useMemo(
+    () => job.moduleRows.reduce((sum, row) => sum + row.synced, 0),
+    [job.moduleRows],
+  );
+
+  const totalSkipped = useMemo(
+    () => job.moduleRows.reduce((sum, row) => sum + row.skipped, 0),
+    [job.moduleRows],
+  );
+
+  const lastSyncLabel = useMemo(() => formatDateTime(job.lastSyncedAt), [job.lastSyncedAt]);
+
+  const showError = Boolean(job.lastError) && !job.isRunning;
+  const isIndeterminate = job.someSelected && !job.allSelected;
+
+  const progressLabel =
+    job.phase === 'completed'
+      ? 'Selesai 100%'
+      : job.phase === 'failed'
+        ? 'Sinkronisasi terhenti'
+        : job.statusMessage || 'Sinkronisasi berjalan...';
+
+  const restart = () => {
+    job.reset();
+    job.start();
   };
 
   return (
@@ -84,177 +125,240 @@ export default function ConfigurationModal({ isOpen, onClose, originRect }) {
       isOpen={isOpen}
       onClose={onClose}
       title="Configuration"
-      subtitle="Pengaturan sistem dan sinkronisasi data"
-      maxWidth="max-w-4xl"
+      subtitle="Sinkronisasi data dari SEVIMA"
+      maxWidth="max-w-2xl"
       originRect={originRect}
       showCloseButton
     >
       <div className="flex flex-col gap-4 h-full">
-        {/* STEP 1: Check SEVIMA API Latency (Collapsible dengan tombol luar v dan ^) */}
         <div className="flex flex-col gap-2">
-          {/* Header luar dengan Judul dan Ikon Toggle v / ^ */}
-          <div className="flex items-center justify-between w-full px-1">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-1">
             <span className="text-xs font-bold text-gray-700 uppercase tracking-wider select-none">
-              Step 1: Check SEVIMA API Latency
+              Pilih Data
             </span>
-            <button
-              type="button"
-              onClick={() => setIsCard1Open((prev) => !prev)}
-              aria-label="Toggle Step 1 Card"
-              className="p-1 rounded-lg bg-gray-100 hover:bg-gray-200/80 text-gray-500 hover:text-gray-800 transition-colors cursor-pointer select-none"
-            >
-              <ChevronDown
-                size={16}
-                className={`transition-transform duration-300 ease-in-out ${
-                  isCard1Open ? 'rotate-180 text-digital-blue-600' : 'rotate-0'
-                }`}
-              />
-            </button>
+            {lastSyncLabel && (
+              <span className="inline-flex items-center gap-1.5 text-[11px] text-gray-500">
+                <Clock size={12} className="text-gray-400 shrink-0" />
+                <span>
+                  Sinkron terakhir:{' '}
+                  <span className="font-semibold text-gray-700">{lastSyncLabel} WIB</span>
+                </span>
+              </span>
+            )}
           </div>
 
-          {/* Card 1 yang berada di bawahnya dan bisa dibuka/tutup */}
-          <div
-            className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${
-              isCard1Open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
-            }`}
-          >
-            <div className="overflow-hidden">
-              <div className="bg-white rounded-2xl border border-gray-200/90 shadow-2xs p-4.5 transition-all duration-300 space-y-3.5">
-                {/* Info Baris Atas: Endpoint & Tombol Action */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 rounded-xl bg-gray-50 border border-gray-200/70">
-                  <div className="flex items-center gap-2.5 text-xs text-gray-600 overflow-hidden">
-                    <Activity size={16} className="text-digital-blue-600 shrink-0" />
-                    <span className="font-semibold text-gray-800 shrink-0">Endpoint:</span>
-                    <code className="px-2 py-0.5 bg-white rounded border border-gray-200 font-mono text-[11px] text-gray-700 truncate">
-                      https://api.sevimaplatform.com/siakadcloud/v1/*
-                    </code>
-                  </div>
+          <div className="bg-white rounded-2xl border border-gray-200/90 shadow-2xs flex flex-col overflow-hidden transition-all duration-300">
+            <label
+              className={`flex items-center gap-3 px-4 py-3 border-b border-gray-100 transition-colors ${
+                job.isRunning
+                  ? 'opacity-60 cursor-not-allowed'
+                  : 'cursor-pointer hover:bg-gray-50/80'
+              }`}
+            >
+              <input
+                ref={masterRef}
+                type="checkbox"
+                checked={job.allSelected}
+                onChange={job.toggleAll}
+                disabled={job.isRunning}
+                className="sr-only"
+              />
+              <CheckboxBox checked={job.allSelected} indeterminate={isIndeterminate} />
+              <span className="text-sm font-bold text-gray-800">Semua data</span>
+              <span className="ml-auto text-[11px] font-semibold text-gray-500 tabular-nums shrink-0">
+                {selectedCount}/{MODULE_OPTIONS.length} dipilih
+              </span>
+            </label>
 
-                  <button
-                    type="button"
-                    onClick={handleTestLatency}
-                    disabled={isTestingLatency}
-                    className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all shadow-2xs cursor-pointer ${
-                      isTestingLatency
-                        ? 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed'
-                        : 'bg-white hover:bg-digital-blue-50 text-digital-blue-700 border border-digital-blue-200 active:scale-98'
+            <div className="max-h-56 overflow-y-auto custom-scrollbar flex flex-col gap-0.5 p-1.5">
+              {MODULE_OPTIONS.map((option) => {
+                const Icon = option.icon;
+                const checked = job.selected[option.key];
+                return (
+                  <label
+                    key={option.key}
+                    className={`flex items-center gap-3 rounded-xl px-2.5 py-2 transition-colors ${
+                      job.isRunning
+                        ? 'opacity-60 cursor-not-allowed'
+                        : 'cursor-pointer hover:bg-gray-50/80'
                     }`}
                   >
-                    <RefreshCw
-                      size={13}
-                      className={isTestingLatency ? 'animate-spin text-digital-blue-600' : ''}
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => job.toggleModule(option.key)}
+                      disabled={job.isRunning}
+                      className="sr-only"
                     />
-                    <span>{isTestingLatency ? 'Testing...' : 'Test Latency'}</span>
-                  </button>
-                </div>
-
-                {/* Status Hasil Uji Latensi */}
-                {latencyResult ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-0.5">
-                    {/* Status Koneksi & Latensi Badge */}
-                    <div className="p-3 rounded-xl bg-gray-50/60 border border-gray-200/60 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        {latencyResult.success ? (
-                          <CheckCircle2 size={16} className="text-emerald-600" />
-                        ) : (
-                          <XCircle size={16} className="text-red-500" />
-                        )}
-                        <span className="text-xs font-semibold text-gray-700">Status Response</span>
-                      </div>
-                      {(() => {
-                        const badge = getLatencyBadge(
-                          latencyResult.latencyMs,
-                          latencyResult.success,
-                        );
-                        return (
-                          <span
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-bold border ${badge.bg}`}
-                          >
-                            <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
-                            {badge.text}
-                          </span>
-                        );
-                      })()}
-                    </div>
-
-                    {/* Waktu Terakhir Test */}
-                    <div className="p-3 rounded-xl bg-gray-50/60 border border-gray-200/60 flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-xs text-gray-600">
-                        <Clock size={15} className="text-gray-400" />
-                        <span className="font-semibold text-gray-700">Waktu Uji</span>
-                      </div>
-                      <span className="text-xs font-mono font-bold text-gray-800 bg-white px-2 py-0.5 rounded border border-gray-200">
-                        {latencyResult.timestamp} WIB
-                      </span>
-                    </div>
-
-                    {/* Keterangan Pesan Server */}
-                    <div className="p-3 rounded-xl bg-gray-50/60 border border-gray-200/60 flex items-center gap-2 text-xs text-gray-600 truncate">
-                      <Zap size={15} className="text-digital-blue-600 shrink-0" />
-                      <span className="truncate">{latencyResult.message}</span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-2 text-xs text-gray-400">
-                    Klik tombol <strong>"Test Latency"</strong> untuk menguji respons waktu server
-                    SEVIMA Platform.
-                  </div>
-                )}
-              </div>
+                    <CheckboxBox checked={checked} />
+                    <Icon
+                      size={15}
+                      className={`shrink-0 transition-colors duration-200 ${
+                        checked ? 'text-digital-blue-600' : 'text-gray-400'
+                      }`}
+                    />
+                    <span className="text-sm font-semibold text-gray-800 truncate">
+                      {option.label}
+                    </span>
+                    <span className="ml-auto text-[11px] text-gray-400 truncate hidden sm:block max-w-40 shrink-0">
+                      {option.description}
+                    </span>
+                  </label>
+                );
+              })}
             </div>
           </div>
         </div>
 
-        {/* STEP 2: Data Synchronization (Collapsible dengan tombol luar v dan ^) */}
-        <div className="flex flex-col gap-2">
-          {/* Header luar dengan Judul dan Ikon Toggle v / ^ */}
-          <div className="flex items-center justify-between w-full px-1">
-            <span className="text-xs font-bold text-gray-700 uppercase tracking-wider select-none">
-              Step 2: Data Synchronization
-            </span>
+        <div className="flex flex-col gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5">
             <button
               type="button"
-              onClick={() => setIsCard2Open((prev) => !prev)}
-              aria-label="Toggle Step 2 Card"
-              className="p-1 rounded-lg bg-gray-100 hover:bg-gray-200/80 text-gray-500 hover:text-gray-800 transition-colors cursor-pointer select-none"
+              onClick={job.start}
+              disabled={selectedCount === 0 || job.isRunning}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 ${
+                selectedCount === 0 || job.isRunning
+                  ? 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed'
+                  : 'bg-digital-blue-600 text-white hover:bg-digital-blue-700 shadow-2xs active:scale-98 cursor-pointer'
+              }`}
             >
-              <ChevronDown
-                size={16}
-                className={`transition-transform duration-300 ease-in-out ${
-                  isCard2Open ? 'rotate-180 text-digital-blue-600' : 'rotate-0'
-                }`}
-              />
+              {job.phase === 'starting' ? (
+                <Loader2 size={15} className="animate-spin" />
+              ) : (
+                <RefreshCw size={15} />
+              )}
+              <span>
+                {job.phase === 'starting' ? 'Menyiapkan...' : `Sinkronisasi ${selectedCount} modul`}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={job.toggleAll}
+              disabled={job.isRunning}
+              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-300 border ${
+                job.isRunning
+                  ? 'text-gray-300 border-gray-200 cursor-not-allowed'
+                  : 'text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900 cursor-pointer active:scale-98'
+              }`}
+            >
+              {job.allSelected ? 'Kosongkan Pilihan' : 'Pilih Semua'}
             </button>
           </div>
 
-          {/* Card 2 yang berada di bawahnya dan bisa dibuka/tutup */}
-          <div
-            className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${
-              isCard2Open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
-            }`}
-          >
-            <div className="overflow-hidden">
-              <div className="bg-white rounded-2xl border border-gray-200/90 shadow-2xs p-4 min-h-[100px] transition-all duration-300">
-                {/* Konten Step 2 */}
+          {job.phase === 'completed' && (
+            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-emerald-200/80 bg-emerald-50 px-3.5 py-3 transition-all duration-300">
+              <CheckCircle2 size={17} className="shrink-0 text-emerald-600" />
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs font-bold text-emerald-800">Sinkronisasi selesai</span>
+                <span className="text-[11px] text-emerald-700">
+                  {formatNumber(totalSynced)} baris tersinkron
+                  {totalSkipped > 0 ? ` · ${formatNumber(totalSkipped)} baris dilewati` : ''}
+                </span>
               </div>
+              <button
+                type="button"
+                onClick={restart}
+                disabled={selectedCount === 0}
+                className={`ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors ${
+                  selectedCount === 0
+                    ? 'text-gray-400 bg-gray-100 border border-gray-200 cursor-not-allowed'
+                    : 'text-emerald-700 bg-white border border-emerald-200 hover:bg-emerald-100/60 cursor-pointer active:scale-98'
+                }`}
+              >
+                <RefreshCw size={12} />
+                <span>Ulangi</span>
+              </button>
             </div>
-          </div>
+          )}
+
+          {showError && (
+            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-red-200/80 bg-red-50 px-3.5 py-3 transition-all duration-300">
+              <XCircle size={17} className="shrink-0 text-red-500" />
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs font-bold text-red-700">
+                  {job.phase === 'failed' ? 'Sinkronisasi gagal' : 'Sinkronisasi ditolak'}
+                </span>
+                <span className="text-[11px] text-red-600">{job.lastError}</span>
+              </div>
+              <button
+                type="button"
+                onClick={restart}
+                disabled={selectedCount === 0}
+                className={`ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors ${
+                  selectedCount === 0
+                    ? 'text-gray-400 bg-gray-100 border border-gray-200 cursor-not-allowed'
+                    : 'text-red-700 bg-white border border-red-200 hover:bg-red-100/60 cursor-pointer active:scale-98'
+                }`}
+              >
+                <RefreshCw size={12} />
+                <span>Ulangi</span>
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* STEP 3 / CARD PROGRESS: Hanya muncul ketika Step 2 telah dijalankan */}
-        {isSyncRunning && (
-          <div className="flex flex-col gap-2 flex-1 animate-fade-in">
-            {/* Label Judul di Luar Card */}
-            <div className="px-1 text-xs font-bold text-gray-700 uppercase tracking-wider select-none">
-              Step 3: Sync Progress & Execution Log
-            </div>
+        {job.phase !== 'idle' && (
+          <div className="flex flex-col gap-2">
+            <span className="px-1 text-xs font-bold text-gray-700 uppercase tracking-wider select-none">
+              Progres Sinkronisasi
+            </span>
 
-            {/* Card 3 */}
-            <div className="bg-white rounded-2xl border border-gray-200/90 shadow-2xs p-4 min-h-[140px] flex-1 transition-all duration-300">
-              {/* Konten Progress & Log */}
+            <div className="bg-white rounded-2xl border border-gray-200/90 shadow-2xs p-4 flex flex-col gap-3 transition-all duration-300">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                      job.phase === 'completed'
+                        ? 'bg-emerald-500'
+                        : job.phase === 'failed'
+                          ? 'bg-red-500'
+                          : 'bg-digital-blue-500 animate-pulse'
+                    }`}
+                  />
+                  <span className="text-xs font-semibold text-gray-700 truncate">
+                    {progressLabel}
+                  </span>
+                </div>
+                <span className="text-xs font-mono font-bold text-digital-blue-700 tabular-nums shrink-0">
+                  {job.percent}%
+                </span>
+              </div>
+
+              <div className="h-3 w-full rounded-full bg-gray-100 overflow-hidden border border-gray-200/70">
+                <div
+                  style={{ width: `${job.percent}%` }}
+                  className={`h-full rounded-full bg-gradient-to-r from-digital-blue-600 via-[#5b79aa] to-digital-blue-400 transition-[width] duration-700 ease-out ${
+                    job.isRunning ? 'animate-pulse' : ''
+                  }`}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5 pt-0.5">
+                {job.moduleRows.map((row) => {
+                  const status = ROW_STATUS[row.status] || ROW_STATUS.idle;
+                  return (
+                    <div key={row.key} className="flex items-center gap-2 text-xs">
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${status.dot}`} />
+                      <span className="font-semibold text-gray-700 truncate">{row.label}</span>
+                      <span className={`ml-auto shrink-0 font-semibold ${status.text}`}>
+                        {status.label}
+                      </span>
+                      <span className="w-24 shrink-0 text-right font-mono text-[11px] text-gray-500 tabular-nums">
+                        {row.synced > 0 ? `${formatNumber(row.synced)} baris` : '—'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}
+
+        <p className="px-1 text-[11px] text-gray-400">
+          Hanya satu proses sinkronisasi yang dapat berjalan pada satu waktu. Menutup panel tidak
+          menghentikan proses di server.
+        </p>
       </div>
     </Modal>
   );

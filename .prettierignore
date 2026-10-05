@@ -4,3 +4,8 @@ coverage
 .turbo
 pnpm-lock.yaml
 prisma
+
+# Vendored / generated static assets (minified — must not be reformatted)
+apps/server/public/vendor
+apps/server/public/animations
+*.lottie
