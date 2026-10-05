@@ -1,3 +1,5 @@
+# KOMET Monorepo — Single Root .gitignore
+
 # Dependencies
 node_modules/
 .pnp
@@ -12,60 +14,49 @@ node_modules/
 !.env.example
 !*.env.example
 
-# AI / Agent & Workflow Tooling Metadata
-.agents/
-.codex/
-.kilo/
-ai-context/
+# Build & Output 
+dist/
+dist-ssr/
+build/
+out/
+.next/
 
-# Project Requirements & Internal Documentation
-requirements/
-apps/frontend/requirements/
-apps/backend/requirements/
+# Cache
+.turbo/
+.vite/
+.cache/
+.eslintcache
+.stylelintcache
 
 # Logs
 logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
+yarn-error.log*
 pnpm-debug.log*
-
-# Build & Output
-dist/
-dist-ssr/
-build/
-out/
+lerna-debug.log*
 
 # Testing & Coverage
 coverage/
 *.lcov
 .nyc_output/
 
+# Database & Prisma
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+**/generated/prisma
+
 # Temporary / Scratch & Test Dumps
 scratch/
-apps/backend/scratch/
-apps/frontend/scratch/
 tmp/
 temp/
 test-*.js
 test_*.js
 test.json
-apps/backend/test.json
 *.tmp
-
-# Database & SQLite files
-*.sqlite
-*.sqlite3
-*.db
-*.db-journal
-/generated/prisma
-
-# Cache
-.cache/
-.vite/
-.eslintcache
-.stylelintcache
-.turbo/
 
 # OS Files
 .DS_Store
@@ -80,8 +71,17 @@ ehthumbs.db
 *.swp
 *.swo
 *~
+
+# AI / Agent & Workflow Tooling
+.agents/
+.codex/
+.kilo/
+ai-context/
 .aider*
 aider/
-.aws/
-graphify-out/
 AGENTS.md
+
+# Project-specific ignores
+requirements/
+graphify-out/
+.aws/

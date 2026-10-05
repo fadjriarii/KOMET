@@ -1,5 +1,5 @@
 {
-  "name": "@komet/backend",
+  "name": "@komet/server",
   "version": "1.0.0",
   "private": true,
   "description": "",
