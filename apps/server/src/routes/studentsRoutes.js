@@ -2,17 +2,17 @@
 const express = require('express');
 const router = express.Router();
 const { studentSessionAuth } = require('../middlewares/studentSession');
-const { statsLimiter } = require('../middlewares/rateLimiter');
+const { statsLimiter, summaryLimiter } = require('../middlewares/rateLimiter');
 const { studentQuerySchema, validateQuery } = require('../middlewares/validator');
 const studentsController = require('../controllers/studentsController');
 
-// Semua routes dilindungi oleh API Key & Rate Limiter & Validasi Query
+// Route data mahasiswa: sesi siswa + rate limiter + validasi query. SYNC_API_KEY tidak berlaku di sini.
 router.use(statsLimiter);
 router.use(studentSessionAuth);
 router.use(validateQuery(studentQuerySchema));
 
 // Endpoint utama dashboard (4 card + filter options)
-router.get('/summary', studentsController.getSummary);
+router.get('/summary', summaryLimiter, studentsController.getSummary);
 router.get('/filter-options', studentsController.getFilterOptionsHandler);
 
 // Endpoint detail per card (untuk chart saat card diklik)
@@ -24,5 +24,4 @@ router.get('/decline-trend', studentsController.getDeclineTrendDetail);
 // Endpoint tabel mahasiswa dengan filter + pagination
 router.get('/students', studentsController.getStudents);
 
-// Legacy endpoint (pertahankan sementara agar tidak breaking changes)
 module.exports = router;

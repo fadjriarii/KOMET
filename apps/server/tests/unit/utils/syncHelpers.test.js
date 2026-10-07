@@ -10,29 +10,40 @@ const {
   isAkunLama,
   mapKewarganegaraan,
   cleanText,
+  normalizeOptionalText,
 } = require('../../../src/controllers/sync/helpers');
 
 describe('sync helpers — Data Cleansing & Transformation', () => {
   // ─── getPeriodeFromTanggalTransfer ───
   describe('getPeriodeFromTanggalTransfer', () => {
-    it('tanggal transfer September - Maret -> YYYY1 (Ganjil)', () => {
-      // Sep 2024 -> 20241
+    it('Ganjil September - Februari -> kode tahun akademik awal', () => {
       expect(getPeriodeFromTanggalTransfer('2024-09-02')).toBe('20241');
-      // Des 2024 -> 20241
       expect(getPeriodeFromTanggalTransfer('2024-12-15')).toBe('20241');
-      // Jan 2025 -> 20241 (Masih bagian dari TA 2024 Ganjil)
+      // Jan & Feb 2025 masih Ganjil TA 2024/2025.
       expect(getPeriodeFromTanggalTransfer('2025-01-10')).toBe('20241');
-      // Mar 2025 -> 20241 (Sampai Maret)
-      expect(getPeriodeFromTanggalTransfer('2025-03-01')).toBe('20241');
+      expect(getPeriodeFromTanggalTransfer('2025-02-10')).toBe('20241');
     });
 
-    it('tanggal transfer Maret ke September -> YYYY2 (Genap)', () => {
-      // Apr 2025 -> 20242
+    it('Genap Maret - Agustus -> kode tahun akademik awal', () => {
+      // Maret adalah bulan pertama Genap, bukan penutup Ganjil.
+      expect(getPeriodeFromTanggalTransfer('2025-03-01')).toBe('20242');
       expect(getPeriodeFromTanggalTransfer('2025-04-10')).toBe('20242');
-      // Mei 2025 -> 20242
       expect(getPeriodeFromTanggalTransfer('2025-05-20')).toBe('20242');
-      // Agu 2025 -> 20242
       expect(getPeriodeFromTanggalTransfer('2025-08-31')).toBe('20242');
+    });
+
+    it('memakai aturan yang sama dengan getCurrentAcademicPeriode', () => {
+      // Dua implementasi paralel dulu berbeda di bulan Maret; kunci keduanya.
+      for (const tanggal of [
+        '2024-09-02',
+        '2025-01-10',
+        '2025-02-10',
+        '2025-03-01',
+        '2025-08-31',
+      ]) {
+        const date = new Date(tanggal);
+        expect(getPeriodeFromTanggalTransfer(tanggal)).toBe(getCurrentAcademicPeriode(date));
+      }
     });
 
     it('input kosong/invalid -> string kosong', () => {
@@ -222,6 +233,24 @@ describe('sync helpers — Data Cleansing & Transformation', () => {
     it('input kosong → string kosong', () => {
       expect(cleanText('')).toBe('');
       expect(cleanText(null)).toBe('');
+    });
+  });
+
+  // Jaminan jalur tulis: kolom teks bebas boleh kosong dalam SATU bentuk (`''`),
+  // sehingga read-path tidak perlu mengenal placeholder sumber lagi.
+  describe('normalizeOptionalText', () => {
+    it.each([
+      ['dash as', '-'],
+      ['dash en', '–'],
+      ['spasi saja', '  '],
+      ['null', null],
+      ['undefined', undefined],
+    ])('placeholder kosong (%s) → string kosong', (_label, value) => {
+      expect(normalizeOptionalText(value)).toBe('');
+    });
+
+    it('nilai asli dipangkas dan entity HTML-nya dibersihkan', () => {
+      expect(normalizeOptionalText('  PT XYZ &amp; Co ')).toBe('PT XYZ & Co');
     });
   });
 });

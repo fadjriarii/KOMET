@@ -242,3 +242,57 @@ No publishing to npm, no version bumps — pnpm resolves it directly from the lo
 5. **Redis** (optional) provides rate limiting for API endpoints and caching for expensive aggregation queries. The server operates without Redis but benefits from it under load.
 
 6. **React client** fetches data via TanStack Query, which handles request deduplication, background refetching, and cache invalidation. The UI renders charts, tables, and KPI cards from the API responses.
+
+### Batas akurasi tren historis (keputusan yang dipertahankan)
+
+Tren per tahun akademik (intake, mahasiswa internasional, snapshot status) dihitung
+dari baris **hidup** `students`, dengan predikat snapshot (`periodeMasuk`/
+`periodeTerakhir`) — bukan dari tabel riwayat yang dimaterialisasi. Batas yang
+diterima:
+
+- Satu mahasiswa hanya membawa satu `statusKeaktifan` dan satu `semester` saat ini, jadi nilai historis untuk tahun-tahun sebelumnya direkonstruksi dari tanggal keluar; mahasiswa yang datanya dibetulkan setelah sync menampilkan snapshot yang mengikuti kondisi terkini.
+- Biaya baca tumbuh bersama jumlah mahasiswa, dan setiap request mengulang rekonstruksi yang sama.
+
+Materialisasi snapshot ditolak untuk saat ini karena tidak ada sumber data SEVIMA
+untuk status per periode: tabel riwayat hanya boleh diisi oleh proses yang sama yang
+mengisi `students`, dan itu menambah jalur sinkronisasi kedua yang bisa berbeda dari
+yang pertama. Upgrade path yang disepakati: tabel snapshot per tahun akademik yang
+diisi pada akhir sync (`apps/server/src/controllers/sync/`), dibaca oleh service tren,
+dengan backfill eksplisit satu kali.
+
+## 6. Access Control (Zero-Trust)
+
+### 6.1 Credential scopes
+
+Dua credential dengan kemampuan yang sengaja dipisah:
+
+| Credential                                                     | Dibuat oleh                 | Bisa apa                                                                                      | Tidak bisa apa                                                                                        |
+| -------------------------------------------------------------- | --------------------------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `komet_student_session` cookie (HMAC-SHA256, `SESSION_SECRET`) | `POST /api/session/student` | Semua route data (`/api/students`, `/api/graduates`, `/api/mbkm`) **dan** memicu/monitor sync | —                                                                                                     |
+| `x-api-key` / `Bearer` (`SYNC_API_KEY`)                        | konfigurasi operator        | Hanya `/api/sync/*` (memicu ETL, baca status, cek koneksi SEVIMA)                             | Membaca dataset mahasiswa — dulu ini mungkin lewat fallback di `studentSessionAuth`, sekarang dihapus |
+
+Dijegakan oleh dua middleware berbeda: `middlewares/studentSession.js` (sesi saja) dan `middlewares/syncAuth.js` (sesi **atau** kunci sync). Test regresi: `tests/unit/middlewares/studentSession.test.js` dan `tests/unit/middlewares/zeroTrust.test.js`.
+
+### 6.2 Route protection matrix
+
+| Route                                          | Limiter                                                     | Guard                                          | Catatan                                                            |
+| ---------------------------------------------- | ----------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------ |
+| `GET /` (landing)                              | —                                                           | —                                              | static, tanpa data                                                 |
+| `POST /api/session/student`                    | `sessionIssueLimiter` 10/menit                              | origin allowlist di handler                    | 204 + `Cache-Control: no-store`                                    |
+| `DELETE /api/session/student`                  | `sessionIssueLimiter` 10/menit                              | —                                              | revoke diri sendiri; idempoten                                     |
+| `GET /api/health`                              | —                                                           | `apiKeyAuth`                                   | uptime + latensi DB = fingerprint infrastruktur, khusus monitoring |
+| `GET /api/sync/status`, `/check-connection`    | `statusLimiter` 120/menit                                   | `syncAuth`                                     | polling UI 2 detik, tidak memakai jatah dashboard                  |
+| `POST /api/sync/{students,graduates,mbkm,all}` | `statsLimiter` + `syncLimiter` 5/menit + `checkSyncRunning` | `syncAuth`                                     |                                                                    |
+| `GET /api/{students,graduates,mbkm}/summary`   | `statsLimiter` 60/menit + `summaryLimiter` 20/menit         | `studentSessionAuth`                           | endpoint termahal (puluhan query)                                  |
+| route data lain di ketiga tab                  | `statsLimiter` 60/menit                                     | `studentSessionAuth` + `validateQuery(schema)` |                                                                    |
+
+### 6.3 Keputusan yang disengaja
+
+- **Penerbitan sesi tetap tanpa login per-user.** Aplikasi ini tidak punya identity provider; satu-satunya gerbang adalah sesi yang ditandatangani server. Yang ditegakkan: limiter keras per IP/sesi, origin allowlist, `HttpOnly`/`SameSite`/`Path=/api`/`Secure`, dan pemisahan credential. Konsekuensi yang diterima: klien non-browser (curl) yang mencapai server dari IP berkuota bisa meminta sesi — sesi adalah anti-scraping gate, bukan otorisasi per-user. Bila nanti ada SSO kampus, ganti `issueStudentSession` menjadi pertukaran ticket→sesi; tidak ada bagian lain yang perlu berubah.
+- **Pesan error = allowlist.** `utils/errorCatalog.js` adalah satu-satunya sumber pesan yang boleh keluar; `sendError`/`sendRejected` mengganti apa pun di luar daftar dengan pesan generik dan mencatat aslinya ke log server. Tidak ada blocklist regex di client — kebijakan redaksi hanya satu tempat.
+- **Field diagnostik `error`** hanya ada bila `EXPOSE_ERROR_DETAILS=true`, dan env validator menolak kombinasi itu di production.
+- **Detail kegagalan sync** (`/api/sync/status`) disimpan setelah melewati allowlist; pesan axios/DB (yang bisa memuat URL SEVIMA) hanya masuk log.
+- **Log tanpa PII.** Morgan mencatat `req.path` (bukan query string), SlowQuery tidak mencatat `event.params` (nilai bound berisi NIM), dan Prisma `warn`/`error` diarahkan lewat winston, bukan `stdout`.
+- **Rate limit per identitas sesi.** `sessionIdentity` menandai request dengan hash SHA-256 dari token yang lolos verifikasi signature; token palsu tidak pernah mendapat bucket sendiri, dan fallback memakai `ipKeyGenerator` (subnet IPv6) agar klien IPv6 tidak melewati kuota.
+- **Redis adalah degradasi eksplisit.** Tanpa `REDIS_URL` di production server menolak start, kecuali operator mengatur `ALLOW_MEMORY_STORES=true` (sesi & kuota jadi per-proses — aman hanya untuk single-instance).
+- **Timeout 30 s di server, 25 s di client** (`apiClient.js`), supaya satu pihak memutuskan lebih dulu. `req.signal` (AbortController) tersedia untuk handler; query Prisma yang sudah berjalan tidak bisa dibatalkan dari sisi aplikasi.

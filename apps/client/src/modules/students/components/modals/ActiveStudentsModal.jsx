@@ -1,18 +1,16 @@
-import { useCallback } from 'react';
 import Modal from '../../../../components/common/modals/Modal';
 import ModalSummaryBanner from '../../../../components/common/modals/ModalSummaryBanner';
 import ModalTabNav from '../../../../components/common/modals/ModalTabNav';
-import StudentDistributionChart from './StudentDistributionChart';
+import DistributionChart from '../../../../components/common/charts/DistributionChart';
 import { useTabTransition } from '../../../../hooks/useTabTransition';
 import {
-  getCurrentAcademicYear,
   getStudentActiveDescription,
   getActiveTabContent,
   getStudentStatusPresentation,
-  formatNumber,
 } from '../../../../utils/uiHelpers';
-import { studentsService } from '../../services/studentsService';
-import { useStudentDetailResource } from '../../hooks/useStudentDetailResource';
+import { formatNumber } from '@komet/shared/formatters';
+import { getCurrentAcademicYear } from '@komet/shared/academicYear';
+import { useDetail } from '../../studentQueries';
 import { Building2, BookOpen, Layers } from 'lucide-react';
 import { STUDENT_DISTRIBUTION_TABS } from './studentTrendConfig';
 
@@ -21,37 +19,32 @@ export default function ActiveStudentsModal({ isOpen, onClose, originRect, data,
     STUDENT_DISTRIBUTION_TABS,
     'fakultas',
   );
-  const fetchActiveDetail = useCallback(
-    (signal) => studentsService.getActiveStudentsDetail(filters, { signal }),
-    [filters],
-  );
   const {
     data: activeDetailData,
     isLoading: isLoadingDetail,
     error: detailError,
-  } = useStudentDetailResource({
+  } = useDetail({
     isOpen,
     resourceKey: 'active',
     filters,
-    fetcher: fetchActiveDetail,
+    method: 'getActiveStudentsDetail',
     errorMessage: 'Gagal memuat rincian mahasiswa aktif',
-    summaryData: data,
-    summaryKey: 'activeStudentsMultisector',
   });
 
   const kpis = data?.kpis || {};
   const activeCount = formatNumber(kpis.activeStudentsCount);
-  const statusPresentation = getStudentStatusPresentation(filters?.status || []);
+  const statusPresentation = getStudentStatusPresentation(kpis.activeStudentStatus);
   const currentAcademicYear = filters?.tahunAjaran || getCurrentAcademicYear();
-  const facultyList = activeDetailData?.data?.byFaculty || activeDetailData?.byFaculty || [];
-  const prodiList = activeDetailData?.data?.byProdi || activeDetailData?.byProdi || [];
-  const jenjangList = activeDetailData?.data?.byJenjang || activeDetailData?.byJenjang || [];
+  const facultyList = activeDetailData?.byFaculty || [];
+  const prodiList = activeDetailData?.byProdi || [];
+  const jenjangList = activeDetailData?.byJenjang || [];
 
   const activeContent = getActiveTabContent(activeTab, {
     fakultas: (
       <div className="pt-1">
-        <StudentDistributionChart
+        <DistributionChart
           items={facultyList}
+          countLabel="Jumlah Mahasiswa"
           isLoading={isLoadingDetail}
           error={detailError}
           emptyIcon={Building2}
@@ -62,8 +55,9 @@ export default function ActiveStudentsModal({ isOpen, onClose, originRect, data,
     ),
     prodi: (
       <div className="pt-1">
-        <StudentDistributionChart
+        <DistributionChart
           items={prodiList}
+          countLabel="Jumlah Mahasiswa"
           isLoading={isLoadingDetail}
           error={detailError}
           emptyIcon={BookOpen}
@@ -74,8 +68,9 @@ export default function ActiveStudentsModal({ isOpen, onClose, originRect, data,
     ),
     jenjang: (
       <div className="pt-1">
-        <StudentDistributionChart
+        <DistributionChart
           items={jenjangList}
+          countLabel="Jumlah Mahasiswa"
           isLoading={isLoadingDetail}
           error={detailError}
           emptyIcon={Layers}

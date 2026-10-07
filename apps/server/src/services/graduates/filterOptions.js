@@ -1,87 +1,24 @@
-/**
- * filterOptions.js
- *
- * Mengambil opsi yang tersedia untuk dropdown dan checkbox filter tab kelulusan dari DB.
- */
+const { createFilterOptionsSource } = require('../filterOptionsSource');
+const { JENJANGS } = require('@komet/shared/constants');
 
-const prisma = require('../../config/prisma');
+const hasGraduate = { graduate: { isNot: null } };
+// Scope opsi harus sama dengan scope data: daftar nilai jenjang hanya berisi
+// JENJANGS, supaya pilihan di UI tidak pernah menunjuk populasi yang kosong.
+const inScope = { jenjang: { in: JENJANGS } };
 
-let graduatesFilterCache = null;
-let graduatesFilterCacheTime = 0;
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 Menit
+const graduateQueries = {
+  programStudi: { model: 'student', field: 'programStudi', where: hasGraduate },
+  tahunLulus: { model: 'graduate', field: 'tahunLulus', desc: true },
+  periodeWisuda: { model: 'graduate', field: 'periodeWisuda', desc: true },
+  statusKelulusan: { model: 'graduate', field: 'statusKelulusan' },
+  fakultas: { model: 'student', field: 'fakultas', where: hasGraduate },
+  periodeMasuk: { model: 'student', field: 'periodeMasuk', where: hasGraduate, desc: true },
+  jenjang: { model: 'graduate', field: 'jenjang', where: inScope },
+};
 
-async function getGraduateFilterOptions(forceRefresh = false) {
-  const now = Date.now();
-  if (!forceRefresh && graduatesFilterCache && now - graduatesFilterCacheTime < CACHE_TTL_MS) {
-    return graduatesFilterCache;
-  }
+const graduateFilterOptions = createFilterOptionsSource({ queries: graduateQueries });
 
-  const [
-    prodiRes,
-    tahunRes,
-    periodeWisudaRes,
-    statusRes,
-    fakultasRes,
-    periodeMasukRes,
-    jenjangRes,
-  ] = await Promise.all([
-    prisma.student.findMany({
-      where: { graduate: { isNot: null } },
-      select: { programStudi: true },
-      distinct: ['programStudi'],
-    }),
-    prisma.graduate.findMany({ select: { tahunLulus: true }, distinct: ['tahunLulus'] }),
-    prisma.graduate.findMany({ select: { periodeWisuda: true }, distinct: ['periodeWisuda'] }),
-    prisma.graduate.findMany({ select: { statusKelulusan: true }, distinct: ['statusKelulusan'] }),
-    prisma.student.findMany({
-      where: { graduate: { isNot: null } },
-      select: { fakultas: true },
-      distinct: ['fakultas'],
-    }),
-    prisma.student.findMany({
-      where: { graduate: { isNot: null } },
-      select: { periodeMasuk: true },
-      distinct: ['periodeMasuk'],
-    }),
-    prisma.graduate.findMany({ select: { jenjang: true }, distinct: ['jenjang'] }),
-  ]);
-
-  graduatesFilterCache = {
-    programStudi: prodiRes
-      .map((r) => r.programStudi)
-      .filter(Boolean)
-      .sort(),
-    tahunLulus: tahunRes
-      .map((r) => r.tahunLulus)
-      .filter(Boolean)
-      .sort()
-      .reverse(),
-    periodeWisuda: periodeWisudaRes
-      .map((r) => r.periodeWisuda)
-      .filter(Boolean)
-      .sort()
-      .reverse(),
-    statusKelulusan: statusRes
-      .map((r) => r.statusKelulusan)
-      .filter((v) => v && v !== 'Aktif')
-      .sort(),
-    fakultas: fakultasRes
-      .map((r) => r.fakultas)
-      .filter(Boolean)
-      .sort(),
-    periodeMasuk: periodeMasukRes
-      .map((r) => r.periodeMasuk)
-      .filter(Boolean)
-      .sort()
-      .reverse(),
-    jenjang: jenjangRes
-      .map((r) => r.jenjang)
-      .filter((v) => v === 'S1' || v === 'S2')
-      .sort(),
-  };
-  graduatesFilterCacheTime = now;
-
-  return graduatesFilterCache;
-}
-
-module.exports = { getGraduateFilterOptions };
+module.exports = {
+  getGraduateFilterOptions: graduateFilterOptions.getFilterOptions,
+  clearGraduateFilterCache: graduateFilterOptions.clearFilterCache,
+};

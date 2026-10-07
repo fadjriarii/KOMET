@@ -18,22 +18,45 @@ const defaultState = {
 };
 
 let currentState = { ...defaultState };
+let loadedMtimeMs = 0;
 
+function readStateFile() {
+  const stats = fs.statSync(stateFilePath, { throwIfNoEntry: false });
+  if (!stats) return null;
+  const raw = fs.readFileSync(stateFilePath, 'utf8');
+  loadedMtimeMs = stats.mtimeMs;
+  return JSON.parse(raw);
+}
+
+// State ditulis ke file agar worker PM2 lain bisa melihat progres yang sama.
+// Saat startup, status 'running' yang tersimpan berarti proses sebelumnya mati
+// sebelum sempat menyelesaikan job -> reset supaya job tracker tidak terkunci.
 function loadState() {
   try {
-    if (fs.existsSync(stateFilePath)) {
-      const raw = fs.readFileSync(stateFilePath, 'utf8');
-      currentState = JSON.parse(raw);
-      // Self-healing: Jika server baru dinyalakan dan status tersimpan 'running',
-      // artinya server pernah terhenti/di-restart -> reset agar job tracker tidak terkunci
-      if (currentState.status === 'running') {
-        currentState.status = 'failed';
-        currentState.lastError = 'Proses terhenti karena server terputus/di-restart';
-        saveState();
-      }
+    const stored = readStateFile();
+    if (!stored) return defaultState;
+    currentState = stored;
+    if (currentState.status === 'running') {
+      currentState.status = 'failed';
+      currentState.lastError = 'Proses terhenti karena server terputus/di-restart';
+      saveState(true);
     }
-  } catch (e) {
+  } catch {
     currentState = { ...defaultState };
+  }
+  return currentState;
+}
+
+// Untuk worker yang tidak menerima POST /sync, state di memori tidak pernah berubah
+// sendiri. Baca ulang file hanya ketika isinya benar-benar ditulis ulang.
+function refreshState() {
+  try {
+    const stats = fs.statSync(stateFilePath, { throwIfNoEntry: false });
+    if (!stats || stats.mtimeMs === loadedMtimeMs) return currentState;
+    const stored = readStateFile();
+    if (stored) currentState = stored;
+  } catch {
+    // Pertahankan state terakhir yang diketahui bila file sedang dibaca saat ditulis.
   }
   return currentState;
 }
@@ -64,9 +87,7 @@ function saveState(immediate = false) {
 loadState();
 
 const syncJobTracker = {
-  getState: () => {
-    return currentState;
-  },
+  getState: () => refreshState(),
   startJob: (moduleName = 'all') => {
     currentState.status = 'running';
     currentState.currentModule = moduleName;
@@ -113,9 +134,7 @@ const syncJobTracker = {
     currentState.lastError = error;
     saveState(true);
   },
-  isRunning: () => {
-    return currentState.status === 'running';
-  },
+  isRunning: () => refreshState().status === 'running',
 };
 
 module.exports = syncJobTracker;

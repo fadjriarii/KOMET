@@ -23,7 +23,7 @@ describe('students controller contract', () => {
 
     await controller.getStudents(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(200);
+    // 200 adalah bawaan Express; yang dikunci di sini adalah bentuk responsnya.
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         success: true,

@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import {
   Briefcase,
   Building2,
@@ -9,7 +8,7 @@ import {
 } from 'lucide-react';
 import DataTable from '../../../components/common/tables/DataTable';
 import Badge from '../../../components/common/ui/Badge';
-import { formatNumber, getRowNumber } from '../../../utils/uiHelpers';
+import { formatNumber } from '@komet/shared/formatters';
 
 function getStatusBadgeVariant(status) {
   if (!status) return 'default';
@@ -47,176 +46,151 @@ function getActivityBadgeVariant(jenis) {
   return 'default';
 }
 
+const COLUMNS = [
+  {
+    key: 'nim',
+    label: 'NIM',
+    headerClassName: 'w-[8%]',
+    cellClassName: 'break-words',
+    render: (row) => (
+      <span className="font-mono text-xs font-bold text-gray-800 break-words">
+        {row.nim || '-'}
+      </span>
+    ),
+  },
+  {
+    key: 'nama',
+    label: 'Nama Mahasiswa',
+    headerClassName: 'w-[14%]',
+    cellClassName: 'break-words',
+    render: (row) => (
+      <span className="block font-bold text-gray-900 whitespace-normal break-words leading-snug">
+        {row.nama || '-'}
+      </span>
+    ),
+  },
+  {
+    key: 'programStudi',
+    label: 'Program Studi',
+    headerClassName: 'w-[14%] whitespace-normal leading-tight',
+    cellClassName: 'break-words',
+    render: (row) => (
+      <span className="block font-semibold text-gray-800 whitespace-normal break-words leading-snug">
+        {row.programStudi || '-'}
+      </span>
+    ),
+  },
+  {
+    key: 'fakultas',
+    label: 'Fakultas',
+    headerClassName: 'w-[11%]',
+    cellClassName: 'text-gray-600 whitespace-normal break-words leading-snug',
+    render: (row) => row.fakultas || '-',
+  },
+  {
+    key: 'jenjang',
+    label: 'Jenjang',
+    headerClassName: 'w-[6%] text-center',
+    cellClassName: 'text-center',
+    render: (row) => (
+      <span className="inline-flex items-center justify-center px-2 py-1 rounded-md bg-blue-50 text-blue-700 text-xs font-bold border border-blue-100/80">
+        {row.jenjang || '-'}
+      </span>
+    ),
+  },
+  {
+    key: 'angkatan',
+    label: 'Angkatan',
+    headerClassName: 'w-[7%] text-center',
+    cellClassName: 'text-center whitespace-normal break-words',
+    render: (row) => (
+      <span className="inline-flex items-center gap-1 text-xs font-semibold text-gray-700 whitespace-normal">
+        <GraduationCap size={13} className="text-gray-400" />
+        {row.angkatan || '-'}
+      </span>
+    ),
+  },
+  {
+    key: 'periode',
+    label: 'Periode',
+    headerClassName: 'w-[6%] text-center',
+    cellClassName: 'text-center',
+    render: (row) => (
+      <span className="inline-flex items-center justify-center min-w-8 h-7 px-2 rounded-lg bg-gray-100 text-gray-700 text-xs font-bold">
+        {row.periode || '-'}
+      </span>
+    ),
+  },
+  {
+    key: 'jenisAktivitas',
+    label: 'BKP MBKM',
+    headerClassName: 'w-[11%] text-center whitespace-normal break-words leading-tight',
+    cellClassName: 'text-center',
+    render: (row) => {
+      const jenis = row.jenisAktivitas || '-';
+      return (
+        <Badge
+          size="sm"
+          variant={getActivityBadgeVariant(jenis)}
+          className="justify-center text-xs"
+        >
+          <span className="whitespace-normal break-words">{jenis}</span>
+        </Badge>
+      );
+    },
+  },
+  {
+    key: 'mitra',
+    label: 'Mitra Instansi',
+    headerClassName: 'w-[11%]',
+    cellClassName: 'break-words',
+    render: (row) => {
+      const mitra = row.mitra || '-';
+      return (
+        <div className="flex items-center gap-1.5 text-xs text-gray-800 font-medium whitespace-normal break-words">
+          <Building2 size={13} className="text-gray-400 shrink-0" />
+          <span>{mitra}</span>
+        </div>
+      );
+    },
+  },
+  {
+    key: 'statusAktivitas',
+    label: 'Status',
+    headerClassName: 'w-[8%] text-center',
+    cellClassName: 'text-center',
+    render: (row) => {
+      const status = row.statusAktivitas || '-';
+      const IconComponent = getStatusIcon(status);
+      return (
+        <Badge size="sm" variant={getStatusBadgeVariant(status)} className="justify-center text-xs">
+          {IconComponent && <IconComponent size={12} className="mr-1 opacity-80" />}
+          <span>{status}</span>
+        </Badge>
+      );
+    },
+  },
+];
+
 /**
  * MbkmDataTable - Presenter tabel daftar partisipan MBKM
  * Data berasal dari endpoint GET /api/mbkm/list (server-side pagination).
  */
-export default function MbkmDataTable({
-  rows = [],
-  page = 1,
-  limit = 10,
-  pagination,
-  onPageChange,
-  isLoading = false,
-}) {
-  const columns = useMemo(
-    () => [
-      {
-        key: 'no',
-        label: 'No',
-        headerClassName: 'w-[4%] text-center',
-        cellClassName: 'text-center text-gray-400 font-medium',
-        render: (_row, idx) => getRowNumber(idx, page, limit),
-      },
-      {
-        key: 'nim',
-        label: 'NIM',
-        headerClassName: 'w-[8%]',
-        cellClassName: 'break-words',
-        render: (row) => (
-          <span className="font-mono text-xs font-bold text-gray-800 break-words">
-            {row.nim || '-'}
-          </span>
-        ),
-      },
-      {
-        key: 'nama',
-        label: 'Nama Mahasiswa',
-        headerClassName: 'w-[14%]',
-        cellClassName: 'break-words',
-        render: (row) => (
-          <span className="block font-bold text-gray-900 whitespace-normal break-words leading-snug">
-            {row.nama || '-'}
-          </span>
-        ),
-      },
-      {
-        key: 'programStudi',
-        label: 'Program Studi',
-        headerClassName: 'w-[14%] whitespace-normal leading-tight',
-        cellClassName: 'break-words',
-        render: (row) => (
-          <span className="block font-semibold text-gray-800 whitespace-normal break-words leading-snug">
-            {row.programStudi || row.program_studi || '-'}
-          </span>
-        ),
-      },
-      {
-        key: 'fakultas',
-        label: 'Fakultas',
-        headerClassName: 'w-[11%]',
-        cellClassName: 'text-gray-600 whitespace-normal break-words leading-snug',
-        render: (row) => row.fakultas || '-',
-      },
-      {
-        key: 'jenjang',
-        label: 'Jenjang',
-        headerClassName: 'w-[6%] text-center',
-        cellClassName: 'text-center',
-        render: (row) => (
-          <span className="inline-flex items-center justify-center px-2 py-1 rounded-md bg-blue-50 text-blue-700 text-xs font-bold border border-blue-100/80">
-            {row.jenjang || '-'}
-          </span>
-        ),
-      },
-      {
-        key: 'angkatan',
-        label: 'Angkatan',
-        headerClassName: 'w-[7%] text-center',
-        cellClassName: 'text-center whitespace-normal break-words',
-        render: (row) => (
-          <span className="inline-flex items-center gap-1 text-xs font-semibold text-gray-700 whitespace-normal">
-            <GraduationCap size={13} className="text-gray-400" />
-            {row.angkatan || '-'}
-          </span>
-        ),
-      },
-      {
-        key: 'periode',
-        label: 'Periode',
-        headerClassName: 'w-[6%] text-center',
-        cellClassName: 'text-center',
-        render: (row) => (
-          <span className="inline-flex items-center justify-center min-w-8 h-7 px-2 rounded-lg bg-gray-100 text-gray-700 text-xs font-bold">
-            {row.periode || '-'}
-          </span>
-        ),
-      },
-      {
-        key: 'jenisAktivitas',
-        label: 'BKP MBKM',
-        headerClassName: 'w-[11%] text-center whitespace-normal break-words leading-tight',
-        cellClassName: 'text-center',
-        render: (row) => {
-          const jenis = row.jenisAktivitas || row.jenis_kegiatan || row.bentuk_kegiatan || '-';
-          return (
-            <Badge
-              size="sm"
-              variant={getActivityBadgeVariant(jenis)}
-              className="justify-center text-xs"
-            >
-              <span className="whitespace-normal break-words">{jenis}</span>
-            </Badge>
-          );
-        },
-      },
-      {
-        key: 'mitra',
-        label: 'Mitra Instansi',
-        headerClassName: 'w-[11%]',
-        cellClassName: 'break-words',
-        render: (row) => {
-          const mitra = row.mitra || row.instansi || '-';
-          return (
-            <div className="flex items-center gap-1.5 text-xs text-gray-800 font-medium whitespace-normal break-words">
-              <Building2 size={13} className="text-gray-400 shrink-0" />
-              <span>{mitra}</span>
-            </div>
-          );
-        },
-      },
-      {
-        key: 'statusAktivitas',
-        label: 'Status',
-        headerClassName: 'w-[8%] text-center',
-        cellClassName: 'text-center',
-        render: (row) => {
-          const status = row.statusAktivitas || row.status_aktivitas || '-';
-          const IconComponent = getStatusIcon(status);
-          return (
-            <Badge
-              size="sm"
-              variant={getStatusBadgeVariant(status)}
-              className="justify-center text-xs"
-            >
-              {IconComponent && <IconComponent size={12} className="mr-1 opacity-80" />}
-              <span>{status}</span>
-            </Badge>
-          );
-        },
-      },
-    ],
-    [page, limit],
-  );
-
+export default function MbkmDataTable({ rows = [], pagination, onPageChange, isLoading = false }) {
   return (
     <DataTable
       title="Daftar Partisipan MBKM"
       description="Daftar mahasiswa peserta program Merdeka Belajar Kampus Merdeka, mitra instansi, dan status verifikasi."
       headerMeta={`${formatNumber(pagination?.total || 0)} partisipan`}
-      columns={columns}
+      columns={COLUMNS}
+      rowNumber
       data={rows}
       isLoading={isLoading}
       emptyTitle="Partisipan Tidak Ditemukan"
       emptyMessage="Tidak ada data MBKM yang cocok dengan filter yang dipilih."
       emptyIcon={Briefcase}
-      pagination={{
-        currentPage: page,
-        totalPages: pagination?.totalPages || 1,
-        totalItems: pagination?.total,
-        pageSize: limit,
-        onPageChange,
-      }}
+      pagination={pagination}
+      onPageChange={onPageChange}
       tableClassName="table-fixed min-w-[880px]"
       tableViewportClassName="overflow-x-hidden overflow-y-hidden"
       density="compact"

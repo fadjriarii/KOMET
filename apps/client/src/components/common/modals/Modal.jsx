@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
@@ -21,6 +21,8 @@ export default function Modal({
 }) {
   const [isRendered, setIsRendered] = useState(false);
   const [isAnimatingIn, setIsAnimatingIn] = useState(false);
+  const panelRef = useRef(null);
+  const titleId = useId();
 
   const originDelta = useMemo(() => {
     if (!originRect || typeof window === 'undefined') return null;
@@ -43,8 +45,32 @@ export default function Modal({
 
   useEffect(() => {
     function handleKeyDown(event) {
-      if (event.key === 'Escape' && isOpen) {
+      if (event.key === 'Escape') {
         onClose?.();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      // Daftar focusable sederhana: yang dicari hanya target Tab di dalam panel,
+      // dan panel ini tidak punya elemen yang tersembunyi di balik tab terlipat.
+      const focusable = panelRef.current?.querySelectorAll(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusable?.length) {
+        event.preventDefault();
+        panelRef.current?.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (
+        event.shiftKey &&
+        (document.activeElement === first || document.activeElement === panelRef.current)
+      ) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
       }
     }
 
@@ -90,6 +116,23 @@ export default function Modal({
     };
   }, []);
 
+  // Dialog yang tidak pernah menerima fokus tidak bisa dipakai keyboard: fokus
+  // dipindah ke panel saat ia muncul dan dikembalikan ke pemicunya saat menutup.
+  const openerRef = useRef(null);
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    openerRef.current = document.activeElement;
+    return () => {
+      const opener = openerRef.current;
+      if (opener instanceof HTMLElement && opener !== document.activeElement) opener.focus();
+      openerRef.current = null;
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isRendered) panelRef.current?.focus();
+  }, [isRendered]);
+
   if (!isRendered) return null;
 
   // Style transform dinamis untuk ekspansi/kolaps dari posisi card (macOS Quick Look)
@@ -129,14 +172,23 @@ export default function Modal({
       >
         {/* Sheet Modal Box */}
         <div
+          ref={panelRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={title ? titleId : undefined}
+          aria-label={title ? undefined : 'Rincian data'}
+          tabIndex={-1}
           onClick={(e) => e.stopPropagation()}
-          className={`w-full ${height} pointer-events-auto bg-white/95 backdrop-blur-xl rounded-2xl md:rounded-3xl border border-white/60 ring-1 ring-black/[0.08] shadow-[0_24px_50px_-12px_rgba(0,0,0,0.3),0_0_0_1px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col select-auto`}
+          className={`w-full ${height} pointer-events-auto bg-white/95 backdrop-blur-xl rounded-2xl md:rounded-3xl border border-white/60 ring-1 ring-black/[0.08] shadow-[0_24px_50px_-12px_rgba(0,0,0,0.3),0_0_0_1px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col select-auto outline-none`}
         >
           {/* Modal Window Header Bar */}
           <div className="px-6 py-4 border-b border-gray-100/90 flex items-center justify-between select-none bg-gradient-to-b from-gray-50/90 to-white shrink-0">
             <div>
               {title && (
-                <h3 className="text-sm md:text-base font-bold text-gray-900 leading-tight">
+                <h3
+                  id={titleId}
+                  className="text-sm md:text-base font-bold text-gray-900 leading-tight"
+                >
                   {title}
                 </h3>
               )}
@@ -151,7 +203,7 @@ export default function Modal({
               <button
                 type="button"
                 onClick={onClose}
-                aria-label="Close popup"
+                aria-label="Tutup popup"
                 className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100/80 active:bg-gray-200/80 rounded-xl transition-all cursor-pointer"
               >
                 <X size={16} />

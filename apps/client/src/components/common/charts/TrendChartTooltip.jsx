@@ -1,10 +1,14 @@
-import { formatNumber } from '../../../utils/uiHelpers';
+import { formatNumber } from '@komet/shared/formatters';
 
-/** Shared custom tooltip; modules configure labels, colors, and display units. */
+/**
+ * Shared custom tooltip; modules configure labels, colors, and display units.
+ * `titleKey` wajib: judul dibaca dari satu field yang sama dengan sumbu X,
+ * bukan dari rangkaian tebakan nama field.
+ */
 export default function TrendChartTooltip({
   active,
   payload,
-  titleKey = 'tahun',
+  titleKey,
   rows = [],
   footer = null,
   titleAccessory,
@@ -21,9 +25,7 @@ export default function TrendChartTooltip({
   return (
     <div className="bg-white/98 backdrop-blur-md border border-digital-blue-100 rounded-xl shadow-lg px-4 py-3 text-xs min-w-[180px] z-50">
       <div className="flex items-center justify-between mb-2 gap-3">
-        <p className="font-bold text-gray-800">
-          {item[titleKey] || item.year || item.academicYear || item.cohortLabel || item.name}
-        </p>
+        <p className="font-bold text-gray-800">{item[titleKey]}</p>
         {titleAccessory?.(item)}
       </div>
       {rows.map(({ key, label, colorClass, format, indicatorClassName = 'w-3 h-3 rounded-sm' }) => (

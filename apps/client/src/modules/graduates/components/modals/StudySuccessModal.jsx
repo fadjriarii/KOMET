@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { Calendar, BookOpenCheck, Users, CheckCircle2 } from 'lucide-react';
 import Modal from '../../../../components/common/modals/Modal';
 import ModalSummaryBanner from '../../../../components/common/modals/ModalSummaryBanner';
@@ -6,13 +6,12 @@ import ModalTabNav from '../../../../components/common/modals/ModalTabNav';
 import ModalTable from '../../../../components/common/modals/ModalTable';
 import ModalTabContent from '../../../../components/common/modals/ModalTabContent';
 import { useTabTransition } from '../../../../hooks/useTabTransition';
-import { formatNumber, formatPercentage } from '../../../../utils/uiHelpers';
+import { formatNumber, formatPercentage } from '@komet/shared/formatters';
 import { DIGITAL_BLUE } from '../../../../utils/theme';
-import { graduatesService } from '../../services/graduatesService';
-import { useGraduateDetailResource } from '../../hooks/useGraduateDetailResource';
+import { useDetail } from '../../graduateQueries';
 import TrendBarChart from '../../../../components/common/charts/TrendBarChart';
 import TrendChartTooltip from '../../../../components/common/charts/TrendChartTooltip';
-import { STUDY_SUCCESS_TABS } from './graduateTrendConfig';
+import { studySuccessTabs, withBatas } from './graduateTrendConfig';
 
 const SUCCESS_TABLE_COLUMNS = [
   {
@@ -22,9 +21,7 @@ const SUCCESS_TABLE_COLUMNS = [
     render: (row) => (
       <div className="flex items-center gap-2">
         <span className="w-1.5 h-1.5 rounded-full bg-digital-blue-500" />
-        <span className="font-semibold text-gray-900">
-          {row.cohortLabel || `Angkatan ${row.angkatan || row.cohort}`}
-        </span>
+        <span className="font-semibold text-gray-900">{row.cohortLabel}</span>
       </div>
     ),
   },
@@ -34,7 +31,7 @@ const SUCCESS_TABLE_COLUMNS = [
     icon: Users,
     headerClassName: 'text-right',
     cellClassName: 'text-right font-medium text-gray-800',
-    render: (row) => `${formatNumber(row.intake || row.total)} mhs`,
+    render: (row) => `${formatNumber(row.intake)} mhs`,
   },
   {
     key: 'successCount',
@@ -44,7 +41,7 @@ const SUCCESS_TABLE_COLUMNS = [
     cellClassName: 'text-right font-medium text-digital-blue-900',
     render: (row) => (
       <span className="bg-digital-blue-50/80 text-digital-blue-800 px-2.5 py-0.5 rounded-md border border-digital-blue-100 font-semibold">
-        {formatNumber(row.successCount || row.lulus)} mhs
+        {formatNumber(row.successCount)} mhs
       </span>
     ),
   },
@@ -56,138 +53,113 @@ const SUCCESS_TABLE_COLUMNS = [
     cellClassName: 'text-right font-bold text-digital-blue-700',
     render: (row) => (
       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-digital-blue-50 text-digital-blue-800 border border-digital-blue-200">
-        {formatPercentage(row.rate ?? row.percentage, 1, '0.0%')}
+        {formatPercentage(row.rate, 1, '0.0%')}
       </span>
     ),
   },
 ];
 
-export default function StudySuccessModal({ isOpen, onClose, originRect, data, filters }) {
-  const { activeTab, handleTabChange, slideClass } = useTabTransition(STUDY_SUCCESS_TABS, 's1');
-
-  const fetchSuccessDetail = useCallback(
-    (signal) => graduatesService.getKeberhasilanStudiDetail(filters, { signal }),
-    [filters],
+// Satu builder dipakai tab S1 dan S2; hanya kohortnya yang berbeda.
+function CohortTrendChart({ cohorts, batas, isLoading, error }) {
+  return (
+    <div className="h-full flex flex-col pt-0.5 px-1">
+      <div className="h-56 sm:h-64 md:h-72 w-full">
+        <TrendBarChart
+          data={cohorts}
+          xDataKey="cohortLabel"
+          isLoading={isLoading}
+          error={error}
+          bars={[
+            {
+              dataKey: 'successCount',
+              name: withBatas('Mahasiswa Lulus', batas, 'Maks'),
+              color: DIGITAL_BLUE[600],
+              labelKey: 'rate',
+              labelFormatter: (value) => formatPercentage(value),
+            },
+            {
+              dataKey: 'intake',
+              name: 'Total Intake Awal',
+              color: DIGITAL_BLUE[200],
+              labelKey: 'intake',
+            },
+          ]}
+          tooltipContent={
+            <TrendChartTooltip
+              titleKey="cohortLabel"
+              rows={[
+                { key: 'intake', label: 'Total Intake', colorClass: 'bg-digital-blue-200' },
+                { key: 'successCount', label: 'Berhasil Lulus', colorClass: 'bg-digital-blue-600' },
+              ]}
+              footer={{ key: 'rate', label: 'Tingkat Keberhasilan', format: formatPercentage }}
+            />
+          }
+        />
+      </div>
+    </div>
   );
+}
 
+export default function StudySuccessModal({ isOpen, onClose, originRect, data, filters }) {
   const {
     data: detailData,
     isLoading,
     error,
-  } = useGraduateDetailResource({
+  } = useDetail({
     isOpen,
     resourceKey: 'keberhasilan-studi',
     filters,
-    fetcher: fetchSuccessDetail,
+    method: 'getKeberhasilanStudiDetail',
     errorMessage: 'Gagal memuat data keberhasilan studi',
   });
 
+  const batasS1 = detailData?.batasStudiS1;
+  const batasS2 = detailData?.batasStudiS2;
+  const tabs = useMemo(() => studySuccessTabs({ s1: batasS1, s2: batasS2 }), [batasS1, batasS2]);
+  const { activeTab, handleTabChange, slideClass } = useTabTransition(tabs, 's1');
+
   const kpis = data?.kpis || {};
   const studySuccessRate = formatPercentage(kpis.studySuccessRateS1, 1, '0.0%');
-  const summary = data?.summary || {};
+  // Angkatan evaluasi dibaca dari payload chart yang sama, bukan dari cache
+  // summary — dialog tidak boleh mencampur dua sumber untuk satu fakta.
+  const angkatanEvaluasiS1 = detailData?.angkatanEvaluasiS1;
 
-  const s1Cohorts = useMemo(() => {
-    return detailData?.successCohortData || detailData?.data?.s1 || [];
-  }, [detailData]);
-
-  const s2Cohorts = useMemo(() => {
-    return detailData?.successCohortDataS2 || detailData?.data?.s2 || [];
-  }, [detailData]);
+  const s1Cohorts = useMemo(() => detailData?.s1 || [], [detailData]);
+  const s2Cohorts = useMemo(() => detailData?.s2 || [], [detailData]);
 
   const content = useMemo(
     () => ({
       s1: (
-        <div className="h-full flex flex-col pt-0.5 px-1">
-          <div className="h-56 sm:h-64 md:h-72 w-full">
-            <TrendBarChart
-              data={s1Cohorts}
-              xDataKey="cohortLabel"
-              bars={[
-                {
-                  dataKey: 'successCount',
-                  name: 'Mahasiswa Lulus',
-                  color: DIGITAL_BLUE[600],
-                  labelKey: 'rate',
-                  labelFormatter: (value) => formatPercentage(value),
-                },
-                {
-                  dataKey: 'intake',
-                  name: 'Total Intake Awal',
-                  color: DIGITAL_BLUE[200],
-                  labelKey: 'intake',
-                },
-              ]}
-              tooltipContent={
-                <TrendChartTooltip
-                  titleKey="cohortLabel"
-                  rows={[
-                    { key: 'intake', label: 'Total Intake', colorClass: 'bg-digital-blue-200' },
-                    {
-                      key: 'successCount',
-                      label: 'Berhasil Lulus',
-                      colorClass: 'bg-digital-blue-600',
-                    },
-                  ]}
-                  footer={{ key: 'rate', label: 'Tingkat Keberhasilan', format: formatPercentage }}
-                />
-              }
-            />
-          </div>
-        </div>
+        <CohortTrendChart cohorts={s1Cohorts} batas={batasS1} isLoading={isLoading} error={error} />
       ),
       s2: (
-        <div className="h-full flex flex-col pt-0.5 px-1">
-          <div className="h-56 sm:h-64 md:h-72 w-full">
-            <TrendBarChart
-              data={s2Cohorts}
-              xDataKey="cohortLabel"
-              bars={[
-                {
-                  dataKey: 'successCount',
-                  name: 'Mahasiswa Lulus',
-                  color: DIGITAL_BLUE[600],
-                  labelKey: 'rate',
-                  labelFormatter: (value) => formatPercentage(value),
-                },
-                {
-                  dataKey: 'intake',
-                  name: 'Total Intake Awal',
-                  color: DIGITAL_BLUE[200],
-                  labelKey: 'intake',
-                },
-              ]}
-              tooltipContent={
-                <TrendChartTooltip
-                  titleKey="cohortLabel"
-                  rows={[
-                    { key: 'intake', label: 'Total Intake', colorClass: 'bg-digital-blue-200' },
-                    {
-                      key: 'successCount',
-                      label: 'Berhasil Lulus',
-                      colorClass: 'bg-digital-blue-600',
-                    },
-                  ]}
-                  footer={{ key: 'rate', label: 'Tingkat Keberhasilan', format: formatPercentage }}
-                />
-              }
-            />
-          </div>
-        </div>
+        <CohortTrendChart cohorts={s2Cohorts} batas={batasS2} isLoading={isLoading} error={error} />
       ),
       tabel: (
-        <div className="h-full flex flex-col pt-0.5 pb-1">
-          <ModalTable
-            columns={SUCCESS_TABLE_COLUMNS}
-            data={s1Cohorts}
-            isLoading={isLoading}
-            error={error}
-            emptyTitle="Tidak Ada Data Cohort"
-            emptyDescription="Belum ada data riwayat keberhasilan studi dari backend."
-          />
+        <div className="h-full flex flex-col gap-4 pt-0.5 pb-1 overflow-y-auto custom-scrollbar">
+          {[
+            ['S1', s1Cohorts, batasS1],
+            ['S2', s2Cohorts, batasS2],
+          ].map(([jenjang, cohorts, batas]) => (
+            <div key={jenjang} className="space-y-1.5">
+              <h4 className="text-xs font-bold text-gray-700">
+                Kohort {jenjang}
+                {batas ? ` — dievaluasi sampai ${batas} tahun` : ''}
+              </h4>
+              <ModalTable
+                columns={SUCCESS_TABLE_COLUMNS}
+                data={cohorts}
+                isLoading={isLoading}
+                error={error}
+                emptyTitle="Tidak Ada Data Cohort"
+                emptyDescription="Belum ada data riwayat keberhasilan studi dari backend."
+              />
+            </div>
+          ))}
         </div>
       ),
     }),
-    [error, isLoading, s1Cohorts, s2Cohorts],
+    [batasS1, batasS2, error, isLoading, s1Cohorts, s2Cohorts],
   );
 
   return (
@@ -195,7 +167,11 @@ export default function StudySuccessModal({ isOpen, onClose, originRect, data, f
       isOpen={isOpen}
       onClose={onClose}
       title="Rincian Keberhasilan Studi"
-      subtitle="Tingkat keberhasilan penyelesaian studi dihitung pada batas masa studi maksimal (S1: 7 tahun, S2: 4 tahun)"
+      subtitle={
+        batasS1 && batasS2
+          ? `Tingkat keberhasilan penyelesaian studi dihitung pada batas masa studi maksimal (S1: ${batasS1} tahun, S2: ${batasS2} tahun)`
+          : 'Tingkat keberhasilan penyelesaian studi dihitung pada batas masa studi maksimal'
+      }
       maxWidth="max-w-4xl"
       originRect={originRect}
       showCloseButton
@@ -207,7 +183,7 @@ export default function StudySuccessModal({ isOpen, onClose, originRect, data, f
               <p>
                 Tingkat keberhasilan studi jenjang S1 tercatat sebesar{' '}
                 <strong className="text-digital-blue-900 font-bold">{studySuccessRate}</strong>{' '}
-                untuk angkatan evaluasi {summary?.keberhasilanStudi?.angkatanS1 || '-'}.
+                untuk angkatan evaluasi {angkatanEvaluasiS1 || '-'}.
               </p>
             </div>
           }
@@ -217,11 +193,7 @@ export default function StudySuccessModal({ isOpen, onClose, originRect, data, f
         />
 
         <div className="flex-1 flex flex-col min-h-0">
-          <ModalTabNav
-            tabs={STUDY_SUCCESS_TABS}
-            activeTab={activeTab}
-            onTabChange={handleTabChange}
-          />
+          <ModalTabNav tabs={tabs} activeTab={activeTab} onTabChange={handleTabChange} />
           <div className="flex-1 min-h-0 overflow-x-hidden w-full">
             <div key={activeTab} className={`h-full ${slideClass}`}>
               <ModalTabContent activeTab={activeTab} content={content} />

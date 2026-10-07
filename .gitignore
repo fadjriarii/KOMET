@@ -86,3 +86,4 @@ AGENTS.md
 requirements/
 graphify-out/
 .aws/
+komet-orchestrator/

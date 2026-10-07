@@ -12,11 +12,8 @@ import {
 import { CHART_PALETTE, DIGITAL_BLUE } from '../../../utils/theme';
 import EmptyState from '../feedback/EmptyState';
 import Skeleton from '../feedback/Skeleton';
-import {
-  formatCompactNumber,
-  formatPercentage,
-  getDistributionChartHeight,
-} from '../../../utils/uiHelpers';
+import { getDistributionChartHeight } from '../../../utils/uiHelpers';
+import { formatCompactNumber, formatPercentage } from '@komet/shared/formatters';
 
 /** Shared horizontal distribution chart; modules provide only their data contract and tooltip. */
 export default function DistributionBarChart({

@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { Building2, Users, Award } from 'lucide-react';
 import Modal from '../../../../components/common/modals/Modal';
 import ModalSummaryBanner from '../../../../components/common/modals/ModalSummaryBanner';
@@ -6,10 +6,9 @@ import ModalTabNav from '../../../../components/common/modals/ModalTabNav';
 import ModalTable from '../../../../components/common/modals/ModalTable';
 import ModalTabContent from '../../../../components/common/modals/ModalTabContent';
 import { useTabTransition } from '../../../../hooks/useTabTransition';
-import { formatNumber, formatPercentage } from '../../../../utils/uiHelpers';
-import { mbkmService } from '../../services/mbkmService';
-import { useMbkmDetailResource } from '../../hooks/useMbkmDetailResource';
-import MbkmDistributionChart from './MbkmDistributionChart';
+import { formatNumber, formatPercentage } from '@komet/shared/formatters';
+import { useDetail } from '../../mbkmQueries';
+import DistributionChart from '../../../../components/common/charts/DistributionChart';
 import { MBKM_PARTNERS_TABS } from './mbkmTrendConfig';
 
 const EMPTY_ITEMS = [];
@@ -51,33 +50,30 @@ const PARTNERS_TABLE_COLUMNS = [
 export default function MbkmPartnersModal({ isOpen, onClose, originRect, data, filters }) {
   const { activeTab, handleTabChange, slideClass } = useTabTransition(MBKM_PARTNERS_TABS, 'mitra');
 
-  const fetchPartnersDetail = useCallback(
-    (signal) => mbkmService.getMitraDistribution({ ...filters, topN: 20 }, { signal }),
-    [filters],
-  );
-
+  // Sepuluh mitra saja tidak cukup untuk tab tabel; server membatasi topN-nya.
   const {
     data: partnersData,
     isLoading: isLoadingPartners,
     error: partnersError,
-  } = useMbkmDetailResource({
+  } = useDetail({
     isOpen,
     resourceKey: 'mitra-distribution',
-    filters,
-    fetcher: fetchPartnersDetail,
+    filters: { ...filters, topN: 20 },
+    method: 'getMitraDistribution',
     errorMessage: 'Gagal memuat sebaran mitra MBKM',
   });
 
   const kpis = data?.kpis || {};
-  const payload = partnersData?.data || partnersData || {};
+  const payload = partnersData || {};
   const mitraList = payload.mitraData || EMPTY_ITEMS;
 
   const content = useMemo(
     () => ({
       mitra: (
         <div className="h-full flex flex-col pt-0.5 px-1">
-          <MbkmDistributionChart
+          <DistributionChart
             items={mitraList}
+            countUnit="mahasiswa"
             dataKey="count"
             nameKey="name"
             labelKey="percentage"
@@ -124,11 +120,11 @@ export default function MbkmPartnersModal({ isOpen, onClose, originRect, data, f
               <p>
                 Bekerjasama dengan{' '}
                 <strong className="text-digital-blue-900 font-bold">
-                  {kpis.totalMitra || payload.totalPartners || 0} mitra terverifikasi
+                  {formatNumber(kpis.totalMitra ?? payload.totalPartners)} mitra terverifikasi
                 </strong>{' '}
                 dengan total{' '}
                 <strong>
-                  {formatNumber(payload.totalPlacements || kpis.totalParticipants || 0)} penempatan
+                  {formatNumber(payload.totalPlacements ?? kpis.totalParticipants)} penempatan
                   mahasiswa
                 </strong>{' '}
                 di berbagai sektor industri dan institusi penelitian.
@@ -136,7 +132,7 @@ export default function MbkmPartnersModal({ isOpen, onClose, originRect, data, f
             </div>
           }
           label="Total Mitra"
-          value={kpis.totalMitra || payload.totalPartners || '0'}
+          value={formatNumber(kpis.totalMitra ?? payload.totalPartners)}
           sublabel="Organisasi Mitra"
         />
 

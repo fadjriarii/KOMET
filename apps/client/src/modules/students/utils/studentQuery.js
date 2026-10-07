@@ -1,16 +1,21 @@
+import { STUDENT_STATUS } from '@komet/shared/constants';
+
 /**
- * Menghitung jumlah filter aktif pada form StudentFilterContainer.
- *
- * Filter yang dihitung adalah filter spesifik kontainer mahasiswa:
- * - Search query
- * - Fakultas
- * - Program Studi
- * - Jenjang
- * - Angkatan (tahun rolling)
- * - Semester
- * - Kewarganegaraan
- * - Status Keaktifan (jika selain default 'Aktif')
- * - Periode Masuk (Ganjil/Genap)
+ * Default kartu mahasiswa adalah "hanya Aktif". Urutan atau duplikat pilihan tidak
+ * boleh mengubah arti — `status.join() !== 'Aktif'` yang lama bergantung pada
+ * keduanya, dan satu nilai default dinyatakan dua kali di file ini.
+ */
+function isDefaultStatusSelection(status) {
+  if (status === undefined || status === null) return true;
+  const values = new Set(Array.isArray(status) ? status : [status]);
+  return values.size === 1 && values.has(STUDENT_STATUS.AKTIF);
+}
+
+/**
+ * Menghitung jumlah filter aktif pada form StudentFilterContainer:
+ * search, fakultas, prodi, jenjang, angkatan rolling, semester, kewarganegaraan,
+ * status keaktifan (hitung hanya bila menyimpang dari default 'Aktif'), dan
+ * periode masuk.
  */
 export function getStudentActiveFilterCount(values = {}) {
   return [
@@ -21,47 +26,7 @@ export function getStudentActiveFilterCount(values = {}) {
     values.selectedYears?.length,
     values.semester?.length,
     values.nationality,
-    Array.isArray(values.status) ? values.status.join() !== 'Aktif' : values.status !== 'Aktif',
+    !isDefaultStatusSelection(values.status),
     values.periode,
   ].filter(Boolean).length;
-}
-
-/**
- * Menentukan KPI yang benar-benar dipengaruhi oleh filter aktif.
- * Tren intake dan penurunan selalu menghitung riwayat penerimaan, sehingga
- * keduanya sengaja tidak memakai status keaktifan saat ini.
- */
-export function getStudentKpiFilterScope(values = {}) {
-  const hasStatusFilter = Array.isArray(values.status)
-    ? values.status.join() !== 'Aktif'
-    : Boolean(values.status && values.status !== 'Aktif');
-  const hasNonStatusFilter = Boolean(
-    values.search ||
-    values.faculty?.length ||
-    values.prodi?.length ||
-    values.jenjang?.length ||
-    values.selectedYears?.length ||
-    values.semester?.length ||
-    values.nationality ||
-    values.periode,
-  );
-  const affectsPopulation = hasStatusFilter || hasNonStatusFilter;
-
-  return {
-    active: affectsPopulation,
-    foreign: affectsPopulation,
-    intake: hasNonStatusFilter,
-    decline: hasNonStatusFilter,
-  };
-}
-
-export function toggleAngkatanYear(selected = [], year) {
-  const value = String(year);
-  return selected.includes(value)
-    ? selected.filter((item) => item !== value)
-    : [...selected, value];
-}
-
-export function getAngkatanDisplayText(selected = [], placeholder = 'Pilih Tahun') {
-  return selected.length ? selected.join(', ') : placeholder;
 }

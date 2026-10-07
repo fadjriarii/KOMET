@@ -66,6 +66,9 @@ model Graduate {
   @@index([tahunLulus])
   @@index([jenjang])
   @@index([tahunLulus, jenjang])
+  @@index([statusKelulusan])
+  @@index([periodeWisuda])
+  @@index([tahunLulus, statusKelulusan])
   @@map("graduates")
 }
 
@@ -89,5 +92,10 @@ model MbkmActivity {
   @@index([statusAktivitas])
   @@index([jenisAktivitas(length: 100)])
   @@index([periode, statusAktivitas])
+  @@index([fakultas])
+  @@index([programStudi])
+  @@index([mitra(length: 100)])
+  @@index([periode, fakultas])
+  @@index([periode, programStudi])
   @@map("mbkm_activities")
 }

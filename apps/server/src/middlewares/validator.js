@@ -1,20 +1,30 @@
 const { z } = require('zod');
+const { sendRejected } = require('../utils/errorHandler');
+const { HTTP_STATUS } = require('@komet/shared/constants');
 
 // Schema pembantu untuk mengizinkan string tunggal atau array of string
-const safeString = z
-  .string()
-  .trim()
-  .min(1)
-  .max(100)
-  .regex(/^[^\u0000-\u001F\u007F]+$/);
+// Byte kontrol (0x00-0x1F, 0x7F) ditolak: string ini lanjut ke LIKE/IN di MySQL dan
+// bisa dipakai menyamarkan payload injeksi dari pembacaan log.
+// eslint-disable-next-line no-control-regex
+const WITHOUT_CONTROL_BYTES = /^[^\u0000-\u001F\u007F]+$/;
+const safeString = z.string().trim().min(1).max(100).regex(WITHOUT_CONTROL_BYTES);
 const stringOrArray = z.union([safeString, z.array(safeString).max(50)]).optional();
+// Batas halaman diturunkan dari 100 000: dengan limit maks 100, OFFSET tak boleh
+// mencapai jutaan baris yang tetap dibaca lalu dibuang oleh MySQL.
 const pageParam = z
   .string()
   .regex(/^\d+$/)
   .transform(Number)
-  .pipe(z.number().int().min(1).max(100000))
+  .pipe(z.number().int().min(1).max(1000))
   .optional();
 const limitParam = z
+  .string()
+  .regex(/^\d+$/)
+  .transform(Number)
+  .pipe(z.number().int().min(1).max(100))
+  .optional();
+// Batas topN diletakkan di schema (bukan clamp per controller) supaya seragam di semua endpoint.
+const topNParam = z
   .string()
   .regex(/^\d+$/)
   .transform(Number)
@@ -92,23 +102,50 @@ const mbkmQuerySchema = z.object({
     .max(20)
     .regex(/^\d{4}[12]$/)
     .optional(),
-  topN: z.union([z.string().regex(/^\d+$/), z.number().int()]).optional(),
+  topN: topNParam,
 });
+
+// Parameter berbentuk `fakultas[]` / `fakultas[0]` adalah pola client yang salah
+// (parser `simple` Express tidak pernah mengubahnya jadi array). Ditolak eksplisit
+// supaya tidak pernah ada filter yang hilang secara senyap.
+const INVALID_PARAM_NAME = /[[\]]/;
+const SAFE_ISSUE_PATH = /^[A-Za-z0-9._]+$/;
 
 /**
  * Middleware Validator Generic berbasis Zod Schema
  */
 const validateQuery = (schema) => {
   return (req, res, next) => {
+    const offending = Object.keys(req.query).filter((key) => INVALID_PARAM_NAME.test(key));
+    if (offending.length > 0) {
+      return sendRejected(
+        res,
+        HTTP_STATUS.BAD_REQUEST,
+        'Nama query parameter tidak valid.',
+        'INVALID_PARAMETER_NAME',
+      );
+    }
+
     const result = schema.safeParse(req.query);
     if (!result.success) {
-      const formattedErrors = result.error.issues
-        .map((err) => `${err.path.join('.') || 'query'}: ${err.message}`)
-        .join(', ');
-      return res.status(400).json({
-        success: false,
-        message: `Validasi query parameter gagal: ${formattedErrors}`,
-      });
+      // Hanya nama field (identitas skema kita) yang dikirim ke client; pesan Zod
+      // yang menyebut tipe/konstrain internal tidak pernah keluar.
+      const fields = [
+        ...new Set(
+          result.error.issues
+            .map((issue) => issue.path.join('.') || 'query')
+            .filter((path) => SAFE_ISSUE_PATH.test(path)),
+        ),
+      ];
+      return sendRejected(
+        res,
+        HTTP_STATUS.BAD_REQUEST,
+        'Query parameter tidak valid.',
+        'VALIDATION_FAILED',
+        {
+          fields,
+        },
+      );
     }
     // Use the parsed value so downstream code only receives validated,
     // transformed values (not arbitrary query keys or oversized values).

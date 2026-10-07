@@ -12,3 +12,9 @@ export function createQueryParams() {
   };
   return { params, append, appendMany };
 }
+
+/** Gabungkan path dengan query string; '?' hanya ada bila ada param. */
+export function withQuery(path, params) {
+  const qs = params instanceof URLSearchParams ? params.toString() : String(params || '');
+  return qs ? `${path}?${qs}` : path;
+}

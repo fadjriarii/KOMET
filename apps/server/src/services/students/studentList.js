@@ -1,6 +1,11 @@
 const prisma = require('../../config/prisma');
-const { getAcademicYear, isTerminalInAcademicYear } = require('./filterBuilder');
-const { toArray } = require('../../utils/queryUtils');
+const { TABLE_LIMIT } = require('@komet/shared/constants');
+const {
+  getAcademicYear,
+  isTerminalInAcademicYear,
+  parseStatusSelection,
+  DEFAULT_STATUS,
+} = require('./filterBuilder');
 
 function getRequestedAcademicYear(query = {}) {
   const tahunAjaran = typeof query.tahunAjaran === 'string' ? query.tahunAjaran : null;
@@ -15,45 +20,35 @@ function getRequestedAcademicYear(query = {}) {
  */
 function getSnapshotStatus(student, academicYear, statusValues) {
   if (!academicYear) return student.statusKeaktifan;
-  const requestedStatuses = toArray(statusValues);
-  const hasExplicitTerminalFilter =
-    requestedStatuses?.length &&
-    !requestedStatuses.includes('ALL') &&
-    !requestedStatuses.includes('__ALL__') &&
-    !requestedStatuses.includes('Aktif');
+  const { isAll, statuses } = parseStatusSelection(statusValues);
+  const hasExplicitTerminalFilter = !isAll && !statuses.includes(DEFAULT_STATUS);
   if (hasExplicitTerminalFilter) return student.statusKeaktifan;
 
   const hasReachedFinalStatus =
-    isTerminalInAcademicYear(student, academicYear) && student.statusKeaktifan !== 'Aktif';
-  return hasReachedFinalStatus ? student.statusKeaktifan : 'Aktif';
+    isTerminalInAcademicYear(student, academicYear) && student.statusKeaktifan !== DEFAULT_STATUS;
+  return hasReachedFinalStatus ? student.statusKeaktifan : DEFAULT_STATUS;
 }
 
 function projectSnapshotStudent(student, academicYear, statusValues) {
   if (!academicYear) return student;
-  const snapshotStatus = getSnapshotStatus(student, academicYear, statusValues);
-  return {
-    ...student,
-    // Preserve the current value for API consumers that need auditing,
-    // while the standard status field represents the requested snapshot.
-    currentStatusKeaktifan: student.statusKeaktifan,
-    statusKeaktifan: snapshotStatus,
-  };
+  return { ...student, statusKeaktifan: getSnapshotStatus(student, academicYear, statusValues) };
 }
 
 /**
- * Mengambil daftar mahasiswa dari database dengan filter, pagination, dan default sort.
+ * Daftar mahasiswa. `whereFilter` (termasuk status) sepenuhnya dimiliki
+ * buildStudentFilter(); fungsi ini hanya menambah pagination dan proyeksi kolom.
  *
- * Default behaviour (sesuai business rules):
- *   - Filter default: hanya mahasiswa dengan statusKeaktifan = "Aktif"
- *     (kecuali jika caller sudah menyertakan filter statusKeaktifan di whereFilter)
- *   - Sort default: descending berdasarkan angkatan (mahasiswa paling baru di atas),
- *     lalu nama ascending sebagai tiebreaker
+ * Urutan selalu `nim` ascending karena itu satu-satunya kunci yang stabil untuk
+ * keyset pagination (`cursor`).
  *
- * @param {object} whereFilter  Prisma where clause dari buildStudentFilter()
- * @param {number} page         Halaman (default 1)
- * @param {number} limit        Jumlah baris per halaman (default 10)
+ * @param {object} whereFilter Prisma where clause dari buildStudentFilter()
+ * @param {number} page        Halaman untuk mode offset (default 1)
+ * @param {number} limit       Baris per halaman (default TABLE_LIMIT)
+ * @param {string} cursor      NIM terakhir; bila ada, mode offset diabaikan dan
+ *                             total tidak dihitung (COUNT penuh tidak dibutuhkan
+ *                             oleh konsumen cursor).
  */
-async function getStudentList(whereFilter, page = 1, limit = 10, cursor, query = {}) {
+async function getStudentList(whereFilter, page = 1, limit = TABLE_LIMIT, cursor, query = {}) {
   if (cursor) {
     const cursorStudent = await prisma.student.findUnique({
       where: { nim: cursor },
@@ -69,7 +64,7 @@ async function getStudentList(whereFilter, page = 1, limit = 10, cursor, query =
   const listQuery = buildStudentListQuery(whereFilter, page, limit, cursor);
   const [rawData, total] = await Promise.all([
     prisma.student.findMany(listQuery),
-    prisma.student.count({ where: whereFilter }),
+    cursor ? null : prisma.student.count({ where: whereFilter }),
   ]);
 
   const hasNextPage = rawData.length > limit;
@@ -82,10 +77,10 @@ async function getStudentList(whereFilter, page = 1, limit = 10, cursor, query =
     nextCursor: hasNextPage ? data[data.length - 1].nim : null,
     hasNextPage,
     pagination: {
-      page,
+      page: cursor ? null : page,
       limit,
       total,
-      totalPages: Math.ceil(total / limit),
+      totalPages: total === null ? null : Math.ceil(total / limit),
     },
   };
 }

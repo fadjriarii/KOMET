@@ -15,7 +15,7 @@ const MODAL_MAP = {
 export default function GraduateDetailModal({
   isOpen,
   onClose,
-  activeModalType, // 'total' | 'gpa' | 'onTime' | 'studySuccess'
+  modalType, // 'total' | 'gpa' | 'onTime' | 'studySuccess'
   originRect,
   data,
   filters,
@@ -26,7 +26,7 @@ export default function GraduateDetailModal({
       fallbackMessage="Gagal memuat rincian kelulusan. Silakan tutup lalu coba lagi."
       isOpen={isOpen}
       onClose={onClose}
-      activeModalType={activeModalType}
+      modalType={modalType}
       originRect={originRect}
       data={data}
       filters={filters}

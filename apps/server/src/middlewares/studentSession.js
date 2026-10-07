@@ -1,9 +1,13 @@
 const crypto = require('crypto');
-const { authenticateApiKey } = require('./auth');
+const { isAllowedOrigin } = require('../config/corsPolicy');
+const { sendRejected } = require('../utils/errorHandler');
 const { createSession, hasSession, revokeSession } = require('../services/sessionStore');
+const {
+  HTTP_STATUS,
+  SESSION_MAX_AGE_SECONDS: MAX_AGE_SECONDS,
+} = require('@komet/shared/constants');
 
 const COOKIE_NAME = 'komet_student_session';
-const MAX_AGE_SECONDS = 60 * 60 * 8;
 
 function getSecret() {
   // Session cookies and the sync API key are separate credentials. Reusing
@@ -53,13 +57,24 @@ function setSessionCookie(res, token, maxAge = MAX_AGE_SECONDS) {
 
 async function issueStudentSession(req, res, next) {
   if (!getSecret()) {
-    return res.status(500).json({ success: false, message: 'Student session is not configured.' });
+    return sendRejected(
+      res,
+      HTTP_STATUS.INTERNAL_SERVER_ERROR,
+      'Student session is not configured.',
+    );
+  }
+  // Browser dari origin lain tidak boleh mencetak sesi. CORS middleware sudah
+  // menolak lebih awal, tapi gerbang ini menegakkannya di route-nya langsung.
+  const origin = req.headers.origin;
+  if (origin && !isAllowedOrigin(origin, req.headers.host)) {
+    return sendRejected(res, HTTP_STATUS.FORBIDDEN, 'Origin tidak diizinkan untuk meminta sesi.');
   }
   try {
+    res.setHeader('Cache-Control', 'no-store');
     const token = createSessionToken();
     await createSession(token, MAX_AGE_SECONDS);
     setSessionCookie(res, token);
-    return res.status(204).send();
+    return res.status(HTTP_STATUS.NO_CONTENT).send();
   } catch (error) {
     return next(error);
   }
@@ -69,24 +84,47 @@ async function revokeStudentSession(req, res, next) {
   try {
     const token = parseCookies(req.headers.cookie || '')[COOKIE_NAME];
     if (token) await revokeSession(token);
+    res.setHeader('Cache-Control', 'no-store');
     setSessionCookie(res, '', 0);
-    return res.status(204).send();
+    return res.status(HTTP_STATUS.NO_CONTENT).send();
   } catch (error) {
     return next(error);
   }
 }
 
-async function studentSessionAuth(req, res, next) {
+/**
+ * Token hanya diterima bila signature-nya sah; hasilnya disimpan di req supaya
+ * pemanggil berikutnya (auth, rate-limit bucket) tidak parse cookie dua kali.
+ */
+function readSessionToken(req) {
+  if (req.sessionToken !== undefined) return req.sessionToken;
   const token = parseCookies(req.headers.cookie || '')[COOKIE_NAME];
-  if (hasValidSignature(token) && (await hasSession(token))) return next();
-  if (authenticateApiKey(req)) return next();
-  return res.status(401).json({ success: false, message: 'Student session is required.' });
+  req.sessionToken = token && hasValidSignature(token) ? token : null;
+  return req.sessionToken;
+}
+
+async function hasValidSession(req) {
+  const token = readSessionToken(req);
+  return Boolean(token && (await hasSession(token)));
+}
+
+/**
+ * Route data mahasiswa hanya menerima sesi siswa. SYNC_API_KEY sengaja tidak lagi
+ * menjadi fallback: credential ETL tidak punya hak baca dataset mahasiswa.
+ */
+async function studentSessionAuth(req, res, next) {
+  if (await hasValidSession(req)) return next();
+  return sendRejected(res, HTTP_STATUS.UNAUTHORIZED, 'Student session is required.');
 }
 
 module.exports = {
   issueStudentSession,
   revokeStudentSession,
   studentSessionAuth,
+  hasValidSession,
+  readSessionToken,
   parseCookies,
   hasValidSignature,
+  COOKIE_NAME,
+  MAX_AGE_SECONDS,
 };

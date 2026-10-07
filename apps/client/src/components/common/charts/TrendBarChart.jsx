@@ -9,8 +9,11 @@ import {
   Legend,
   LabelList,
 } from 'recharts';
+import { AlertCircle } from 'lucide-react';
 import { DIGITAL_BLUE } from '../../../utils/theme';
-import { formatCompactNumber } from '../../../utils/uiHelpers';
+import { formatCompactNumber } from '@komet/shared/formatters';
+import Skeleton from '../feedback/Skeleton';
+import EmptyState from '../feedback/EmptyState';
 
 /** Configurable shared bar chart for dashboard trend visualizations. */
 export default function TrendBarChart({
@@ -21,7 +24,21 @@ export default function TrendBarChart({
   xAngle = -25,
   tooltipContent,
   legendHeight = 36,
+  isLoading = false,
+  error = null,
 }) {
+  // Kegagalan fetch harus tampil sebagai kegagalan, bukan chart kosong yang
+  // membaca sebagai "nol data".
+  if (isLoading)
+    return (
+      <div className="h-full flex items-end gap-4 px-6 pb-10">
+        {Array.from({ length: 5 }, (_, index) => (
+          <Skeleton key={index} className="h-3/4 flex-1 rounded-t-lg" />
+        ))}
+      </div>
+    );
+  if (error) return <EmptyState title="Gagal Memuat Data" description={error} icon={AlertCircle} />;
+
   return (
     <ResponsiveContainer width="100%" height={height}>
       <BarChart data={data} margin={{ top: 12, right: 24, left: 4, bottom: 44 }}>

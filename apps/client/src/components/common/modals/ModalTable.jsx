@@ -82,7 +82,9 @@ export default function ModalTable({
           <tbody className="divide-y divide-gray-100 text-gray-700">
             {data.map((row, rowIdx) => (
               <tr
-                key={row.id || row.key || rowIdx}
+                // Baris agregat tidak punya identitas dari server dan daftar ini
+                // tidak pernah diurutkan ulang di client: indeks sudah cukup.
+                key={rowIdx}
                 className={`transition-colors duration-150 hover:bg-digital-blue-50/50 ${
                   rowIdx % 2 === 1 ? 'bg-slate-50/50' : 'bg-white'
                 }`}

@@ -1,92 +1,66 @@
 const prisma = require('../../config/prisma');
+const { buildActivityWhere, MBKM_ACTIVE_STATUSES } = require('./filterBuilder');
+const { rate } = require('../../utils/percentageUtils');
 
 /**
- * Tab A: Distribusi peserta berdasarkan jenis aktivitas BKP Kampus Merdeka
+ * Satu implementasi distribusi untuk semua dimensi aggregation MBKM.
+ * Urutan dan persentase diselesaikan di database + satu kali jalan, tanpa
+ * `orderBy` SQL yang kemudian diurutkan ulang di JavaScript.
+ *
+ * @param {string} field kolom group by: jenisAktivitas | programStudi | fakultas | statusAktivitas
+ * @param {string|null} allowedStatuses scope status; null = semua status
  */
-async function getActivityDistribution(whereFilter = {}, selectedPeriode) {
-  const baseWhere = {
-    ...whereFilter,
-    ...(selectedPeriode ? { periode: selectedPeriode } : {}),
-    statusAktivitas: { in: ['Disetujui', 'Selesai'] },
-    jenisAktivitas: { not: '' },
-  };
+async function distributionBy(
+  field,
+  whereFilter = {},
+  selectedPeriode,
+  allowedStatuses = MBKM_ACTIVE_STATUSES,
+) {
+  const where = buildActivityWhere(whereFilter, selectedPeriode, allowedStatuses);
 
-  const activityGroups = await prisma.mbkmActivity.groupBy({
-    by: ['jenisAktivitas'],
-    _count: true,
-    where: baseWhere,
-    orderBy: [{ jenisAktivitas: 'asc' }],
+  const groups = await prisma.mbkmActivity.groupBy({
+    by: [field],
+    _count: { [field]: true },
+    where,
+    orderBy: [{ _count: { [field]: 'desc' } }, { [field]: 'asc' }],
   });
 
-  const sorted = activityGroups.sort((a, b) => b._count - a._count);
-  const total = sorted.reduce((sum, g) => sum + g._count, 0);
+  const counts = groups.map((group) => ({ name: group[field], count: group._count[field] }));
+  const total = counts.reduce((sum, item) => sum + item.count, 0);
 
-  const items = sorted.map((g) => ({
-    name: g.jenisAktivitas,
-    count: g._count,
-    percentage: total > 0 ? (g._count / total) * 100 : 0,
-  }));
-
-  return { total, items };
-}
-
-/**
- * Tab B: Sebaran partisipasi MBKM per program studi
- */
-async function getProdiDistribution(whereFilter = {}, selectedPeriode) {
-  const baseWhere = {
-    ...whereFilter,
-    ...(selectedPeriode ? { periode: selectedPeriode } : {}),
-    statusAktivitas: { in: ['Disetujui', 'Selesai'] },
-    jenisAktivitas: { not: '' },
+  return {
+    total,
+    // Populasi tiap tab sengaja bisa berbeda (status verifikasi menampilkan
+    // juga aktivitas yang tidak dihitung sebagai partisipan). Dikirim agar
+    // client dapat melabeli penyebut, bukan membandingkan angka antar tab.
+    population: allowedStatuses ? 'active_participants' : 'all_statuses',
+    items: counts.map((item) => ({
+      ...item,
+      percentage: rate(item.count, total),
+    })),
   };
-
-  const prodiGroups = await prisma.mbkmActivity.groupBy({
-    by: ['programStudi'],
-    _count: true,
-    where: baseWhere,
-    orderBy: [{ programStudi: 'asc' }],
-  });
-
-  const sorted = prodiGroups.sort((a, b) => b._count - a._count);
-  const total = sorted.reduce((sum, g) => sum + g._count, 0);
-
-  const items = sorted.map((g) => ({
-    name: g.programStudi,
-    count: g._count,
-    percentage: total > 0 ? (g._count / total) * 100 : 0,
-  }));
-
-  return { total, items };
 }
 
-/**
- * Tab C: Distribusi status aktivitas MBKM (semua status untuk Pie Chart)
- */
-async function getStatusDistribution(whereFilter = {}, selectedPeriode) {
-  const baseWhere = {
-    ...whereFilter,
-    ...(selectedPeriode ? { periode: selectedPeriode } : {}),
-    jenisAktivitas: { not: '' },
-  };
+/** Tab A: Distribusi peserta berdasarkan jenis aktivitas BKP Kampus Merdeka. */
+const getActivityDistribution = (whereFilter, selectedPeriode) =>
+  distributionBy('jenisAktivitas', whereFilter, selectedPeriode);
 
-  const statusGroups = await prisma.mbkmActivity.groupBy({
-    by: ['statusAktivitas'],
-    _count: true,
-    where: baseWhere,
-    orderBy: [{ statusAktivitas: 'asc' }],
-  });
+/** Tab B: Sebaran partisipasi MBKM per program studi. */
+const getProdiDistribution = (whereFilter, selectedPeriode) =>
+  distributionBy('programStudi', whereFilter, selectedPeriode);
 
-  const sorted = statusGroups.sort((a, b) => b._count - a._count);
-  const total = sorted.reduce((sum, g) => sum + g._count, 0);
+/** Sebaran partisipasi MBKM per fakultas. */
+const getFacultyDistribution = (whereFilter, selectedPeriode) =>
+  distributionBy('fakultas', whereFilter, selectedPeriode);
 
-  const items = sorted.map((g) => ({
-    name: g.statusAktivitas,
-    count: g._count,
-    percentage: total > 0 ? (g._count / total) * 100 : 0,
-  }));
+/** Tab C: Distribusi status aktivitas (semua status, untuk Pie Chart). */
+const getStatusDistribution = (whereFilter, selectedPeriode) =>
+  distributionBy('statusAktivitas', whereFilter, selectedPeriode, null);
 
-  return { total, items };
-}
-
-module.exports = { getActivityDistribution, getProdiDistribution, getStatusDistribution };
+module.exports = {
+  distributionBy,
+  getActivityDistribution,
+  getProdiDistribution,
+  getFacultyDistribution,
+  getStatusDistribution,
+};

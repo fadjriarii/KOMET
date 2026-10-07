@@ -1,20 +1,28 @@
 /**
- * Menghitung tahun awal tahun akademik berjalan berdasarkan tanggal rollover 1 September.
- * Jika bulan >= September (bulan 8 di index 0-11, atau getMonth() + 1 >= 9): tahun sekarang (misal: 2026 -> 2026/2027, awal = 2026).
- * Jika bulan < September: tahun sekarang - 1 (misal Januari-Agustus 2026 -> 2025/2026, awal = 2025).
+ * Util akademik khas Sevima: kode periode `YYYYT`, tahun referensi kartu, dan
+ * jendela yang ditentukan dari data DB.
  *
- * @param {Date} date
- * @returns {number} Tahun awal akademik berjalan (misal 2026 untuk 2026/2027)
+ * Aturan tahun akademik itu sendiri (bulan rollover, label `YYYY/YYYY`,
+ * jendela N tahun) hidup di `@komet/shared/academicYear` — server dan client
+ * tidak boleh punya matematikanya masing-masing — kalau ada dua implementasi,
+ * label tahun di client bisa menunjuk tahun yang berbeda dari snapshot yang
+ * dihitung server.
  */
-function getCurrentAcademicYearStart(date = new Date()) {
-  const d = new Date(date);
-  const month = d.getMonth() + 1; // 1-12
-  const year = d.getFullYear();
-  return month >= 9 ? year : year - 1;
-}
+const {
+  getCurrentAcademicYearStart,
+  getAcademicYearWindow,
+  parseAcademicYear: getAcademicYearStart,
+} = require('@komet/shared/academicYear');
 
 /**
- * Menghitung 5 tahun akademik bergulir (5-year rolling academic years) berbasis data aktual.
+ * Lebar jendela tren yang dipakai semua chart 5 tahun (intake, penurunan,
+ * mahasiswa asing). Satu angka agar jendela tren dan jendela pembanding tidak
+ * bisa bergeser sendiri.
+ */
+const TREND_WINDOW_YEARS = 5;
+
+/**
+ * Menghitung rentang 5 tahun akademik bergulir (5-year rolling academic years) berbasis data aktual.
  *
  * Logika Data-Driven:
  * - Menentukan tahun akademik terbaru yang ada di data database (misal: '2024/2025' atau '2025/2026').
@@ -26,38 +34,24 @@ function getCurrentAcademicYearStart(date = new Date()) {
  * @returns {string[]} Array 5 tahun akademik berurutan
  */
 function get5YearRollingAcademicYears(availableAcademicYears = []) {
-  let latestStartYear = null;
+  const startYears = (Array.isArray(availableAcademicYears) ? availableAcademicYears : [])
+    .map(getAcademicYearStart)
+    .filter((year) => year !== null && year > 1900);
 
-  if (Array.isArray(availableAcademicYears) && availableAcademicYears.length > 0) {
-    const startYears = availableAcademicYears
-      .map((ay) => {
-        const match = String(ay).match(/^(\d{4})\/(\d{4})$/);
-        return match ? parseInt(match[1], 10) : parseInt(String(ay).substring(0, 4), 10);
-      })
-      .filter((y) => !isNaN(y) && y > 1900);
+  const latestStartYear = startYears.length ? Math.max(...startYears) : new Date().getFullYear();
 
-    if (startYears.length > 0) {
-      latestStartYear = Math.max(...startYears);
-    }
-  }
-
-  if (!latestStartYear) {
-    latestStartYear = new Date().getFullYear();
-  }
-
-  return Array.from({ length: 5 }, (_, i) => {
-    const start = latestStartYear - 4 + i;
-    return `${start}/${start + 1}`;
-  });
+  return getAcademicYearWindow(latestStartYear, TREND_WINDOW_YEARS);
 }
 
 /**
- * Menghitung rentang 5 tahun ke belakang dari tahun lalu.
+ * Menghitung rentang 5 tahun kalender ke belakang dari tahun referensi.
  * @returns {string[]} Array 5 string tahun
  */
 function getYearRange() {
-  const refYear = new Date().getFullYear() - 1;
-  return Array.from({ length: 5 }, (_, i) => String(refYear - 4 + i));
+  const refYear = getReferenceYear();
+  return Array.from({ length: TREND_WINDOW_YEARS }, (_, i) =>
+    String(refYear - (TREND_WINDOW_YEARS - 1 - i)),
+  );
 }
 
 /**
@@ -69,24 +63,60 @@ function getReferenceYear() {
 }
 
 /**
+ * Parsing satu-satunya untuk kode periode akademik Sevima "YYYYT"
+ * (T = 1 Ganjil, 2 Genap). Nilai parsial/invalid menjadi null, bukan
+ * tahun ajaran yang terlihat valid.
+ *
+ * @param {string|number|null} value
+ * @returns {{year: number, term: '1'|'2', academicYear: string, isGanjil: boolean}|null}
+ */
+function parsePeriode(value) {
+  const normalized = String(value ?? '').trim();
+  if (!/^\d{5}$/.test(normalized)) return null;
+  const year = Number(normalized.substring(0, 4));
+  const term = normalized[4];
+  if (year < 1900 || (term !== '1' && term !== '2')) return null;
+  return {
+    year,
+    term,
+    academicYear: `${year}/${year + 1}`,
+    isGanjil: term === '1',
+  };
+}
+
+/** Tahun dari kode periode, atau null bila tidak dapat diparse. */
+function getPeriodeYear(value) {
+  return parsePeriode(value)?.year ?? null;
+}
+
+/** Tahun awal studi: `periodeMasuk` bila ada, kalau tidak `angkatan`. */
+function getStudyStartYear(student) {
+  const fromPeriode = getPeriodeYear(student?.periodeMasuk);
+  if (fromPeriode !== null) return fromPeriode;
+  const angkatan = Number(String(student?.angkatan ?? '').trim());
+  return Number.isInteger(angkatan) && angkatan >= 1900 ? angkatan : null;
+}
+
+/**
  * Konversi kode periodeMasuk ke format tahun akademik.
  * Contoh: "20241" → "2024/2025"
  * @param {string} periodeMasuk
  * @returns {string|null}
  */
 function toAcademicYear(periodeMasuk) {
-  const normalized = String(periodeMasuk ?? '').trim();
-  // Kode periode Sevima selalu YYYY1 (Ganjil) atau YYYY2 (Genap).
-  // Jangan mengubah nilai parsial/invalid menjadi tahun ajaran yang terlihat valid.
-  if (!/^\d{5}$/.test(normalized) || !['1', '2'].includes(normalized[4])) return null;
-  const yr = Number(normalized.substring(0, 4));
-  return yr >= 1900 ? `${yr}/${yr + 1}` : null;
+  return parsePeriode(periodeMasuk)?.academicYear ?? null;
 }
 
 module.exports = {
+  TREND_WINDOW_YEARS,
   getCurrentAcademicYearStart,
+  getAcademicYearWindow,
+  getAcademicYearStart,
   get5YearRollingAcademicYears,
   getYearRange,
   getReferenceYear,
+  parsePeriode,
+  getPeriodeYear,
+  getStudyStartYear,
   toAcademicYear,
 };

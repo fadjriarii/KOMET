@@ -13,14 +13,22 @@ export const GPA_OVERVIEW_TABS = [
   { key: 'fakultas', label: 'Per Fakultas', icon: Building2 },
 ];
 
-export const ON_TIME_TABS = [
-  { key: 's1', label: 'Jenjang S1 (≤ 4 Thn)', icon: BarChart3 },
-  { key: 's2', label: 'Jenjang S2 (≤ 2 Thn)', icon: BarChart3 },
-  { key: 'tabel', label: 'Tabel Riwayat Cohort', icon: Table },
+// Batas masa studi dikirim server (batasS1/batasS2/batasStudiS1/batasStudiS2);
+// label tab mengikutinya supaya angka di UI tidak pernah punya sumber kedua.
+// Sebelum payload tiba, label tetap terbaca tanpa klaim angka.
+export const withBatas = (label, batas, operator) =>
+  batas ? `${label} (${operator} ${batas} Thn)` : label;
+
+const cohortTableTab = { key: 'tabel', label: 'Tabel Riwayat Cohort', icon: Table };
+
+export const onTimeTabs = (batas = {}) => [
+  { key: 's1', label: withBatas('Jenjang S1', batas.s1, '≤'), icon: BarChart3 },
+  { key: 's2', label: withBatas('Jenjang S2', batas.s2, '≤'), icon: BarChart3 },
+  cohortTableTab,
 ];
 
-export const STUDY_SUCCESS_TABS = [
-  { key: 's1', label: 'Jenjang S1 (Maks 7 Thn)', icon: BarChart3 },
-  { key: 's2', label: 'Jenjang S2 (Maks 4 Thn)', icon: BarChart3 },
-  { key: 'tabel', label: 'Tabel Riwayat Cohort', icon: Table },
+export const studySuccessTabs = (batas = {}) => [
+  { key: 's1', label: withBatas('Jenjang S1', batas.s1, 'Maks'), icon: BarChart3 },
+  { key: 's2', label: withBatas('Jenjang S2', batas.s2, 'Maks'), icon: BarChart3 },
+  cohortTableTab,
 ];

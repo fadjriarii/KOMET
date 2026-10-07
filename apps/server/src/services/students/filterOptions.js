@@ -1,63 +1,21 @@
-const prisma = require('../../config/prisma');
+const { createFilterOptionsSource, numericAsc } = require('../filterOptionsSource');
 const { toAcademicYear, get5YearRollingAcademicYears } = require('../../utils/academicUtils');
 
-let studentsFilterCache = null;
-let studentsFilterCacheTime = 0;
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 Menit
+const studentQueries = {
+  fakultas: { model: 'student', field: 'fakultas' },
+  programStudi: { model: 'student', field: 'programStudi' },
+  angkatan: { model: 'student', field: 'angkatan', desc: true },
+  semester: { model: 'student', field: 'semester', comparator: numericAsc },
+  periodeMasuk: { model: 'student', field: 'periodeMasuk', desc: true },
+  kewarganegaraan: { model: 'student', field: 'kewarganegaraan' },
+  statusKeaktifan: { model: 'student', field: 'statusKeaktifan' },
+  jenjang: { model: 'student', field: 'jenjang' },
+};
 
-async function getFilterOptions(forceRefresh = false) {
-  const now = Date.now();
-  if (!forceRefresh && studentsFilterCache && now - studentsFilterCacheTime < CACHE_TTL_MS) {
-    return studentsFilterCache;
-  }
-
-  const [fakultasRes, prodiRes, angkatanRes, semesterRes, periodeRes, kewargRes, statusRes] =
-    await Promise.all([
-      prisma.student.findMany({ select: { fakultas: true }, distinct: ['fakultas'] }),
-      prisma.student.findMany({ select: { programStudi: true }, distinct: ['programStudi'] }),
-      prisma.student.findMany({ select: { angkatan: true }, distinct: ['angkatan'] }),
-      prisma.student.findMany({ select: { semester: true }, distinct: ['semester'] }),
-      prisma.student.findMany({ select: { periodeMasuk: true }, distinct: ['periodeMasuk'] }),
-      prisma.student.findMany({ select: { kewarganegaraan: true }, distinct: ['kewarganegaraan'] }),
-      prisma.student.findMany({ select: { statusKeaktifan: true }, distinct: ['statusKeaktifan'] }),
-    ]);
-
-  studentsFilterCache = {
-    fakultas: fakultasRes
-      .map((r) => r.fakultas)
-      .filter(Boolean)
-      .sort(),
-    programStudi: prodiRes
-      .map((r) => r.programStudi)
-      .filter(Boolean)
-      .sort(),
-    angkatan: angkatanRes
-      .map((r) => r.angkatan)
-      .filter(Boolean)
-      .sort()
-      .reverse(),
-    semester: semesterRes
-      .map((r) => r.semester)
-      .filter(Boolean)
-      .sort((a, b) => a - b),
-    periodeMasuk: periodeRes
-      .map((r) => r.periodeMasuk)
-      .filter(Boolean)
-      .sort()
-      .reverse(),
-    kewarganegaraan: kewargRes
-      .map((r) => r.kewarganegaraan)
-      .filter(Boolean)
-      .sort(),
-    statusKeaktifan: statusRes
-      .map((r) => r.statusKeaktifan)
-      .filter(Boolean)
-      .sort(),
-    jenjang: await getDistinctJenjang(),
-    rollingYears: getRollingYears(angkatanRes.map((r) => r.angkatan)),
-    academicYears: [
-      ...new Set(periodeRes.map((r) => toAcademicYear(r.periodeMasuk)).filter(Boolean)),
-    ]
+function deriveStudentOptions({ angkatan, semester, periodeMasuk }) {
+  return {
+    rollingYears: getRollingYears(angkatan),
+    academicYears: [...new Set(periodeMasuk.map((value) => toAcademicYear(value)).filter(Boolean))]
       .sort()
       .reverse(),
     nationalityOptions: [
@@ -71,25 +29,13 @@ async function getFilterOptions(forceRefresh = false) {
     // Dropdown Tahun Ajaran mengikuti tahun akademik terbaru yang benar-benar
     // tersedia di database, sehingga otomatis bergeser setelah sync Sevima.
     academicYearOptions: get5YearRollingAcademicYears(
-      periodeRes.map((r) => toAcademicYear(r.periodeMasuk)).filter(Boolean),
+      periodeMasuk.map((value) => toAcademicYear(value)).filter(Boolean),
     ).reverse(),
-    semesterOptions: semesterRes
-      .map((r) => r.semester)
-      .filter((value) => value !== null && value !== undefined)
-      .sort((a, b) => a - b)
-      .map((value) => ({ value: String(value), label: `Semester ${value}` })),
+    semesterOptions: semester.map((value) => ({
+      value: String(value),
+      label: `Semester ${value}`,
+    })),
   };
-  studentsFilterCacheTime = now;
-
-  return studentsFilterCache;
-}
-
-async function getDistinctJenjang() {
-  const rows = await prisma.student.findMany({ select: { jenjang: true }, distinct: ['jenjang'] });
-  return rows
-    .map((r) => r.jenjang)
-    .filter(Boolean)
-    .sort();
 }
 
 function getRollingYears(values) {
@@ -101,9 +47,12 @@ function getRollingYears(values) {
   return Array.from({ length: 5 }, (_, index) => String(latest - index));
 }
 
-function clearFilterCache() {
-  studentsFilterCache = null;
-  studentsFilterCacheTime = 0;
-}
+const studentFilterOptions = createFilterOptionsSource({
+  queries: studentQueries,
+  derive: deriveStudentOptions,
+});
 
-module.exports = { getFilterOptions, clearFilterCache };
+module.exports = {
+  getFilterOptions: studentFilterOptions.getFilterOptions,
+  clearFilterCache: studentFilterOptions.clearFilterCache,
+};

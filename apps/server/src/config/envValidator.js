@@ -5,7 +5,7 @@ const logger = require('../utils/logger');
  * Zod schema for backend environment variables.
  * Fail-fast: the server will NOT start if any required variable is missing.
  */
-const envSchema = z.object({
+const baseEnvSchema = z.object({
   // Database
   DATABASE_URL: z.string().min(1, 'Koneksi database MySQL Prisma wajib diisi'),
 
@@ -24,7 +24,20 @@ const envSchema = z.object({
   ALLOWED_ORIGINS: z.string().optional().default('http://localhost:5173'),
   TRUST_PROXY: z.string().optional().default('false'),
   REDIS_URL: z.string().optional(),
+  // Degradasi eksplisit ke store in-process (sesi & rate limit per-proses).
+  // Tanpa ini, REDIS_URL yang kosong di production membuat server menolak start.
+  ALLOW_MEMORY_STORES: z.enum(['true', 'false']).optional(),
+  // Diagnostik error mentah di respons HANYA untuk dev lokal yang disengaja.
+  EXPOSE_ERROR_DETAILS: z.enum(['true', 'false']).optional(),
 });
+
+const envSchema = baseEnvSchema.refine(
+  (env) => !(env.NODE_ENV === 'production' && env.EXPOSE_ERROR_DETAILS === 'true'),
+  {
+    message: 'EXPOSE_ERROR_DETAILS=true tidak diizinkan di production',
+    path: ['EXPOSE_ERROR_DETAILS'],
+  },
+);
 
 /**
  * Validates process.env against the Zod schema.

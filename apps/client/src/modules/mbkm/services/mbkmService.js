@@ -1,82 +1,43 @@
-import apiClient from '../../../services/apiClient';
-import { validateMbkmQueryParams } from '../utils/mbkmQueryValidator';
+import { createFilterService } from '../../../services/createFilterService';
 import { createQueryParams } from '../../../services/queryParams';
+import { createQuerySanitizer } from '../../../utils/querySanitizer';
 
-export const mbkmService = {
-  toQueryParams: (filters = {}, pagination = {}) => {
-    const { sanitized } = validateMbkmQueryParams(filters);
+const sanitizeMbkmQuery = createQuerySanitizer({
+  single: ['periode', 'topN'],
+  multi: ['faculty', 'prodi', 'jenjang', 'angkatan', 'statusAktivitas'],
+});
 
-    const { params, append, appendMany } = createQueryParams();
+function toQueryParams(filters = {}, pagination = {}) {
+  const { sanitized } = sanitizeMbkmQuery(filters);
+  const { params, append, appendMany } = createQueryParams();
 
-    appendMany('fakultas', sanitized.faculty);
-    appendMany('programStudi', sanitized.prodi);
-    appendMany('jenjang', sanitized.jenjang);
-    appendMany('angkatan', sanitized.angkatan);
-    appendMany('statusAktivitas', sanitized.statusAktivitas);
+  appendMany('fakultas', sanitized.faculty);
+  appendMany('programStudi', sanitized.prodi);
+  appendMany('jenjang', sanitized.jenjang);
+  appendMany('angkatan', sanitized.angkatan);
+  appendMany('statusAktivitas', sanitized.statusAktivitas);
+  append('periode', sanitized.periode);
+  append('topN', sanitized.topN);
+  append('search', sanitized.search);
+  append('page', pagination.page);
+  append('limit', pagination.limit);
 
-    if (sanitized.periode) {
-      append('periode', sanitized.periode);
-    }
+  return params;
+}
 
-    if (sanitized.search) {
-      append('search', sanitized.search);
-    }
-
-    if (pagination.page) append('page', pagination.page);
-    if (pagination.limit) append('limit', pagination.limit);
-
-    return params;
+export const mbkmService = createFilterService({
+  toQueryParams,
+  summaryPath: '/mbkm/summary',
+  listPath: '/mbkm/list',
+  detailPaths: {
+    getRateDetail: '/mbkm/analytics/rate',
+    getActivityDistribution: '/mbkm/analytics/activity-distribution',
+    getProdiDistribution: '/mbkm/analytics/prodi-distribution',
+    getStatusDistribution: '/mbkm/analytics/status-distribution',
+    getEligibleStudents: '/mbkm/analytics/eligible-students',
+    getMitraDistribution: '/mbkm/analytics/mitra-distribution',
+    getCombinedDistribution: '/mbkm/distribution',
   },
-
-  toQueryString: (filters = {}) =>
-    filters instanceof URLSearchParams
-      ? filters.toString()
-      : mbkmService.toQueryParams(filters).toString(),
-
-  getSummary: (filters, options) => {
-    const qs = mbkmService.toQueryString(filters);
-    return apiClient.get(`/mbkm/summary${qs ? `?${qs}` : ''}`, options);
-  },
-
-  getMbkmList: ({ filters, page, limit }, options) => {
-    const params = mbkmService.toQueryParams(filters, { page, limit });
-    return apiClient.get(`/mbkm/list?${params.toString()}`, options);
-  },
-
-  getRateDetail: (filters, options) => {
-    const qs = mbkmService.toQueryString(filters);
-    return apiClient.get(`/mbkm/analytics/rate${qs ? `?${qs}` : ''}`, options);
-  },
-
-  getActivityDistribution: (filters, options) => {
-    const qs = mbkmService.toQueryString(filters);
-    return apiClient.get(`/mbkm/analytics/activity-distribution${qs ? `?${qs}` : ''}`, options);
-  },
-
-  getProdiDistribution: (filters, options) => {
-    const qs = mbkmService.toQueryString(filters);
-    return apiClient.get(`/mbkm/analytics/prodi-distribution${qs ? `?${qs}` : ''}`, options);
-  },
-
-  getStatusDistribution: (filters, options) => {
-    const qs = mbkmService.toQueryString(filters);
-    return apiClient.get(`/mbkm/analytics/status-distribution${qs ? `?${qs}` : ''}`, options);
-  },
-
-  getEligibleStudents: (filters, options) => {
-    const qs = mbkmService.toQueryString(filters);
-    return apiClient.get(`/mbkm/analytics/eligible-students${qs ? `?${qs}` : ''}`, options);
-  },
-
-  getMitraDistribution: (filters, options) => {
-    const qs = mbkmService.toQueryString(filters);
-    return apiClient.get(`/mbkm/analytics/mitra-distribution${qs ? `?${qs}` : ''}`, options);
-  },
-
-  getCombinedDistribution: (filters, options) => {
-    const qs = mbkmService.toQueryString(filters);
-    return apiClient.get(`/mbkm/distribution${qs ? `?${qs}` : ''}`, options);
-  },
-};
+});
 
 export default mbkmService;

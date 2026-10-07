@@ -1,10 +1,14 @@
-const { sendError } = require('../utils/errorHandler');
+const { sendError, sendRejected, GENERIC_ERROR_MESSAGE } = require('../utils/errorHandler');
 const prisma = require('../config/prisma');
+const apiKeyAuth = require('../middlewares/auth');
+const { sessionIssueLimiter } = require('../middlewares/rateLimiter');
 const { issueStudentSession, revokeStudentSession } = require('../middlewares/studentSession');
 
 function registerApplicationRoutes(app) {
-  app.post('/api/session/student', issueStudentSession);
-  app.delete('/api/session/student', revokeStudentSession);
+  // Sesi siswa adalah satu-satunya credential untuk route data mahasiswa. Penerbitannya
+  // dibatasi keras per IP/sesi dan dikunci ke origin yang dipercaya (issueStudentSession).
+  app.post('/api/session/student', sessionIssueLimiter, issueStudentSession);
+  app.delete('/api/session/student', sessionIssueLimiter, revokeStudentSession);
 
   app.use('/', require('./rootRoutes'));
 
@@ -15,14 +19,16 @@ function registerApplicationRoutes(app) {
   app.use('/api/graduates', require('./graduatesRoutes'));
   app.use('/api/mbkm', require('./mbkmRoutes'));
 
-  app.get('/api/health', async (req, res) => {
+  // Health detail (uptime + latensi DB) adalah fingerprint infrastruktur:
+  // hanya layak untuk monitoring service-to-server dengan credential sync.
+  app.get('/api/health', apiKeyAuth, async (req, res) => {
     let dbStatus = 'ok';
     let dbLatencyMs = null;
     try {
       const start = Date.now();
       await prisma.$queryRaw`SELECT 1`;
       dbLatencyMs = Date.now() - start;
-    } catch (error) {
+    } catch {
       dbStatus = 'error';
     }
     const isHealthy = dbStatus === 'ok';
@@ -34,24 +40,19 @@ function registerApplicationRoutes(app) {
     });
   });
 
-  app.use((req, res) =>
-    res.status(404).json({
-      success: false,
-      message: `Endpoint tidak ditemukan: ${req.method} ${req.originalUrl}`,
-    }),
-  );
+  app.use((_req, res) => sendRejected(res, 404, 'Endpoint tidak ditemukan.'));
 
-  app.use((err, req, res, next) => {
+  app.use((err, req, res, _next) => {
     if (err.message?.startsWith('CORS:')) {
-      return sendError(res, 403, err.message, err, 'cors');
+      return sendError(res, 403, 'Origin tidak diizinkan.', err, 'cors', 'FORBIDDEN');
     }
     const statusCode = Number.isInteger(err.statusCode)
       ? err.statusCode
       : Number.isInteger(err.status)
         ? err.status
         : 500;
-    const publicMessage = statusCode >= 500 ? 'Terjadi kesalahan internal server.' : err.message;
-    return sendError(res, statusCode, publicMessage, err, 'global');
+    // Pesan dari dalam tidak pernah ikut ke client; hanya kode status + pesan katalog.
+    return sendError(res, statusCode, GENERIC_ERROR_MESSAGE, err, 'global');
   });
 }
 

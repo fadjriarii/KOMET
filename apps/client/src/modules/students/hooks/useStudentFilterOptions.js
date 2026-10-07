@@ -1,20 +1,18 @@
 import { useQuery } from '@tanstack/react-query';
+import { queryKey } from '../../../hooks/moduleQueries';
 import { studentsService } from '../services/studentsService';
 
 /**
- * useStudentFilterOptions - Fetch filter options dari endpoint terpisah.
- *
- * Filter options jarang berubah, jadi di-cache dengan staleTime panjang (10 menit).
- * Ini mengurangi beban server dan meningkatkan performa UX.
+ * Filter options punya endpoint sendiri (bukan bagian summary) karena populasi
+ * kolom jarang berubah: di-cache 10 menit, dibuang dari memory setelah 30 menit.
  */
 export function useStudentFilterOptions() {
   const query = useQuery({
-    queryKey: ['students', 'filter-options'],
+    queryKey: queryKey('students', 'filter-options'),
     queryFn: ({ signal }) => studentsService.getFilterOptions({ signal }),
-    staleTime: 10 * 60 * 1000, // 10 menit
-    gcTime: 30 * 60 * 1000, // 30 menit (formerly cacheTime)
-    retry: 2,
-    select: (response) => (response?.success && response?.data ? response.data : null),
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    select: (response) => response?.data ?? null,
   });
 
   return {

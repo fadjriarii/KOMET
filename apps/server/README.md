@@ -104,11 +104,15 @@ src/
 │   └── shared/               # filterUtils (common filter helpers)
 ├── utils/
 │   ├── logger.js             # Winston logger (dev console + prod JSON)
-│   ├── errorHandler.js       # Centralized error response
-│   ├── academicUtils.js      # Academic year calculations
+│   ├── errorHandler.js       # Response error terpusat: sendError / sendServerError(kode)
+│   ├── errorCatalog.js       # Peta kode error → status HTTP + pesan publik (allowlist keluar)
+│   ├── academicUtils.js      # Kode periode Sevima + jendela yang ditentukan dari DB
+│   │                         # (aturan tahun akademik itu sendiri: @komet/shared/academicYear)
+│   ├── percentageUtils.js    # rate()/roundedRate() — satu rumus persentase
+│   ├── graduateUtils.js      # Predikat kelulusan
 │   ├── trendCalculation.js   # Percentage change, trend analysis
-│   ├── paginationUtils.js    # Pagination param normalization
-│   └── formatUtils.js        # Number formatting (id-ID locale)
+│   ├── paginationUtils.js    # Normalisasi page/limit (batas dari @komet/shared)
+│   └── syncJobTracker.js     # State job sync lintas proses
 └── server.js                 # Entry point (Express app setup, middleware chain)
 ```
 
@@ -169,6 +173,34 @@ src/
 | `POST` | `/api/sync/all`              | Sync all data                 |
 | `GET`  | `/api/sync/status`           | Current sync status           |
 | `GET`  | `/api/sync/check-connection` | SEVIMA API connectivity check |
+
+### Query Budget
+
+Diukur oleh `scripts/count-queries.js` (`pnpm count:queries`, butuh `.env` dan DB
+nyata berisi 2.059 mahasiswa / 1.127 lulusan / 556 aktivitas MBKM) dengan
+menghitung event `query` Prisma per request. Angka ini adalah anggaran, bukan
+estimasi: menambah query pada endpoint ini berarti menaikkan batasnya secara
+eksplisit dan menjalankan ulang skripnya.
+
+| Endpoint                                 |  Query | Catatan                                                                                                |
+| ---------------------------------------- | -----: | ------------------------------------------------------------------------------------------------------ |
+| `GET /api/students/summary`              |      9 | 4 kartu + 3 grafik; intake = satu `groupBy` untuk kartu, tren, dan penurunan                           |
+| `GET /api/students/international-detail` |      7 | jendela 5 tahun + sebaran negara                                                                       |
+| `GET /api/students/intake-trend`         |      1 | satu `groupBy(['periodeMasuk'])` atas seluruh tahun, deret disusun di memori                           |
+| `GET /api/students/decline-trend`        |      1 | agregat intake yang sama; penurunan murni di memori                                                    |
+| `GET /api/students/students`             |     ≤2 | daftar + `COUNT`; `COUNT` dilewati pada jalur cursor                                                   |
+| `GET /api/graduates/summary`             | 14 → 7 | 7 query opsi filter hanya jalan saat cache 5 menit dingin; total lulusan = satu `groupBy(['jenjang'])` |
+| `GET /api/graduates/keberhasilan-studi`  |   2 →1 | satu agregat `groupBy` per jenjang (sebelumnya 20); jenjang yang difilter client melewati querynya     |
+| `GET /api/graduates/tepat-waktu`         |      2 | lulusan + relasi mahasiswa (Prisma memisah relasi jadi 1 roundtrip)                                    |
+| `GET /api/mbkm/summary`                  | 11 → 5 | opsi filter ber-cache: hanya dingin sekali per 5 menit                                                 |
+| `GET /api/mbkm/analytics/rate`           |      4 | status (1), fakultas (1), eligible (1), opsi/periode seperlunya                                        |
+
+Fan-out `Promise.all` pada endpoint-endpoint ini **tidak** dibatasi semaphore
+aplikasi: Prisma sudah mengantre permintaan pada connection pool MySQL
+(`connection_limit` di `DATABASE_URL`, default `cpu×2+1`), sehingga menambahkan
+batas konkurensi di lapisan aplikasi hanya memindahkan antrian dan menambah
+waktu tunggu. Query yang lambat tetap terukur lewat `[SlowQuery]`
+(`SLOW_QUERY_MS`, default 500 ms).
 
 ## Database Schema
 
@@ -237,7 +269,8 @@ pnpm db:push      # Push schema to database (no migration)
 
 ## Testing
 
-Tests use **Vitest 5** with 13 test files and 84 unit tests covering controllers, services, middlewares, and utils.
+Tests use **Vitest 5** across 22 files covering controllers, services, middlewares,
+and utils. `pnpm test` prints the current count; no doc repeats it.
 
 ```bash
 pnpm test

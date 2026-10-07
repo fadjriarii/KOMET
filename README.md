@@ -78,8 +78,7 @@ Komet/
 │   │   │   ├── hooks/           Shared React hooks: useSummaryQuery, usePaginatedList, etc.
 │   │   │   ├── services/        API client, query params
 │   │   │   ├── config/          Env validation
-│   │   │   ├── context/         Navigation state
-│   │   │   ├── constants/       Navigation items, debounce values
+│   │   │   ├── constants/       Navigation items (routes + menu + breadcrumbs), debounce values
 │   │   │   └── utils/           Formatters, UI helpers
 │   │   └── package.json
 │   └── server/              (@komet/server – Express API)

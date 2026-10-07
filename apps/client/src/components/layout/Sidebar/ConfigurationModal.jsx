@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import Modal from '../../common/modals/Modal';
 import useSyncJob from './useSyncJob';
+import { formatNumber } from '@komet/shared/formatters';
 
 const MODULE_OPTIONS = [
   {
@@ -45,8 +46,6 @@ const ROW_STATUS = {
   },
   completed: { dot: 'bg-emerald-500', text: 'text-emerald-600', label: 'Selesai' },
 };
-
-const formatNumber = (value) => new Intl.NumberFormat('id-ID').format(value || 0);
 
 const formatDateTime = (iso) =>
   iso

@@ -6,6 +6,7 @@
 
 const prisma = require('../../config/prisma');
 const { ensurePopulationFilter } = require('./filterBuilder');
+const { rate } = require('../../utils/percentageUtils');
 
 /**
  * Hitung total mahasiswa aktif sesuai base filter.
@@ -59,7 +60,7 @@ async function getActiveStudentsMultisector(baseFilter) {
       return {
         name,
         count,
-        percentage: totalCount > 0 ? (count / totalCount) * 100 : 0,
+        percentage: rate(count, totalCount),
       };
     });
 

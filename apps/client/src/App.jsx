@@ -1,20 +1,21 @@
-import { lazy, Suspense } from 'react';
+import { Suspense, useState } from 'react';
+import { Route, Routes, useLocation } from 'react-router-dom';
 import MainLayout from './components/layout/MainLayout';
-import { NavigationProvider } from './context/NavigationContext';
-import { useNavigation } from './context/useNavigation';
+import Button from './components/common/ui/Button';
+import EmptyState from './components/common/feedback/EmptyState';
+import ErrorBoundary from './components/common/feedback/ErrorBoundary';
 import Skeleton from './components/common/feedback/Skeleton';
+import { AlertTriangle } from 'lucide-react';
+import { NAV_ITEMS } from './constants/navigation';
 
-const OverviewPage = lazy(() => import('./modules/overview/pages/OverviewPage'));
-const StudentsPage = lazy(() => import('./modules/students/pages/StudentsPage'));
-const GraduatesPage = lazy(() => import('./modules/graduates/pages/GraduatesPage'));
-const MbkmPage = lazy(() => import('./modules/mbkm/pages/MbkmPage'));
+export default function App() {
+  const { pathname } = useLocation();
+  const [retryToken, setRetryToken] = useState(0);
 
-function AppContent() {
-  const { activeTab } = useNavigation();
-
+  // `key` hanya mengulang animasi perpindahan; filter dan halaman tabel sudah
+  // hidup di URL, jadi remount saat pindah tab tidak membuang keadaan apa pun.
   return (
     <MainLayout>
-      {/* Deep Blur Cross-Fade Container (Apple Keynote / Glassmorphism Style) */}
       <Suspense
         fallback={
           <div className="p-6">
@@ -22,21 +23,41 @@ function AppContent() {
           </div>
         }
       >
-        <div key={activeTab} className="animate-blur-crossfade w-full">
-          {activeTab === 'overview' && <OverviewPage />}
-          {activeTab === 'students' && <StudentsPage />}
-          {activeTab === 'graduates' && <GraduatesPage />}
-          {activeTab === 'mbkm' && <MbkmPage />}
-        </div>
+        <ErrorBoundary
+          resetKey={`${pathname}:${retryToken}`}
+          fallback={(error) => (
+            <EmptyState
+              title="Halaman Gagal Dimuat"
+              icon={AlertTriangle}
+              description={
+                error?.message ||
+                'Terjadi kesalahan tak terduga saat menampilkan halaman ini. Filter Anda masih tersimpan di URL.'
+              }
+              className="min-h-[50vh]"
+              action={
+                <Button onClick={() => setRetryToken((token) => token + 1)}>Coba Lagi</Button>
+              }
+            />
+          )}
+        >
+          <div key={pathname} className="animate-blur-crossfade w-full">
+            <Routes>
+              {NAV_ITEMS.map(({ path, Component }) => (
+                <Route key={path} path={path} element={<Component />} />
+              ))}
+              <Route
+                path="*"
+                element={
+                  <EmptyState
+                    title="Halaman Tidak Dikenal"
+                    description="Alamat yang dibuka bukan salah satu halaman dashboard ini."
+                  />
+                }
+              />
+            </Routes>
+          </div>
+        </ErrorBoundary>
       </Suspense>
     </MainLayout>
-  );
-}
-
-export default function App() {
-  return (
-    <NavigationProvider initialTab="overview">
-      <AppContent />
-    </NavigationProvider>
   );
 }
