@@ -1,7 +1,7 @@
 const { sendError, sendRejected, GENERIC_ERROR_MESSAGE } = require('../utils/errorHandler');
 const prisma = require('../config/prisma');
 const apiKeyAuth = require('../middlewares/auth');
-const { sessionIssueLimiter } = require('../middlewares/rateLimiter');
+const { sessionIssueLimiter, statusLimiter } = require('../middlewares/rateLimiter');
 const { issueStudentSession, revokeStudentSession } = require('../middlewares/studentSession');
 
 function registerApplicationRoutes(app) {
@@ -21,7 +21,7 @@ function registerApplicationRoutes(app) {
 
   // Health detail (uptime + latensi DB) adalah fingerprint infrastruktur:
   // hanya layak untuk monitoring service-to-server dengan credential sync.
-  app.get('/api/health', apiKeyAuth, async (req, res) => {
+  app.get('/api/health', statusLimiter, apiKeyAuth, async (req, res) => {
     let dbStatus = 'ok';
     let dbLatencyMs = null;
     try {
