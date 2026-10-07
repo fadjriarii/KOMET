@@ -3,27 +3,14 @@ const logger = require('../../utils/logger');
 const syncJobTracker = require('../../utils/syncJobTracker');
 const createSyncHandler = require('./createSyncHandler');
 const { deduplicateStudents } = require('../../services/studentDeduplicationService');
+const { sanitizeProdiName, normalizeOptionalText } = require('./text');
 const {
-  cleanText,
-  sanitizeText,
-  sanitizeProdiName,
-  normalizeOptionalText,
   resolveTargetNimBatch,
   getProdiFakultasMap,
+  resolveFakultas,
   paginateSevimaPages,
-  bulkCreateMbkmActivities,
-} = require('./helpers');
-
-function resolveFakultas(attr, prodiName, prodiFakultasMap) {
-  const rawProdi = attr.program_studi || '';
-  return sanitizeText(
-    prodiFakultasMap.get(cleanText(rawProdi)) ||
-      prodiFakultasMap.get(cleanText(prodiName)) ||
-      prodiFakultasMap.get(rawProdi.trim().toLowerCase()) ||
-      prodiFakultasMap.get(prodiName.trim().toLowerCase()) ||
-      '',
-  );
-}
+} = require('./sevimaLookup');
+const { bulkCreateMbkmActivities } = require('./bulkWrite');
 
 // 3. ETL Sinkronisasi MBKM (MbkmActivity)
 const executeSyncMbkm = async ({ runDedup = true } = {}) => {

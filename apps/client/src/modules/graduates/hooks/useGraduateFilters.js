@@ -1,6 +1,5 @@
 import { Award, BookOpen, Building2, Calendar, CalendarDays, UserCheck } from 'lucide-react';
 import { useDashboardFilters } from '../../../hooks/useDashboardFilters';
-import { getGraduateActiveFilterCount } from '../utils/graduateQuery';
 import { sanitizeSearch } from '../../../utils/querySanitizer';
 
 /**
@@ -104,6 +103,5 @@ export const graduateFilterForm = {
 export function useGraduateFilters() {
   return useDashboardFilters({
     fields: graduateFilterFields,
-    getActiveFilterCount: getGraduateActiveFilterCount,
   });
 }

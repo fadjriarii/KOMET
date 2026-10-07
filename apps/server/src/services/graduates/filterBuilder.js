@@ -5,7 +5,6 @@
  * untuk tabel graduates (dan relasi student).
  */
 
-const { getPaginationParams } = require('../../utils/paginationUtils');
 const { addInFilter, addSearchFilter, hasFilters, toArray } = require('../shared/filterUtils');
 const { JENJANGS } = require('@komet/shared/constants');
 
@@ -67,7 +66,6 @@ function buildGraduateFilter(query) {
 
 module.exports = {
   buildGraduateFilter,
-  getPaginationParams,
   getRequestedJenjang,
   includesJenjang,
 };

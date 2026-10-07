@@ -10,27 +10,15 @@ const MODAL_MAP = {
 
 /**
  * StudentDetailModal
- * Komponen orkestrator / facade yang mendelegasikan rendering rincian popup
- * ke masing-masing modal modular di folder `modals/`.
+ * Facade yang menyerahkan rendering ke modal di `modals/` lewat
+ * DetailModalOrchestrator; kunci MODAL_MAP adalah nilai `modalType` yang sah.
  */
-export default function StudentDetailModal({
-  isOpen,
-  onClose,
-  modalType, // 'active' | 'foreign' | 'intake' | 'decline'
-  originRect,
-  data,
-  filters,
-}) {
+export default function StudentDetailModal(props) {
   return (
     <DetailModalOrchestrator
+      {...props}
       modalMap={MODAL_MAP}
       fallbackMessage="Gagal memuat rincian. Silakan tutup lalu coba lagi."
-      isOpen={isOpen}
-      onClose={onClose}
-      modalType={modalType}
-      originRect={originRect}
-      data={data}
-      filters={filters}
     />
   );
 }

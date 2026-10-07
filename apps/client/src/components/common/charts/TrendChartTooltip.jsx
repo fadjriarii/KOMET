@@ -12,7 +12,6 @@ export default function TrendChartTooltip({
   rows = [],
   footer = null,
   titleAccessory,
-  unit = 'mhs',
 }) {
   if (!active || !payload?.length) return null;
   const item = payload[0]?.payload;
@@ -35,7 +34,7 @@ export default function TrendChartTooltip({
             {label}
           </span>
           <span className="font-semibold text-gray-800">
-            {format ? format(item[key], item) : `${formatNumber(item[key])} ${unit}`}
+            {format ? format(item[key], item) : `${formatNumber(item[key])} mhs`}
           </span>
         </div>
       ))}

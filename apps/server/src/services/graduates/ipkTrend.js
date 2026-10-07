@@ -8,6 +8,7 @@ const prisma = require('../../config/prisma');
 const { getYearRange } = require('../../utils/academicUtils');
 const { rate } = require('../../utils/percentageUtils');
 const { includesJenjang } = require('./filterBuilder');
+const { valuesByYearAndJenjang } = require('./yearJenjangSeries');
 const { JENJANGS } = require('@komet/shared/constants');
 
 /**
@@ -39,34 +40,19 @@ async function getAvgIpk(whereFilter) {
   return { s1: averages[0], s2: averages[1] };
 }
 
+/**
+ * Rata-rata IPK per tahun untuk kedua jenjang dalam satu deret terurut naik —
+ * bentuk yang sama seperti `byYear` pada `totalLulusan.js`, sehingga halaman
+ * tinggal membacanya tanpa menggabungkan dua daftar.
+ */
 async function getIpkByYear(whereFilter) {
-  const yearRange = getYearRange();
-  const results = await prisma.graduate.groupBy({
-    by: ['tahunLulus', 'jenjang'],
-    where: { ...whereFilter, tahunLulus: { in: yearRange } },
-    _avg: { ipk: true },
-    _count: true,
-    orderBy: { tahunLulus: 'asc' },
+  const series = await valuesByYearAndJenjang(whereFilter, {
+    aggregate: { _avg: { ipk: true } },
+    valueOf: (row) => (row._avg.ipk === null ? null : parseFloat(row._avg.ipk.toFixed(2))),
+    missing: null,
   });
 
-  const byYearS1 = yearRange.map((tahun) => {
-    const found = results.find((r) => r.tahunLulus === tahun && r.jenjang === 'S1');
-    return {
-      tahun,
-      avgIpk: found && found._avg.ipk !== null ? parseFloat(found._avg.ipk.toFixed(2)) : null,
-      count: found ? found._count : 0,
-    };
-  });
-  const byYearS2 = yearRange.map((tahun) => {
-    const found = results.find((r) => r.tahunLulus === tahun && r.jenjang === 'S2');
-    return {
-      tahun,
-      avgIpk: found && found._avg.ipk !== null ? parseFloat(found._avg.ipk.toFixed(2)) : null,
-      count: found ? found._count : 0,
-    };
-  });
-
-  return { byYearS1, byYearS2 };
+  return series.map(({ tahun, s1, s2 }) => ({ tahun, s1AvgIpk: s1, s2AvgIpk: s2 }));
 }
 
 /**

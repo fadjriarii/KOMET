@@ -5,12 +5,14 @@ const require = createRequire(import.meta.url);
 const {
   FILTER_SCOPES,
   buildStudentFilter,
-  buildTerminalPeriodCondition,
   ensurePopulationFilter,
+} = require('../../../src/services/students/filterBuilder');
+const {
+  buildTerminalPeriodCondition,
   getAcademicPeriodBounds,
   isTerminalInAcademicYear,
   matchesStudentCondition,
-} = require('../../../src/services/students/filterBuilder');
+} = require('../../../src/services/students/snapshotConditions');
 
 describe('student filter builder', () => {
   // ── Filter dasar (tanpa Tahun Ajaran) ───────────────────────────────────────
@@ -301,18 +303,17 @@ describe('student filter builder', () => {
     for (const term of ['periodeMasuk', 'periodeTerakhir', 'statusKeaktifan']) {
       const withTerm = buildStudentFilter({ tahunAjaran: '2025/2026', search: term });
       const without = buildStudentFilter({ tahunAjaran: '2025/2026' });
-      // `search` hanya menambah satu kondisi OR paling akhir; tidak ada
-      // kondisi snapshot yang hilang karena namanya ikut disebut.
-      expect(withTerm.AND).toHaveLength(without.AND.length + 1);
-      expect(withTerm.AND.slice(0, without.AND.length)).toEqual(without.AND);
+      // `search` hanya menambah satu OR di level teratas; tidak ada kondisi
+      // snapshot yang hilang karena namanya ikut disebut.
+      expect(withTerm.AND).toEqual(without.AND);
+      expect(withTerm.OR).toHaveLength(2);
     }
 
     const searchOnly = buildStudentFilter({ search: 'periodeTerakhir' });
     expect(searchOnly.statusKeaktifan).toBe('Aktif');
-    expect(searchOnly.AND).toEqual([
-      {
-        OR: [{ nim: { contains: 'periodeTerakhir' } }, { nama: { contains: 'periodeTerakhir' } }],
-      },
+    expect(searchOnly.OR).toEqual([
+      { nim: { contains: 'periodeTerakhir' } },
+      { nama: { contains: 'periodeTerakhir' } },
     ]);
   });
 

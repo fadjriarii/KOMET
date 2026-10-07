@@ -5,10 +5,9 @@ const { syncAuth } = require('../middlewares/syncAuth');
 const { checkSyncRunning } = require('../middlewares/syncGuard');
 const { syncLimiter, statusLimiter, statsLimiter } = require('../middlewares/rateLimiter');
 
-// Monitoring status & uji latensi: dibacanya lewat polling tiap 2 detik oleh UI,
-// jadi dipisah dari budget statsLimiter agar polling tidak menghabiskan jatah dashboard.
+// Status job dibacanya lewat polling tiap 2 detik oleh UI, jadi dipisah dari
+// budget statsLimiter agar polling tidak menghabiskan jatah dashboard.
 router.get('/status', statusLimiter, syncAuth, syncController.getSyncStatus);
-router.get('/check-connection', statusLimiter, syncAuth, syncController.checkConnection);
 
 // Endpoint sync berat: limiter dasar + kredensial sync (sesi UI atau SYNC_API_KEY).
 router.use(statsLimiter, syncAuth);

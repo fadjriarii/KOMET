@@ -1,18 +1,22 @@
 import { vi } from 'vitest';
 
 /**
- * Tiruan `services/apiClient`: hanya `get` yang dibutuhkan halaman dashboard.
- * Test memakai `respondWith` untuk menentukan isi respons berdasar URL, sehingga
- * service, perakit query, dan hook query yang asli tetap ikut teruji.
+ * Tiruan `services/apiClient`: hanya `get` dan `post` yang dipakai dashboard dan
+ * panel sinkronisasi. Test memakai `respondWith` untuk menentukan isi respons
+ * berdasar URL, sehingga service, perakit query, dan hook query yang asli tetap
+ * ikut teruji.
  */
 const state = { respond: () => ({ success: true }) };
 
 export const calls = [];
 
-export const get = vi.fn((url) => {
+const call = (url) => {
   calls.push(url);
   return Promise.resolve(state.respond(url) ?? { success: true });
-});
+};
+
+export const get = vi.fn(call);
+export const post = vi.fn(call);
 
 export function respondWith(respond) {
   state.respond = respond;
@@ -34,4 +38,4 @@ export function lastQuery(path) {
 
 export const isRetryableError = () => false;
 
-export default { get, post: vi.fn(), put: vi.fn(), delete: vi.fn() };
+export default { get, post, put: vi.fn(), delete: vi.fn() };

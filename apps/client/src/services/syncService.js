@@ -1,7 +1,6 @@
 import apiClient from './apiClient';
 
 export const syncService = {
-  checkConnection: (options) => apiClient.get('/sync/check-connection', options),
   getSyncStatus: (options) => apiClient.get('/sync/status', options),
   syncAll: (body = {}, options) => apiClient.post('/sync/all', body, options),
   syncStudents: (body = {}, options) => apiClient.post('/sync/students', body, options),

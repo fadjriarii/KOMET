@@ -10,26 +10,15 @@ const MODAL_MAP = {
 
 /**
  * GraduateDetailModal
- * Komponen orkestrator yang mendelegasikan rendering modal ke masing-masing modal di `modals/`.
+ * Facade yang menyerahkan rendering ke modal di `modals/` lewat
+ * DetailModalOrchestrator; kunci MODAL_MAP adalah nilai `modalType` yang sah.
  */
-export default function GraduateDetailModal({
-  isOpen,
-  onClose,
-  modalType, // 'total' | 'gpa' | 'onTime' | 'studySuccess'
-  originRect,
-  data,
-  filters,
-}) {
+export default function GraduateDetailModal(props) {
   return (
     <DetailModalOrchestrator
+      {...props}
       modalMap={MODAL_MAP}
       fallbackMessage="Gagal memuat rincian kelulusan. Silakan tutup lalu coba lagi."
-      isOpen={isOpen}
-      onClose={onClose}
-      modalType={modalType}
-      originRect={originRect}
-      data={data}
-      filters={filters}
     />
   );
 }

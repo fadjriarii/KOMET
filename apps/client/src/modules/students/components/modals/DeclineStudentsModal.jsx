@@ -68,7 +68,7 @@ const DECLINE_TABLE_COLUMNS = [
           }`}
         >
           {isPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-          {`${isPositive ? '+' : ''}${Number(row.changeFromPrev).toFixed(1)}%`}
+          {formatSignedPercentage(row.changeFromPrev, 1)}
         </span>
       );
     },

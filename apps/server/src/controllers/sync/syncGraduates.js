@@ -2,13 +2,9 @@ const logger = require('../../utils/logger');
 const syncJobTracker = require('../../utils/syncJobTracker');
 const createSyncHandler = require('./createSyncHandler');
 const { deduplicateStudents } = require('../../services/studentDeduplicationService');
-const {
-  sanitizeProdiName,
-  normalizeOptionalText,
-  resolveTargetNimBatch,
-  paginateSevimaPages,
-  bulkUpsertGraduates,
-} = require('./helpers');
+const { sanitizeProdiName, normalizeOptionalText } = require('./text');
+const { resolveTargetNimBatch, paginateSevimaPages } = require('./sevimaLookup');
+const { bulkUpsertGraduates } = require('./bulkWrite');
 const { STUDENT_STATUS } = require('@komet/shared/constants');
 
 // 2. ETL Sinkronisasi Kelulusan (Graduate)
@@ -109,7 +105,7 @@ const executeSyncGraduates = async ({ runDedup = true } = {}) => {
     skipped: totalSkipped,
   });
   logger.success(
-    `[Kelulusan] Selesai! ${totalSynced} data disinkronkan, ${deduplicationResult?.deletedCount || 0} duplikat dibersihkan.`,
+    `[Kelulusan] Selesai! ${totalSynced} data disinkronkan, ${deduplicationResult?.deletedStudentsCount || 0} duplikat dibersihkan.`,
   );
   return { totalSynced, totalSkipped, deduplication: deduplicationResult };
 };

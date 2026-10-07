@@ -9,11 +9,9 @@ process.env.SEVIMA_FETCH_WINDOW = '3';
 
 const sevimaApi = require('../../../src/config/sevimaApi');
 const prisma = require('../../../src/config/prisma');
-const {
-  paginateSevimaPages,
-  bulkUpsertStudents,
-  chunkBy,
-} = require('../../../src/controllers/sync/helpers');
+const { paginateSevimaPages } = require('../../../src/controllers/sync/sevimaLookup');
+const { bulkUpsertStudents } = require('../../../src/controllers/sync/bulkWrite');
+const { chunkBy } = require('../../../src/controllers/sync/config');
 
 describe('paginateSevimaPages', () => {
   let getSpy;

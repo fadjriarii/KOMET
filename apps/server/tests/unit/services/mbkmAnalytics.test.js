@@ -257,7 +257,6 @@ describe('getMitraDistribution', () => {
     expect(data.mitraData.at(-1)).toEqual({
       name: 'Lainnya',
       count: 7,
-      partners: 2,
       percentage: (7 / 25) * 100,
     });
     const sum = data.mitraData.reduce((acc, item) => acc + item.percentage, 0);

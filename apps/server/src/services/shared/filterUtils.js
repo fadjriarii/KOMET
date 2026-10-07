@@ -30,4 +30,4 @@ function hasFilters(where) {
   return Object.keys(where).length > 0;
 }
 
-module.exports = { toArray, getValues, addInFilter, addSearchFilter, hasFilters };
+module.exports = { toArray, addInFilter, addSearchFilter, hasFilters };

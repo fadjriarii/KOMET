@@ -1,5 +1,5 @@
 import { Suspense, useState } from 'react';
-import { Route, Routes, useLocation } from 'react-router-dom';
+import { Route, Routes, Navigate, useLocation } from 'react-router-dom';
 import MainLayout from './components/layout/MainLayout';
 import Button from './components/common/ui/Button';
 import EmptyState from './components/common/feedback/EmptyState';
@@ -42,6 +42,7 @@ export default function App() {
         >
           <div key={pathname} className="animate-blur-crossfade w-full">
             <Routes>
+              <Route path="/" element={<Navigate to="/students" replace />} />
               {NAV_ITEMS.map(({ path, Component }) => (
                 <Route key={path} path={path} element={<Component />} />
               ))}

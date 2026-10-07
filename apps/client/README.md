@@ -36,15 +36,14 @@ src/
 │   ├── common/                 Reusable UI primitives
 │   │   ├── cards/              ChartCard, StatCard, FilterContainerCard, MetricSummaryGrid
 │   │   ├── charts/             DistributionBarChart, TrendBarChart, TrendChartTooltip
-│   │   ├── feedback/           Skeleton, EmptyState, ErrorBoundary, LoadingSpinner
+│   │   ├── feedback/           Skeleton, EmptyState, ErrorBoundary, QueryErrorBanner
 │   │   ├── filters/            FilterContainerShell, FilterField
 │   │   ├── modals/             Modal, ModalSummaryBanner, ModalTabNav, ModalTabContent, DetailModalOrchestrator
 │   │   ├── tables/             DataTable (paginated)
 │   │   └── ui/                 Badge, Button, CheckboxSelect, Input, Select
 │   └── layout/                 MainLayout, Sidebar, Navbar, Breadcrumbs
 ├── modules/                    Feature modules (self-contained)
-│   ├── overview/               Dashboard overview with KPI stat cards
-│   ├── students/               Student analytics
+│   ├── students/               Student analytics (`/` redirects here)
 │   ├── graduates/              Graduate analytics
 │   └── mbkm/                   MBKM program analytics
 ├── hooks/                      Shared hooks

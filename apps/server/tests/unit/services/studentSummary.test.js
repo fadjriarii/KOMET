@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const prisma = require('../../../src/config/prisma');
 const { contractFor, contractProblems } = require('@komet/shared/contracts');
-const { matchesStudentCondition } = require('../../../src/services/students/filterBuilder');
+const { matchesStudentCondition } = require('../../../src/services/students/snapshotConditions');
 const { getStudentSummary } = require('../../../src/services/students/studentSummary');
 
 const original = {

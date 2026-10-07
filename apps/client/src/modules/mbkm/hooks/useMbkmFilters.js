@@ -1,6 +1,5 @@
 import { Award, BookOpen, Building2, CalendarDays, UserCheck } from 'lucide-react';
 import { useDashboardFilters } from '../../../hooks/useDashboardFilters';
-import { getMbkmActiveFilterCount } from '../utils/mbkmQuery';
 import { sanitizeSearch } from '../../../utils/querySanitizer';
 
 /**
@@ -94,6 +93,5 @@ export const mbkmFilterForm = {
 export function useMbkmFilters() {
   return useDashboardFilters({
     fields: mbkmFilterFields,
-    getActiveFilterCount: getMbkmActiveFilterCount,
   });
 }

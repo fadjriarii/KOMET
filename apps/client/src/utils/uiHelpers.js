@@ -77,9 +77,6 @@ export function getStudentActiveDescription(
     : `pada tahun akademik ${year}`;
   return `Menampilkan seluruh student body dengan status ${statusLabel} ${periodLabel} dengan total ${count} mahasiswa yang terdistribusi ke dalam fakultas, program studi, dan jenjang pendidikan.`;
 }
-export function getActiveTabContent(activeTab, content) {
-  return content[activeTab] || null;
-}
 export function getStatusBadgeVariant(status) {
   if (status === STUDENT_STATUS.AKTIF) return 'success';
   if (status === STUDENT_STATUS.LULUS) return 'info';

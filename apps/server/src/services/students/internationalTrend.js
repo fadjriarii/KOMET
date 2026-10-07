@@ -7,8 +7,9 @@ const {
   buildStudentFilter,
   ensurePopulationFilter,
   getAcademicYear,
-  buildAcademicYearFilter,
+  getSelectedAcademicYear,
 } = require('./filterBuilder');
+const { buildAcademicYearFilter } = require('./snapshotConditions');
 
 function appendNot(where, condition) {
   const { NOT: existingNot, AND: existingAnd, ...rest } = where;
@@ -119,10 +120,20 @@ async function getInternationalStudentsTrend(query = {}) {
     count: row._count.kewarganegaraan,
   }));
 
+  // Baris yang mewakili tahun terpilih di banner kartu: tahun ajaran yang diminta
+  // bila ada di jendela tren, kalau tidak tahun terakhir. Aturan pilih dinyatakan
+  // di sini supaya klien tidak perlu mencari barisnya sendiri.
+  const selectedAcademicYear = getSelectedAcademicYear(query);
+  const selected =
+    trendData.find((row) => row.academicYear === selectedAcademicYear) ||
+    trendData[trendData.length - 1] ||
+    null;
+
   return {
     total: countryMap.reduce((sum, row) => sum + row.count, 0),
     byCountry: countryMap,
     trendData,
+    selected,
   };
 }
 

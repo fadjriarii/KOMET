@@ -10,11 +10,9 @@ import { Check, ChevronDown } from 'lucide-react';
  * @param {Array} options - Daftar opsi [{ value, label }] atau array string
  * @param {string} placeholder - Label opsi default ("Semua")
  * @param {Array|string} defaultValue - Nilai default untuk indikator visual
- * @param {boolean} allOptionAtBottom - Menempatkan opsi 'Semua' di bawah
  * @param {Component} icon - Icon Lucide opsional di sisi kiri
  * @param {boolean} disabled - Status disabled
  * @param {string} className - Additional CSS class
- * @param {string} buttonClassName - Custom button class
  * @param {string} id - HTML ID
  */
 export default function CheckboxSelect({
@@ -24,11 +22,9 @@ export default function CheckboxSelect({
   options = [],
   placeholder = 'Semua',
   defaultValue = [],
-  allOptionAtBottom = false,
   icon: Icon,
   disabled = false,
   className = '',
-  buttonClassName = '',
   id,
 }) {
   const [open, setOpen] = useState(false);
@@ -122,11 +118,7 @@ export default function CheckboxSelect({
           onClick={() => !disabled && setOpen((v) => !v)}
           aria-expanded={open}
           aria-haspopup="listbox"
-          className={`w-full ${
-            buttonClassName
-              ? buttonClassName
-              : 'h-11 bg-gray-50/80 hover:bg-gray-50/50 focus:bg-white border-gray-200/90'
-          } flex items-center justify-between text-xs sm:text-sm rounded-xl border hover:border-gray-300 focus:border-digital-blue-600 focus:ring-3 focus:ring-digital-blue-500/15 shadow-2xs transition-all outline-none cursor-pointer ${
+          className={`w-full h-11 bg-gray-50/80 hover:bg-gray-50/50 focus:bg-white border-gray-200/90 flex items-center justify-between text-xs sm:text-sm rounded-xl border hover:border-gray-300 focus:border-digital-blue-600 focus:ring-3 focus:ring-digital-blue-500/15 shadow-2xs transition-all outline-none cursor-pointer ${
             Icon ? 'pl-9.5 pr-3.5' : 'px-3.5'
           } ${disabled ? 'opacity-60 cursor-not-allowed bg-gray-100 border-gray-200' : ''}`}
         >
@@ -165,31 +157,29 @@ export default function CheckboxSelect({
           }`}
         >
           <div className="space-y-0.5">
-            {/* Opsi 'Semua' di Atas */}
-            {!allOptionAtBottom && (
-              <button
-                type="button"
-                onClick={handleClearAll}
-                className={`w-full flex items-center justify-between px-3 py-2 text-xs font-medium rounded-xl transition-all duration-150 cursor-pointer ${
-                  isAllSelected
-                    ? 'bg-digital-blue-50 text-digital-blue-700 font-bold border border-digital-blue-100 shadow-2xs'
-                    : 'text-gray-700 hover:bg-digital-blue-50/70 hover:text-digital-blue-700'
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <div
-                    className={`w-4 h-4 rounded-md border flex items-center justify-center transition-colors ${
-                      isAllSelected
-                        ? 'bg-digital-blue-600 border-digital-blue-600 text-white shadow-2xs'
-                        : 'border-gray-300 bg-white'
-                    }`}
-                  >
-                    {isAllSelected && <Check size={12} strokeWidth={3} />}
-                  </div>
-                  <span>{placeholder}</span>
+            {/* Opsi 'Semua' — selalu di atas daftar. */}
+            <button
+              type="button"
+              onClick={handleClearAll}
+              className={`w-full flex items-center justify-between px-3 py-2 text-xs font-medium rounded-xl transition-all duration-150 cursor-pointer ${
+                isAllSelected
+                  ? 'bg-digital-blue-50 text-digital-blue-700 font-bold border border-digital-blue-100 shadow-2xs'
+                  : 'text-gray-700 hover:bg-digital-blue-50/70 hover:text-digital-blue-700'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={`w-4 h-4 rounded-md border flex items-center justify-center transition-colors ${
+                    isAllSelected
+                      ? 'bg-digital-blue-600 border-digital-blue-600 text-white shadow-2xs'
+                      : 'border-gray-300 bg-white'
+                  }`}
+                >
+                  {isAllSelected && <Check size={12} strokeWidth={3} />}
                 </div>
-              </button>
-            )}
+                <span>{placeholder}</span>
+              </div>
+            </button>
 
             {/* List Opsi Dinamis dengan scroll */}
             <div className="max-h-60 overflow-y-auto custom-scrollbar space-y-0.5 pr-0.5">
@@ -227,32 +217,6 @@ export default function CheckboxSelect({
                 );
               })}
             </div>
-
-            {/* Opsi 'Semua' di Bawah (jika diaktifkan) */}
-            {allOptionAtBottom && (
-              <button
-                type="button"
-                onClick={handleClearAll}
-                className={`w-full flex items-center justify-between px-3 py-2 text-xs font-medium rounded-xl transition-all duration-150 cursor-pointer ${
-                  isAllSelected
-                    ? 'bg-digital-blue-50 text-digital-blue-700 font-bold border border-digital-blue-100 shadow-2xs'
-                    : 'text-gray-700 hover:bg-digital-blue-50/70 hover:text-digital-blue-700'
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <div
-                    className={`w-4 h-4 rounded-md border flex items-center justify-center transition-colors ${
-                      isAllSelected
-                        ? 'bg-digital-blue-600 border-digital-blue-600 text-white shadow-2xs'
-                        : 'border-gray-300 bg-white'
-                    }`}
-                  >
-                    {isAllSelected && <Check size={12} strokeWidth={3} />}
-                  </div>
-                  <span>{placeholder}</span>
-                </div>
-              </button>
-            )}
           </div>
         </div>
       </div>

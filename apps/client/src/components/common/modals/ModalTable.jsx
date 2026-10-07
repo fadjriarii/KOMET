@@ -11,7 +11,6 @@ import { Table as TableIcon } from 'lucide-react';
  * @param {string} emptyTitle - Judul empty state
  * @param {string} emptyDescription - Deskripsi empty state
  * @param {Component} emptyIcon - Icon untuk empty state
- * @param {string} maxHeight - Max height container (e.g. 'max-h-[240px]')
  */
 export default function ModalTable({
   columns = [],
@@ -21,7 +20,6 @@ export default function ModalTable({
   emptyTitle = 'Tidak Ada Data',
   emptyDescription = 'Belum ada data riwayat dari backend.',
   emptyIcon = TableIcon,
-  maxHeight = 'max-h-[235px]',
   className = '',
 }) {
   if (isLoading) {
@@ -50,7 +48,7 @@ export default function ModalTable({
     <div
       className={`bg-white border border-digital-blue-100/90 rounded-2xl overflow-hidden shadow-xs flex flex-col min-w-0 ${className}`}
     >
-      <div className={`${maxHeight} overflow-auto custom-scrollbar`}>
+      <div className="max-h-[235px] overflow-auto custom-scrollbar">
         <table className="w-full min-w-[560px] text-left border-collapse text-xs">
           {/* Sticky Header */}
           <thead className="bg-gradient-to-r from-digital-blue-50/90 to-digital-blue-50/60 backdrop-blur-sm sticky top-0 z-10 border-b border-digital-blue-100 text-digital-blue-900">

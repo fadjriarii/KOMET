@@ -2,21 +2,17 @@ const logger = require('../../utils/logger');
 const syncJobTracker = require('../../utils/syncJobTracker');
 const createSyncHandler = require('./createSyncHandler');
 const { deduplicateStudents } = require('../../services/studentDeduplicationService');
+const { sanitizeProdiName } = require('./text');
 const {
-  cleanText,
-  sanitizeText,
-  sanitizeProdiName,
   getPeriodeFromTanggalTransfer,
   formatAngkatan,
   normalizeAcademicPeriod,
   extractPeriode,
   hitungSemester,
-  isStatusKeluar,
-  mapKewarganegaraan,
-  getProdiFakultasMap,
-  paginateSevimaPages,
-  bulkUpsertStudents,
-} = require('./helpers');
+} = require('./academicPeriod');
+const { isStatusKeluar, mapKewarganegaraan } = require('./codeMaps');
+const { getProdiFakultasMap, resolveFakultas, paginateSevimaPages } = require('./sevimaLookup');
+const { bulkUpsertStudents } = require('./bulkWrite');
 const { STUDENT_STATUS } = require('@komet/shared/constants');
 
 // 1. ETL Sinkronisasi Mahasiswa dengan Data Cleansing & Transformation
@@ -48,14 +44,7 @@ const executeSyncStudents = async ({ runDedup = true } = {}) => {
         // ─── RULE 2: Normalisasi Nama Program Studi & Lookup Fakultas ───
         const rawProdi = attr.program_studi || '';
         const prodiName = sanitizeProdiName(rawProdi);
-        const namaFakultas = sanitizeText(
-          prodiFakultasMap.get(cleanText(rawProdi)) ||
-            prodiFakultasMap.get(cleanText(prodiName)) ||
-            prodiFakultasMap.get(rawProdi.trim().toLowerCase()) ||
-            prodiFakultasMap.get(prodiName.trim().toLowerCase()) ||
-            attr.nama_fakultas ||
-            '',
-        );
+        const namaFakultas = resolveFakultas(attr, prodiName, prodiFakultasMap, attr.nama_fakultas);
 
         // ─── RULE 3: Angkatan & Periode Masuk — Khusus S2 gunakan tanggal_transfer jika ada (atau fallback ke id_periode) ───
         const jenjang = (attr.id_jenjang || 'S1').trim().toUpperCase();

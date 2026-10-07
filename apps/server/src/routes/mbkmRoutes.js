@@ -15,7 +15,6 @@ const {
   getStatusDistributionHandler,
   getEligibleStudentsHandler,
   getMitraDistributionHandler,
-  getMbkmDistributionHandler,
 } = require('../controllers/mbkmController');
 
 // Route data MBKM: sesi siswa + rate limiter + validasi query. SYNC_API_KEY tidak berlaku di sini.
@@ -25,9 +24,6 @@ router.use(validateQuery(mbkmQuerySchema));
 
 // Endpoint utama tab MBKM (4 card + filter options)
 router.get('/summary', summaryLimiter, getSummary);
-
-// Endpoint gabungan distribusi (MbkmPage.jsx modal detail)
-router.get('/distribution', getMbkmDistributionHandler);
 
 // Endpoint tabel MBKM dengan filter + pagination
 router.get('/list', getMbkmData);

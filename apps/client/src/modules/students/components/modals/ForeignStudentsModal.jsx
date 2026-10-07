@@ -8,7 +8,6 @@ import ModalTabContent from '../../../../components/common/modals/ModalTabConten
 import { useTabTransition } from '../../../../hooks/useTabTransition';
 import { reverseTrendData } from '../../../../utils/uiHelpers';
 import { formatNumber, formatPercentage } from '@komet/shared/formatters';
-import { getCurrentAcademicYear } from '@komet/shared/academicYear';
 import { useDetail } from '../../studentQueries';
 import ForeignTrendComposedChart from './ForeignTrendComposedChart';
 import { TREND_TABS } from './studentTrendConfig';
@@ -76,21 +75,14 @@ export default function ForeignStudentsModal({ isOpen, onClose, originRect, data
   });
   const kpis = data?.kpis || {};
   const trendData = useMemo(() => detailData?.trendData || [], [detailData]);
-  const tahunAjaran = filters?.tahunAjaran;
-  const targetItem = useMemo(() => {
-    if (!trendData.length) return null;
-    if (tahunAjaran) {
-      const found = trendData.find((item) => item.academicYear === tahunAjaran);
-      if (found) return found;
-    }
-    return trendData[trendData.length - 1];
-  }, [trendData, tahunAjaran]);
+  // Baris mana yang mewakili tahun terpilih sudah ditentukan server; klien tinggal
+  // membacanya, dan ikut memakai tahun baris itu bila pemilih tahun kosong.
+  const targetItem = detailData?.selected || null;
 
   const foreignRate = formatPercentage(targetItem?.percentage ?? kpis.foreignRate, 1);
   const foreignCount = formatNumber(targetItem?.foreignCount ?? kpis.foreignStudentsCount);
   const activeCount = formatNumber(targetItem?.totalCount ?? kpis.activeStudentsCount);
-  const displayAcademicYear =
-    filters?.tahunAjaran || targetItem?.academicYear || getCurrentAcademicYear();
+  const displayAcademicYear = filters?.tahunAjaran || targetItem?.academicYear;
 
   const content = useMemo(
     () => ({

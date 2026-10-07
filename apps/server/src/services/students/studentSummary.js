@@ -11,12 +11,8 @@
  * - kartu WNA + chart tren asing  : populasi, jendela tahun dibangun sendiri
  * - kartu intake + penurunan      : COHORT (status tidak membatasi)
  */
-const {
-  buildStudentFilter,
-  getSelectedAcademicYear,
-  parseStatusSelection,
-  DEFAULT_STATUS,
-} = require('./filterBuilder');
+const { buildStudentFilter, getSelectedAcademicYear } = require('./filterBuilder');
+const { parseStatusSelection, DEFAULT_STATUS } = require('./snapshotConditions');
 const { getTotalActiveStudents } = require('./activeStudents');
 const { getInternationalStudentsTrend } = require('./internationalTrend');
 const { getIntakeYearCounts, buildIntakeRow, buildIntakeTrend } = require('./intakeTrend');

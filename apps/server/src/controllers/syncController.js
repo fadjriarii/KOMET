@@ -3,7 +3,6 @@ const syncGraduates = require('./sync/syncGraduates');
 const syncMbkm = require('./sync/syncMbkm');
 const syncAll = require('./sync/syncAll');
 const getSyncStatus = require('./sync/syncStatus');
-const checkConnection = require('./sync/checkConnection');
 
 module.exports = {
   syncStudents,
@@ -11,5 +10,4 @@ module.exports = {
   syncMbkm,
   syncAll,
   getSyncStatus,
-  checkConnection,
 };

@@ -10,26 +10,15 @@ const MODAL_MAP = {
 
 /**
  * MbkmDetailModal
- * Komponen orkestrator yang mendelegasikan rendering modal ke masing-masing modal di `modals/`.
+ * Facade yang menyerahkan rendering ke modal di `modals/` lewat
+ * DetailModalOrchestrator; kunci MODAL_MAP adalah nilai `modalType` yang sah.
  */
-export default function MbkmDetailModal({
-  isOpen,
-  onClose,
-  modalType, // 'rate' | 'activities' | 'eligible' | 'partners'
-  originRect,
-  data,
-  filters,
-}) {
+export default function MbkmDetailModal(props) {
   return (
     <DetailModalOrchestrator
+      {...props}
       modalMap={MODAL_MAP}
       fallbackMessage="Gagal memuat rincian MBKM. Silakan tutup lalu coba lagi."
-      isOpen={isOpen}
-      onClose={onClose}
-      modalType={modalType}
-      originRect={originRect}
-      data={data}
-      filters={filters}
     />
   );
 }

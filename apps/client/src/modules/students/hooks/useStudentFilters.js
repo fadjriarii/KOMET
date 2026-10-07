@@ -3,7 +3,6 @@ import { getCurrentAcademicYear, isValidAcademicYear } from '@komet/shared/acade
 import { STUDENT_STATUS } from '@komet/shared/constants';
 import { useDashboardFilters } from '../../../hooks/useDashboardFilters';
 import { sanitizeSearch } from '../../../utils/querySanitizer';
-import { getStudentActiveFilterCount } from '../utils/studentQuery';
 
 const DEFAULT_ACADEMIC_YEAR = getCurrentAcademicYear();
 
@@ -135,6 +134,5 @@ export const studentFilterForm = {
 export function useStudentFilters() {
   return useDashboardFilters({
     fields: studentFilterFields,
-    getActiveFilterCount: getStudentActiveFilterCount,
   });
 }
