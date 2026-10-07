@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { SYNC_MODULE_KEYS as MODULES } from '@komet/shared/constants';
 import syncService from '../../../services/syncService';
-import { MODULE_KEYS as MODULES, MODULE_LABELS } from './syncModules';
+import { queryKey } from '../../../hooks/moduleQueries';
+import { MODULE_LABELS } from './syncModules';
 
 const SYNC_ENDPOINTS = {
   students: syncService.syncStudents,
@@ -13,6 +15,9 @@ const POLL_MS = 2000;
 const IDLE_STATUS = 'idle';
 const DEFAULT_SELECTED = Object.fromEntries(MODULES.map((key) => [key, true]));
 const NO_TOTALS = { synced: 0, skipped: 0 };
+// Array konstan: baris riwayat baru dibuat saat server benar-benar mengirim data,
+// jadi panel tidak pernah menerima array kosong baru tiap render.
+const NO_ROWS = [];
 
 /**
  * `percent`, `overallPercent`, dan `totals` dihitung server dari progres mentah;
@@ -27,7 +32,6 @@ export default function useSyncJob({ isOpen }) {
   const [scope, setScope] = useState(MODULES);
   const [percent, setPercent] = useState(0);
   const [lastError, setLastError] = useState(null);
-  const [lastSyncedAt, setLastSyncedAt] = useState(null);
 
   const pollTimerRef = useRef(null);
   const cancelledRef = useRef(false);
@@ -39,6 +43,19 @@ export default function useSyncJob({ isOpen }) {
 
   const isRunning = phase === 'starting' || phase === 'running';
 
+  /** Riwayat dibaca dari server; popup tidak menyimpan salinannya sendiri. */
+  const historyQuery = useQuery({
+    queryKey: queryKey('sync', 'history'),
+    queryFn: ({ signal }) => syncService.getSyncHistory({ signal }),
+    enabled: isOpen,
+  });
+  const removeRun = useMutation({
+    mutationFn: (id) => syncService.deleteSyncHistory(id),
+    // OnSettled, bukan hanya sukses: bila server menjawab barisnya sudah hilang
+    // (terhapus di tab lain), yang perlu dilakukan justru muat ulang daftarnya.
+    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKey('sync', 'history') }),
+  });
+
   const stopPolling = useCallback(() => {
     if (pollTimerRef.current) {
       clearTimeout(pollTimerRef.current);
@@ -46,9 +63,13 @@ export default function useSyncJob({ isOpen }) {
     }
   }, []);
 
+  const refreshHistory = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: queryKey('sync', 'history') }),
+    [queryClient],
+  );
+
   const applySnapshot = useCallback((data) => {
     setSnapshot(data);
-    if (data?.finishedAt) setLastSyncedAt(data.finishedAt);
     const next = Math.max(maxPercentRef.current, data?.overallPercent || 0);
     maxPercentRef.current = next;
     setPercent(next);
@@ -59,19 +80,25 @@ export default function useSyncJob({ isOpen }) {
     maxPercentRef.current = 100;
     setPercent(100);
     setPhase('completed');
+    refreshHistory();
     // Invalidate per modul yang benar-benar disinkronkan. Invalidate tanpa filter
     // akan mem-fetch ulang seluruh tab sekaligus pada saat DB baru saja selesai
     // dipakai menulis, yang membuat tampilan terasa "loading lama sekali".
     scopeRef.current.forEach((module) => {
       queryClient.invalidateQueries({ queryKey: [module] });
     });
-  }, [queryClient]);
+  }, [queryClient, refreshHistory]);
 
-  const fail = useCallback((message) => {
-    busyRef.current = false;
-    setLastError(message);
-    setPhase('failed');
-  }, []);
+  const fail = useCallback(
+    (message) => {
+      busyRef.current = false;
+      setLastError(message);
+      setPhase('failed');
+      // Job yang gagal pun tercatat di riwayat server.
+      refreshHistory();
+    },
+    [refreshHistory],
+  );
 
   const runSequence = useCallback(
     (items, observeOnly = false) => {
@@ -108,7 +135,7 @@ export default function useSyncJob({ isOpen }) {
           return;
         }
         if (data.status === 'failed') {
-          fail(data.lastError || 'Sinkronisasi gagal diselesaikan.');
+          fail(data.lastError || 'Synchronization failed to complete.');
           return;
         }
 
@@ -147,7 +174,7 @@ export default function useSyncJob({ isOpen }) {
           .catch((error) => {
             if (stale()) return;
             busyRef.current = false;
-            setLastError(error?.message || 'Sinkronisasi gagal dimulai.');
+            setLastError(error?.message || 'Synchronization failed to start.');
             setPhase('idle');
           });
       }
@@ -227,6 +254,7 @@ export default function useSyncJob({ isOpen }) {
     [isRunning],
   );
 
+  /** Klik "Select All" menyamakan ketiga modul dengan keadaan sebaliknya. */
   const toggleAll = useCallback(() => {
     if (isRunning) return;
     setSelected((prev) => {
@@ -235,17 +263,20 @@ export default function useSyncJob({ isOpen }) {
     });
   }, [isRunning]);
 
-  const allSelected = useMemo(() => MODULES.every((key) => selected[key]), [selected]);
+  const selectedCount = useMemo(() => MODULES.filter((key) => selected[key]).length, [selected]);
+  const allSelected = selectedCount === MODULES.length;
+  const someSelected = selectedCount > 0;
 
-  const someSelected = useMemo(() => MODULES.some((key) => selected[key]), [selected]);
-
+  // Semua modul selalu punya baris (daftar pilihan tidak boleh berkurang),
+  // tapi statusnya hanya berarti untuk modul yang ikut dicakup job ini.
   const moduleRows = useMemo(
     () =>
-      scope.map((key) => {
+      MODULES.map((key) => {
         const entry = snapshot?.progress?.[key];
         return {
           key,
           label: MODULE_LABELS[key],
+          inScope: scope.includes(key),
           status: entry?.status || IDLE_STATUS,
           percent: entry?.percent || 0,
           synced: entry?.total_synced || 0,
@@ -257,22 +288,9 @@ export default function useSyncJob({ isOpen }) {
 
   const totals = snapshot?.totals || NO_TOTALS;
 
-  const statusMessage = useMemo(() => {
-    if (phase === 'starting') return 'Mengirim permintaan sinkronisasi...';
-    if (phase === 'running') {
-      const currentModule = snapshot?.currentModule;
-      if (currentModule && currentModule !== 'all') {
-        return `Menyinkronkan ${MODULE_LABELS[currentModule] || currentModule}...`;
-      }
-      return 'Menyinkronkan seluruh data...';
-    }
-    if (phase === 'completed') return 'Sinkronisasi selesai';
-    if (phase === 'failed') return lastError || 'Sinkronisasi gagal.';
-    return '';
-  }, [lastError, phase, snapshot]);
-
   return {
     selected,
+    selectedCount,
     toggleModule,
     toggleAll,
     allSelected,
@@ -280,11 +298,12 @@ export default function useSyncJob({ isOpen }) {
     phase,
     isRunning,
     percent: phase === 'completed' ? 100 : percent,
-    statusMessage,
     moduleRows,
     totals,
     lastError,
-    lastSyncedAt,
+    history: Array.isArray(historyQuery.data?.data) ? historyQuery.data.data : NO_ROWS,
+    historyError: historyQuery.error?.message || null,
+    removeHistory: (id) => removeRun.mutate(id),
     start,
     reset,
   };

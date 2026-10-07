@@ -14,6 +14,13 @@ const row = (overrides = {}) => ({
 });
 const page = (rows, pagination = OK_PAGINATION) => ({ data: rows, pagination });
 
+/**
+ * Daftar yang dibatasi server (n baris terbaru, tanpa halaman) memang tidak punya
+ * objek pagination; di luar daftar ini, kontrak `rows` wajib memasangnya supaya
+ * nama kolom pagination tidak bisa berubah diam-diam.
+ */
+const CAPPED_LIST_PATHS = ['/sync/history'];
+
 describe('kontrak respons', () => {
   it('setiap kontrak mendaftar field unik dan memakai pagination yang sama', () => {
     for (const [path, contract] of Object.entries(RESPONSE_CONTRACTS)) {
@@ -23,8 +30,20 @@ describe('kontrak respons', () => {
         expect(list.length, path).toBeGreaterThan(0);
         expect(new Set(list).size, path).toBe(list.length);
       }
-      if (contract.rows) expect(contract.pagination, path).toEqual(PAGINATION_FIELDS);
+      if (!contract.rows) continue;
+      if (CAPPED_LIST_PATHS.includes(path)) {
+        expect(contract.pagination, path).toBeUndefined();
+        continue;
+      }
+      expect(contract.pagination, path).toEqual(PAGINATION_FIELDS);
     }
+  });
+
+  it('daftar terbatas lolos kontraknya tanpa objek pagination', () => {
+    const contract = RESPONSE_CONTRACTS['/sync/history'];
+    const run = Object.fromEntries(contract.rows.map((key) => [key, '']));
+    expect(contractProblems(contract, { success: true, data: [run] })).toEqual([]);
+    expect(contractProblems(contract, { success: true, data: [] })).toEqual([]);
   });
 
   it('ringkasan yang sesuai kontrak tidak menghasilkan masalah', () => {

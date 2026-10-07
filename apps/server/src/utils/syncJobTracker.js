@@ -1,10 +1,13 @@
 const fs = require('fs');
 const path = require('path');
 const logger = require('./logger');
+const { SYNC_MODULE_KEYS } = require('@komet/shared/constants');
 
 const stateFilePath = path.join(__dirname, '../../logs/sync-state.json');
 
-const MODULES = ['students', 'graduates', 'mbkm'];
+// Kunci modul yang dikenal tracker — sumber yang sama dipakai UI untuk daftar
+// pilihannya, jadi modul baru cukup didaftarkan satu kali di @komet/shared.
+const MODULES = SYNC_MODULE_KEYS;
 
 const blankEntry = (status) => ({
   status,
@@ -188,6 +191,14 @@ const syncJobTracker = {
     currentState.lastError = error;
     saveState(true);
   },
+  /**
+   * State proses ini, tanpa membaca file. `getState` sengaja membaca file supaya
+   * worker lain bisa ikut melihat progres — tapi angka yang baru saja ditulis
+   * `updateProgress` masih menunggu debounce 100ms sebelum masuk file, jadi dibaca
+   * balik akan MENGEMBALIKAN angka lama. Yang menutup joblah pemilik angka terakhir,
+   * dan riwayat ditulis dari angka itu.
+   */
+  peekState: () => withDerivedProgress(currentState),
   isRunning: () => refreshState().status === 'running',
 };
 

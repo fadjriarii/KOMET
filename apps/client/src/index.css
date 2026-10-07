@@ -12,6 +12,9 @@
   --color-digital-blue-800: oklch(29.89% 0.116 259.04);
   --color-digital-blue-900: oklch(19.67% 0.068 256.39);
   --color-digital-blue-950: oklch(16.49% 0.052 253.9);
+
+  /* Font bawaan konsol Windows: Cascadia Mono, dengan fallback ke Consolas. */
+  --font-terminal: 'Cascadia Mono', 'Consolas', 'Courier New', monospace;
 }
 
 body {

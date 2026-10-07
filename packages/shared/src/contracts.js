@@ -62,6 +62,24 @@ export const MBKM_ROW_FIELDS = [
 ];
 
 /**
+ * Satu baris riwayat job sinkronisasi (`sync_runs`). `modules` berisi
+ * `{ key, status }` per modul yang dicakup job; `succeeded`/`total` dihitung server
+ * supaya UI tidak menjumlah apa pun. `status` bukan turunan dari `modules`: job bisa
+ * gagal setelah semua modul selesai (mis. tahap deduplikasi).
+ */
+export const SYNC_RUN_ROW_FIELDS = [
+  'id',
+  'finishedAt',
+  'trigger',
+  'actor',
+  'status',
+  'modules',
+  'succeeded',
+  'total',
+  'error',
+];
+
+/**
  * Envelope ringkasan dashboard. `kpis` = angka kartu (dibaca client lewat nama
  * field, jadi daftarnya dikunci dua arah), `summary` = sumber chart rincian,
  * `kpiFilterScope` = klaim kartu mana yang benar-benar dipersempit filter.
@@ -109,6 +127,7 @@ export const RESPONSE_CONTRACTS = {
   '/students/students': { rows: STUDENT_ROW_FIELDS, pagination: PAGINATION_FIELDS },
   '/graduates/list': { rows: GRADUATE_ROW_FIELDS, pagination: PAGINATION_FIELDS },
   '/mbkm/list': { rows: MBKM_ROW_FIELDS, pagination: PAGINATION_FIELDS },
+  '/sync/history': { rows: SYNC_RUN_ROW_FIELDS },
   '/students/summary': { fields: SUMMARY_ENVELOPE, kpis: STUDENT_SUMMARY_KPIS },
   '/graduates/summary': {
     fields: [...SUMMARY_ENVELOPE, 'filterOptions'],

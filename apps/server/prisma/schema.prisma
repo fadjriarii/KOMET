@@ -99,3 +99,25 @@ model MbkmActivity {
   @@index([periode, programStudi])
   @@map("mbkm_activities")
 }
+
+/// Riwayat job sinkronisasi. Hanya n run terbaru yang disimpan (dipangkas
+/// `services/sync/syncRunLog`), jadi tabel ini tetap kecil tanpa perlu paginasi.
+model SyncRun {
+  id         Int       @id @default(autoincrement())
+  finishedAt DateTime
+  /// 'manual' | 'automatic' — nilai; label tampilannya hidup di client.
+  trigger    String    @db.VarChar(9)
+  /// Kredensial yang memicu job ('Dashboard' | 'API Key'). Belum ada login user,
+  /// jadi isinya jenis kredensial — dan selalu ditulis server, bukan klien.
+  actor      String    @db.VarChar(32)
+  /// 'completed' | 'failed' hasil job. Bisa berbeda dari hasil modul: job boleh
+  /// gagal di tahap setelah semua modul selesai (mis. deduplikasi).
+  status     String    @db.VarChar(9)
+  /// [{ key, status }] untuk tiap modul yang dicakup job; status modul dinormalisasi
+  /// menjadi 'completed' atau 'failed' saat ditulis.
+  modules    Json
+  /// Pesan kegagalan yang sudah lewat allowlist errorCatalog; null bila sukses.
+  error      String?   @db.Text
+
+  @@map("sync_runs")
+}

@@ -1,117 +1,107 @@
-import { useMemo } from 'react';
-import { Loader2, RefreshCw } from 'lucide-react';
+import { Loader2, Lock, RefreshCw } from 'lucide-react';
 import Modal from '../../common/modals/Modal';
 import useSyncJob from './useSyncJob';
-import { formatNumber } from '@komet/shared/formatters';
-import { countSelected } from './syncModules';
 import SyncModulePicker from './SyncModulePicker';
+import SyncHistoryPanel from './SyncHistoryPanel';
 import SyncProgressPanel from './SyncProgressPanel';
-import SyncResultBanner from './SyncResultBanner';
 
-const formatDateTime = (iso) =>
-  iso
-    ? new Date(iso).toLocaleString('id-ID', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : null;
+/** Tombol utama tidak pernah menjanjikan aksi yang tidak ada: label per fase. */
+const CTA = {
+  running: { label: 'Syncing...', Icon: Loader2, spin: true },
+  completed: { label: 'Sync Again', Icon: RefreshCw },
+  failed: { label: 'Sync Again', Icon: RefreshCw },
+};
 
+/**
+ * Popup Synchronization: dua kolom — pilihan modul dengan status per baris di kiri,
+ * dan di kanan riwayat sync terakhir dari server selama belum ada job, yang berganti
+ * ke angka progres beserta log aktivitas begitu Sync ditekan — dan aksi di footer.
+ * Kotak popup memakai shell Modal yang sama dengan popup rincian lain.
+ *
+ * Popup ini tidak menyimpan keadaan apa pun selain pilihan modul: progres dan
+ * riwayat datang dari `/api/sync/status` dan `/api/sync/history`.
+ */
 export default function ConfigurationModal({ isOpen, onClose, originRect }) {
   const job = useSyncJob({ isOpen });
-  const selectedCount = countSelected(job.selected);
-  const lastSyncLabel = useMemo(() => formatDateTime(job.lastSyncedAt), [job.lastSyncedAt]);
+  const selectedCount = job.selectedCount;
+  const canStart = selectedCount > 0 && !job.isRunning;
+  const muted = !job.isRunning && !canStart;
+  const cta = CTA[job.phase] || {
+    label: `Sync ${selectedCount} module${selectedCount === 1 ? '' : 's'}`,
+    Icon: RefreshCw,
+  };
 
-  const showError = Boolean(job.lastError) && !job.isRunning;
-
-  // Jumlah baris sudah dijumlahkan server atas modul yang benar-benar dicakup job.
-  const { synced: totalSynced, skipped: totalSkipped } = job.totals;
-
-  const restart = () => {
+  const run = () => {
     job.reset();
     job.start();
+  };
+
+  /**
+   * Layar selesai hanya untuk dilihat sekali: begitu popup ditutup setelah 100%,
+   * pembukaan berikutnya mulai dari 0%. Job yang masih jalan tidak disentuh, jadi
+   * progresnya tetap tersimpan saat popup dibuka lagi.
+   */
+  const close = () => {
+    if (job.phase === 'completed') job.reset();
+    onClose();
   };
 
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
-      title="Configuration"
-      subtitle="Sinkronisasi data dari SEVIMA"
-      maxWidth="max-w-2xl"
+      onClose={close}
+      title="Synchronization"
+      subtitle="Sync data from SEVIMA"
+      maxWidth="max-w-4xl"
+      height="h-auto max-h-[82vh]"
       originRect={originRect}
       showCloseButton
+      footer={
+        <>
+          <span className="mr-auto flex items-center gap-1.5 min-w-0 text-[11px] text-gray-500">
+            <Lock size={13} className="shrink-0 text-gray-400" />
+            <span className="truncate">
+              The sync keeps running in the background, you can close this window anytime.
+            </span>
+          </span>
+          <button
+            type="button"
+            onClick={close}
+            className="px-3 h-9 rounded-lg text-[13px] font-medium text-gray-700 hover:bg-gray-100 active:scale-99 transition-all cursor-pointer"
+          >
+            Close
+          </button>
+          <button
+            type="button"
+            onClick={run}
+            disabled={!canStart}
+            className={`inline-flex items-center gap-2 px-4 h-9 rounded-lg text-[13px] font-semibold transition-all duration-200 ${
+              muted
+                ? 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed'
+                : `bg-digital-blue-600 text-white hover:bg-digital-blue-700 ${
+                    job.isRunning ? 'cursor-wait' : 'active:scale-99 cursor-pointer'
+                  }`
+            }`}
+          >
+            <cta.Icon size={15} className={cta.spin ? 'animate-spin' : ''} />
+            <span>{cta.label}</span>
+          </button>
+        </>
+      }
     >
-      <div className="flex flex-col gap-4 h-full">
-        <SyncModulePicker job={job} selectedCount={selectedCount} lastSyncLabel={lastSyncLabel} />
-
-        <div className="flex flex-col gap-2.5">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <button
-              type="button"
-              onClick={job.start}
-              disabled={selectedCount === 0 || job.isRunning}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 ${
-                selectedCount === 0 || job.isRunning
-                  ? 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed'
-                  : 'bg-digital-blue-600 text-white hover:bg-digital-blue-700 shadow-2xs active:scale-98 cursor-pointer'
-              }`}
-            >
-              {job.phase === 'starting' ? (
-                <Loader2 size={15} className="animate-spin" />
-              ) : (
-                <RefreshCw size={15} />
-              )}
-              <span>
-                {job.phase === 'starting' ? 'Menyiapkan...' : `Sinkronisasi ${selectedCount} modul`}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={job.toggleAll}
-              disabled={job.isRunning}
-              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-300 border ${
-                job.isRunning
-                  ? 'text-gray-300 border-gray-200 cursor-not-allowed'
-                  : 'text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900 cursor-pointer active:scale-98'
-              }`}
-            >
-              {job.allSelected ? 'Kosongkan Pilihan' : 'Pilih Semua'}
-            </button>
-          </div>
-
-          {job.phase === 'completed' && (
-            <SyncResultBanner
-              tone="success"
-              title="Sinkronisasi selesai"
-              detail={`${formatNumber(totalSynced)} baris tersinkron${
-                totalSkipped > 0 ? ` · ${formatNumber(totalSkipped)} baris dilewati` : ''
-              }`}
-              canRestart={selectedCount > 0}
-              onRestart={restart}
-            />
-          )}
-
-          {showError && (
-            <SyncResultBanner
-              tone="error"
-              title={job.phase === 'failed' ? 'Sinkronisasi gagal' : 'Sinkronisasi ditolak'}
-              detail={job.lastError}
-              canRestart={selectedCount > 0}
-              onRestart={restart}
-            />
-          )}
-        </div>
-
-        {job.phase !== 'idle' && <SyncProgressPanel job={job} />}
-
-        <p className="px-1 text-[11px] text-gray-400">
-          Hanya satu proses sinkronisasi yang dapat berjalan pada satu waktu. Menutup panel tidak
-          menghentikan proses di server.
-        </p>
+      {/* Tinggi baris diambil dari kontainer progres; kolom kiri menyesuaikan diri
+          dan menambah scroll di dalam kartunya sendiri, bukan mendorong popup lebih tinggi. */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:h-[224px] shrink-0">
+        <SyncModulePicker job={job} />
+        {job.phase === 'idle' ? (
+          <SyncHistoryPanel
+            history={job.history}
+            error={job.historyError}
+            onRemove={job.removeHistory}
+          />
+        ) : (
+          <SyncProgressPanel job={job} />
+        )}
       </div>
     </Modal>
   );

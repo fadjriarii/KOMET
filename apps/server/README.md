@@ -165,14 +165,15 @@ src/
 
 ### Sync (API key required)
 
-| Method | Endpoint                     | Description                   |
-| ------ | ---------------------------- | ----------------------------- |
-| `POST` | `/api/sync/students`         | Sync student data from SEVIMA |
-| `POST` | `/api/sync/graduates`        | Sync graduate data            |
-| `POST` | `/api/sync/mbkm`             | Sync MBKM data                |
-| `POST` | `/api/sync/all`              | Sync all data                 |
-| `GET`  | `/api/sync/status`           | Current sync status           |
-| `GET`  | `/api/sync/check-connection` | SEVIMA API connectivity check |
+| Method   | Endpoint                | Description                   |
+| -------- | ----------------------- | ----------------------------- |
+| `POST`   | `/api/sync/students`    | Sync student data from SEVIMA |
+| `POST`   | `/api/sync/graduates`   | Sync graduate data            |
+| `POST`   | `/api/sync/mbkm`        | Sync MBKM data                |
+| `POST`   | `/api/sync/all`         | Sync all data                 |
+| `GET`    | `/api/sync/status`      | Current sync status           |
+| `GET`    | `/api/sync/history`     | 5 most recent sync runs       |
+| `DELETE` | `/api/sync/history/:id` | Remove one history row        |
 
 ### Query Budget
 

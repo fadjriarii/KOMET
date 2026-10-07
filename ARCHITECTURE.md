@@ -243,6 +243,25 @@ No publishing to npm, no version bumps — pnpm resolves it directly from the lo
 
 6. **React client** fetches data via TanStack Query, which handles request deduplication, background refetching, and cache invalidation. The UI renders charts, tables, and KPI cards from the API responses.
 
+### Riwayat sinkronisasi (`sync_runs`)
+
+Popup sinkronisasi tidak menyimpan keadaan di klien: progres dibaca dari
+`GET /api/sync/status`, dan 5 job terakhir dari tabel `sync_runs`
+(`GET /api/sync/history`). Satu baris = satu job, ditulis
+`controllers/sync/createSyncHandler.js` lewat `services/sync/syncRunLog.js`
+**sebelum** job ditandai selesai — urutan ini yang membuat klien yang polling tiap
+2 detik tidak pernah melihat status `completed` sementara baris riwayatnya belum ada.
+
+- `modules` (JSON) berisi status per modul pada angka terakhir job, supaya rincian
+  "modul mana yang gagal" tetap terbaca walau progres live sudah berganti pekerjaan.
+- `actor` diturunkan server dari kredensial yang benar-benar dipakai (`syncAuth`):
+  sesi → `Dashboard`, `SYNC_API_KEY` → `API Key`. Tidak ada string identitas yang
+  diterima dari body, jadi riwayat tidak bisa dipalsukan.
+- `trigger` selalu `manual` saat ini; tidak ada scheduler, jadi tidak ada trafik
+  Sevima latar belakang yang tak diminta.
+- Penyimpanan dipangkas di sumbernya: `recordRun` menulis lalu menghapus baris di
+  bawah 5 terbaru, jadi tabel tidak tumbuh tanpa batas.
+
 ### Batas akurasi tren historis (keputusan yang dipertahankan)
 
 Tren per tahun akademik (intake, mahasiswa internasional, snapshot status) dihitung
@@ -269,22 +288,23 @@ Dua credential dengan kemampuan yang sengaja dipisah:
 | Credential                                                     | Dibuat oleh                 | Bisa apa                                                                                      | Tidak bisa apa                                                                                        |
 | -------------------------------------------------------------- | --------------------------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
 | `komet_student_session` cookie (HMAC-SHA256, `SESSION_SECRET`) | `POST /api/session/student` | Semua route data (`/api/students`, `/api/graduates`, `/api/mbkm`) **dan** memicu/monitor sync | —                                                                                                     |
-| `x-api-key` / `Bearer` (`SYNC_API_KEY`)                        | konfigurasi operator        | Hanya `/api/sync/*` (memicu ETL, baca status, cek koneksi SEVIMA)                             | Membaca dataset mahasiswa — dulu ini mungkin lewat fallback di `studentSessionAuth`, sekarang dihapus |
+| `x-api-key` / `Bearer` (`SYNC_API_KEY`)                        | konfigurasi operator        | Hanya `/api/sync/*` (memicu ETL, baca status, baca/hapus riwayat)                             | Membaca dataset mahasiswa — dulu ini mungkin lewat fallback di `studentSessionAuth`, sekarang dihapus |
 
 Dijegakan oleh dua middleware berbeda: `middlewares/studentSession.js` (sesi saja) dan `middlewares/syncAuth.js` (sesi **atau** kunci sync). Test regresi: `tests/unit/middlewares/studentSession.test.js` dan `tests/unit/middlewares/zeroTrust.test.js`.
 
 ### 6.2 Route protection matrix
 
-| Route                                          | Limiter                                                     | Guard                                          | Catatan                                                            |
-| ---------------------------------------------- | ----------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------ |
-| `GET /` (landing)                              | —                                                           | —                                              | static, tanpa data                                                 |
-| `POST /api/session/student`                    | `sessionIssueLimiter` 10/menit                              | origin allowlist di handler                    | 204 + `Cache-Control: no-store`                                    |
-| `DELETE /api/session/student`                  | `sessionIssueLimiter` 10/menit                              | —                                              | revoke diri sendiri; idempoten                                     |
-| `GET /api/health`                              | —                                                           | `apiKeyAuth`                                   | uptime + latensi DB = fingerprint infrastruktur, khusus monitoring |
-| `GET /api/sync/status`, `/check-connection`    | `statusLimiter` 120/menit                                   | `syncAuth`                                     | polling UI 2 detik, tidak memakai jatah dashboard                  |
-| `POST /api/sync/{students,graduates,mbkm,all}` | `statsLimiter` + `syncLimiter` 5/menit + `checkSyncRunning` | `syncAuth`                                     |                                                                    |
-| `GET /api/{students,graduates,mbkm}/summary`   | `statsLimiter` 60/menit + `summaryLimiter` 20/menit         | `studentSessionAuth`                           | endpoint termahal (puluhan query)                                  |
-| route data lain di ketiga tab                  | `statsLimiter` 60/menit                                     | `studentSessionAuth` + `validateQuery(schema)` |                                                                    |
+| Route                                                   | Limiter                                                     | Guard                                          | Catatan                                                            |
+| ------------------------------------------------------- | ----------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------ |
+| `GET /` (landing)                                       | —                                                           | —                                              | static, tanpa data                                                 |
+| `POST /api/session/student`                             | `sessionIssueLimiter` 10/menit                              | origin allowlist di handler                    | 204 + `Cache-Control: no-store`                                    |
+| `DELETE /api/session/student`                           | `sessionIssueLimiter` 10/menit                              | —                                              | revoke diri sendiri; idempoten                                     |
+| `GET /api/health`                                       | —                                                           | `apiKeyAuth`                                   | uptime + latensi DB = fingerprint infrastruktur, khusus monitoring |
+| `GET /api/sync/status`                                  | `statusLimiter` 120/menit                                   | `syncAuth`                                     | polling UI 2 detik, tidak memakai jatah dashboard                  |
+| `GET /api/sync/history`, `DELETE /api/sync/history/:id` | `statsLimiter` 60/menit                                     | `syncAuth`                                     | 5 sync terakhir; penulisannya di `endJob`, penghapusan satu baris  |
+| `POST /api/sync/{students,graduates,mbkm,all}`          | `statsLimiter` + `syncLimiter` 5/menit + `checkSyncRunning` | `syncAuth`                                     |                                                                    |
+| `GET /api/{students,graduates,mbkm}/summary`            | `statsLimiter` 60/menit + `summaryLimiter` 20/menit         | `studentSessionAuth`                           | endpoint termahal (puluhan query)                                  |
+| route data lain di ketiga tab                           | `statsLimiter` 60/menit                                     | `studentSessionAuth` + `validateQuery(schema)` |                                                                    |
 
 ### 6.3 Keputusan yang disengaja
 

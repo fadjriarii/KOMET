@@ -6,6 +6,8 @@ export const syncService = {
   syncStudents: (body = {}, options) => apiClient.post('/sync/students', body, options),
   syncGraduates: (body = {}, options) => apiClient.post('/sync/graduates', body, options),
   syncMbkm: (body = {}, options) => apiClient.post('/sync/mbkm', body, options),
+  getSyncHistory: (options) => apiClient.get('/sync/history', options),
+  deleteSyncHistory: (id, options) => apiClient.delete(`/sync/history/${id}`, options),
 };
 
 export default syncService;

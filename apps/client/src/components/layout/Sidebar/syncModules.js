@@ -1,35 +1,41 @@
+import { SYNC_MODULES, SYNC_TRIGGER } from '@komet/shared/constants';
+
 /**
- * Tiga modul sinkronisasi — satu-satunya tempat daftar, label, ikon, dan
- * deskripsinya disebut. Picker checkbox dan baris progres membaca dari sini,
- * jadi keduanya tidak bisa berbeda nama modul.
+ * Kosakata tampilan sinkronisasi: label modul, label pemicu, dan gaya status.
+ * Daftarnya sendiri (`SYNC_MODULES`) hidup di @komet/shared dan dibaca server serta
+ * kontrak respons juga, jadi tidak ada lagi daftar modul yang bisa berbeda sendiri.
  */
-import { Globe, GraduationCap, Users } from 'lucide-react';
+export const MODULE_LABELS = Object.fromEntries(SYNC_MODULES.map(({ key, label }) => [key, label]));
 
-export const MODULE_OPTIONS = [
-  {
-    key: 'students',
-    label: 'Data Mahasiswa',
-    description: 'Seluruh data mahasiswa aktif maupun non-aktif',
-    icon: Users,
+/** Server mengirim nilainya (`manual` / `automatic`); kata yang dibaca user ada di sini. */
+export const TRIGGER_LABELS = {
+  [SYNC_TRIGGER.MANUAL]: 'Manual',
+  [SYNC_TRIGGER.AUTOMATIC]: 'Automatic',
+};
+
+/**
+ * `chip` dipakai baris daftar; `glyph` + `logText` dipakai terminal, dan hadirnya
+ * `logText` menandai baris mana yang layak masuk log. Kuncinya sama dengan status
+ * yang dikirim `/api/sync/status` dan `sync_runs`: `idle` sebelum ada job,
+ * `pending` saat job mulai, lalu `running` dan `completed` per modul.
+ */
+export const SYNC_STATUS = {
+  running: {
+    label: 'Processing',
+    chip: 'bg-digital-blue-100 text-digital-blue-700',
+    glyph: '>',
+    logText: 'syncing...',
   },
-  {
-    key: 'graduates',
-    label: 'Data Lulusan',
-    description: 'Data lulusan beserta tanggal kelulusan',
-    icon: GraduationCap,
+  completed: {
+    label: 'Done',
+    chip: 'bg-emerald-50 text-emerald-700',
+    glyph: '✓',
+    logText: 'done',
   },
-  {
-    key: 'mbkm',
-    label: 'Data MBKM',
-    description: 'Aktivitas MBKM dan penyetaraan nilai',
-    icon: Globe,
-  },
-];
+  pending: { label: 'Queued', chip: 'bg-gray-100 text-gray-500' },
+  failed: { label: 'Failed', chip: 'bg-red-50 text-red-700', glyph: '✗', logText: 'failed' },
+  idle: { label: 'Ready', chip: 'bg-gray-100 text-gray-500' },
+};
 
-export const MODULE_KEYS = MODULE_OPTIONS.map(({ key }) => key);
-
-export const MODULE_LABELS = Object.fromEntries(
-  MODULE_OPTIONS.map(({ key, label }) => [key, label]),
-);
-
-export const countSelected = (selected) => MODULE_KEYS.filter((key) => selected[key]).length;
+/** Status sebuah baris pilihan: di luar cakupan job, angka lama tidak boleh terbaca. */
+export const resolveStatus = (row) => (row?.inScope && SYNC_STATUS[row.status]) || SYNC_STATUS.idle;
