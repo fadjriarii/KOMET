@@ -36,7 +36,6 @@ export const mbkmService = createFilterService({
     getStatusDistribution: '/mbkm/analytics/status-distribution',
     getEligibleStudents: '/mbkm/analytics/eligible-students',
     getMitraDistribution: '/mbkm/analytics/mitra-distribution',
-    getCombinedDistribution: '/mbkm/distribution',
   },
 });
 

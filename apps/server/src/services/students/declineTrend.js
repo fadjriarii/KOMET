@@ -92,32 +92,20 @@ function calculateChange(newerCount, olderCount) {
   return result ? result.rawGrowth : null;
 }
 
+/**
+ * Rata-rata perubahan dalam persen, dikirim penuh seperti angka dari
+ * `percentageUtils`: pembulatan adalah hak tampilan, dan di sini nilainya
+ * dibulatkan dua kali sebelum sampai ke satu desimal.
+ */
 function average(changes) {
   if (!changes.length) return null;
-  return parseFloat(
-    ((changes.reduce((sum, change) => sum + change, 0) / changes.length) * 100).toFixed(2),
-  );
+  return (changes.reduce((sum, change) => sum + change, 0) / changes.length) * 100;
 }
 
 function toPercentage(value) {
-  return value === null ? null : Number((value * 100).toFixed(2));
-}
-
-/**
- * Rata-rata perubahan dari deret angka mentah (terbaru → terlama). Dipakai
- * sebagai aturan aritmetika yang sama di luar jalur summary.
- */
-function calculateAverageChange(counts) {
-  const changes = counts
-    .slice(0, -1)
-    .map((newerCount, index) => calculateChange(newerCount, counts[index + 1]))
-    .filter((change) => change !== null);
-
-  return average(changes);
+  return value === null ? null : value * 100;
 }
 
 module.exports = {
   getNewStudentDecline,
-  getDefaultAcademicYear,
-  calculateAverageChange,
 };

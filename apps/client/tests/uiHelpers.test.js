@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { getStudentStatusPresentation } from '../src/utils/uiHelpers';
-import { getStudentActiveFilterCount } from '../src/modules/students/utils/studentQuery';
 
 describe('getStudentStatusPresentation (hanya tata bahasa)', () => {
   it('memakai populasi default sebelum snapshot server tiba', () => {
@@ -36,18 +35,5 @@ describe('getStudentStatusPresentation (hanya tata bahasa)', () => {
       statusLabel: 'semua status',
       isCumulative: true,
     });
-  });
-});
-
-describe('getStudentActiveFilterCount', () => {
-  it('tidak bergantung urutan atau bentuk nilai status', () => {
-    expect(getStudentActiveFilterCount({})).toBe(0);
-    expect(getStudentActiveFilterCount({ status: 'Aktif' })).toBe(0);
-    expect(getStudentActiveFilterCount({ status: ['Aktif'] })).toBe(0);
-    expect(getStudentActiveFilterCount({ status: ['Cuti', 'Aktif'] })).toBe(1);
-    expect(getStudentActiveFilterCount({ status: ['Aktif', 'Cuti'] })).toBe(1);
-    // "Semua status" dikirim sebagai sentinel ALL, jadi secara lokal itu menyimpang
-    // dari default dan dihitung sebagai filter aktif.
-    expect(getStudentActiveFilterCount({ status: [] })).toBe(1);
   });
 });

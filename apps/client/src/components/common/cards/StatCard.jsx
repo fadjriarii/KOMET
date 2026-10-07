@@ -18,7 +18,6 @@ export default function StatCard({
   isLoading = false,
   className = '',
   valueClassName = 'text-gray-900',
-  iconClassName = 'bg-digital-blue-50 text-digital-blue-600',
 }) {
   // Tanpa onViewDetails tidak ada yang bisa dibuka: jangan tawarkan tombol mati.
   const hasAction = Boolean(onViewDetails);
@@ -63,9 +62,7 @@ export default function StatCard({
         </p>
 
         {Icon && (
-          <div
-            className={`p-2.5 rounded-xl flex-shrink-0 transition-transform group-hover:scale-105 duration-200 -mt-0.5 ${iconClassName}`}
-          >
+          <div className="p-2.5 rounded-xl bg-digital-blue-50 text-digital-blue-600 flex-shrink-0 transition-transform group-hover:scale-105 duration-200 -mt-0.5">
             <Icon size={20} />
           </div>
         )}

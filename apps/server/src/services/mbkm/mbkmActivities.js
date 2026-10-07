@@ -49,10 +49,6 @@ const getActivityDistribution = (whereFilter, selectedPeriode) =>
 const getProdiDistribution = (whereFilter, selectedPeriode) =>
   distributionBy('programStudi', whereFilter, selectedPeriode);
 
-/** Sebaran partisipasi MBKM per fakultas. */
-const getFacultyDistribution = (whereFilter, selectedPeriode) =>
-  distributionBy('fakultas', whereFilter, selectedPeriode);
-
 /** Tab C: Distribusi status aktivitas (semua status, untuk Pie Chart). */
 const getStatusDistribution = (whereFilter, selectedPeriode) =>
   distributionBy('statusAktivitas', whereFilter, selectedPeriode, null);
@@ -61,6 +57,5 @@ module.exports = {
   distributionBy,
   getActivityDistribution,
   getProdiDistribution,
-  getFacultyDistribution,
   getStatusDistribution,
 };

@@ -7,7 +7,6 @@ import Skeleton from '../feedback/Skeleton';
 export default function ChartCard({
   title,
   subtitle,
-  headerAction,
   children,
   isLoading = false,
   className = '',
@@ -34,9 +33,6 @@ export default function ChartCard({
             </>
           )}
         </div>
-        {headerAction && !isLoading && (
-          <div className="flex items-center gap-2 flex-shrink-0">{headerAction}</div>
-        )}
       </div>
 
       {/* Body Visualisasi */}

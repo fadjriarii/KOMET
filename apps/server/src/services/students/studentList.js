@@ -1,11 +1,11 @@
 const prisma = require('../../config/prisma');
 const { TABLE_LIMIT } = require('@komet/shared/constants');
+const { getAcademicYear } = require('./filterBuilder');
 const {
-  getAcademicYear,
   isTerminalInAcademicYear,
   parseStatusSelection,
   DEFAULT_STATUS,
-} = require('./filterBuilder');
+} = require('./snapshotConditions');
 
 function getRequestedAcademicYear(query = {}) {
   const tahunAjaran = typeof query.tahunAjaran === 'string' ? query.tahunAjaran : null;

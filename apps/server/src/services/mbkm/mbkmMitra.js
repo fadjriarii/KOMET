@@ -37,11 +37,7 @@ async function getMitraDistribution(selectedPeriode, topN = DEFAULT_MITRA_TOP_N)
   const limited = counts.slice(0, topN);
   const omitted = counts.slice(topN);
   if (omitted.length) {
-    limited.push({
-      name: 'Lainnya',
-      count: omitted.reduce((sum, item) => sum + item.count, 0),
-      partners: omitted.length,
-    });
+    limited.push({ name: 'Lainnya', count: omitted.reduce((sum, item) => sum + item.count, 0) });
   }
 
   return {
@@ -55,4 +51,4 @@ async function getMitraDistribution(selectedPeriode, topN = DEFAULT_MITRA_TOP_N)
   };
 }
 
-module.exports = { getMitraDistribution, DEFAULT_MITRA_TOP_N };
+module.exports = { getMitraDistribution };

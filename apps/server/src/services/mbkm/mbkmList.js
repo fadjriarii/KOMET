@@ -1,40 +1,36 @@
 const prisma = require('../../config/prisma');
+const { paginateList } = require('../../utils/paginationUtils');
 const { TABLE_LIMIT } = require('@komet/shared/constants');
 
 async function getMbkmList(whereFilter, page = 1, limit = TABLE_LIMIT) {
-  const skip = (page - 1) * limit;
-
-  const [data, total] = await Promise.all([
-    prisma.mbkmActivity.findMany({
-      where: whereFilter,
-      select: {
-        id: true,
-        nim: true,
-        periode: true,
-        programStudi: true,
-        fakultas: true,
-        jenjang: true,
-        statusKeaktifan: true,
-        jenisAktivitas: true,
-        judulAktivitas: true,
-        mitra: true,
-        statusAktivitas: true,
-        student: {
-          select: {
-            nama: true,
-            angkatan: true,
-          },
+  const { rows, pagination } = await paginateList(prisma.mbkmActivity, {
+    where: whereFilter,
+    select: {
+      id: true,
+      nim: true,
+      periode: true,
+      programStudi: true,
+      fakultas: true,
+      jenjang: true,
+      statusKeaktifan: true,
+      jenisAktivitas: true,
+      judulAktivitas: true,
+      mitra: true,
+      statusAktivitas: true,
+      student: {
+        select: {
+          nama: true,
+          angkatan: true,
         },
       },
-      skip,
-      take: limit,
-      orderBy: [{ periode: 'desc' }, { student: { nama: 'asc' } }],
-    }),
-    prisma.mbkmActivity.count({ where: whereFilter }),
-  ]);
+    },
+    orderBy: [{ periode: 'desc' }, { student: { nama: 'asc' } }],
+    page,
+    limit,
+  });
 
   // Kontrak daftar MBKM: camelCase saja, tanpa nomor baris (presentasi client).
-  const rows = data.map((item) => ({
+  const data = rows.map((item) => ({
     id: item.id,
     nim: item.nim,
     nama: item.student?.nama || '',
@@ -51,15 +47,7 @@ async function getMbkmList(whereFilter, page = 1, limit = TABLE_LIMIT) {
     statusAktivitas: item.statusAktivitas,
   }));
 
-  return {
-    data: rows,
-    pagination: {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-    },
-  };
+  return { data, pagination };
 }
 
 module.exports = { getMbkmList };

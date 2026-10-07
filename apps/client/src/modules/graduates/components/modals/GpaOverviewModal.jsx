@@ -35,37 +35,8 @@ export default function GpaOverviewModal({ isOpen, onClose, originRect, data, fi
   const gpaS2 = formatDecimal(kpis.averageGpaS2, 2, '0.00');
   const ipkDetail = ipkData || {};
 
-  const byYearS1 = ipkDetail.byYearS1 || EMPTY_ITEMS;
-  const byYearS2 = ipkDetail.byYearS2 || EMPTY_ITEMS;
-
-  const combinedTrend = useMemo(() => {
-    const yearMap = {};
-    byYearS1.forEach((item) => {
-      yearMap[item.tahun] = {
-        tahun: String(item.tahun),
-        s1Gpa: item.avgIpk !== null ? Number(item.avgIpk) : null,
-        s1Formatted: item.avgIpk !== null ? item.avgIpk.toFixed(2) : '-',
-        s2Gpa: null,
-        s2Formatted: '-',
-      };
-    });
-    byYearS2.forEach((item) => {
-      if (!yearMap[item.tahun]) {
-        yearMap[item.tahun] = {
-          tahun: String(item.tahun),
-          s1Gpa: null,
-          s1Formatted: '-',
-          s2Gpa: item.avgIpk !== null ? Number(item.avgIpk) : null,
-          s2Formatted: item.avgIpk !== null ? item.avgIpk.toFixed(2) : '-',
-        };
-      } else {
-        yearMap[item.tahun].s2Gpa = item.avgIpk !== null ? Number(item.avgIpk) : null;
-        yearMap[item.tahun].s2Formatted = item.avgIpk !== null ? item.avgIpk.toFixed(2) : '-';
-      }
-    });
-
-    return Object.values(yearMap).sort((a, b) => a.tahun.localeCompare(b.tahun));
-  }, [byYearS1, byYearS2]);
+  // Server sudah mengirim satu deret per tahun untuk kedua jenjang, terurut naik.
+  const combinedTrend = ipkDetail.byYear || EMPTY_ITEMS;
 
   const prodiList = ipkDetail.prodiGpaData || EMPTY_ITEMS;
   const facultyList = ipkDetail.facultyGpaData || EMPTY_ITEMS;
@@ -81,16 +52,18 @@ export default function GpaOverviewModal({ isOpen, onClose, originRect, data, fi
               xDataKey="tahun"
               bars={[
                 {
-                  dataKey: 's1Gpa',
+                  dataKey: 's1AvgIpk',
                   name: 'IPK S1',
                   color: DIGITAL_BLUE[600],
-                  labelKey: 's1Formatted',
+                  labelKey: 's1AvgIpk',
+                  labelFormatter: (value) => formatDecimal(value, 2),
                 },
                 {
-                  dataKey: 's2Gpa',
+                  dataKey: 's2AvgIpk',
                   name: 'IPK S2',
                   color: DIGITAL_BLUE[400],
-                  labelKey: 's2Formatted',
+                  labelKey: 's2AvgIpk',
+                  labelFormatter: (value) => formatDecimal(value, 2),
                 },
               ]}
               tooltipContent={
@@ -98,16 +71,16 @@ export default function GpaOverviewModal({ isOpen, onClose, originRect, data, fi
                   titleKey="tahun"
                   rows={[
                     {
-                      key: 's1Gpa',
+                      key: 's1AvgIpk',
                       label: 'Rata-rata IPK S1',
                       colorClass: 'bg-digital-blue-600',
-                      format: (val) => (val ? val.toFixed(2) : '-'),
+                      format: (val) => formatDecimal(val, 2),
                     },
                     {
-                      key: 's2Gpa',
+                      key: 's2AvgIpk',
                       label: 'Rata-rata IPK S2',
                       colorClass: 'bg-digital-blue-400',
-                      format: (val) => (val ? val.toFixed(2) : '-'),
+                      format: (val) => formatDecimal(val, 2),
                     },
                   ]}
                 />

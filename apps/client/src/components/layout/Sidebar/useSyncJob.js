@@ -1,14 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import syncService from '../../../services/syncService';
-
-const MODULES = ['students', 'graduates', 'mbkm'];
-
-const MODULE_LABELS = {
-  students: 'Data Mahasiswa',
-  graduates: 'Data Lulusan',
-  mbkm: 'Data MBKM',
-};
+import { MODULE_KEYS as MODULES, MODULE_LABELS } from './syncModules';
 
 const SYNC_ENDPOINTS = {
   students: syncService.syncStudents,
@@ -17,29 +10,15 @@ const SYNC_ENDPOINTS = {
 };
 
 const POLL_MS = 2000;
-const ASYNC_BODY = { async: true };
-const DEFAULT_SELECTED = { students: true, graduates: true, mbkm: true };
 const IDLE_STATUS = 'idle';
+const DEFAULT_SELECTED = Object.fromEntries(MODULES.map((key) => [key, true]));
+const NO_TOTALS = { synced: 0, skipped: 0 };
 
-function modulePercent(entry) {
-  if (!entry || entry.status === 'idle' || entry.status === 'pending') return 0;
-  if (entry.status === 'completed') return 100;
-  if (entry.total_pages > 0) {
-    return Math.min(100, Math.round((entry.current_page / entry.total_pages) * 100));
-  }
-  return entry.status === 'running' ? 8 : 0;
-}
-
-function averagePercent(progress, scope) {
-  if (!scope.length) return 0;
-  const total = scope.reduce((sum, key) => sum + modulePercent(progress?.[key]), 0);
-  return Math.round(total / scope.length);
-}
-
-function scopeOf(currentModule) {
-  return MODULES.includes(currentModule) ? [currentModule] : MODULES;
-}
-
+/**
+ * `percent`, `overallPercent`, dan `totals` dihitung server dari progres mentah;
+ * yang tersisa di sini hanya clamp monotonic — bar tidak boleh mundur saat
+ * modul berikutnya dalam job mulai.
+ */
 export default function useSyncJob({ isOpen }) {
   const queryClient = useQueryClient();
   const [selected, setSelected] = useState(DEFAULT_SELECTED);
@@ -70,8 +49,7 @@ export default function useSyncJob({ isOpen }) {
   const applySnapshot = useCallback((data) => {
     setSnapshot(data);
     if (data?.finishedAt) setLastSyncedAt(data.finishedAt);
-    const computed = averagePercent(data?.progress, scopeRef.current);
-    const next = Math.max(maxPercentRef.current, computed);
+    const next = Math.max(maxPercentRef.current, data?.overallPercent || 0);
     maxPercentRef.current = next;
     setPercent(next);
   }, []);
@@ -158,7 +136,9 @@ export default function useSyncJob({ isOpen }) {
         }
 
         setPhase('starting');
-        runner(ASYNC_BODY)
+        // Satu job = satu cakupan; tiap POST dalam urutan membawa daftar modul
+        // job ini supaya server tahu progres modul mana yang ikut dihitung.
+        runner({ async: true, scope: scopeRef.current })
           .then(() => {
             if (stale()) return;
             setPhase('running');
@@ -203,21 +183,20 @@ export default function useSyncJob({ isOpen }) {
       .then((response) => {
         const data = response?.data;
         if (cancelledRef.current || !data) return;
-        if (data.finishedAt) setLastSyncedAt(data.finishedAt);
+        // Clamp dimulai lagi dari angka server, bukan dari run sebelumnya.
+        maxPercentRef.current = 0;
+        applySnapshot(data);
         if (data.status !== 'running') return;
-        const nextScope = scopeOf(data.currentModule);
         busyRef.current = true;
         queueIndexRef.current = 0;
-        scopeRef.current = nextScope;
-        maxPercentRef.current = 0;
-        setScope(nextScope);
+        scopeRef.current = data.scope;
+        setScope(data.scope);
         setLastError(null);
-        setPercent(averagePercent(data.progress, nextScope));
         setPhase('running');
         runSequence([], true);
       })
       .catch(() => {});
-  }, [runSequence]);
+  }, [applySnapshot, runSequence]);
 
   const reset = useCallback(() => {
     stopPolling();
@@ -262,25 +241,21 @@ export default function useSyncJob({ isOpen }) {
 
   const moduleRows = useMemo(
     () =>
-      scope.map((key) => ({
-        key,
-        label: MODULE_LABELS[key],
-        status: snapshot?.progress?.[key]?.status || IDLE_STATUS,
-        percent: modulePercent(snapshot?.progress?.[key]),
-        synced: snapshot?.progress?.[key]?.total_synced || 0,
-        skipped: snapshot?.progress?.[key]?.skipped || 0,
-      })),
+      scope.map((key) => {
+        const entry = snapshot?.progress?.[key];
+        return {
+          key,
+          label: MODULE_LABELS[key],
+          status: entry?.status || IDLE_STATUS,
+          percent: entry?.percent || 0,
+          synced: entry?.total_synced || 0,
+          skipped: entry?.skipped || 0,
+        };
+      }),
     [scope, snapshot],
   );
 
-  const errorCounts = useMemo(
-    () =>
-      MODULES.reduce(
-        (acc, key) => ({ ...acc, [key]: snapshot?.progress?.[key]?.skipped || 0 }),
-        {},
-      ),
-    [snapshot],
-  );
+  const totals = snapshot?.totals || NO_TOTALS;
 
   const statusMessage = useMemo(() => {
     if (phase === 'starting') return 'Mengirim permintaan sinkronisasi...';
@@ -307,7 +282,7 @@ export default function useSyncJob({ isOpen }) {
     percent: phase === 'completed' ? 100 : percent,
     statusMessage,
     moduleRows,
-    errorCounts,
+    totals,
     lastError,
     lastSyncedAt,
     start,

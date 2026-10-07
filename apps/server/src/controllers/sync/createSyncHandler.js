@@ -5,7 +5,11 @@ const { HTTP_STATUS } = require('@komet/shared/constants');
 
 function clearFilterCachesSafely() {
   try {
-    require('./helpers').clearFilterCaches();
+    // Setelah sync, isi kolom (prodi, fakultas, angkatan, periode) bisa berubah,
+    // jadi semua tab dibuang dari cache — bukan cuma modul yang disinkronkan.
+    require('../../services/students/filterOptions').clearFilterCache();
+    require('../../services/graduates/filterOptions').clearGraduateFilterCache();
+    require('../../services/mbkm/filterOptions').clearMbkmFilterCache();
   } catch (error) {
     logger.warn('Gagal membersihkan cache filter options:', error.message);
   }
@@ -39,9 +43,12 @@ function createSyncHandler({ moduleName, label, execute, successMessage }) {
 
   return async function syncHandler(req, res) {
     const isAsync = req?.body?.async === true || req?.query?.async === 'true';
+    // Job berurutan dari UI mengirim daftar modul yang dipilihnya; tanpa cakupan
+    // ini, status hanya bisa menebak dari modul yang sedang berjalan.
+    const scope = req?.body?.scope;
 
     if (isAsync) {
-      syncJobTracker.startJob(moduleName);
+      syncJobTracker.startJob(moduleName, scope);
       setImmediate(() => {
         runJob()
           .then(() => syncJobTracker.finishJob(true))
@@ -58,7 +65,7 @@ function createSyncHandler({ moduleName, label, execute, successMessage }) {
     }
 
     try {
-      syncJobTracker.startJob(moduleName);
+      syncJobTracker.startJob(moduleName, scope);
       const result = await runJob();
       syncJobTracker.finishJob(true);
       return res.json({ success: true, message: successMessage(result), data: result });

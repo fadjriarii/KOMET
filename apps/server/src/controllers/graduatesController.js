@@ -4,7 +4,8 @@
  * Dispatcher controller untuk endpoint statistik & tabel kelulusan (Tab Lulusan).
  */
 
-const { buildGraduateFilter, getPaginationParams } = require('../services/graduates/filterBuilder');
+const { buildGraduateFilter } = require('../services/graduates/filterBuilder');
+const { getPaginationParams } = require('../utils/paginationUtils');
 const { getGraduateSummary } = require('../services/graduates/graduateSummary');
 const { getTotalLulusanByYear } = require('../services/graduates/totalLulusan');
 const { getAvgIpk, getIpkByYear, getIpkOverview } = require('../services/graduates/ipkTrend');
@@ -51,8 +52,7 @@ const getIpkTrendDetail = async (req, res) => {
       data: {
         s1Gpa: avgIpk.s1,
         s2Gpa: avgIpk.s2,
-        byYearS1: byYear.byYearS1,
-        byYearS2: byYear.byYearS2,
+        byYear,
         prodiGpaData: overview.prodiGpaData,
         facultyGpaData: overview.facultyGpaData,
         gpaBandsData: overview.gpaBandsData,
@@ -75,7 +75,7 @@ const getTepatWaktuDetail = async (req, res) => {
   }
 };
 
-// GET /api/graduates/keberhasilan-studi & /api/graduates/study-success — Detail chart Card 4
+// GET /api/graduates/keberhasilan-studi — Detail chart Card 4
 const getKeberhasilanStudiDetail = async (req, res) => {
   try {
     const whereFilter = buildGraduateFilter(req.query);

@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 
-export default function MenuGroup({ title, children, defaultOpen = true }) {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
+export default function MenuGroup({ title, children }) {
+  const [isOpen, setIsOpen] = useState(true);
 
   return (
     <div className="mb-2">

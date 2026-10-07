@@ -8,6 +8,7 @@ const fields = {
     initial: '',
     param: 'search',
     setter: 'setSearchQuery',
+    control: 'search',
     sanitize: (value) =>
       String(value ?? '')
         .trim()
@@ -18,23 +19,21 @@ const fields = {
     param: 'status',
     api: 'statusKeaktifan',
     setter: 'setSelectedStatus',
+    control: 'multi',
   },
+  // Pemilih di header halaman: ikut mempersemp data tapi bukan bagian form filter,
+  // jadi ia tidak dihitung sebagai "filter aktif".
+  tahunAjaran: { initial: '2025/2026', param: 'tahunAjaran', setter: 'setTahunAjaran' },
 };
-
-const getActiveFilterCount = (params) => (params.search ? 1 : 0);
 
 /** Hook yang sama + lokasi live, supaya URL bisa diperiksa setelah tiap aksi. */
 function renderFilters(initialUrl = '/') {
   const wrapper = ({ children }) => (
     <MemoryRouter initialEntries={[initialUrl]}>{children}</MemoryRouter>
   );
-  return renderHook(
-    () => ({
-      filters: useDashboardFilters({ fields, getActiveFilterCount }),
-      location: useLocation(),
-    }),
-    { wrapper },
-  );
+  return renderHook(() => ({ filters: useDashboardFilters({ fields }), location: useLocation() }), {
+    wrapper,
+  });
 }
 
 const searchOf = (result) => new URLSearchParams(result.current.location.search);
@@ -45,16 +44,19 @@ describe('useDashboardFilters (keadaan di URL)', () => {
     expect(clean.result.current.filters.values).toEqual({
       searchQuery: '',
       selectedStatus: ['Aktif'],
+      tahunAjaran: '2025/2026',
     });
 
     const linked = renderFilters('/?search=s1&status=Cuti&status=Lulus');
     expect(linked.result.current.filters.values).toEqual({
       searchQuery: 's1',
       selectedStatus: ['Cuti', 'Lulus'],
+      tahunAjaran: '2025/2026',
     });
     expect(linked.result.current.filters.filterParams).toEqual({
       search: 's1',
       status: ['Cuti', 'Lulus'],
+      tahunAjaran: '2025/2026',
     });
   });
 
@@ -97,11 +99,30 @@ describe('useDashboardFilters (keadaan di URL)', () => {
 
   it('resetFilters membersihkan filter dan halaman, mengembalikan nilai awal', () => {
     const { result } = renderFilters('/?search=abc&status=Cuti&page=4');
-    expect(result.current.filters.activeFilterCount).toBe(1);
+    expect(result.current.filters.activeFilterCount).toBe(2);
 
     act(() => result.current.filters.resetFilters());
-    expect(result.current.filters.values).toEqual({ searchQuery: '', selectedStatus: ['Aktif'] });
+    expect(result.current.filters.values).toEqual({
+      searchQuery: '',
+      selectedStatus: ['Aktif'],
+      tahunAjaran: '2025/2026',
+    });
     expect(result.current.filters.activeFilterCount).toBe(0);
     expect(searchOf(result).toString()).toBe('');
+  });
+
+  it('menghitung filter tanpa mempedulikan urutan pilihan, dan mengabaikan pemilih header', () => {
+    // ['Cuti','Aktif'] sama saja dengan ['Aktif','Cuti']: keduanya menyimpang dari
+    // default ['Aktif'] dan dihitung satu, bukan bergantung pada urutan penulisan URL.
+    expect(
+      renderFilters('/?status=Cuti&status=Aktif').result.current.filters.activeFilterCount,
+    ).toBe(renderFilters('/?status=Aktif&status=Cuti').result.current.filters.activeFilterCount);
+    expect(
+      renderFilters('/?status=Cuti&status=Aktif').result.current.filters.activeFilterCount,
+    ).toBe(1);
+    // Tahun ajaran non-default: terdaftar sebagai param aktif, tidak sebagai filter form.
+    const yearOnly = renderFilters('/?tahunAjaran=2020/2021');
+    expect(yearOnly.result.current.filters.activeFilterParams).toEqual(['tahunAjaran']);
+    expect(yearOnly.result.current.filters.activeFilterCount).toBe(0);
   });
 });

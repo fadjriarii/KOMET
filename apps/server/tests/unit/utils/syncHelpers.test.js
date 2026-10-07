@@ -6,12 +6,13 @@ const {
   extractPeriode,
   hitungSemester,
   getCurrentAcademicPeriode,
-  isStatusKeluar,
+} = require('../../../src/controllers/sync/academicPeriod');
+const { isStatusKeluar, mapKewarganegaraan } = require('../../../src/controllers/sync/codeMaps');
+const {
   isAkunLama,
-  mapKewarganegaraan,
   cleanText,
   normalizeOptionalText,
-} = require('../../../src/controllers/sync/helpers');
+} = require('../../../src/controllers/sync/text');
 
 describe('sync helpers — Data Cleansing & Transformation', () => {
   // ─── getPeriodeFromTanggalTransfer ───

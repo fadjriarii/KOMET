@@ -5,7 +5,6 @@
 
 const prisma = require('../../config/prisma');
 const { parsePeriode } = require('../../utils/academicUtils');
-const { getPaginationParams } = require('../../utils/paginationUtils');
 const { addInFilter, addSearchFilter, hasFilters } = require('../shared/filterUtils');
 const { STUDENT_STATUS } = require('@komet/shared/constants');
 
@@ -138,7 +137,6 @@ module.exports = {
   buildMbkmFilter,
   buildActivityWhere,
   buildEligibleStudentWhere,
-  getPaginationParams,
   getDefaultPeriode,
   getPreviousPeriode,
   resolvePeriode,

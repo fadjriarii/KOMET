@@ -1,11 +1,11 @@
 import Modal from '../../../../components/common/modals/Modal';
 import ModalSummaryBanner from '../../../../components/common/modals/ModalSummaryBanner';
 import ModalTabNav from '../../../../components/common/modals/ModalTabNav';
+import ModalTabContent from '../../../../components/common/modals/ModalTabContent';
 import DistributionChart from '../../../../components/common/charts/DistributionChart';
 import { useTabTransition } from '../../../../hooks/useTabTransition';
 import {
   getStudentActiveDescription,
-  getActiveTabContent,
   getStudentStatusPresentation,
 } from '../../../../utils/uiHelpers';
 import { formatNumber } from '@komet/shared/formatters';
@@ -39,7 +39,7 @@ export default function ActiveStudentsModal({ isOpen, onClose, originRect, data,
   const prodiList = activeDetailData?.byProdi || [];
   const jenjangList = activeDetailData?.byJenjang || [];
 
-  const activeContent = getActiveTabContent(activeTab, {
+  const content = {
     fakultas: (
       <div className="pt-1">
         <DistributionChart
@@ -79,7 +79,7 @@ export default function ActiveStudentsModal({ isOpen, onClose, originRect, data,
         />
       </div>
     ),
-  });
+  };
 
   return (
     <Modal
@@ -117,7 +117,7 @@ export default function ActiveStudentsModal({ isOpen, onClose, originRect, data,
           <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar scroll-smooth pr-1">
             <div className="overflow-x-hidden w-full">
               <div key={activeTab} className={`w-full ${slideClass}`}>
-                {activeContent}
+                <ModalTabContent activeTab={activeTab} content={content} />
               </div>
             </div>
           </div>

@@ -1,20 +1,13 @@
 import { lazy } from 'react';
-import { Briefcase, GraduationCap, LayoutDashboard, Users } from 'lucide-react';
+import { Briefcase, GraduationCap, Users } from 'lucide-react';
 
 /**
  * Satu daftar untuk tiga hal: rute React Router, menu sidebar, dan breadcrumb.
  * Menambah halaman = satu entri di sini; tidak ada lagi label atau path yang
  * disalin di tempat lain (dulu `NAV_CONFIG` sidebar adalah salinan keempat).
+ * `/` bukan halaman sendiri: ia dialihkan ke `/students` (lihat `App.jsx`).
  */
 export const NAV_ITEMS = [
-  {
-    id: 'overview',
-    path: '/',
-    label: 'Overview',
-    group: 'Student Navigation',
-    icon: LayoutDashboard,
-    Component: lazy(() => import('../modules/overview/pages/OverviewPage')),
-  },
   {
     id: 'students',
     path: '/students',

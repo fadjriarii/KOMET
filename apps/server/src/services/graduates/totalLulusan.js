@@ -7,6 +7,7 @@
 const prisma = require('../../config/prisma');
 const { getYearRange } = require('../../utils/academicUtils');
 const { includesJenjang } = require('./filterBuilder');
+const { valuesByYearAndJenjang } = require('./yearJenjangSeries');
 
 /**
  * Satu `groupBy(['jenjang'])` menggantikan dua `count()` dan memastikan kedua
@@ -31,32 +32,20 @@ async function getTotalLulusan(whereFilter = {}) {
 }
 
 async function getTotalLulusanByYear(whereFilter) {
-  const yearRange = getYearRange();
-
-  const results = await prisma.graduate.groupBy({
-    by: ['tahunLulus', 'jenjang'],
-    where: { ...whereFilter, tahunLulus: { in: yearRange } },
-    _count: true,
-    orderBy: { tahunLulus: 'asc' },
+  const series = await valuesByYearAndJenjang(whereFilter, {
+    aggregate: { _count: true },
+    valueOf: (row) => row._count,
+    missing: 0,
   });
 
-  const s1 = yearRange.map((tahun) => {
-    const found = results.find((r) => r.tahunLulus === tahun && r.jenjang === 'S1');
-    return { tahun, count: found ? found._count : 0 };
-  });
-  const s2 = yearRange.map((tahun) => {
-    const found = results.find((r) => r.tahunLulus === tahun && r.jenjang === 'S2');
-    return { tahun, count: found ? found._count : 0 };
-  });
-
-  const byYear = yearRange.map((tahun, index) => ({
-    tahun,
-    s1Count: s1[index].count,
-    s2Count: s2[index].count,
-    total: s1[index].count + s2[index].count,
-  }));
-
-  return { s1, s2, byYear };
+  return {
+    byYear: series.map(({ tahun, s1, s2 }) => ({
+      tahun,
+      s1Count: s1,
+      s2Count: s2,
+      total: s1 + s2,
+    })),
+  };
 }
 
 module.exports = { getTotalLulusan, getTotalLulusanByYear, getYearRange };

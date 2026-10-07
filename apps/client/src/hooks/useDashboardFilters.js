@@ -8,13 +8,16 @@ function isListInitial(config) {
   return Array.isArray(config.initial);
 }
 
+/**
+ * Satu aturan "penyimpangan dari nilai awal" — dipakai untuk menulis URL, untuk
+ * daftar param yang dikirim ke server, dan untuk badge "Terfilter". Urutan pilihan
+ * tidak boleh mengubah arti, jadi daftar dibandingkan sebagai himpunan.
+ */
 function sameAsInitial(config, value) {
   if (isListInitial(config)) {
-    return (
-      Array.isArray(value) &&
-      value.length === config.initial.length &&
-      value.every((item, index) => item === config.initial[index])
-    );
+    if (!Array.isArray(value) || value.length !== config.initial.length) return false;
+    const expected = new Set(config.initial);
+    return value.every((item) => expected.has(item));
   }
   return value === config.initial;
 }
@@ -68,7 +71,7 @@ function writeValue(fields, previous, key, config, nextValue) {
  * behaviour, sanitisation, and memoised API parameters. Values live in the URL
  * so a view is deep-linkable, survives a reload, and follows Back/Forward.
  */
-export function useDashboardFilters({ fields, getActiveFilterCount }) {
+export function useDashboardFilters({ fields }) {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const values = useMemo(() => readValues(fields, searchParams), [fields, searchParams]);
@@ -107,10 +110,15 @@ export function useDashboardFilters({ fields, getActiveFilterCount }) {
     return active;
   }, [fields, values]);
 
-  const activeFilterCount = useMemo(
-    () => getActiveFilterCount(filterParams),
-    [filterParams, getActiveFilterCount],
-  );
+  // Hanya field yang tampil di form filter yang ikut menghitung badge. `tahunAjaran`
+  // adalah pemilih di header halaman, bukan filter, jadi ia tidak punya `control`.
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    for (const [key, config] of Object.entries(fields)) {
+      if (config.control && !sameAsInitial(config, values[key])) count += 1;
+    }
+    return count;
+  }, [fields, values]);
 
   const resetFilters = useCallback(
     () =>

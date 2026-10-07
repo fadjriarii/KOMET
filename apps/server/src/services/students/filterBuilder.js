@@ -7,11 +7,17 @@
  * pemanggil lewat `scope`, bukan lewat manipulasi string/JSON atas filter yang
  * sudah jadi — jadi tidak ada jalur kode yang "membuang" kondisi dengan
  * mencocokkan hasil serialisasinya.
+ *
+ * Kondisi snapshot tahun akademik ada di `snapshotConditions`.
  */
-const { getPaginationParams } = require('../../utils/paginationUtils');
-const { toArray } = require('../shared/filterUtils');
+const { toArray, addInFilter, addSearchFilter } = require('../shared/filterUtils');
 const { getCurrentAcademicYearStart } = require('../../utils/academicUtils');
-const { STUDENT_STATUS } = require('@komet/shared/constants');
+const {
+  ALL_STATUSES,
+  DEFAULT_STATUS,
+  parseStatusSelection,
+  buildAcademicYearFilter,
+} = require('./snapshotConditions');
 
 const FILTER_SCOPES = {
   /** Populasi terpilih: status berjalan ATAU proyeksi status pada snapshot tahun. */
@@ -21,13 +27,6 @@ const FILTER_SCOPES = {
   /** Lintas tahun: tahun akademik terpilih diabaikan, tren membangun perahunya sendiri. */
   ALL_YEARS: 'allYears',
 };
-
-/** Batas periode kode (`YYYY1`/`YYYY2`) untuk satu tahun akademik. */
-function getAcademicPeriodBounds(academicYear) {
-  const startYear =
-    typeof academicYear === 'object' && academicYear ? academicYear.startYear : academicYear;
-  return { start: `${startYear}1`, end: `${startYear}2` };
-}
 
 function addOrCondition(where, condition) {
   where.AND = where.AND || [];
@@ -64,171 +63,6 @@ function buildPeriodeFilter(value) {
   return value;
 }
 
-/**
- * Satu encoding untuk "semua status": sentinel ALL dari klien. Nilai kosong
- * atau tidak dikirim berarti populasi default dashboard (DEFAULT_STATUS).
- */
-const ALL_STATUSES = 'ALL';
-const DEFAULT_STATUS = STUDENT_STATUS.AKTIF;
-
-/**
- * @returns {{isAll: boolean, statuses: string[]}} pemilihan status ternormalisasi.
- */
-function parseStatusSelection(statusValues) {
-  const values = (toArray(statusValues) || []).filter(Boolean);
-  if (values.includes(ALL_STATUSES)) return { isAll: true, statuses: [] };
-  return { isAll: false, statuses: values.length ? values : [DEFAULT_STATUS] };
-}
-
-/** Predikat Prisma yang berarti "semua status"; dikenali isAllStatusesPredicate(). */
-function allStatusesPredicate() {
-  return { not: '' };
-}
-
-function isAllStatusesPredicate(value) {
-  return value?.not === '';
-}
-
-/**
- * Builds the status predicate for a historical academic-year snapshot.
- *
- * `statusKeaktifan` is the latest state from SEVIMA, while
- * `periodeTerakhir` is the period in which a non-active student left/changed
- * status. Applying `statusKeaktifan = 'Aktif'` directly therefore loses a
- * student who graduated in a later year. Conversely, applying `Lulus`
- * directly leaks future graduations into older snapshots.
- *
- * For target academic year T:
- * - Aktif: current Aktif records, records without an exit period, or records
- *   whose exit period falls within or after T. They were still active during T.
- * - Other statuses: their latest status is included only from the academic year
- *   after its recorded exit period. This prevents one record from being both
- *   Aktif and terminal in the same academic year.
- * - Semua status: every student admitted by T is present; each row's display
- *   status is projected separately by `studentList`.
- */
-function buildTerminalPeriodCondition(academicStart, academicEnd) {
-  return {
-    OR: [
-      { periodeTerakhir: { not: '', lt: academicStart } },
-      { periodeTerakhir: academicStart },
-      {
-        AND: [{ periodeTerakhir: academicEnd }, { periodeMasuk: { endsWith: '1' } }],
-      },
-    ],
-  };
-}
-
-function buildActiveSnapshotCondition(academicStart, academicEnd) {
-  return {
-    OR: [
-      { statusKeaktifan: DEFAULT_STATUS },
-      { periodeTerakhir: '' },
-      { periodeTerakhir: { gt: academicEnd } },
-      {
-        AND: [{ periodeTerakhir: academicEnd }, { periodeMasuk: { endsWith: '2' } }],
-      },
-    ],
-  };
-}
-
-/**
- * Penilai kondisi Prisma skala kecil untuk SATU baris mahasiswa.
- *
- * Aturan snapshot cukup ditulis sekali (di `buildTerminalPeriodCondition` dkk);
- * fungsi ini memakainya di sisi JavaScript supaya proyeksi status tabel tidak
- * pernah menjadi implementasi paralel dari kondisi SQL. Operator yang belum
- * dikenali melempar error — diam-diam mengembalikan `true`/`false` akan membuat
- * kondisi baru terlihat cocok padahal tidak.
- */
-function matchesFieldValue(value, rule) {
-  const actual = String(value ?? '');
-  if (rule === null || typeof rule === 'string' || typeof rule === 'number') {
-    return actual === String(rule);
-  }
-  return Object.entries(rule).every(([operator, operand]) => {
-    switch (operator) {
-      case 'equals':
-        return actual === String(operand);
-      // Perbandingan string murni seperti MySQL; nilai kosong sengaja TIDAK
-      // dikecualikan di sini — kondisi yang butuh "harus terisi" menyatakan
-      // `{ not: '' }` sendiri, sama seperti di SQL.
-      case 'lt':
-        return actual < String(operand);
-      case 'lte':
-        return actual <= String(operand);
-      case 'gt':
-        return actual > String(operand);
-      case 'gte':
-        return actual >= String(operand);
-      case 'not':
-        return actual !== String(operand);
-      case 'in':
-        return operand.map(String).includes(actual);
-      case 'endsWith':
-        return actual.endsWith(String(operand));
-      case 'startsWith':
-        return actual.startsWith(String(operand));
-      default:
-        throw new Error(`matchesFieldValue: operator "${operator}" belum didukung`);
-    }
-  });
-}
-
-function matchesStudentCondition(row = {}, condition = {}) {
-  return Object.entries(condition).every(([key, rule]) => {
-    if (key === 'AND') return rule.every((nested) => matchesStudentCondition(row, nested));
-    if (key === 'OR') return rule.some((nested) => matchesStudentCondition(row, nested));
-    if (key === 'NOT') return !matchesStudentCondition(row, rule);
-    return matchesFieldValue(row[key], rule);
-  });
-}
-
-/**
- * Status akhir mana yang sudah tercapai pada tahun akademik `academicYear`.
- * Satu sumber kebenaran dengan `buildTerminalPeriodCondition` — kondisi yang
- * sama dievaluasi di sini, tidak diulang sebagai cabang `if` tersendiri.
- */
-function isTerminalInAcademicYear(student, academicYear) {
-  const { start, end } = getAcademicPeriodBounds(academicYear);
-  return matchesStudentCondition(student, buildTerminalPeriodCondition(start, end));
-}
-
-function buildSnapshotStatusCondition(academicStart, academicEnd, statusValues) {
-  const { isAll, statuses } = parseStatusSelection(statusValues);
-  if (isAll) return null;
-
-  const branches = [];
-  if (statuses.includes(DEFAULT_STATUS)) {
-    branches.push(buildActiveSnapshotCondition(academicStart, academicEnd));
-  }
-
-  const terminalStatuses = statuses.filter((status) => status !== DEFAULT_STATUS);
-  if (terminalStatuses.length) {
-    branches.push({
-      AND: [
-        {
-          statusKeaktifan:
-            terminalStatuses.length === 1 ? terminalStatuses[0] : { in: terminalStatuses },
-        },
-        buildTerminalPeriodCondition(academicStart, academicEnd),
-      ],
-    });
-  }
-
-  return branches.length ? { OR: branches } : null;
-}
-
-/** Snapshot predicates for one academic year. */
-function buildAcademicYearFilter(academicYear, statusValues) {
-  if (!academicYear) return [];
-  const { start, end } = getAcademicPeriodBounds(academicYear);
-  const conditions = [{ periodeMasuk: { lte: end } }];
-  const snapshotStatusCondition = buildSnapshotStatusCondition(start, end, statusValues);
-  if (snapshotStatusCondition) conditions.push(snapshotStatusCondition);
-  return conditions;
-}
-
 function buildMultiSelectFilters(query, where) {
   const mappings = [
     ['fakultas', 'fakultas'],
@@ -236,10 +70,7 @@ function buildMultiSelectFilters(query, where) {
     ['jenjang', 'jenjang'],
     ['angkatan', 'angkatan'],
   ];
-  mappings.forEach(([queryKey, field]) => {
-    const values = toArray(query[queryKey]);
-    if (values) where[field] = { in: values };
-  });
+  mappings.forEach(([queryKey, field]) => addInFilter(where, field, query[queryKey]));
 
   const cohortYears = toArray(query.angkatanTahun);
   if (cohortYears) {
@@ -259,15 +90,8 @@ function buildStatusFilter(statusValues) {
   const { isAll, statuses } = parseStatusSelection(statusValues);
   // "Semua status" dikirim sebagai predikat eksplisit, bukan ketiadaan key,
   // supaya ensurePopulationFilter tidak mengumpulkannya kembali ke default.
-  if (isAll) return allStatusesPredicate();
+  if (isAll) return { not: '' };
   return statuses.length === 1 ? statuses[0] : { in: statuses };
-}
-
-function buildSearchFilter(search) {
-  const searchTerm = typeof search === 'string' ? search.trim().substring(0, 100) : '';
-  return searchTerm
-    ? [{ nim: { contains: searchTerm } }, { nama: { contains: searchTerm } }]
-    : null;
 }
 
 /**
@@ -345,7 +169,6 @@ function buildStudentFilter(query = {}, options = {}) {
   // karena itu akan mempersempit hasil ke satu angkatan saja, bukan
   // seluruh histori s.d. tahun ajaran yang dipilih.
 
-  if (query.periode) where.periode = query.periode;
   if (query.kewarganegaraan === 'WNI') where.kewarganegaraan = 'Indonesia';
   else if (query.kewarganegaraan === 'WNA') where.NOT = { kewarganegaraan: 'Indonesia' };
   else if (query.kewarganegaraan) where.kewarganegaraan = query.kewarganegaraan;
@@ -354,33 +177,14 @@ function buildStudentFilter(query = {}, options = {}) {
   // snapshot it has already been represented in the time-aware OR branches.
   if (!cohortOnly && !academicYear) where.statusKeaktifan = buildStatusFilter(statusValues);
 
-  const searchFilter = buildSearchFilter(query.search);
-  if (searchFilter) addOrCondition(where, searchFilter);
+  addSearchFilter(where, query.search);
   return where;
 }
 
 module.exports = {
   FILTER_SCOPES,
   buildStudentFilter,
-  buildAcademicYearFilter,
-  buildSnapshotStatusCondition,
-  buildTerminalPeriodCondition,
-  buildActiveSnapshotCondition,
-  matchesStudentCondition,
-  isTerminalInAcademicYear,
-  parseStatusSelection,
-  allStatusesPredicate,
-  isAllStatusesPredicate,
-  ALL_STATUSES,
-  DEFAULT_STATUS,
-  getAcademicPeriodBounds,
   getAcademicYear,
   getSelectedAcademicYear,
-  buildPeriodeFilter,
-  buildStatusFilter,
-  buildSearchFilter,
-  buildMultiSelectFilters,
-  isAcademicSnapshot,
   ensurePopulationFilter,
-  getPaginationParams,
 };
