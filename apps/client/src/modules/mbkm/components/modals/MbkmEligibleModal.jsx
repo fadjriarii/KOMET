@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { BookOpen, UserCheck, Users } from 'lucide-react';
 import Modal from '../../../../components/common/modals/Modal';
 import ModalSummaryBanner from '../../../../components/common/modals/ModalSummaryBanner';
@@ -6,10 +6,9 @@ import ModalTabNav from '../../../../components/common/modals/ModalTabNav';
 import ModalTable from '../../../../components/common/modals/ModalTable';
 import ModalTabContent from '../../../../components/common/modals/ModalTabContent';
 import { useTabTransition } from '../../../../hooks/useTabTransition';
-import { formatNumber, formatPercentage } from '../../../../utils/uiHelpers';
-import { mbkmService } from '../../services/mbkmService';
-import { useMbkmDetailResource } from '../../hooks/useMbkmDetailResource';
-import MbkmDistributionChart from './MbkmDistributionChart';
+import { formatNumber, formatPercentage } from '@komet/shared/formatters';
+import { useDetail } from '../../mbkmQueries';
+import DistributionChart from '../../../../components/common/charts/DistributionChart';
 import { MBKM_ELIGIBLE_TABS } from './mbkmTrendConfig';
 
 const ELIGIBLE_TABLE_COLUMNS = [
@@ -50,33 +49,29 @@ const EMPTY_LIST = [];
 export default function MbkmEligibleModal({ isOpen, onClose, originRect, data, filters }) {
   const { activeTab, handleTabChange, slideClass } = useTabTransition(MBKM_ELIGIBLE_TABS, 'prodi');
 
-  const fetchEligibleDetail = useCallback(
-    (signal) => mbkmService.getEligibleStudents(filters, { signal }),
-    [filters],
-  );
-
   const {
     data: eligibleData,
     isLoading: isLoadingEligible,
     error: eligibleError,
-  } = useMbkmDetailResource({
+  } = useDetail({
     isOpen,
     resourceKey: 'eligible-students',
     filters,
-    fetcher: fetchEligibleDetail,
+    method: 'getEligibleStudents',
     errorMessage: 'Gagal memuat data mahasiswa eligible',
   });
 
   const kpis = data?.kpis || {};
-  const payload = eligibleData?.data || eligibleData || {};
+  const payload = eligibleData || {};
   const prodiList = payload.prodiData || EMPTY_LIST;
 
   const content = useMemo(
     () => ({
       prodi: (
         <div className="h-full flex flex-col pt-0.5 px-1">
-          <MbkmDistributionChart
+          <DistributionChart
             items={prodiList}
+            countUnit="mahasiswa"
             dataKey="count"
             nameKey="name"
             labelKey="percentage"
@@ -123,14 +118,14 @@ export default function MbkmEligibleModal({ isOpen, onClose, originRect, data, f
               <p>
                 Terdapat sebanyak{' '}
                 <strong className="text-digital-blue-900 font-bold">
-                  {kpis.eligibleCount || payload.eligibleCount || 0} mahasiswa aktif
+                  {formatNumber(kpis.eligibleCount ?? payload.eligibleCount)} mahasiswa aktif
                 </strong>{' '}
                 pada semester 7 yang berstatus eligible untuk mengambil program MBKM di luar kampus.
               </p>
             </div>
           }
           label="Total Eligible"
-          value={kpis.eligibleCount || payload.eligibleCount || '0'}
+          value={formatNumber(kpis.eligibleCount ?? payload.eligibleCount)}
           sublabel="Semester 7 Aktif"
         />
 

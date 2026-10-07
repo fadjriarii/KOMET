@@ -1,23 +1,21 @@
 const syncJobTracker = require('../utils/syncJobTracker');
+const { sendRejected } = require('../utils/errorHandler');
 
 /**
  * Middleware Guard untuk mencegah eksekusi sinkronisasi bersamaan (concurrent sync).
+ * Pemanggil internal (syncAll) memanggil executeSync* langsung, jadi guard ini hanya
+ * mengurus jalur HTTP.
  */
 const checkSyncRunning = (req, res, next) => {
-  const isInternal = req?.isInternal === true;
-
-  if (!isInternal && syncJobTracker.isRunning()) {
-    if (res) {
-      return res.status(409).json({
-        success: false,
-        message: 'Proses sinkronisasi lain sedang berjalan. Tunggu hingga selesai.',
-        statusUrl: '/api/sync/status',
-      });
-    }
-    throw new Error('Proses sinkronisasi lain sedang berjalan.');
+  if (syncJobTracker.isRunning()) {
+    return sendRejected(
+      res,
+      409,
+      'Proses sinkronisasi lain sedang berjalan. Tunggu hingga selesai.',
+      'SYNC_IN_PROGRESS',
+    );
   }
-
-  next();
+  return next();
 };
 
 module.exports = { checkSyncRunning };

@@ -1,16 +1,15 @@
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { BookOpen, Building2, PieChart } from 'lucide-react';
 import Modal from '../../../../components/common/modals/Modal';
 import ModalSummaryBanner from '../../../../components/common/modals/ModalSummaryBanner';
 import ModalTabNav from '../../../../components/common/modals/ModalTabNav';
 import ModalTabContent from '../../../../components/common/modals/ModalTabContent';
 import { useTabTransition } from '../../../../hooks/useTabTransition';
-import { formatDecimal } from '../../../../utils/uiHelpers';
+import { formatDecimal } from '@komet/shared/formatters';
 import { DIGITAL_BLUE } from '../../../../utils/theme';
-import { graduatesService } from '../../services/graduatesService';
-import { useGraduateDetailResource } from '../../hooks/useGraduateDetailResource';
+import { useDetail } from '../../graduateQueries';
 import TrendBarChart from '../../../../components/common/charts/TrendBarChart';
-import GraduateDistributionChart from './GraduateDistributionChart';
+import DistributionChart from '../../../../components/common/charts/DistributionChart';
 import TrendChartTooltip from '../../../../components/common/charts/TrendChartTooltip';
 import { GPA_OVERVIEW_TABS } from './graduateTrendConfig';
 
@@ -19,27 +18,22 @@ const EMPTY_ITEMS = [];
 export default function GpaOverviewModal({ isOpen, onClose, originRect, data, filters }) {
   const { activeTab, handleTabChange, slideClass } = useTabTransition(GPA_OVERVIEW_TABS, 'tren');
 
-  const fetchIpkDetail = useCallback(
-    (signal) => graduatesService.getIpkTrendDetail(filters, { signal }),
-    [filters],
-  );
-
   const {
     data: ipkData,
     isLoading,
     error,
-  } = useGraduateDetailResource({
+  } = useDetail({
     isOpen,
     resourceKey: 'ipk-trend',
     filters,
-    fetcher: fetchIpkDetail,
+    method: 'getIpkTrendDetail',
     errorMessage: 'Gagal memuat rincian tren IPK lulusan',
   });
 
   const kpis = data?.kpis || {};
   const gpaS1 = formatDecimal(kpis.averageGpaS1, 2, '0.00');
   const gpaS2 = formatDecimal(kpis.averageGpaS2, 2, '0.00');
-  const ipkDetail = ipkData?.data || ipkData || {};
+  const ipkDetail = ipkData || {};
 
   const byYearS1 = ipkDetail.byYearS1 || EMPTY_ITEMS;
   const byYearS2 = ipkDetail.byYearS2 || EMPTY_ITEMS;
@@ -124,8 +118,9 @@ export default function GpaOverviewModal({ isOpen, onClose, originRect, data, fi
       ),
       rentang: (
         <div className="h-full flex flex-col pt-0.5 px-1">
-          <GraduateDistributionChart
+          <DistributionChart
             items={gpaBandsList}
+            countUnit="lulusan"
             dataKey="count"
             nameKey="range"
             labelKey="percentage"
@@ -141,8 +136,9 @@ export default function GpaOverviewModal({ isOpen, onClose, originRect, data, fi
       ),
       prodi: (
         <div className="h-full flex flex-col pt-0.5 px-1">
-          <GraduateDistributionChart
+          <DistributionChart
             items={prodiList}
+            countUnit="lulusan"
             dataKey="gpaValue"
             nameKey="name"
             labelKey="gpaValue"
@@ -157,8 +153,9 @@ export default function GpaOverviewModal({ isOpen, onClose, originRect, data, fi
       ),
       fakultas: (
         <div className="h-full flex flex-col pt-0.5 px-1">
-          <GraduateDistributionChart
+          <DistributionChart
             items={facultyList}
+            countUnit="lulusan"
             dataKey="gpaValue"
             nameKey="name"
             labelKey="gpaValue"

@@ -1,21 +1,22 @@
 import { useMemo } from 'react';
-import { formatNumber, formatPercentage } from '../../../utils/uiHelpers';
+import { formatNumber, formatPercentage } from '@komet/shared/formatters';
 
 export function useMbkmKpiDisplay(summaryData, isLoading) {
   return useMemo(() => {
     const kpis = summaryData?.kpis || {};
     const summary = summaryData?.summary || {};
 
-    const totalParticipants = Number(kpis.totalParticipants) || 0;
-    const eligibleCount = Number(kpis.eligibleCount) || 0;
-    const selesaiCount = Number(kpis.selesaiCount) || 0;
-    const berjalanCount = Number(kpis.berjalanCount) || 0;
-    const totalMitra = Number(kpis.totalMitra) || 0;
-    const participationRate = formatPercentage(kpis.participationRate, 1, '0.0%');
+    // Nilai `null` dari server dibiarkan `null`: `formatNumber` sudah memetakannya
+    // ke `-`, sementara `Number(null) || 0` mengubah "belum ada data" menjadi nol.
+    const participationRate = formatPercentage(kpis.participationRate, 1);
 
     const subtitles = {
-      rate: `${formatNumber(totalParticipants)} dari ${formatNumber(eligibleCount)} Mhs Eligible`,
-      participants: `Selesai: ${formatNumber(selesaiCount)} • Berjalan: ${formatNumber(berjalanCount)}`,
+      rate: `${formatNumber(kpis.totalParticipants)} dari ${formatNumber(
+        kpis.eligibleCount,
+      )} Mhs Eligible`,
+      participants: `Selesai: ${formatNumber(kpis.selesaiCount)} • Berjalan: ${formatNumber(
+        kpis.berjalanCount,
+      )}`,
       eligible: 'Semester 7 Status Aktif',
       mitra: 'Penempatan MBKM Terverifikasi',
     };
@@ -23,14 +24,13 @@ export function useMbkmKpiDisplay(summaryData, isLoading) {
     return {
       kpis: {
         participationRate,
-        totalParticipants: formatNumber(totalParticipants),
-        rawTotalParticipants: totalParticipants,
-        eligibleCount: formatNumber(eligibleCount),
-        rawEligibleCount: eligibleCount,
-        selesaiCount,
-        berjalanCount,
-        totalMitra: formatNumber(totalMitra),
-        rawTotalMitra: totalMitra,
+        // Target IKU-2 adalah nilai yang dikirim server, bukan konstanta UI.
+        targetIku2: formatPercentage(kpis.targetIku2, 1),
+        totalParticipants: formatNumber(kpis.totalParticipants),
+        eligibleCount: formatNumber(kpis.eligibleCount),
+        selesaiCount: kpis.selesaiCount,
+        berjalanCount: kpis.berjalanCount,
+        totalMitra: formatNumber(kpis.totalMitra),
       },
       summary,
       displaySubtitles: subtitles,

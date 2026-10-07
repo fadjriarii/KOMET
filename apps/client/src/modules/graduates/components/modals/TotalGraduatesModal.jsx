@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { Calendar, GraduationCap, Award, Users } from 'lucide-react';
 import Modal from '../../../../components/common/modals/Modal';
 import ModalSummaryBanner from '../../../../components/common/modals/ModalSummaryBanner';
@@ -6,12 +6,11 @@ import ModalTabNav from '../../../../components/common/modals/ModalTabNav';
 import ModalTable from '../../../../components/common/modals/ModalTable';
 import ModalTabContent from '../../../../components/common/modals/ModalTabContent';
 import { useTabTransition } from '../../../../hooks/useTabTransition';
-import { formatNumber } from '../../../../utils/uiHelpers';
+import { formatNumber } from '@komet/shared/formatters';
 import { DIGITAL_BLUE } from '../../../../utils/theme';
-import { graduatesService } from '../../services/graduatesService';
-import { useGraduateDetailResource } from '../../hooks/useGraduateDetailResource';
+import { useDetail } from '../../graduateQueries';
 import TrendBarChart from '../../../../components/common/charts/TrendBarChart';
-import GraduateDistributionChart from './GraduateDistributionChart';
+import DistributionChart from '../../../../components/common/charts/DistributionChart';
 import TrendChartTooltip from '../../../../components/common/charts/TrendChartTooltip';
 import { TOTAL_GRADUATE_TABS } from './graduateTrendConfig';
 
@@ -62,24 +61,15 @@ const TOTAL_TABLE_COLUMNS = [
 export default function TotalGraduatesModal({ isOpen, onClose, originRect, data, filters }) {
   const { activeTab, handleTabChange, slideClass } = useTabTransition(TOTAL_GRADUATE_TABS, 'tren');
 
-  const fetchDistribution = useCallback(
-    (signal) => graduatesService.getGraduateDistribution(filters, { signal }),
-    [filters],
-  );
-  const fetchTotalDetail = useCallback(
-    (signal) => graduatesService.getTotalLulusanDetail(filters, { signal }),
-    [filters],
-  );
-
   const {
     data: totalData,
     isLoading: isLoadingTotal,
     error: totalError,
-  } = useGraduateDetailResource({
+  } = useDetail({
     isOpen,
     resourceKey: 'total-lulusan',
     filters,
-    fetcher: fetchTotalDetail,
+    method: 'getTotalLulusanDetail',
     errorMessage: 'Gagal memuat tren total lulusan',
   });
 
@@ -87,22 +77,20 @@ export default function TotalGraduatesModal({ isOpen, onClose, originRect, data,
     data: distData,
     isLoading: isLoadingDist,
     error: distError,
-  } = useGraduateDetailResource({
+  } = useDetail({
     isOpen,
     resourceKey: 'distribution',
     filters,
-    fetcher: fetchDistribution,
+    method: 'getGraduateDistribution',
     errorMessage: 'Gagal memuat distribusi lulusan',
   });
 
   const kpis = data?.kpis || {};
   const summary = data?.summary || {};
 
-  const combinedTrend = totalData?.data?.byYear || totalData?.byYear || EMPTY_ITEMS;
+  const combinedTrend = totalData?.byYear || EMPTY_ITEMS;
 
-  const predikatList = useMemo(() => {
-    return distData?.data?.byPredikat || distData?.byPredikat || [];
-  }, [distData]);
+  const predikatList = useMemo(() => distData?.byPredikat || [], [distData]);
 
   const content = useMemo(
     () => ({
@@ -142,8 +130,9 @@ export default function TotalGraduatesModal({ isOpen, onClose, originRect, data,
       ),
       predikat: (
         <div className="h-full flex flex-col pt-0.5 px-1">
-          <GraduateDistributionChart
+          <DistributionChart
             items={predikatList}
+            countUnit="lulusan"
             dataKey="count"
             nameKey="name"
             labelKey="percentage"
@@ -193,13 +182,13 @@ export default function TotalGraduatesModal({ isOpen, onClose, originRect, data,
                   {kpis.totalGraduates || 0} wisudawan
                 </strong>{' '}
                 yang menyelesaikan studi dalam rentang 5 tahun akademik terakhir. Terdiri dari{' '}
-                <strong>{formatNumber(summary.totalLulusan?.s1 || 0)} lulusan S1</strong> dan{' '}
-                <strong>{formatNumber(summary.totalLulusan?.s2 || 0)} lulusan S2</strong>.
+                <strong>{formatNumber(summary.totalLulusan?.s1)} lulusan S1</strong> dan{' '}
+                <strong>{formatNumber(summary.totalLulusan?.s2)} lulusan S2</strong>.
               </p>
             </div>
           }
           label="Total Wisudawan"
-          value={kpis.totalGraduates || '0'}
+          value={formatNumber(kpis.totalGraduates)}
           sublabel="Jenjang S1 & S2"
         />
 

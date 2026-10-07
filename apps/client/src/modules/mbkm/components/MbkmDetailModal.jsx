@@ -15,7 +15,7 @@ const MODAL_MAP = {
 export default function MbkmDetailModal({
   isOpen,
   onClose,
-  activeModalType, // 'rate' | 'activities' | 'eligible' | 'partners'
+  modalType, // 'rate' | 'activities' | 'eligible' | 'partners'
   originRect,
   data,
   filters,
@@ -26,7 +26,7 @@ export default function MbkmDetailModal({
       fallbackMessage="Gagal memuat rincian MBKM. Silakan tutup lalu coba lagi."
       isOpen={isOpen}
       onClose={onClose}
-      activeModalType={activeModalType}
+      modalType={modalType}
       originRect={originRect}
       data={data}
       filters={filters}

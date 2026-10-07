@@ -2,7 +2,7 @@ const syncJobTracker = require('../../utils/syncJobTracker');
 
 const getSyncStatus = (req, res) => {
   const state = syncJobTracker.getState();
-  return res.status(200).json({
+  return res.json({
     success: true,
     data: state,
   });

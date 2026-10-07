@@ -60,3 +60,59 @@ describe('student query validation', () => {
     expect(mbkmQuerySchema.safeParse({ periode: '2025/2026', topN: '-1' }).success).toBe(false);
   });
 });
+
+describe('batas parameter & bentuk respons validasi', () => {
+  function fakeRes() {
+    const res = { statusCode: 0, body: undefined };
+    res.status = (code) => {
+      res.statusCode = code;
+      return res;
+    };
+    res.json = (body) => {
+      res.body = body;
+      return res;
+    };
+    return res;
+  }
+
+  it('menolak halaman yang menghasilkan OFFSET jutaan baris', () => {
+    expect(studentQuerySchema.safeParse({ page: '1001' }).success).toBe(false);
+    expect(studentQuerySchema.safeParse({ page: '1000' }).success).toBe(true);
+  });
+
+  it('membatasi topN di schema, bukan clamp per controller', () => {
+    expect(mbkmQuerySchema.safeParse({ topN: '101' }).success).toBe(false);
+    expect(mbkmQuerySchema.safeParse({ topN: '20' }).success).toBe(true);
+    // Nilai yang lolos berubah menjadi number, sehingga handler tidak clamp ulang.
+    expect(mbkmQuerySchema.parse({ topN: '20' }).topN).toBe(20);
+  });
+
+  it('menolak search bertipe array', () => {
+    expect(studentQuerySchema.safeParse({ search: ['a', 'b'] }).success).toBe(false);
+  });
+
+  it('menolak nama parameter bracket (fakultas[], fakultas[0])', () => {
+    for (const query of [{ 'fakultas[]': ['FIK'] }, { 'fakultas[0]': 'FIK' }]) {
+      const res = fakeRes();
+      const next = vi.fn();
+      validateQuery(studentQuerySchema)({ query }, res, next);
+      expect(res.statusCode).toBe(400);
+      expect(res.body.code).toBe('INVALID_PARAMETER_NAME');
+      expect(next).not.toHaveBeenCalled();
+    }
+  });
+
+  it('tidak membocorkan pesan Zod internals, hanya nama field', () => {
+    const res = fakeRes();
+    validateQuery(studentQuerySchema)(
+      { query: { page: '0', semester: 'x'.repeat(200) } },
+      res,
+      vi.fn(),
+    );
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body.message).toBe('Query parameter tidak valid.');
+    expect(res.body.fields).toEqual(['page', 'semester']);
+    expect(JSON.stringify(res.body)).not.toMatch(/Expected|received|Invalid input/);
+  });
+});

@@ -2,11 +2,19 @@
  * graduateDistribution.js
  *
  * Menghitung tren lulusan per tahun (byYear) dan distribusi predikat kelulusan (byPredikat).
+ *
+ * ponytail: `select` tiga kolom dalam jendela `getYearRange()`, agregasi di Node.
+ * `groupBy(['tahunLulus'])` selesai untuk byYear, tetapi predikat adalah kelas IPK
+ * (`countByPredikat`) yang hanya boleh hidup satu kali — menghitungnya di SQL
+ * menyimpan aturan itu dua kali. Batasnya O(lulusan dalam jendela 5 tahun).
+ * Upgrade path: kolom turunan `predikat` berindeks di `graduates` (diisi saat ETL),
+ * lalu kedua distribusi menjadi satu `GROUP BY`.
  */
 
 const prisma = require('../../config/prisma');
 const { getYearRange } = require('../../utils/academicUtils');
-const { calculatePredikat } = require('../../utils/graduateUtils');
+const { countByPredikat } = require('../../utils/graduateUtils');
+const { rate } = require('../../utils/percentageUtils');
 
 async function getGraduateDistribution(whereFilter) {
   const yearRange = getYearRange();
@@ -17,18 +25,8 @@ async function getGraduateDistribution(whereFilter) {
   });
 
   const yearMap = {};
-  const predikatMap = {
-    'Dengan Pujian (Cum Laude)': 0,
-    'Sangat Memuaskan': 0,
-    Memuaskan: 0,
-  };
-
   graduates.forEach((g) => {
-    const yr = g.tahunLulus;
-    yearMap[yr] = (yearMap[yr] || 0) + 1;
-
-    const pred = calculatePredikat(g.ipk);
-    predikatMap[pred] = (predikatMap[pred] || 0) + 1;
+    yearMap[g.tahunLulus] = (yearMap[g.tahunLulus] || 0) + 1;
   });
 
   const byYear = yearRange.map((year) => ({
@@ -38,10 +36,11 @@ async function getGraduateDistribution(whereFilter) {
   }));
 
   const totalGraduates = graduates.length;
-  const byPredikat = Object.entries(predikatMap).map(([name, count]) => ({
+  const predikatCounts = countByPredikat(graduates);
+  const byPredikat = Object.entries(predikatCounts).map(([name, count]) => ({
     name,
     count,
-    percentage: totalGraduates > 0 ? (count / totalGraduates) * 100 : 0,
+    percentage: rate(count, totalGraduates),
   }));
 
   return { total: totalGraduates, byYear, byPredikat };

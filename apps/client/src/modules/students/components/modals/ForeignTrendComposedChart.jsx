@@ -1,6 +1,6 @@
 import EmptyState from '../../../../components/common/feedback/EmptyState';
 import ChartLoadingSkeleton from '../../../../components/common/feedback/ChartLoadingSkeleton';
-import { formatCompactNumber, formatPercentage } from '../../../../utils/uiHelpers';
+import { formatCompactNumber, formatPercentage } from '@komet/shared/formatters';
 import { DIGITAL_BLUE } from '../../../../utils/theme';
 import TrendChartTooltip from '../../../../components/common/charts/TrendChartTooltip';
 import { BarChart3 } from 'lucide-react';
@@ -65,9 +65,10 @@ export default function ForeignTrendComposedChart({ data = [], isLoading, error 
           <Tooltip
             content={
               <TrendChartTooltip
+                titleKey="academicYear"
                 rows={[
                   {
-                    key: 'rawTotal',
+                    key: 'totalCount',
                     label: 'Total Mahasiswa',
                     colorClass: 'bg-digital-blue-300 opacity-75',
                   },
@@ -90,16 +91,13 @@ export default function ForeignTrendComposedChart({ data = [], isLoading, error 
           <Legend
             verticalAlign="top"
             height={32}
-            formatter={(value) =>
-              value === 'rawTotal' ? 'Total Mahasiswa (Orang)' : 'Rasio Mhs Asing (%)'
-            }
             iconType="square"
             wrapperStyle={{ fontSize: '11px', color: '#6b7280', paddingBottom: '50px' }}
           />
           <Bar
             yAxisId="left"
-            dataKey="rawTotal"
-            name="rawTotal"
+            dataKey="totalCount"
+            name="Total Mahasiswa (Orang)"
             fill={DIGITAL_BLUE[300]}
             opacity={0.75}
             radius={[4, 4, 0, 0]}
@@ -108,8 +106,8 @@ export default function ForeignTrendComposedChart({ data = [], isLoading, error 
           <Line
             yAxisId="right"
             type="monotone"
-            dataKey="rawRate"
-            name="rawRate"
+            dataKey="percentage"
+            name="Rasio Mhs Asing (%)"
             stroke={DIGITAL_BLUE[600]}
             strokeWidth={2.4}
             dot={{ r: 4, fill: 'white', stroke: DIGITAL_BLUE[600], strokeWidth: 2 }}

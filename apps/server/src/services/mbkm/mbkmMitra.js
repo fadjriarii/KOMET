@@ -1,37 +1,58 @@
 const prisma = require('../../config/prisma');
+const { rate } = require('../../utils/percentageUtils');
+
+const DEFAULT_MITRA_TOP_N = 10;
 
 /**
- * Mendapatkan distribusi penempatan mitra industri & riset (Card 4 detail)
+ * Mendapatkan distribusi penempatan mitra industri & riset (Card 4 detail).
+ *
+ * Persentase selalu dihitung atas seluruh penempatan; mitra di luar `topN`
+ * digabung ke satu baris "Lainnya" supaya daftar yang ditampilkan tetap
+ * menjumlah 100%.
+ *
+ * ponytail: `mitra` bertipe TEXT, jadi `GROUP BY` tetap pemindaian penuh — indeks
+ * prefix (100 karakter) terbukti tidak dipakai optimizer untuk grouping. Jalur
+ * upgrade: kolom VARCHAR(191) turunan yang berindeks, diisi oleh sync.
  *
  * @param {string} selectedPeriode Periode yang dipilih
  * @param {number} topN Jumlah top mitra yang diambil (default: 10)
  */
-async function getMitraDistribution(selectedPeriode, topN = 10) {
-  const baseWhere = {
+async function getMitraDistribution(selectedPeriode, topN = DEFAULT_MITRA_TOP_N) {
+  const where = {
     ...(selectedPeriode ? { periode: selectedPeriode } : {}),
-    AND: [{ mitra: { not: '' } }, { mitra: { not: '-' } }],
+    mitra: { not: '' },
   };
 
   const mitraGroups = await prisma.mbkmActivity.groupBy({
     by: ['mitra'],
-    _count: true,
-    where: baseWhere,
-    orderBy: [{ mitra: 'asc' }],
+    _count: { mitra: true },
+    where,
+    orderBy: [{ _count: { mitra: 'desc' } }, { mitra: 'asc' }],
   });
 
-  const totalPartners = mitraGroups.length;
-  const totalPlacements = mitraGroups.reduce((sum, g) => sum + g._count, 0);
+  const counts = mitraGroups.map((group) => ({ name: group.mitra, count: group._count.mitra }));
+  const totalPartners = counts.length;
+  const totalPlacements = counts.reduce((sum, item) => sum + item.count, 0);
 
-  const topMitra = mitraGroups
-    .sort((a, b) => b._count - a._count)
-    .slice(0, topN)
-    .map((g) => ({
-      name: g.mitra,
-      count: g._count,
-      percentage: totalPlacements > 0 ? (g._count / totalPlacements) * 100 : 0,
-    }));
+  const limited = counts.slice(0, topN);
+  const omitted = counts.slice(topN);
+  if (omitted.length) {
+    limited.push({
+      name: 'Lainnya',
+      count: omitted.reduce((sum, item) => sum + item.count, 0),
+      partners: omitted.length,
+    });
+  }
 
-  return { totalPartners, totalPlacements, mitraData: topMitra };
+  return {
+    totalPartners,
+    totalPlacements,
+    topN,
+    mitraData: limited.map((item) => ({
+      ...item,
+      percentage: rate(item.count, totalPlacements),
+    })),
+  };
 }
 
-module.exports = { getMitraDistribution };
+module.exports = { getMitraDistribution, DEFAULT_MITRA_TOP_N };

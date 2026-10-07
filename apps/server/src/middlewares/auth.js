@@ -1,5 +1,7 @@
 const crypto = require('crypto');
 const logger = require('../utils/logger');
+const { sendRejected } = require('../utils/errorHandler');
+const { HTTP_STATUS } = require('@komet/shared/constants');
 
 function authenticateApiKey(req) {
   const apiKeyHeader = req.headers['x-api-key'];
@@ -40,11 +42,12 @@ function authenticateApiKey(req) {
 function apiKeyAuth(req, res, next) {
   if (authenticateApiKey(req)) return next();
   if (!process.env.SYNC_API_KEY)
-    return res.status(500).json({ success: false, message: 'Server configuration error.' });
-  return res.status(401).json({
-    success: false,
-    message: 'Unauthorized access. Valid x-api-key header or Bearer token is required.',
-  });
+    return sendRejected(res, HTTP_STATUS.INTERNAL_SERVER_ERROR, 'Server configuration error.');
+  return sendRejected(
+    res,
+    HTTP_STATUS.UNAUTHORIZED,
+    'Unauthorized access. Valid x-api-key header or Bearer token is required.',
+  );
 }
 
 module.exports = apiKeyAuth;

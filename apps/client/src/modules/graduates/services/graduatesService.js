@@ -1,75 +1,42 @@
-import apiClient from '../../../services/apiClient';
-import { validateGraduateQueryParams } from '../utils/graduateQueryValidator';
+import { createFilterService } from '../../../services/createFilterService';
 import { createQueryParams } from '../../../services/queryParams';
+import { createQuerySanitizer } from '../../../utils/querySanitizer';
 
-export const graduatesService = {
-  toQueryParams: (filters = {}, pagination = {}) => {
-    const { sanitized } = validateGraduateQueryParams(filters);
+const sanitizeGraduateQuery = createQuerySanitizer({
+  single: ['periodeMasuk'],
+  multi: ['faculty', 'prodi', 'jenjang', 'tahunLulus', 'periodeWisuda', 'statusKelulusan'],
+});
 
-    const { params, append, appendMany } = createQueryParams();
+function toQueryParams(filters = {}, pagination = {}) {
+  const { sanitized } = sanitizeGraduateQuery(filters);
+  const { params, append, appendMany } = createQueryParams();
 
-    // Filter fields aligned with backend validator & filterBuilder
-    appendMany('fakultas', sanitized.faculty);
-    appendMany('programStudi', sanitized.prodi);
-    appendMany('jenjang', sanitized.jenjang);
-    appendMany('tahunLulus', sanitized.tahunLulus);
-    appendMany('periodeWisuda', sanitized.periodeWisuda);
-    appendMany('statusKelulusan', sanitized.statusKelulusan);
+  // Nama param mengikuti validator & filterBuilder di server.
+  appendMany('fakultas', sanitized.faculty);
+  appendMany('programStudi', sanitized.prodi);
+  appendMany('jenjang', sanitized.jenjang);
+  appendMany('tahunLulus', sanitized.tahunLulus);
+  appendMany('periodeWisuda', sanitized.periodeWisuda);
+  appendMany('statusKelulusan', sanitized.statusKelulusan);
+  append('periodeMasuk', sanitized.periodeMasuk);
+  append('search', sanitized.search);
+  append('page', pagination.page);
+  append('limit', pagination.limit);
 
-    if (sanitized.periodeMasuk) {
-      append('periodeMasuk', sanitized.periodeMasuk);
-    }
+  return params;
+}
 
-    if (sanitized.search) {
-      append('search', sanitized.search);
-    }
-
-    // Pagination
-    if (pagination.page) append('page', pagination.page);
-    if (pagination.limit) append('limit', pagination.limit);
-
-    return params;
+export const graduatesService = createFilterService({
+  toQueryParams,
+  summaryPath: '/graduates/summary',
+  listPath: '/graduates/list',
+  detailPaths: {
+    getTotalLulusanDetail: '/graduates/total-lulusan',
+    getIpkTrendDetail: '/graduates/ipk-trend',
+    getTepatWaktuDetail: '/graduates/tepat-waktu',
+    getKeberhasilanStudiDetail: '/graduates/keberhasilan-studi',
+    getGraduateDistribution: '/graduates/distribution',
   },
-
-  toQueryString: (filters = {}) =>
-    filters instanceof URLSearchParams
-      ? filters.toString()
-      : graduatesService.toQueryParams(filters).toString(),
-
-  getSummary: (filters, options) => {
-    const qs = graduatesService.toQueryString(filters);
-    return apiClient.get(`/graduates/summary${qs ? `?${qs}` : ''}`, options);
-  },
-
-  getTotalLulusanDetail: (filters, options) => {
-    const qs = graduatesService.toQueryString(filters);
-    return apiClient.get(`/graduates/total-lulusan${qs ? `?${qs}` : ''}`, options);
-  },
-
-  getIpkTrendDetail: (filters, options) => {
-    const qs = graduatesService.toQueryString(filters);
-    return apiClient.get(`/graduates/ipk-trend${qs ? `?${qs}` : ''}`, options);
-  },
-
-  getTepatWaktuDetail: (filters, options) => {
-    const qs = graduatesService.toQueryString(filters);
-    return apiClient.get(`/graduates/tepat-waktu${qs ? `?${qs}` : ''}`, options);
-  },
-
-  getKeberhasilanStudiDetail: (filters, options) => {
-    const qs = graduatesService.toQueryString(filters);
-    return apiClient.get(`/graduates/keberhasilan-studi${qs ? `?${qs}` : ''}`, options);
-  },
-
-  getGraduateDistribution: (filters, options) => {
-    const qs = graduatesService.toQueryString(filters);
-    return apiClient.get(`/graduates/distribution${qs ? `?${qs}` : ''}`, options);
-  },
-
-  getGraduateList: ({ filters, page, limit }, options) => {
-    const params = graduatesService.toQueryParams(filters, { page, limit });
-    return apiClient.get(`/graduates/list?${params.toString()}`, options);
-  },
-};
+});
 
 export default graduatesService;

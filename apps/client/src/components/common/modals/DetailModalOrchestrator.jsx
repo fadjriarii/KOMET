@@ -3,24 +3,29 @@ import { X } from 'lucide-react';
 import Skeleton from '../feedback/Skeleton';
 import ErrorBoundary from '../feedback/ErrorBoundary';
 
-/** Common lazy-modal boundary used by Student, Graduate, and MBKM detail dialogs. */
+/**
+ * Common lazy-modal boundary used by Student, Graduate, and MBKM detail dialogs.
+ * `modalType` sengaja nilai yang " lengket" selama exit animation: Modal menutup
+ * dirinya sendiri 700ms setelah `isOpen` false, dan ia harus tetap ter-mount
+ * supaya animasinya terlihat.
+ */
 export default function DetailModalOrchestrator({
   modalMap,
   fallbackMessage,
   isOpen,
   onClose,
-  activeModalType,
+  modalType,
   originRect,
   data,
   filters,
 }) {
-  if (!activeModalType) return null;
-  const ModalComponent = modalMap[activeModalType];
+  if (!modalType) return null;
+  const ModalComponent = modalMap[modalType];
   if (!ModalComponent) return null;
 
   return (
     <ErrorBoundary
-      resetKey={activeModalType}
+      resetKey={modalType}
       fallback={() => (
         <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/35 p-4">
           <div
@@ -51,11 +56,9 @@ export default function DetailModalOrchestrator({
     >
       <Suspense
         fallback={
-          isOpen ? (
-            <div className="fixed inset-0 z-50 grid place-items-center">
-              <Skeleton className="h-10 w-64 rounded-xl" />
-            </div>
-          ) : null
+          <div className="fixed inset-0 z-50 grid place-items-center">
+            <Skeleton className="h-10 w-64 rounded-xl" />
+          </div>
         }
       >
         <ModalComponent

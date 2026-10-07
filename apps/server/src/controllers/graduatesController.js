@@ -5,71 +5,23 @@
  */
 
 const { buildGraduateFilter, getPaginationParams } = require('../services/graduates/filterBuilder');
-const { getGraduateFilterOptions } = require('../services/graduates/filterOptions');
-const {
-  getTotalLulusan,
-  getTotalLulusanByYear,
-  getYearRange,
-} = require('../services/graduates/totalLulusan');
+const { getGraduateSummary } = require('../services/graduates/graduateSummary');
+const { getTotalLulusanByYear } = require('../services/graduates/totalLulusan');
 const { getAvgIpk, getIpkByYear, getIpkOverview } = require('../services/graduates/ipkTrend');
-const { getTepatWaktu, getTepatWaktuByYear } = require('../services/graduates/tepatWaktu');
-const {
-  getKeberhasilanStudi,
-  getKeberhasilanStudiByAngkatan,
-} = require('../services/graduates/keberhasilanStudi');
+const { getTepatWaktuByYear } = require('../services/graduates/tepatWaktu');
+const { getKeberhasilanStudiByAngkatan } = require('../services/graduates/keberhasilanStudi');
 const { getGraduateDistribution } = require('../services/graduates/graduateDistribution');
 const { getGraduateList } = require('../services/graduates/graduateList');
-const { sendError } = require('../utils/errorHandler');
+const { sendServerError } = require('../utils/errorHandler');
 
 // GET /api/graduates/summary — Data 4 card + filter options untuk tab lulusan
 const getSummary = async (req, res) => {
   try {
     const whereFilter = buildGraduateFilter(req.query);
-    const yearRange = getYearRange();
-    const refYear = new Date().getFullYear() - 1;
-
-    const [filterOptions, totalLulusan, avgIpk, tepatWaktu, keberhasilan] = await Promise.all([
-      getGraduateFilterOptions(),
-      getTotalLulusan(whereFilter),
-      getAvgIpk(whereFilter),
-      getTepatWaktu(whereFilter),
-      getKeberhasilanStudi(whereFilter),
-    ]);
-
-    const totalGraduatesS1 = Number(totalLulusan?.s1) || 0;
-    const totalGraduatesS2 = Number(totalLulusan?.s2) || 0;
-    const totalGraduates = totalGraduatesS1 + totalGraduatesS2;
-    const onTimeGraduationRateS1 = Number(tepatWaktu?.s1) || 0;
-    const onTimeGraduationRateS2 = Number(tepatWaktu?.s2) || 0;
-    const studySuccessRateS1 = Number(keberhasilan?.s1) || 0;
-    const averageGpaS1 = Number(avgIpk?.s1?.average ?? avgIpk?.s1) || 0;
-    const averageGpaS2 = Number(avgIpk?.s2?.average ?? avgIpk?.s2) || 0;
-
-    return res.status(200).json({
-      success: true,
-      referenceYear: refYear,
-      yearRange,
-      summary: {
-        totalLulusan,
-        avgIpk,
-        tepatWaktu,
-        keberhasilanStudi: keberhasilan,
-      },
-      // Flat kpis object persis sesuai harapan GraduateDataPage.jsx:
-      kpis: {
-        totalGraduates,
-        totalGraduatesS1,
-        totalGraduatesS2,
-        onTimeGraduationRateS1,
-        onTimeGraduationRateS2,
-        studySuccessRateS1,
-        averageGpaS1,
-        averageGpaS2,
-      },
-      filterOptions,
-    });
+    const data = await getGraduateSummary(whereFilter);
+    return res.json({ success: true, ...data });
   } catch (error) {
-    return sendError(res, 500, 'Gagal mengambil summary lulusan.', error, 'graduates/getSummary');
+    return sendServerError(res, 'DATA_READ_FAILED', error, 'graduates/getSummary');
   }
 };
 
@@ -78,19 +30,13 @@ const getTotalLulusanDetail = async (req, res) => {
   try {
     const whereFilter = buildGraduateFilter(req.query);
     const data = await getTotalLulusanByYear(whereFilter);
-    return res.status(200).json({ success: true, data });
+    return res.json({ success: true, data });
   } catch (error) {
-    return sendError(
-      res,
-      500,
-      'Gagal mengambil detail total lulusan.',
-      error,
-      'graduates/getTotalLulusanDetail',
-    );
+    return sendServerError(res, 'DATA_READ_FAILED', error, 'graduates/getTotalLulusanDetail');
   }
 };
 
-// GET /api/graduates/ipk-trend — Detail chart Card 2 (GpaOverviewView.jsx)
+// GET /api/graduates/ipk-trend — Detail chart Card 2
 const getIpkTrendDetail = async (req, res) => {
   try {
     const whereFilter = buildGraduateFilter(req.query);
@@ -99,69 +45,57 @@ const getIpkTrendDetail = async (req, res) => {
       getIpkByYear(whereFilter),
       getIpkOverview(whereFilter),
     ]);
-    return res.status(200).json({
+    // Key disebut satu-satu: spread tidak bisa menimpa key dari sumber lain secara diam-diam.
+    return res.json({
       success: true,
       data: {
         s1Gpa: avgIpk.s1,
         s2Gpa: avgIpk.s2,
-        ...byYear,
-        ...overview,
+        byYearS1: byYear.byYearS1,
+        byYearS2: byYear.byYearS2,
+        prodiGpaData: overview.prodiGpaData,
+        facultyGpaData: overview.facultyGpaData,
+        gpaBandsData: overview.gpaBandsData,
+        unknownIpkCount: overview.unknownIpkCount,
       },
     });
   } catch (error) {
-    return sendError(res, 500, 'Gagal mengambil tren IPK.', error, 'graduates/getIpkTrendDetail');
+    return sendServerError(res, 'DATA_READ_FAILED', error, 'graduates/getIpkTrendDetail');
   }
 };
 
-// GET /api/graduates/tepat-waktu — Detail chart Card 3 (OnTimeGraduationView.jsx)
+// GET /api/graduates/tepat-waktu — Detail chart Card 3
 const getTepatWaktuDetail = async (req, res) => {
   try {
     const whereFilter = buildGraduateFilter(req.query);
     const data = await getTepatWaktuByYear(whereFilter);
-    const onTimeCohortData = data.s1 || [];
-    const onTimeCohortDataS2 = data.s2 || [];
-    return res.status(200).json({ success: true, data, onTimeCohortData, onTimeCohortDataS2 });
+    return res.json({ success: true, data });
   } catch (error) {
-    return sendError(
-      res,
-      500,
-      'Gagal mengambil data tepat waktu.',
-      error,
-      'graduates/getTepatWaktuDetail',
-    );
+    return sendServerError(res, 'DATA_READ_FAILED', error, 'graduates/getTepatWaktuDetail');
   }
 };
 
-// GET /api/graduates/keberhasilan-studi & /api/graduates/study-success — Detail chart Card 4 (StudySuccessView.jsx)
+// GET /api/graduates/keberhasilan-studi & /api/graduates/study-success — Detail chart Card 4
 const getKeberhasilanStudiDetail = async (req, res) => {
   try {
     const whereFilter = buildGraduateFilter(req.query);
     const data = await getKeberhasilanStudiByAngkatan(whereFilter);
-    const successCohortData = data.s1 || [];
-    const successCohortDataS2 = data.s2 || [];
-    return res.status(200).json({ success: true, data, successCohortData, successCohortDataS2 });
+    return res.json({ success: true, data });
   } catch (error) {
-    return sendError(
-      res,
-      500,
-      'Gagal mengambil data keberhasilan studi.',
-      error,
-      'graduates/getKeberhasilanStudiDetail',
-    );
+    return sendServerError(res, 'DATA_READ_FAILED', error, 'graduates/getKeberhasilanStudiDetail');
   }
 };
 
-// GET /api/graduates/distribution — Detail chart per predikat & per tahun (GraduateDataPage.jsx)
+// GET /api/graduates/distribution — Detail chart per predikat & per tahun
 const getGraduateDistributionDetail = async (req, res) => {
   try {
     const whereFilter = buildGraduateFilter(req.query);
     const data = await getGraduateDistribution(whereFilter);
-    return res.status(200).json({ success: true, data, ...data });
+    return res.json({ success: true, data });
   } catch (error) {
-    return sendError(
+    return sendServerError(
       res,
-      500,
-      'Gagal mengambil distribusi lulusan.',
+      'DATA_READ_FAILED',
       error,
       'graduates/getGraduateDistributionDetail',
     );
@@ -174,9 +108,9 @@ const getGraduates = async (req, res) => {
     const whereFilter = buildGraduateFilter(req.query);
     const { page, limit } = getPaginationParams(req.query);
     const result = await getGraduateList(whereFilter, page, limit);
-    return res.status(200).json({ success: true, ...result });
+    return res.json({ success: true, ...result });
   } catch (error) {
-    return sendError(res, 500, 'Gagal mengambil daftar lulusan.', error, 'graduates/getGraduates');
+    return sendServerError(res, 'DATA_READ_FAILED', error, 'graduates/getGraduates');
   }
 };
 

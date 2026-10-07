@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { Building2, Award, Users, TrendingUp } from 'lucide-react';
 import Modal from '../../../../components/common/modals/Modal';
 import ModalSummaryBanner from '../../../../components/common/modals/ModalSummaryBanner';
@@ -6,10 +6,9 @@ import ModalTabNav from '../../../../components/common/modals/ModalTabNav';
 import ModalTable from '../../../../components/common/modals/ModalTable';
 import ModalTabContent from '../../../../components/common/modals/ModalTabContent';
 import { useTabTransition } from '../../../../hooks/useTabTransition';
-import { formatNumber, formatPercentage } from '../../../../utils/uiHelpers';
-import { mbkmService } from '../../services/mbkmService';
-import { useMbkmDetailResource } from '../../hooks/useMbkmDetailResource';
-import MbkmDistributionChart from './MbkmDistributionChart';
+import { formatNumber, formatPercentage } from '@komet/shared/formatters';
+import { useDetail } from '../../mbkmQueries';
+import DistributionChart from '../../../../components/common/charts/DistributionChart';
 import { MBKM_RATE_TABS } from './mbkmTrendConfig';
 
 const EMPTY_ITEMS = [];
@@ -44,47 +43,46 @@ const RATE_TABLE_COLUMNS = [
     icon: Award,
     headerClassName: 'text-right',
     cellClassName: 'text-right font-bold text-gray-900',
-    render: (row) => formatPercentage(row.percentage, 1, '0.0%'),
+    render: (row) => formatPercentage(row.percentage, 1),
   },
 ];
 
 export default function MbkmRateModal({ isOpen, onClose, originRect, data, filters }) {
   const { activeTab, handleTabChange, slideClass } = useTabTransition(MBKM_RATE_TABS, 'fakultas');
 
-  const fetchRateDetail = useCallback(
-    (signal) => mbkmService.getRateDetail(filters, { signal }),
-    [filters],
-  );
-
   const {
     data: rateData,
     isLoading: isLoadingRate,
     error: rateError,
-  } = useMbkmDetailResource({
+  } = useDetail({
     isOpen,
     resourceKey: 'rate-detail',
     filters,
-    fetcher: fetchRateDetail,
+    method: 'getRateDetail',
     errorMessage: 'Gagal memuat analisis partisipasi MBKM',
   });
 
   const kpis = data?.kpis || {};
-  const payload = rateData?.data || rateData || {};
+  const payload = rateData || {};
   const facultyData = payload.facultyData || EMPTY_ITEMS;
   const eligibleRate = payload.eligibleRate || {};
+  const eligibleCount = kpis.eligibleCount ?? payload.eligibleCount;
   const participationRate = formatPercentage(
     kpis.participationRate ?? eligibleRate.numPercentage,
     1,
-    '0.0%',
   );
-  const meetsTarget = eligibleRate.meetsTarget ?? true;
+  const targetIku2 = formatPercentage(eligibleRate.targetIku2, 1);
+  // Tanpa mahasiswa eligible tidak ada yang bisa dibandingkan: bukan "tercapai",
+  // juga bukan "belum tercapai".
+  const meetsTarget = eligibleCount > 0 && eligibleRate.meetsTarget === true;
 
   const content = useMemo(
     () => ({
       fakultas: (
         <div className="h-full flex flex-col pt-0.5 px-1">
-          <MbkmDistributionChart
+          <DistributionChart
             items={facultyData}
+            countUnit="mahasiswa"
             dataKey="count"
             nameKey="name"
             labelKey="percentage"
@@ -119,7 +117,7 @@ export default function MbkmRateModal({ isOpen, onClose, originRect, data, filte
       isOpen={isOpen}
       onClose={onClose}
       title="Rincian Partisipasi MBKM"
-      subtitle="Analisis rasio partisipasi MBKM terhadap mahasiswa eligible semester 7 dan pencapaian target IKU-2 Dikti (≥ 20%)"
+      subtitle="Analisis rasio partisipasi MBKM terhadap mahasiswa eligible semester 7 dan pencapaian target IKU-2 Dikti"
       maxWidth="max-w-4xl"
       originRect={originRect}
       showCloseButton
@@ -131,11 +129,7 @@ export default function MbkmRateModal({ isOpen, onClose, originRect, data, filte
               <p>
                 Tingkat partisipasi MBKM mencapai{' '}
                 <strong className="text-digital-blue-900 font-bold">{participationRate}</strong>{' '}
-                dari total{' '}
-                <strong>
-                  {formatNumber(kpis.eligibleCount || payload.eligibleCount || 0)} mahasiswa
-                  eligible
-                </strong>{' '}
+                dari total <strong>{formatNumber(eligibleCount)} mahasiswa eligible</strong>{' '}
                 semester 7.
               </p>
               <div className="flex items-center gap-2 pt-1 text-xs">
@@ -148,7 +142,7 @@ export default function MbkmRateModal({ isOpen, onClose, originRect, data, filte
                 >
                   <TrendingUp size={13} />
                   <span>
-                    Target IKU-2: ≥ 20.0% ({meetsTarget ? 'Terlampaui' : 'Belum Terpenuhi'})
+                    Target IKU-2: ≥ {targetIku2} ({meetsTarget ? 'Terlampaui' : 'Belum Terpenuhi'})
                   </span>
                 </span>
               </div>

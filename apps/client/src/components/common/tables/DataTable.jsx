@@ -1,13 +1,17 @@
+import { memo } from 'react';
 import { ChevronLeft, ChevronRight, Database } from 'lucide-react';
+import { TABLE_LIMIT } from '@komet/shared/constants';
 import Skeleton from '../feedback/Skeleton';
 import EmptyState from '../feedback/EmptyState';
 import { getPaginationItems, getPaginationMeta } from '../../../utils/uiHelpers';
 
 /**
  * DataTable - Reusable Table Container
- * Menyediakan layout tabel standar, loading state, empty state, dan pagination
+ * Menyediakan layout tabel standar, loading state, empty state, dan pagination.
+ * Bentuk `pagination` sama dengan yang dikirim server (`{ page, limit, total,
+ * totalPages }`), jadi tidak ada adapter yang ditulis ulang per modul tabel.
  */
-export default function DataTable({
+function DataTable({
   columns = [], // [{ key: 'id', label: 'ID', render: (row) => ... }]
   data = [],
   isLoading = false,
@@ -17,7 +21,10 @@ export default function DataTable({
   emptyTitle = 'Belum Ada Data',
   emptyMessage = 'Belum ada data tersedia',
   emptyIcon = Database,
-  pagination, // { currentPage, totalPages, onPageChange, totalItems, pageSize }
+  pagination, // { page, limit, total, totalPages } — bentuk hook/server apa adanya
+  onPageChange, // dipisah agar pembungkus tidak mengalokasikan objek baru tiap render
+  rowNumber = false, // nomor baris absolut; per-hitung di sini, bukan per modul tabel
+  rowKey = 'id', // key stabil baris; tabel mahasiswa memakai 'nim' (PK-nya tidak punya id)
   className = '',
   tableClassName = 'min-w-[920px]',
   tableViewportClassName = 'overflow-x-auto overflow-y-hidden custom-scrollbar',
@@ -26,12 +33,25 @@ export default function DataTable({
   const cellPadding = density === 'compact' ? 'px-2 py-1.5' : 'px-4 py-4';
   const headerPadding = density === 'compact' ? 'px-2 py-2' : 'px-4 py-3';
   const tableInset = density === 'compact' ? 'px-2' : '';
+  const firstRowOfPage = ((pagination?.page ?? 1) - 1) * (pagination?.limit ?? 0);
+  const visibleColumns = rowNumber
+    ? [
+        {
+          key: '__rowNumber',
+          label: 'No',
+          headerClassName: 'w-[4%] text-center',
+          cellClassName: 'text-center text-gray-400 font-medium',
+          render: (_row, index) => firstRowOfPage + index + 1,
+        },
+        ...columns,
+      ]
+    : columns;
   const paginationMeta = pagination
     ? getPaginationMeta({
-        currentPage: pagination.currentPage,
+        currentPage: pagination.page,
         totalPages: pagination.totalPages,
-        totalItems: pagination.totalItems,
-        pageSize: pagination.pageSize,
+        totalItems: pagination.total,
+        pageSize: pagination.limit,
         currentCount: data.length,
       })
     : null;
@@ -63,7 +83,7 @@ export default function DataTable({
         <table className={`w-full text-left border-collapse ${tableClassName}`}>
           <thead className="sticky top-0 z-10">
             <tr className="border-b border-gray-200/80 bg-gray-50/95 backdrop-blur">
-              {columns.map((col, idx) => (
+              {visibleColumns.map((col, idx) => (
                 <th
                   key={col.key || idx}
                   scope="col"
@@ -76,9 +96,9 @@ export default function DataTable({
           </thead>
           <tbody className="divide-y divide-gray-100/80 text-sm text-gray-700">
             {isLoading ? (
-              Array.from({ length: pagination?.pageSize || 8 }, (_, i) => (
+              Array.from({ length: pagination?.limit || TABLE_LIMIT }, (_, i) => (
                 <tr key={`skeleton-${i}`} className="bg-white">
-                  {columns.map((col, colIdx) => (
+                  {visibleColumns.map((col, colIdx) => (
                     <td
                       key={col.key || colIdx}
                       className={`${cellPadding} first:pl-2.5 last:pr-2.5 ${col.cellClassName || ''}`}
@@ -92,24 +112,32 @@ export default function DataTable({
               ))
             ) : data.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="px-5 py-14">
+                <td colSpan={visibleColumns.length} className="px-5 py-14">
                   <EmptyState title={emptyTitle} description={emptyMessage} icon={emptyIcon} />
                 </td>
               </tr>
             ) : (
               data.map((row, rowIdx) => (
                 <tr
-                  key={row.id || rowIdx}
+                  key={row[rowKey] ?? rowIdx}
                   className="odd:bg-white even:bg-gray-50/30 hover:bg-digital-blue-50/45 transition-colors group"
                 >
-                  {columns.map((col, colIdx) => (
-                    <td
-                      key={col.key || colIdx}
-                      className={`${cellPadding} first:pl-2.5 last:pr-2.5 align-middle ${col.cellClassName || ''}`}
-                    >
-                      {col.render ? col.render(row, rowIdx) : row[col.key]}
-                    </td>
-                  ))}
+                  {visibleColumns.map((col, colIdx) => {
+                    const className = `${cellPadding} first:pl-2.5 last:pr-2.5 align-middle font-normal ${col.cellClassName || ''}`;
+                    const content = col.render ? col.render(row, rowIdx) : row[col.key];
+                    // Kolom pertama (NIM/ID) adalah label barisnya; tanpa
+                    // `scope="row"` pembaca layar menyebut sel kedua tanpa tahu
+                    // baris mana yang dimaksud.
+                    return colIdx === 0 ? (
+                      <th key={col.key || colIdx} scope="row" className={className}>
+                        {content}
+                      </th>
+                    ) : (
+                      <td key={col.key || colIdx} className={className}>
+                        {content}
+                      </td>
+                    );
+                  })}
                 </tr>
               ))
             )}
@@ -121,7 +149,7 @@ export default function DataTable({
       {pagination && (
         <div className="px-5 py-3.5 sm:px-6 border-t border-gray-100 bg-gray-50/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500">
           <div className="font-medium text-gray-500">
-            {pagination.totalItems !== undefined && paginationMeta && (
+            {pagination.total !== undefined && paginationMeta && (
               <span>
                 Menampilkan{' '}
                 <strong className="font-bold text-gray-800">{paginationMeta.rangeLabel}</strong>{' '}
@@ -133,7 +161,7 @@ export default function DataTable({
           </div>
           <div className="flex items-center gap-1.5">
             <button
-              onClick={() => pagination.onPageChange?.(pagination.currentPage - 1)}
+              onClick={() => onPageChange?.(pagination.page - 1)}
               disabled={paginationMeta?.isFirstPage}
               className="inline-flex items-center justify-center h-8 w-8 rounded-lg border border-gray-200 bg-white text-gray-600 hover:border-digital-blue-200 hover:text-digital-blue-700 hover:bg-digital-blue-50 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-gray-600 disabled:hover:border-gray-200 transition-colors cursor-pointer"
               aria-label="Halaman sebelumnya"
@@ -159,7 +187,7 @@ export default function DataTable({
                   <button
                     key={item}
                     type="button"
-                    onClick={() => pagination.onPageChange?.(item)}
+                    onClick={() => onPageChange?.(item)}
                     disabled={isActive}
                     className={`inline-flex items-center justify-center h-8 min-w-8 px-2 rounded-lg border text-xs font-bold transition-colors cursor-pointer ${
                       isActive
@@ -175,7 +203,7 @@ export default function DataTable({
               })}
             </div>
             <button
-              onClick={() => pagination.onPageChange?.(pagination.currentPage + 1)}
+              onClick={() => onPageChange?.(pagination.page + 1)}
               disabled={paginationMeta?.isLastPage}
               className="inline-flex items-center justify-center h-8 w-8 rounded-lg border border-gray-200 bg-white text-gray-600 hover:border-digital-blue-200 hover:text-digital-blue-700 hover:bg-digital-blue-50 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-gray-600 disabled:hover:border-gray-200 transition-colors cursor-pointer"
               aria-label="Halaman berikutnya"
@@ -188,3 +216,5 @@ export default function DataTable({
     </section>
   );
 }
+
+export default memo(DataTable);

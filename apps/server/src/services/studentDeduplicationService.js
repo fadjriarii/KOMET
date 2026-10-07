@@ -36,10 +36,7 @@ async function deduplicateStudents() {
     }
 
     const chunk = await prisma.student.findMany(queryOptions);
-    if (chunk.length === 0) {
-      hasMore = false;
-      break;
-    }
+    if (chunk.length === 0) break;
 
     totalStudentsCount += chunk.length;
     cursor = chunk[chunk.length - 1].nim;
@@ -78,13 +75,10 @@ async function deduplicateStudents() {
       const cleanNama = (student.nama || '').toLowerCase().trim();
 
       // Jika S2 dan mempunyai identitas (NIK / tanggalLahir), buat personKey gabungan
-      let personKey = null;
-      if (jenjang === 'S2' && (cleanNik || cleanTglLahir)) {
-        personKey = `S2_${cleanNama}_${cleanNik}_${cleanTglLahir}`;
-      } else {
-        const nimBersih = (student.nim || '').toLowerCase().trim().replace(/x/g, '');
-        personKey = `${cleanNama}_${nimBersih}`;
-      }
+      const personKey =
+        jenjang === 'S2' && (cleanNik || cleanTglLahir)
+          ? `S2_${cleanNama}_${cleanNik}_${cleanTglLahir}`
+          : `${cleanNama}_${(student.nim || '').toLowerCase().trim().replace(/x/g, '')}`;
 
       if (!personGroupMap.has(personKey)) {
         personGroupMap.set(personKey, []);

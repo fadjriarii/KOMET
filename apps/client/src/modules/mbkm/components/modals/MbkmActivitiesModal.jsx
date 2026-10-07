@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { Award, BookOpen, CheckCircle2, Users } from 'lucide-react';
 import Modal from '../../../../components/common/modals/Modal';
 import ModalSummaryBanner from '../../../../components/common/modals/ModalSummaryBanner';
@@ -6,10 +6,9 @@ import ModalTabNav from '../../../../components/common/modals/ModalTabNav';
 import ModalTable from '../../../../components/common/modals/ModalTable';
 import ModalTabContent from '../../../../components/common/modals/ModalTabContent';
 import { useTabTransition } from '../../../../hooks/useTabTransition';
-import { formatNumber, formatPercentage } from '../../../../utils/uiHelpers';
-import { mbkmService } from '../../services/mbkmService';
-import { useMbkmDetailResource } from '../../hooks/useMbkmDetailResource';
-import MbkmDistributionChart from './MbkmDistributionChart';
+import { formatNumber, formatPercentage } from '@komet/shared/formatters';
+import { useDetail } from '../../mbkmQueries';
+import DistributionChart from '../../../../components/common/charts/DistributionChart';
 import { MBKM_ACTIVITIES_TABS } from './mbkmTrendConfig';
 
 const EMPTY_ITEMS = [];
@@ -54,28 +53,15 @@ export default function MbkmActivitiesModal({ isOpen, onClose, originRect, data,
     'aktivitas',
   );
 
-  const fetchActivityDist = useCallback(
-    (signal) => mbkmService.getActivityDistribution(filters, { signal }),
-    [filters],
-  );
-  const fetchProdiDist = useCallback(
-    (signal) => mbkmService.getProdiDistribution(filters, { signal }),
-    [filters],
-  );
-  const fetchStatusDist = useCallback(
-    (signal) => mbkmService.getStatusDistribution(filters, { signal }),
-    [filters],
-  );
-
   const {
     data: activityData,
     isLoading: isLoadingActivity,
     error: activityError,
-  } = useMbkmDetailResource({
+  } = useDetail({
     isOpen,
     resourceKey: 'activity-distribution',
     filters,
-    fetcher: fetchActivityDist,
+    method: 'getActivityDistribution',
     errorMessage: 'Gagal memuat sebaran jenis aktivitas MBKM',
   });
 
@@ -83,11 +69,11 @@ export default function MbkmActivitiesModal({ isOpen, onClose, originRect, data,
     data: prodiData,
     isLoading: isLoadingProdi,
     error: prodiError,
-  } = useMbkmDetailResource({
+  } = useDetail({
     isOpen,
     resourceKey: 'prodi-distribution',
     filters,
-    fetcher: fetchProdiDist,
+    method: 'getProdiDistribution',
     errorMessage: 'Gagal memuat sebaran program studi MBKM',
   });
 
@@ -95,25 +81,26 @@ export default function MbkmActivitiesModal({ isOpen, onClose, originRect, data,
     data: statusData,
     isLoading: isLoadingStatus,
     error: statusError,
-  } = useMbkmDetailResource({
+  } = useDetail({
     isOpen,
     resourceKey: 'status-distribution',
     filters,
-    fetcher: fetchStatusDist,
+    method: 'getStatusDistribution',
     errorMessage: 'Gagal memuat status aktivitas MBKM',
   });
 
   const kpis = data?.kpis || {};
-  const activityList = activityData?.data?.items || activityData?.items || EMPTY_ITEMS;
-  const prodiList = prodiData?.data?.items || prodiData?.items || EMPTY_ITEMS;
-  const statusList = statusData?.data?.items || statusData?.items || EMPTY_ITEMS;
+  const activityList = activityData?.items || EMPTY_ITEMS;
+  const prodiList = prodiData?.items || EMPTY_ITEMS;
+  const statusList = statusData?.items || EMPTY_ITEMS;
 
   const content = useMemo(
     () => ({
       aktivitas: (
         <div className="h-full flex flex-col pt-0.5 px-1">
-          <MbkmDistributionChart
+          <DistributionChart
             items={activityList}
+            countUnit="mahasiswa"
             dataKey="count"
             nameKey="name"
             labelKey="percentage"
@@ -129,8 +116,9 @@ export default function MbkmActivitiesModal({ isOpen, onClose, originRect, data,
       ),
       prodi: (
         <div className="h-full flex flex-col pt-0.5 px-1">
-          <MbkmDistributionChart
+          <DistributionChart
             items={prodiList}
+            countUnit="mahasiswa"
             dataKey="count"
             nameKey="name"
             labelKey="percentage"
@@ -146,8 +134,9 @@ export default function MbkmActivitiesModal({ isOpen, onClose, originRect, data,
       ),
       status: (
         <div className="h-full flex flex-col pt-0.5 px-1">
-          <MbkmDistributionChart
+          <DistributionChart
             items={statusList}
+            countUnit="mahasiswa"
             dataKey="count"
             nameKey="name"
             labelKey="percentage"
@@ -204,19 +193,16 @@ export default function MbkmActivitiesModal({ isOpen, onClose, originRect, data,
               <p>
                 Tercatat sebanyak{' '}
                 <strong className="text-digital-blue-900 font-bold">
-                  {kpis.totalParticipants || 0} partisipan MBKM
+                  {formatNumber(kpis.totalParticipants)} partisipan MBKM
                 </strong>{' '}
                 pada periode ini. Meliputi{' '}
-                <strong>{formatNumber(kpis.selesaiCount || 0)} aktivitas selesai</strong> dan{' '}
-                <strong>
-                  {formatNumber(kpis.berjalanCount || 0)} aktivitas berjalan/disetujui
-                </strong>
-                .
+                <strong>{formatNumber(kpis.selesaiCount)} aktivitas selesai</strong> dan{' '}
+                <strong>{formatNumber(kpis.berjalanCount)} aktivitas berjalan/disetujui</strong>.
               </p>
             </div>
           }
           label="Total Partisipan"
-          value={kpis.totalParticipants || '0'}
+          value={formatNumber(kpis.totalParticipants)}
           sublabel="Mahasiswa Terdaftar"
         />
 

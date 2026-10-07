@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { Calendar, Globe, Percent, Users } from 'lucide-react';
 import Modal from '../../../../components/common/modals/Modal';
 import ModalSummaryBanner from '../../../../components/common/modals/ModalSummaryBanner';
@@ -6,14 +6,10 @@ import ModalTabNav from '../../../../components/common/modals/ModalTabNav';
 import ModalTable from '../../../../components/common/modals/ModalTable';
 import ModalTabContent from '../../../../components/common/modals/ModalTabContent';
 import { useTabTransition } from '../../../../hooks/useTabTransition';
-import {
-  formatNumber,
-  formatPercentage,
-  getCurrentAcademicYear,
-  reverseTrendData,
-} from '../../../../utils/uiHelpers';
-import { studentsService } from '../../services/studentsService';
-import { useStudentDetailResource } from '../../hooks/useStudentDetailResource';
+import { reverseTrendData } from '../../../../utils/uiHelpers';
+import { formatNumber, formatPercentage } from '@komet/shared/formatters';
+import { getCurrentAcademicYear } from '@komet/shared/academicYear';
+import { useDetail } from '../../studentQueries';
 import ForeignTrendComposedChart from './ForeignTrendComposedChart';
 import { TREND_TABS } from './studentTrendConfig';
 
@@ -47,7 +43,7 @@ const FOREIGN_TABLE_COLUMNS = [
     icon: Users,
     headerClassName: 'text-right',
     cellClassName: 'text-right font-medium text-gray-800',
-    render: (row) => `${formatNumber(row.rawTotal)} mhs`,
+    render: (row) => `${formatNumber(row.totalCount)} mhs`,
   },
   {
     key: 'percentage',
@@ -65,32 +61,21 @@ const FOREIGN_TABLE_COLUMNS = [
 
 export default function ForeignStudentsModal({ isOpen, onClose, originRect, data, filters }) {
   const { activeTab, handleTabChange, slideClass } = useTabTransition(TREND_TABS, 'chart');
-  const fetchInternationalDetail = useCallback(
-    (signal) => studentsService.getInternationalDetail(filters, { signal }),
-    [filters],
-  );
   const {
     data: detailData,
     isLoading,
     error,
-  } = useStudentDetailResource({
+  } = useDetail({
     isOpen,
     resourceKey: 'foreign',
     filters,
-    fetcher: fetchInternationalDetail,
+    method: 'getInternationalDetail',
     errorMessage: 'Gagal memuat data mahasiswa asing',
     summaryData: data,
     summaryKey: 'internationalStudentsTrend',
   });
   const kpis = data?.kpis || {};
-  const trendData = useMemo(
-    () =>
-      detailData?.data?.trendData ||
-      detailData?.trendData ||
-      data?.summary?.internationalStudentsTrend?.trend ||
-      [],
-    [data, detailData],
-  );
+  const trendData = useMemo(() => detailData?.trendData || [], [detailData]);
   const tahunAjaran = filters?.tahunAjaran;
   const targetItem = useMemo(() => {
     if (!trendData.length) return null;
@@ -101,20 +86,9 @@ export default function ForeignStudentsModal({ isOpen, onClose, originRect, data
     return trendData[trendData.length - 1];
   }, [trendData, tahunAjaran]);
 
-  const foreignRate = formatPercentage(
-    targetItem?.percentage ?? targetItem?.rate ?? kpis.foreignRate,
-    1,
-    '0.0%',
-  );
-  const foreignCount = formatNumber(
-    targetItem?.foreignCount ?? targetItem?.foreignActive ?? kpis.foreignStudentsCount,
-  );
-  const activeCount = formatNumber(
-    targetItem?.rawTotal ??
-      targetItem?.totalActive ??
-      targetItem?.totalCount ??
-      kpis.activeStudentsCount,
-  );
+  const foreignRate = formatPercentage(targetItem?.percentage ?? kpis.foreignRate, 1);
+  const foreignCount = formatNumber(targetItem?.foreignCount ?? kpis.foreignStudentsCount);
+  const activeCount = formatNumber(targetItem?.totalCount ?? kpis.activeStudentsCount);
   const displayAcademicYear =
     filters?.tahunAjaran || targetItem?.academicYear || getCurrentAcademicYear();
 

@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import Modal from '../../../../components/common/modals/Modal';
 import ModalSummaryBanner from '../../../../components/common/modals/ModalSummaryBanner';
 import ModalTabNav from '../../../../components/common/modals/ModalTabNav';
@@ -8,14 +8,10 @@ import ChartLoadingSkeleton from '../../../../components/common/feedback/ChartLo
 import ModalTabContent from '../../../../components/common/modals/ModalTabContent';
 import { useTabTransition } from '../../../../hooks/useTabTransition';
 import { TREND_TABS } from './studentTrendConfig';
-import {
-  reverseTrendData,
-  formatNumber,
-  formatSignedPercentage,
-} from '../../../../utils/uiHelpers';
+import { reverseTrendData } from '../../../../utils/uiHelpers';
+import { formatNumber, formatSignedPercentage } from '@komet/shared/formatters';
 import { getTrendStyle } from '../../../../utils/theme';
-import { studentsService } from '../../services/studentsService';
-import { useStudentDetailResource } from '../../hooks/useStudentDetailResource';
+import { useDetail } from '../../studentQueries';
 import TrendBarChart from '../../../../components/common/charts/TrendBarChart';
 import TrendChartTooltip from '../../../../components/common/charts/TrendChartTooltip';
 import { BarChart3, Calendar, TrendingUp, TrendingDown, Users, Percent } from 'lucide-react';
@@ -81,19 +77,15 @@ const DECLINE_TABLE_COLUMNS = [
 
 export default function DeclineStudentsModal({ isOpen, onClose, originRect, data, filters }) {
   const { activeTab, handleTabChange, slideClass } = useTabTransition(TREND_TABS, 'chart');
-  const fetchDeclineDetail = useCallback(
-    (signal) => studentsService.getDeclineTrend(filters, { signal }),
-    [filters],
-  );
   const {
     data: declineData,
     isLoading,
     error,
-  } = useStudentDetailResource({
+  } = useDetail({
     isOpen,
     resourceKey: 'decline',
     filters,
-    fetcher: fetchDeclineDetail,
+    method: 'getDeclineTrend',
     errorMessage: 'Gagal memuat data penurunan mahasiswa',
     summaryData: data,
     summaryKey: 'newStudentDecline',
@@ -104,14 +96,7 @@ export default function DeclineStudentsModal({ isOpen, onClose, originRect, data
     ? formatSignedPercentage(kpis.declinePercentage)
     : '-';
   // Backend mengirim history dari terbaru ke terlama (A → E), cocok untuk tabel.
-  const historyList = useMemo(
-    () =>
-      declineData?.data?.history ||
-      declineData?.history ||
-      data?.summary?.newStudentDecline?.history ||
-      [],
-    [data, declineData],
-  );
+  const historyList = useMemo(() => declineData?.history || [], [declineData]);
   // Chart dibaca kiri ke kanan, maka urutannya diubah menjadi terlama ke terbaru.
   const chartList = reverseTrendData(historyList);
   const hasData = historyList.length > 0;
@@ -146,6 +131,7 @@ export default function DeclineStudentsModal({ isOpen, onClose, originRect, data
                 ]}
                 tooltipContent={
                   <TrendChartTooltip
+                    titleKey="academicYear"
                     rows={[
                       {
                         key: 'intakeCount',

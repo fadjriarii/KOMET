@@ -1,29 +1,10 @@
-export function formatNumber(value) {
-  if (value === null || value === undefined || Number.isNaN(Number(value))) return '-';
-  return new Intl.NumberFormat('id-ID').format(value);
-}
-
-/** Presentation-only formatting for raw numeric API KPI values. */
-export function formatPercentage(value, fractionDigits = 1, fallback = '-') {
-  const numericValue = Number(value);
-  return Number.isFinite(numericValue) ? `${numericValue.toFixed(fractionDigits)}%` : fallback;
-}
-
-export function formatSignedPercentage(value, fractionDigits = 1, fallback = '-') {
-  const numericValue = Number(value);
-  if (!Number.isFinite(numericValue)) return fallback;
-  return `${numericValue >= 0 ? '+' : ''}${numericValue.toFixed(fractionDigits)}%`;
-}
-
-export function formatDecimal(value, fractionDigits = 2, fallback = '-') {
-  const numericValue = Number(value);
-  return Number.isFinite(numericValue) ? numericValue.toFixed(fractionDigits) : fallback;
-}
-
-export function formatCompactNumber(value) {
-  const number = Number(value || 0);
-  return number >= 1000 ? `${(number / 1000).toFixed(number % 1000 === 0 ? 0 : 1)}k` : number;
-}
+/**
+ * Helper presentasi murni (label, tinggi chart, paginasi). Angka dan tahun
+ * akademik TIDAK dihitung di sini — itu milik `@komet/shared`, supaya server
+ * dan client tidak bisa berbeda hasil.
+ */
+import { STUDENT_STATUS } from '@komet/shared/constants';
+import { formatNumber } from '@komet/shared/formatters';
 
 export function reverseTrendData(items = []) {
   return Array.isArray(items) ? [...items].reverse() : [];
@@ -34,21 +15,6 @@ export function getTooltipPayloadItem(payload = []) {
 export function getDistributionChartHeight(count = 0) {
   return Math.max(240, Number(count || 0) * 38);
 }
-export function getCurrentAcademicYear(date = new Date()) {
-  const value = new Date(date);
-  const year = value.getFullYear();
-  return value.getMonth() >= 8 ? `${year}/${year + 1}` : `${year - 1}/${year}`;
-}
-
-export function getRollingAcademicYears(count = 5, date = new Date()) {
-  const value = new Date(date);
-  const year = value.getFullYear();
-  const currentStartYear = value.getMonth() >= 8 ? year : year - 1;
-  return Array.from({ length: count }, (_, i) => {
-    const start = currentStartYear - i;
-    return `${start}/${start + 1}`;
-  });
-}
 export function getStudentIntakeDescription(period, count) {
   return `Menampilkan total penerimaan mahasiswa baru (intake) sebanyak ${count} mahasiswa yang terdaftar aktif pada semester 1 untuk tahun akademik ${period || 'aktif'}.`;
 }
@@ -56,77 +22,54 @@ export function formatKpiDisplay(value) {
   return value === '-' || value === null || value === undefined || value === '' ? null : value;
 }
 export function getStudentKpiSubtitles(
-  { foreignCount, intakePeriod, declinePeriod } = {},
-  activeStatusLabel = 'Aktif',
+  { foreignStudentsCount, intakePeriod, declinePeriod } = {},
+  activeStatusLabel = STUDENT_STATUS.AKTIF,
 ) {
   return {
     activeSubtitle: `Total Student Body status ${activeStatusLabel.toLowerCase()}`,
     foreignSubtitle:
-      foreignCount !== undefined && foreignCount !== null
-        ? `${formatNumber(foreignCount)} Mahasiswa Non-WNI`
+      foreignStudentsCount !== undefined && foreignStudentsCount !== null
+        ? `${formatNumber(foreignStudentsCount)} Mahasiswa Non-WNI`
         : 'Non-WNI status aktif',
     intakeSubtitle: intakePeriod ? `Semester 1 (Periode ${intakePeriod})` : 'Semester 1',
     declineSubtitle: declinePeriod ? `Rata-rata 5 Tahun (${declinePeriod})` : 'Rata-rata 5 Tahun',
   };
 }
-export function getStudentStatusPresentation(statuses = ['Aktif']) {
-  const rawStatuses = Array.isArray(statuses) ? statuses : [statuses];
-  const isAllStatuses = rawStatuses.length === 0 || rawStatuses.includes('__ALL__');
-  const selectedStatuses = rawStatuses
-    .map((status) => String(status || '').trim())
-    .filter((status) => status && status !== '__ALL__');
-
-  if (isAllStatuses) {
-    return {
-      cardTitle: 'Mahasiswa Semua Status',
-      cardBadge: 'Semua Status',
-      modalTitle: 'Rincian Mahasiswa Semua Status',
-      modalSubtitle: 'Informasi total student body untuk seluruh status keaktifan',
-      summaryLabel: 'Total Semua Status',
-      statusLabel: 'semua status',
-      isCumulative: true,
-    };
-  }
-
-  if (selectedStatuses.length === 1) {
-    const [status] = selectedStatuses;
-    return {
-      cardTitle: `Mahasiswa ${status}`,
-      cardBadge: `Status ${status}`,
-      modalTitle: `Rincian Mahasiswa ${status}`,
-      modalSubtitle: `Informasi total student body dengan status ${status.toLowerCase()}`,
-      summaryLabel: `Total ${status}`,
-      statusLabel: status,
-      isCumulative: status !== 'Aktif',
-    };
-  }
-
-  if (selectedStatuses.length > 1) {
-    return {
-      cardTitle: 'Mahasiswa Status Terpilih',
-      cardBadge: 'Status Terpilih',
-      modalTitle: 'Rincian Mahasiswa Status Terpilih',
-      modalSubtitle: 'Informasi total student body dengan status yang dipilih',
-      summaryLabel: 'Total Terpilih',
-      statusLabel: selectedStatuses.join(', '),
-      isCumulative: true,
-    };
-  }
+/**
+ * Label kartu/modal dari seleksi status. Yang boleh ada di sini hanya tata bahasa:
+ * fakta domain (`isAll`, daftar status, `isCumulative`) dikirim server lewat
+ * `kpis.activeStudentStatus`, karena aturan "Aktif = snapshot, status terminal =
+ * kumulatif" adalah aturan proyeksi data, bukan pilihan tampilan.
+ */
+export function getStudentStatusPresentation(selection = {}) {
+  const { isAll = false, statuses = [], isCumulative = false } = selection;
+  const isMultiple = !isAll && statuses.length > 1;
+  // Snapshot sebelum server menjawab belum punya status: pakai populasi default
+  // dashboard, bukan label kosong.
+  const single = statuses[0] || STUDENT_STATUS.AKTIF;
+  const title = isAll ? 'Semua Status' : isMultiple ? 'Status Terpilih' : single;
+  // Label yang dibaca di kalimat deskripsi: daftar statusnya sendiri bila yang
+  // dipilih lebih dari satu.
+  const statusLabel = isAll ? 'semua status' : isMultiple ? statuses.join(', ') : single;
 
   return {
-    cardTitle: 'Mahasiswa Aktif',
-    cardBadge: 'Status Aktif',
-    modalTitle: 'Rincian Mahasiswa Aktif',
-    modalSubtitle: 'Informasi total student body dengan status aktif',
-    summaryLabel: 'Total Aktif',
-    statusLabel: 'Aktif',
-    isCumulative: false,
+    cardTitle: `Mahasiswa ${title}`,
+    cardBadge: isAll ? 'Semua Status' : `Status ${title}`,
+    modalTitle: `Rincian Mahasiswa ${title}`,
+    modalSubtitle: isAll
+      ? 'Informasi total student body untuk seluruh status keaktifan'
+      : isMultiple
+        ? 'Informasi total student body dengan status yang dipilih'
+        : `Informasi total student body dengan status ${title.toLowerCase()}`,
+    summaryLabel: `Total ${title}`,
+    statusLabel,
+    isCumulative,
   };
 }
 export function getStudentActiveDescription(
   year,
   count,
-  statusLabel = 'Aktif',
+  statusLabel = STUDENT_STATUS.AKTIF,
   isCumulative = false,
 ) {
   const periodLabel = isCumulative
@@ -138,13 +81,10 @@ export function getActiveTabContent(activeTab, content) {
   return content[activeTab] || null;
 }
 export function getStatusBadgeVariant(status) {
-  if (status === 'Aktif') return 'success';
-  if (status === 'Lulus') return 'info';
-  if (status === 'Drop Out / Dikeluarkan') return 'danger';
+  if (status === STUDENT_STATUS.AKTIF) return 'success';
+  if (status === STUDENT_STATUS.LULUS) return 'info';
+  if (status === STUDENT_STATUS.DROP_OUT) return 'danger';
   return 'default';
-}
-export function getRowNumber(index, page = 1, limit = 10) {
-  return (page - 1) * limit + index + 1;
 }
 export function getModalOriginRectFromEvent(event) {
   const rect = event?.currentTarget?.getBoundingClientRect?.();
@@ -185,26 +125,3 @@ export function getPaginationItems(currentPage = 1, totalPages = 1, siblingCount
   });
   return result;
 }
-
-export default {
-  formatNumber,
-  formatPercentage,
-  formatSignedPercentage,
-  formatDecimal,
-  formatCompactNumber,
-  reverseTrendData,
-  getTooltipPayloadItem,
-  getDistributionChartHeight,
-  getCurrentAcademicYear,
-  getStudentIntakeDescription,
-  getStudentActiveDescription,
-  getStudentStatusPresentation,
-  getStudentKpiSubtitles,
-  formatKpiDisplay,
-  getActiveTabContent,
-  getStatusBadgeVariant,
-  getRowNumber,
-  getModalOriginRectFromEvent,
-  getPaginationMeta,
-  getPaginationItems,
-};

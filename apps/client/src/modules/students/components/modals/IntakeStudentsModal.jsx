@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import Modal from '../../../../components/common/modals/Modal';
 import ModalSummaryBanner from '../../../../components/common/modals/ModalSummaryBanner';
 import ModalTabNav from '../../../../components/common/modals/ModalTabNav';
@@ -8,14 +8,9 @@ import ChartLoadingSkeleton from '../../../../components/common/feedback/ChartLo
 import ModalTabContent from '../../../../components/common/modals/ModalTabContent';
 import { useTabTransition } from '../../../../hooks/useTabTransition';
 import { TREND_TABS } from './studentTrendConfig';
-import {
-  getStudentIntakeDescription,
-  formatNumber,
-  formatSignedPercentage,
-  reverseTrendData,
-} from '../../../../utils/uiHelpers';
-import { studentsService } from '../../services/studentsService';
-import { useStudentDetailResource } from '../../hooks/useStudentDetailResource';
+import { getStudentIntakeDescription, reverseTrendData } from '../../../../utils/uiHelpers';
+import { formatNumber, formatSignedPercentage } from '@komet/shared/formatters';
+import { useDetail } from '../../studentQueries';
 import TrendBarChart from '../../../../components/common/charts/TrendBarChart';
 import TrendChartTooltip from '../../../../components/common/charts/TrendChartTooltip';
 import { Calendar, TrendingUp, TrendingDown, Users, BarChart3 } from 'lucide-react';
@@ -67,19 +62,15 @@ const INTAKE_TABLE_COLUMNS = [
 
 export default function IntakeStudentsModal({ isOpen, onClose, originRect, data, filters }) {
   const { activeTab, handleTabChange, slideClass } = useTabTransition(TREND_TABS, 'chart');
-  const fetchIntakeDetail = useCallback(
-    (signal) => studentsService.getIntakeTrend(filters, { signal }),
-    [filters],
-  );
   const {
     data: intakeData,
     isLoading,
     error,
-  } = useStudentDetailResource({
+  } = useDetail({
     isOpen,
     resourceKey: 'intake',
     filters,
-    fetcher: fetchIntakeDetail,
+    method: 'getIntakeTrend',
     errorMessage: 'Gagal memuat data intake mahasiswa',
     summaryData: data,
     summaryKey: 'intakeTrend',
@@ -87,10 +78,7 @@ export default function IntakeStudentsModal({ isOpen, onClose, originRect, data,
 
   const kpis = data?.kpis || {};
   const intakeCount = formatNumber(kpis.intakeCohortCount);
-  const trendList = useMemo(
-    () => intakeData?.data?.trend || intakeData?.trend || data?.summary?.intakeTrend?.trend || [],
-    [data, intakeData],
-  );
+  const trendList = useMemo(() => intakeData?.trend || [], [intakeData]);
   const tableData = reverseTrendData(trendList);
   const hasData = trendList.length > 0;
   const content = useMemo(

@@ -7,18 +7,24 @@ const { registerApplicationRoutes } = require('./routes');
 const PORT = process.env.PORT || 3000;
 
 // Handler Global untuk Unhandled Rejection & Uncaught Exception (mencegah silent crash)
-process.on('unhandledRejection', (reason, promise) => {
+process.on('unhandledRejection', (reason, _promise) => {
   logger.error('[Process] Unhandled Rejection:', {
     reason: reason?.message || reason,
     stack: reason?.stack,
   });
 });
 
+// Kegagalan socket per-connection tidak membuat state proses jadi tidak konsisten;
+// matikan proses hanya untuk error yang benar-benar tidak terisolasi.
+const SOCKET_LEVEL_ERRORS =
+  /^(ECONNRESET|EPIPE|ECANCELED|ERR_STREAM_PREMATURE_CLOSE|ECONNABORTED)$/;
+
 process.on('uncaughtException', (error) => {
-  logger.error('[Process] Uncaught Exception — Server akan dihentikan:', {
-    error: error.message,
-    stack: error.stack,
-  });
+  logger.error('[Process] Uncaught Exception:', { error: error.message, stack: error.stack });
+  if (SOCKET_LEVEL_ERRORS.test(error.code || '')) {
+    logger.warn('[Process] Error tingkat socket — proses dilanjutkan.');
+    return;
+  }
   process.exit(1);
 });
 
@@ -26,8 +32,9 @@ process.on('uncaughtException', (error) => {
 let server;
 
 async function startServer() {
-  // A configured Redis backend is mandatory: silently falling back to local
-  // counters would make a clustered production deployment bypassable.
+  // Redis dipakai untuk sesi + rate limit yang dibagikan antar worker. Bila tidak
+  // dikonfigurasi, server berjalan dengan store in-process: diterima di development,
+  // ditolak di production kecuali degradasi diizinkan eksplisit (lihat config/redis.js).
   await connectRedis();
   registerApplicationRoutes(app);
   server = app.listen(PORT, () => {
@@ -38,6 +45,7 @@ async function startServer() {
 async function gracefulShutdown(signal) {
   logger.info(`🛑 Menerima signal ${signal}. Memulai graceful shutdown...`);
   if (!server) {
+    await prisma.$disconnect().catch(() => {});
     await disconnectRedis();
     process.exit(0);
     return;
@@ -50,8 +58,10 @@ async function gracefulShutdown(signal) {
     process.exit(0);
   });
 
-  setTimeout(() => {
+  setTimeout(async () => {
     logger.error('⚠️ Graceful shutdown timeout. Force exit.');
+    await prisma.$disconnect().catch(() => {});
+    await disconnectRedis().catch(() => {});
     process.exit(1);
   }, 10000);
 }

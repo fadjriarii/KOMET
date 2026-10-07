@@ -1,76 +1,63 @@
 const prisma = require('../../config/prisma');
+const { TARGET_IKU2_PERCENT } = require('@komet/shared/constants');
+const { roundedRate } = require('../../utils/percentageUtils');
+const {
+  buildActivityWhere,
+  buildEligibleStudentWhere,
+  MBKM_ACTIVE_STATUSES,
+  MBKM_EVALUATION_STATUSES,
+  MBKM_STATUS,
+} = require('./filterBuilder');
+const { distributionBy } = require('./mbkmActivities');
 
 /**
- * Mendapatkan analisis partisipasi MBKM vs Mahasiswa Eligible (Card 1 detail)
+ * Mendapatkan analisis partisipasi MBKM vs Mahasiswa Eligible (Card 1 detail).
+ *
+ * Satu `groupBy` status menggantikan tiga `count()` terpisah di atas where yang
+ * sama, dan memberi angka evaluasi yang nyata (bukan konstanta 0).
  *
  * @param {Object} whereFilter Filter Prisma untuk MbkmActivity
  * @param {string} selectedPeriode Periode yang dipilih
  * @param {Object} studentFilter Filter Prisma untuk Student
  */
 async function getMbkmRate(whereFilter = {}, selectedPeriode, studentFilter = {}) {
-  const baseMbkmWhere = {
-    ...whereFilter,
-    ...(selectedPeriode ? { periode: selectedPeriode } : {}),
-    statusAktivitas: { in: ['Disetujui', 'Selesai'] },
-    jenisAktivitas: { not: '' },
-  };
+  const [statusGroups, eligibleCount, facultyData] = await Promise.all([
+    prisma.mbkmActivity.groupBy({
+      by: ['statusAktivitas'],
+      _count: { statusAktivitas: true },
+      where: buildActivityWhere(whereFilter, selectedPeriode, null),
+    }),
+    prisma.student.count({ where: buildEligibleStudentWhere(studentFilter) }),
+    distributionBy('fakultas', whereFilter, selectedPeriode).then((result) => result.items),
+  ]);
 
-  const [mbkmCount, disetujuiCount, selesaiCount, eligibleCount, facultyGroups] = await Promise.all(
-    [
-      prisma.mbkmActivity.count({ where: baseMbkmWhere }),
-      prisma.mbkmActivity.count({
-        where: { ...baseMbkmWhere, statusAktivitas: 'Disetujui' },
-      }),
-      prisma.mbkmActivity.count({
-        where: { ...baseMbkmWhere, statusAktivitas: 'Selesai' },
-      }),
-      prisma.student.count({
-        where: {
-          semester: 7,
-          statusKeaktifan: 'Aktif',
-          ...studentFilter,
-        },
-      }),
-      prisma.mbkmActivity.groupBy({
-        by: ['fakultas'],
-        _count: true,
-        where: baseMbkmWhere,
-        orderBy: [{ fakultas: 'asc' }],
-      }),
-    ],
+  const byStatus = Object.fromEntries(
+    statusGroups.map((group) => [group.statusAktivitas, group._count.statusAktivitas]),
   );
+  const countOf = (statuses) => statuses.reduce((sum, status) => sum + (byStatus[status] || 0), 0);
 
-  const numPercentage =
-    eligibleCount > 0 ? parseFloat(((mbkmCount / eligibleCount) * 100).toFixed(2)) : 0;
+  const disetujuiCount = byStatus[MBKM_STATUS.DISSETUJUI] || 0;
+  const selesaiCount = byStatus[MBKM_STATUS.SELESAI] || 0;
+  const evaluasiCount = countOf(MBKM_EVALUATION_STATUSES);
+  const mbkmCount = countOf(MBKM_ACTIVE_STATUSES);
 
-  const TARGET_IKU2 = 20.0;
-  const meetsTarget = numPercentage >= TARGET_IKU2;
-  const badge =
-    eligibleCount === 0
-      ? 'Data Tidak Tersedia'
-      : meetsTarget
-        ? 'Target IKU-2 Tercapai'
-        : 'Target IKU-2 Belum Tercapai';
-
-  const sortedFaculty = facultyGroups.sort((a, b) => b._count - a._count);
-  const facultyData = sortedFaculty.map((g) => ({
-    name: g.fakultas,
-    count: g._count,
-    percentage: mbkmCount > 0 ? (g._count / mbkmCount) * 100 : 0,
-  }));
+  const numPercentage = roundedRate(mbkmCount, eligibleCount);
+  const meetsTarget = numPercentage >= TARGET_IKU2_PERCENT;
 
   return {
     participantStats: {
       count: mbkmCount,
       disetujuiCount,
       selesaiCount,
+      evaluasiCount,
     },
     eligibleCount,
+    // Label "Tercapai/Belum" milik presentasi; yang dikirim hanya boolean dan
+    // `eligibleCount` (0 = tidak ada data, bukan 0% tercapai).
     eligibleRate: {
       numPercentage,
       meetsTarget,
-      targetIku2: TARGET_IKU2,
-      badge,
+      targetIku2: TARGET_IKU2_PERCENT,
     },
     facultyData,
   };

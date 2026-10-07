@@ -1,120 +1,120 @@
-const sevimaApi = require('../../config/sevimaApi');
 const prisma = require('../../config/prisma');
 const logger = require('../../utils/logger');
 const syncJobTracker = require('../../utils/syncJobTracker');
+const createSyncHandler = require('./createSyncHandler');
 const { deduplicateStudents } = require('../../services/studentDeduplicationService');
 const {
-  sleep,
   cleanText,
   sanitizeText,
   sanitizeProdiName,
+  normalizeOptionalText,
   resolveTargetNimBatch,
   getProdiFakultasMap,
-  processInBatches,
+  paginateSevimaPages,
+  bulkCreateMbkmActivities,
 } = require('./helpers');
 
+function resolveFakultas(attr, prodiName, prodiFakultasMap) {
+  const rawProdi = attr.program_studi || '';
+  return sanitizeText(
+    prodiFakultasMap.get(cleanText(rawProdi)) ||
+      prodiFakultasMap.get(cleanText(prodiName)) ||
+      prodiFakultasMap.get(rawProdi.trim().toLowerCase()) ||
+      prodiFakultasMap.get(prodiName.trim().toLowerCase()) ||
+      '',
+  );
+}
+
 // 3. ETL Sinkronisasi MBKM (MbkmActivity)
-const executeSyncMbkm = async (startPage = 1) => {
+const executeSyncMbkm = async ({ runDedup = true } = {}) => {
   logger.info('🔄 Memulai proses ETL: Data Aktivitas MBKM dari SEVIMA API...');
   const prodiFakultasMap = await getProdiFakultasMap();
 
-  let currentPage = startPage;
   let totalSynced = 0;
   let totalSkipped = 0;
-  let hasMorePages = true;
 
   // Bersihkan data aktivitas MBKM lama sebelum sinkronisasi ulang agar id selalu valid
   await prisma.mbkmActivity.deleteMany({});
-  syncJobTracker.updateProgress('mbkm', { status: 'running', page: currentPage });
+  syncJobTracker.updateProgress('mbkm', { status: 'running', page: 1, totalPages: 0 });
 
-  while (hasMorePages) {
-    logger.info(`📥 [MBKM] Mengambil halaman ke-${currentPage}...`);
-    const response = await sevimaApi.get(`/siakadcloud/v1/aktivitas-mbkm?page=${currentPage}`);
-    const responseData = response.data;
-    const listData = responseData.data;
-    const meta = responseData.meta;
+  await paginateSevimaPages({
+    endpoint: '/siakadcloud/v1/aktivitas-mbkm',
+    onPage: async (listData, { page, totalPages }) => {
+      const validItems = [];
+      for (const item of listData) {
+        const attr = item.attributes;
+        // Aktivitas tanpa jenis bukan aktivitas MBKM — dibuang di ETL, bukan disaring saat baca.
+        const jenisAktivitas = normalizeOptionalText(attr.jenis_kegiatan);
+        if (!attr.nim || !jenisAktivitas) {
+          totalSkipped++;
+          continue;
+        }
 
-    if (!listData || listData.length === 0) {
-      break;
-    }
+        const prodiName = sanitizeProdiName(attr.program_studi || '');
 
-    const validItems = [];
-    for (const item of listData) {
-      const attr = item.attributes;
-      if (!attr.nim) continue;
-
-      const rawProdi = attr.program_studi || '';
-      const prodiName = sanitizeProdiName(rawProdi);
-      const fakultas = sanitizeText(
-        prodiFakultasMap.get(cleanText(rawProdi)) ||
-          prodiFakultasMap.get(cleanText(prodiName)) ||
-          prodiFakultasMap.get(rawProdi.trim().toLowerCase()) ||
-          prodiFakultasMap.get(prodiName.trim().toLowerCase()) ||
-          '',
-      );
-
-      validItems.push({
-        nim: attr.nim,
-        nama_mahasiswa: attr.nama_mahasiswa || '',
-        id_jenjang_program_studi: attr.id_jenjang_program_studi || 'S1',
-        id_periode: attr.id_periode || '',
-        prodiName,
-        fakultas,
-        statusKeaktifan: attr.judul_aktivitas || attr.status_aktivitas || '',
-        jenisAktivitas: attr.jenis_kegiatan || '',
-        judulAktivitas: attr.judul_aktivitas || '',
-        mitra: attr.nama_mitra || '',
-        statusAktivitas: attr.status_aktivitas || '',
-      });
-    }
-
-    // Bulk Pre-fetch NIM Resolution (Menghilangkan N+1 Query)
-    if (validItems.length > 0) {
-      const nimMap = await resolveTargetNimBatch(
-        validItems,
-        (item) => item.nim,
-        (item) => item.nama_mahasiswa,
-        (item) => item,
-      );
-
-      await processInBatches(validItems, 25, async (item) => {
-        const targetNim = nimMap.get(item) || item.nim;
-
-        return prisma.mbkmActivity.create({
-          data: {
-            nim: targetNim,
-            periode: item.id_periode,
-            programStudi: item.prodiName,
-            fakultas: item.fakultas,
-            jenjang: item.id_jenjang_program_studi,
-            statusKeaktifan: item.statusKeaktifan,
-            jenisAktivitas: item.jenisAktivitas,
-            judulAktivitas: item.judulAktivitas,
-            mitra: item.mitra,
-            statusAktivitas: item.statusAktivitas,
-          },
+        validItems.push({
+          nim: attr.nim,
+          nama_mahasiswa: attr.nama_mahasiswa || '',
+          jenjang: attr.id_jenjang_program_studi || 'S1',
+          periode: attr.id_periode || '',
+          programStudi: prodiName,
+          fakultas: resolveFakultas(attr, prodiName, prodiFakultasMap),
+          jenisAktivitas,
+          judulAktivitas: normalizeOptionalText(attr.judul_aktivitas),
+          mitra: normalizeOptionalText(attr.nama_mitra),
+          statusAktivitas: attr.status_aktivitas || '',
         });
+      }
+
+      if (validItems.length > 0) {
+        // Bulk pre-fetch NIM Resolution (Menghilangkan N+1 Query)
+        const nimMap = await resolveTargetNimBatch(
+          validItems,
+          (item) => item.nim,
+          (item) => item.nama_mahasiswa,
+          (item) => item,
+        );
+
+        const targetNims = [...new Set(validItems.map((item) => nimMap.get(item) || item.nim))];
+        // statusKeaktifan denormalisasi diambil dari baris mahasiswa terkait, bukan dari
+        // judul aktivitas (value lama membuat kolom ini tidak pernah cocok dengan status apa pun).
+        const studentRows = await prisma.student.findMany({
+          where: { nim: { in: targetNims } },
+          select: { nim: true, statusKeaktifan: true },
+        });
+        const statusByNim = new Map(studentRows.map((row) => [row.nim, row.statusKeaktifan]));
+
+        await bulkCreateMbkmActivities(
+          validItems.map((item) => {
+            const nim = nimMap.get(item) || item.nim;
+            return {
+              nim,
+              periode: item.periode,
+              programStudi: item.programStudi,
+              fakultas: item.fakultas,
+              jenjang: item.jenjang,
+              statusKeaktifan: statusByNim.get(nim) || '',
+              jenisAktivitas: item.jenisAktivitas,
+              judulAktivitas: item.judulAktivitas,
+              mitra: item.mitra,
+              statusAktivitas: item.statusAktivitas,
+            };
+          }),
+        );
+        totalSynced += validItems.length;
+      }
+
+      syncJobTracker.updateProgress('mbkm', {
+        page,
+        totalPages,
+        synced: totalSynced,
+        skipped: totalSkipped,
       });
-      totalSynced += validItems.length;
-    }
+    },
+  });
 
-    syncJobTracker.updateProgress('mbkm', {
-      page: currentPage,
-      totalPages: meta?.last_page || currentPage,
-      synced: totalSynced,
-      skipped: totalSkipped,
-    });
-
-    if (meta && currentPage >= meta.last_page) {
-      hasMorePages = false;
-    } else {
-      currentPage++;
-      await sleep(350);
-    }
-  }
-
-  // Jalankan deduplikasi untuk membersihkan sisa record duplikat
-  const deduplicationResult = await deduplicateStudents();
+  let deduplicationResult = null;
+  if (runDedup) deduplicationResult = await deduplicateStudents();
 
   syncJobTracker.updateProgress('mbkm', {
     status: 'completed',
@@ -122,78 +122,17 @@ const executeSyncMbkm = async (startPage = 1) => {
     skipped: totalSkipped,
   });
   logger.success(
-    `[MBKM] Selesai! ${totalSynced} data aktivitas MBKM disinkronkan, ${deduplicationResult.deletedCount || 0} duplikat dibersihkan.`,
+    `[MBKM] Selesai! ${totalSynced} data aktivitas MBKM disinkronkan, ${deduplicationResult?.deletedMbkmCount || 0} duplikat dibersihkan.`,
   );
   return { totalSynced, totalSkipped, deduplication: deduplicationResult };
 };
 
-const syncMbkm = async (req, res) => {
-  const isAsync = req?.body?.async === true || req?.query?.async === 'true';
-  const isInternal = req?.isInternal === true;
+module.exports = createSyncHandler({
+  moduleName: 'mbkm',
+  label: 'Sinkronisasi MBKM',
+  execute: executeSyncMbkm,
+  successMessage: (result) =>
+    `Sinkronisasi sukses! Total ${result.totalSynced} data aktivitas MBKM berhasil diperbarui.`,
+});
 
-  if (!isInternal && syncJobTracker.isRunning()) {
-    if (res) {
-      return res.status(409).json({
-        success: false,
-        message: 'Proses sinkronisasi lain sedang berjalan. Tunggu hingga selesai.',
-        statusUrl: '/api/sync/status',
-      });
-    }
-    throw new Error('Proses sinkronisasi lain sedang berjalan.');
-  }
-
-  if (isAsync && res) {
-    syncJobTracker.startJob('mbkm');
-    setImmediate(() => {
-      executeSyncMbkm()
-        .then(() => {
-          try {
-            syncJobTracker.finishJob(true);
-          } catch (e) {
-            logger.error('Gagal memanggil finishJob:', e);
-          }
-        })
-        .catch((err) => {
-          logger.error('[AsyncJob:mbkm] Error tidak tertangani:', err.message);
-          try {
-            syncJobTracker.finishJob(false, err.message);
-          } catch (_) {}
-        });
-    });
-
-    return res.status(202).json({
-      success: true,
-      message: 'Sinkronisasi MBKM dimulai di background (Asynchronous Job).',
-      statusUrl: '/api/sync/status',
-    });
-  }
-
-  try {
-    if (!isInternal) syncJobTracker.startJob('mbkm');
-    const result = await executeSyncMbkm();
-    if (!isInternal) syncJobTracker.finishJob(true);
-
-    if (res) {
-      return res.status(200).json({
-        success: true,
-        message: `Sinkronisasi sukses! Total ${result.totalSynced} data aktivitas MBKM berhasil diperbarui.`,
-        data: result,
-      });
-    }
-    return result.totalSynced;
-  } catch (error) {
-    const errorMsg = error.response?.data || error.message;
-    if (!isInternal) syncJobTracker.finishJob(false, errorMsg);
-    logger.error('Gagal sinkronisasi MBKM:', errorMsg);
-
-    if (res) {
-      return res.status(500).json({
-        success: false,
-        message: typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg),
-      });
-    }
-    throw error;
-  }
-};
-
-module.exports = syncMbkm;
+module.exports.executeSyncMbkm = executeSyncMbkm;

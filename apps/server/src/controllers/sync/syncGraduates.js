@@ -1,130 +1,107 @@
-const sevimaApi = require('../../config/sevimaApi');
-const prisma = require('../../config/prisma');
 const logger = require('../../utils/logger');
 const syncJobTracker = require('../../utils/syncJobTracker');
+const createSyncHandler = require('./createSyncHandler');
 const { deduplicateStudents } = require('../../services/studentDeduplicationService');
-const { sleep, sanitizeProdiName, resolveTargetNimBatch, processInBatches } = require('./helpers');
+const {
+  sanitizeProdiName,
+  normalizeOptionalText,
+  resolveTargetNimBatch,
+  paginateSevimaPages,
+  bulkUpsertGraduates,
+} = require('./helpers');
+const { STUDENT_STATUS } = require('@komet/shared/constants');
 
 // 2. ETL Sinkronisasi Kelulusan (Graduate)
-const executeSyncGraduates = async (startPage = 1) => {
+const executeSyncGraduates = async ({ runDedup = true } = {}) => {
   logger.info('🔄 Memulai proses ETL: Data Kelulusan dari SEVIMA API...');
 
-  let currentPage = startPage;
   let totalSynced = 0;
   let totalSkipped = 0;
-  let hasMorePages = true;
 
-  syncJobTracker.updateProgress('graduates', { status: 'running', page: currentPage });
+  syncJobTracker.updateProgress('graduates', { status: 'running', page: 1, totalPages: 0 });
 
-  while (hasMorePages) {
-    logger.info(`📥 [Kelulusan] Mengambil halaman ke-${currentPage}...`);
-    const response = await sevimaApi.get(`/siakadcloud/v1/kelulusan?page=${currentPage}`);
-    const responseData = response.data;
-    const listData = responseData.data;
-    const meta = responseData.meta;
+  await paginateSevimaPages({
+    endpoint: '/siakadcloud/v1/kelulusan',
+    onPage: async (listData, { page, totalPages }) => {
+      const validItems = [];
+      for (const item of listData) {
+        const attr = item.attributes;
+        if (!attr.nim) {
+          totalSkipped++;
+          continue;
+        }
 
-    if (!listData || listData.length === 0) {
-      break;
-    }
+        const prodiName = sanitizeProdiName(attr.program_studi || '');
 
-    const validItems = [];
-    for (const item of listData) {
-      const attr = item.attributes;
-      if (!attr.nim) continue;
+        // Ekstrak Tahun Lulus
+        let tahunLulus = '';
+        if (attr.id_periode_akademik && attr.id_periode_akademik.length >= 4) {
+          tahunLulus = attr.id_periode_akademik.substring(0, 4);
+        } else if (attr.tanggal_keluar) {
+          tahunLulus = attr.tanggal_keluar.substring(0, 4);
+        } else if (attr.tanggal_sk_yudisium) {
+          tahunLulus = attr.tanggal_sk_yudisium.substring(0, 4);
+        }
 
-      const prodiName = sanitizeProdiName(attr.program_studi || '');
+        // Status keaktifan ("Aktif") dan placeholder ("-") bukan predikat kelulusan;
+        // ETL yang memilih nilai layak, read-path tidak menambalnya lagi.
+        const statusKelulusan =
+          [attr.nama_predikat, attr.nama_status_mahasiswa]
+            .map(normalizeOptionalText)
+            .find((value) => value && value !== STUDENT_STATUS.AKTIF) || STUDENT_STATUS.LULUS;
 
-      // Ekstrak Tahun Lulus
-      let tahunLulus = '';
-      if (attr.id_periode_akademik && attr.id_periode_akademik.length >= 4) {
-        tahunLulus = attr.id_periode_akademik.substring(0, 4);
-      } else if (attr.tanggal_keluar) {
-        tahunLulus = attr.tanggal_keluar.substring(0, 4);
-      } else if (attr.tanggal_sk_yudisium) {
-        tahunLulus = attr.tanggal_sk_yudisium.substring(0, 4);
+        validItems.push({
+          nim: attr.nim,
+          nama: attr.nama || '',
+          jenjang: attr.id_jenjang || 'S1',
+          id_periode_akademik: attr.id_periode_akademik || '',
+          programStudi: prodiName,
+          statusKelulusan,
+          tahunLulus,
+          ipk: parseFloat(attr.ipk_lulusan) || 0,
+          sksLulus: parseInt(attr.sks_total) || 0,
+        });
       }
 
-      const statusKelulusan = attr.nama_predikat || attr.nama_status_mahasiswa || 'Lulus';
-      const ipk = parseFloat(attr.ipk_lulusan) || 0;
-      const sksLulus = parseInt(attr.sks_total) || 0;
+      if (validItems.length > 0) {
+        // Bulk pre-fetch NIM (termasuk varian tanpa "x") agar tidak ada query per baris.
+        const nimMap = await resolveTargetNimBatch(
+          validItems,
+          (item) => item.nim,
+          (item) => item.nama,
+          (item) => ({
+            ...item,
+            defaultStatusKeaktifan: STUDENT_STATUS.LULUS,
+            defaultSemester: 8,
+          }),
+        );
 
-      validItems.push({
-        nim: attr.nim,
-        nama: attr.nama || '',
-        jenjang: attr.id_jenjang || 'S1',
-        id_periode_akademik: attr.id_periode_akademik || '',
-        programStudi: prodiName,
-        statusKelulusan,
-        tahunLulus,
-        ipk,
-        sksLulus,
-      });
-    }
-
-    // Bulk Pre-fetch NIM Resolution (Menghilangkan N+1 Query)
-    if (validItems.length > 0) {
-      const nimMap = await resolveTargetNimBatch(
-        validItems,
-        (item) => item.nim,
-        (item) => item.nama,
-        (item) => ({ ...item, defaultStatusKeaktifan: 'Lulus', defaultSemester: 8 }),
-      );
-
-      await processInBatches(validItems, 25, async (item) => {
-        const targetNim = nimMap.get(item) || item.nim;
-
-        const gradUpsert = prisma.graduate.upsert({
-          where: { nim: targetNim },
-          update: {
+        await bulkUpsertGraduates(
+          validItems.map((item) => ({
+            nim: nimMap.get(item) || item.nim,
             jenjang: item.jenjang,
             statusKelulusan: item.statusKelulusan,
             tahunLulus: item.tahunLulus,
             periodeWisuda: item.id_periode_akademik || '',
             ipk: item.ipk,
             sksLulus: item.sksLulus,
-          },
-          create: {
-            nim: targetNim,
-            jenjang: item.jenjang,
-            statusKelulusan: item.statusKelulusan,
-            tahunLulus: item.tahunLulus,
-            periodeWisuda: item.id_periode_akademik || '',
-            ipk: item.ipk,
-            sksLulus: item.sksLulus,
-          },
-        });
+            periodeTerakhir: item.id_periode_akademik || '',
+          })),
+        );
+        totalSynced += validItems.length;
+      }
 
-        // Sinkronkan status pada tabel Student agar dipastikan tercatat sebagai "Lulus"
-        const studentUpdate = prisma.student.updateMany({
-          where: { nim: targetNim },
-          data: {
-            statusKeaktifan: 'Lulus',
-            ...(item.id_periode_akademik ? { periodeTerakhir: item.id_periode_akademik } : {}),
-          },
-        });
-
-        return Promise.all([gradUpsert, studentUpdate]);
+      syncJobTracker.updateProgress('graduates', {
+        page,
+        totalPages,
+        synced: totalSynced,
+        skipped: totalSkipped,
       });
-      totalSynced += validItems.length;
-    }
+    },
+  });
 
-    syncJobTracker.updateProgress('graduates', {
-      page: currentPage,
-      totalPages: meta?.last_page || currentPage,
-      synced: totalSynced,
-      skipped: totalSkipped,
-    });
-
-    if (meta && currentPage >= meta.last_page) {
-      hasMorePages = false;
-    } else {
-      currentPage++;
-      await sleep(350);
-    }
-  }
-
-  // Jalankan deduplikasi untuk membersihkan sisa record duplikat
-  const deduplicationResult = await deduplicateStudents();
+  let deduplicationResult = null;
+  if (runDedup) deduplicationResult = await deduplicateStudents();
 
   syncJobTracker.updateProgress('graduates', {
     status: 'completed',
@@ -132,78 +109,17 @@ const executeSyncGraduates = async (startPage = 1) => {
     skipped: totalSkipped,
   });
   logger.success(
-    `[Kelulusan] Selesai! ${totalSynced} data disinkronkan, ${deduplicationResult.deletedCount || 0} duplikat dibersihkan.`,
+    `[Kelulusan] Selesai! ${totalSynced} data disinkronkan, ${deduplicationResult?.deletedCount || 0} duplikat dibersihkan.`,
   );
   return { totalSynced, totalSkipped, deduplication: deduplicationResult };
 };
 
-const syncGraduates = async (req, res) => {
-  const isAsync = req?.body?.async === true || req?.query?.async === 'true';
-  const isInternal = req?.isInternal === true;
+module.exports = createSyncHandler({
+  moduleName: 'graduates',
+  label: 'Sinkronisasi kelulusan',
+  execute: executeSyncGraduates,
+  successMessage: (result) =>
+    `Sinkronisasi sukses! Total ${result.totalSynced} data kelulusan berhasil diperbarui.`,
+});
 
-  if (!isInternal && syncJobTracker.isRunning()) {
-    if (res) {
-      return res.status(409).json({
-        success: false,
-        message: 'Proses sinkronisasi lain sedang berjalan. Tunggu hingga selesai.',
-        statusUrl: '/api/sync/status',
-      });
-    }
-    throw new Error('Proses sinkronisasi lain sedang berjalan.');
-  }
-
-  if (isAsync && res) {
-    syncJobTracker.startJob('graduates');
-    setImmediate(() => {
-      executeSyncGraduates()
-        .then(() => {
-          try {
-            syncJobTracker.finishJob(true);
-          } catch (e) {
-            logger.error('Gagal memanggil finishJob:', e);
-          }
-        })
-        .catch((err) => {
-          logger.error('[AsyncJob:graduates] Error tidak tertangani:', err.message);
-          try {
-            syncJobTracker.finishJob(false, err.message);
-          } catch (_) {}
-        });
-    });
-
-    return res.status(202).json({
-      success: true,
-      message: 'Sinkronisasi kelulusan dimulai di background (Asynchronous Job).',
-      statusUrl: '/api/sync/status',
-    });
-  }
-
-  try {
-    if (!isInternal) syncJobTracker.startJob('graduates');
-    const result = await executeSyncGraduates();
-    if (!isInternal) syncJobTracker.finishJob(true);
-
-    if (res) {
-      return res.status(200).json({
-        success: true,
-        message: `Sinkronisasi sukses! Total ${result.totalSynced} data kelulusan berhasil diperbarui.`,
-        data: result,
-      });
-    }
-    return result.totalSynced;
-  } catch (error) {
-    const errorMsg = error.response?.data || error.message;
-    if (!isInternal) syncJobTracker.finishJob(false, errorMsg);
-    logger.error('Gagal sinkronisasi kelulusan:', errorMsg);
-
-    if (res) {
-      return res.status(500).json({
-        success: false,
-        message: typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg),
-      });
-    }
-    throw error;
-  }
-};
-
-module.exports = syncGraduates;
+module.exports.executeSyncGraduates = executeSyncGraduates;

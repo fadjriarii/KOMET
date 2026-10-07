@@ -1,23 +1,20 @@
 const { PrismaClient } = require('@prisma/client');
 const logger = require('../utils/logger');
-const slowQueryMs = Number(process.env.SLOW_QUERY_MS || 500);
+const { logSlowQuery } = require('./slowQueryLog');
 
 const prisma = new PrismaClient({
+  // warn/error di-emit sebagai event supaya lewat winston: terstruktur dan bisa
+  // disanitasi. `stdout` membuat pesan Prisma menembus log mentah tanpa filter.
   log: [
     { emit: 'event', level: 'query' },
-    { emit: 'stdout', level: 'warn' },
-    { emit: 'stdout', level: 'error' },
+    { emit: 'event', level: 'warn' },
+    { emit: 'event', level: 'error' },
   ],
 });
 
-prisma.$on('query', (event) => {
-  if (event.duration >= slowQueryMs) {
-    logger.warn('[SlowQuery]', {
-      durationMs: event.duration,
-      query: event.query.slice(0, 500),
-      params: event.params,
-    });
-  }
-});
+prisma.$on('query', logSlowQuery);
+
+prisma.$on('warn', (event) => logger.warn('[Prisma warn]', { message: event.message }));
+prisma.$on('error', (event) => logger.error('[Prisma error]', { message: event.message }));
 
 module.exports = prisma;

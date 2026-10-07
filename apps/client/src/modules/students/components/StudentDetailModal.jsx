@@ -16,7 +16,7 @@ const MODAL_MAP = {
 export default function StudentDetailModal({
   isOpen,
   onClose,
-  activeModalType, // 'active' | 'foreign' | 'intake' | 'decline'
+  modalType, // 'active' | 'foreign' | 'intake' | 'decline'
   originRect,
   data,
   filters,
@@ -27,7 +27,7 @@ export default function StudentDetailModal({
       fallbackMessage="Gagal memuat rincian. Silakan tutup lalu coba lagi."
       isOpen={isOpen}
       onClose={onClose}
-      activeModalType={activeModalType}
+      modalType={modalType}
       originRect={originRect}
       data={data}
       filters={filters}

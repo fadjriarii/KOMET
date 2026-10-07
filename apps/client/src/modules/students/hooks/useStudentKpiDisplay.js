@@ -1,27 +1,23 @@
 import { useMemo } from 'react';
-import {
-  formatNumber,
-  formatPercentage,
-  formatSignedPercentage,
-  getStudentKpiSubtitles,
-  getStudentStatusPresentation,
-} from '../../../utils/uiHelpers';
+import { getStudentKpiSubtitles, getStudentStatusPresentation } from '../../../utils/uiHelpers';
+import { formatNumber, formatPercentage, formatSignedPercentage } from '@komet/shared/formatters';
 import { getTrendStyle } from '../../../utils/theme';
 
-export function useStudentKpiDisplay(summaryData, filters, isLoading) {
+export function useStudentKpiDisplay(summaryData, isLoading) {
   return useMemo(() => {
     const rawKpis = summaryData?.kpis || {};
     const kpis = {
       ...rawKpis,
       formattedActiveCount: formatNumber(rawKpis.activeStudentsCount),
-      formattedForeignCount: formatNumber(rawKpis.foreignStudentsCount),
       formattedIntakeCount: formatNumber(rawKpis.intakeCohortCount),
-      foreignRate: formatPercentage(rawKpis.foreignRate, 1, '0.0%'),
+      foreignRate: formatPercentage(rawKpis.foreignRate, 1),
       declineAvg: rawKpis.hasEnoughDeclineData
         ? formatSignedPercentage(rawKpis.declinePercentage)
         : '-',
     };
-    const activeStudentPresentation = getStudentStatusPresentation(filters.selectedStatus);
+    // Seleksi status dibaca dari snapshot summary yang sama dengan angkanya, bukan
+    // dari keadaan URL yang bisa sudah bergeser.
+    const activeStudentPresentation = getStudentStatusPresentation(rawKpis.activeStudentStatus);
     const hasEnoughDeclineData = kpis.hasEnoughDeclineData !== false;
     const displaySubtitles = getStudentKpiSubtitles(kpis, activeStudentPresentation.statusLabel);
     if (!hasEnoughDeclineData) {
@@ -36,5 +32,5 @@ export function useStudentKpiDisplay(summaryData, filters, isLoading) {
         : { textClass: 'text-gray-500', label: 'Data belum cukup' },
       isReady: Boolean(summaryData?.success) && !isLoading,
     };
-  }, [filters.selectedStatus, isLoading, summaryData]);
+  }, [isLoading, summaryData]);
 }

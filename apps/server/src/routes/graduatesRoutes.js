@@ -7,17 +7,17 @@
 const express = require('express');
 const router = express.Router();
 const { studentSessionAuth } = require('../middlewares/studentSession');
-const { statsLimiter } = require('../middlewares/rateLimiter');
+const { statsLimiter, summaryLimiter } = require('../middlewares/rateLimiter');
 const { graduateQuerySchema, validateQuery } = require('../middlewares/validator');
 const graduates = require('../controllers/graduatesController');
 
-// Semua routes dilindungi oleh Session & API Key middleware & Rate Limiter & Validasi Query
+// Route data lulusan: sesi siswa + rate limiter + validasi query. SYNC_API_KEY tidak berlaku di sini.
 router.use(statsLimiter);
 router.use(studentSessionAuth);
 router.use(validateQuery(graduateQuerySchema));
 
 // Endpoint utama tab lulusan (4 card + filter options)
-router.get('/summary', graduates.getSummary);
+router.get('/summary', summaryLimiter, graduates.getSummary);
 
 // Endpoint detail chart per card
 router.get('/total-lulusan', graduates.getTotalLulusanDetail);

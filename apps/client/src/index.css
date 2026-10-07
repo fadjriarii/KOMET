@@ -1,8 +1,8 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @theme {
-  --color-digital-blue-50: oklch(95.13% 0.023 256.10);
-  --color-digital-blue-100: oklch(90.17% 0.048 259.10);
+  --color-digital-blue-50: oklch(95.13% 0.023 256.1);
+  --color-digital-blue-100: oklch(90.17% 0.048 259.1);
   --color-digital-blue-200: oklch(80.72% 0.097 258.14);
   --color-digital-blue-300: oklch(71.49% 0.149 258.39);
   --color-digital-blue-400: oklch(63.31% 0.198 258.73);
@@ -11,7 +11,7 @@
   --color-digital-blue-700: oklch(39.11% 0.161 260.13);
   --color-digital-blue-800: oklch(29.89% 0.116 259.04);
   --color-digital-blue-900: oklch(19.67% 0.068 256.39);
-  --color-digital-blue-950: oklch(16.49% 0.052 253.90);
+  --color-digital-blue-950: oklch(16.49% 0.052 253.9);
 }
 
 body {
@@ -61,7 +61,9 @@ body {
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background: rgba(148, 163, 184, 0.4);
   border-radius: 9999px;
-  transition: background-color 0.2s ease, transform 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    transform 0.2s ease;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {

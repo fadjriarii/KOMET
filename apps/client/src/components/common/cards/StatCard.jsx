@@ -14,13 +14,14 @@ export default function StatCard({
   badge,
   actionLabel = 'Lihat Rincian',
   onViewDetails,
-  actionDisabled = false,
   isFiltered = false,
   isLoading = false,
   className = '',
   valueClassName = 'text-gray-900',
   iconClassName = 'bg-digital-blue-50 text-digital-blue-600',
 }) {
+  // Tanpa onViewDetails tidak ada yang bisa dibuka: jangan tawarkan tombol mati.
+  const hasAction = Boolean(onViewDetails);
   if (isLoading) {
     return (
       <div
@@ -45,7 +46,7 @@ export default function StatCard({
         {/* Skeleton Footer: Garis pemisah, Badge, Action */}
         <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between">
           <Skeleton className="h-5 w-20 rounded-full" />
-          <Skeleton className="h-5 w-24 rounded-lg" />
+          {hasAction && <Skeleton className="h-5 w-24 rounded-lg" />}
         </div>
       </div>
     );
@@ -100,24 +101,19 @@ export default function StatCard({
         </div>
 
         {/* Kanan Bawah: Button Lihat Rincian dengan Icon */}
-        <button
-          type="button"
-          onClick={actionDisabled ? undefined : onViewDetails}
-          disabled={actionDisabled}
-          className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg transition-all duration-150 group/btn ${
-            actionDisabled
-              ? 'text-gray-400 bg-gray-50 cursor-not-allowed'
-              : 'text-digital-blue-600 hover:text-digital-blue-700 hover:bg-digital-blue-50/70 active:bg-digital-blue-100/70 cursor-pointer'
-          }`}
-        >
-          <span>{actionLabel}</span>
-          {!actionDisabled && (
+        {hasAction && (
+          <button
+            type="button"
+            onClick={onViewDetails}
+            className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg transition-all duration-150 text-digital-blue-600 hover:text-digital-blue-700 hover:bg-digital-blue-50/70 active:bg-digital-blue-100/70 cursor-pointer group/btn"
+          >
+            <span>{actionLabel}</span>
             <ChevronRight
               size={14}
               className="group-hover/btn:translate-x-0.5 transition-transform duration-150"
             />
-          )}
-        </button>
+          </button>
+        )}
       </div>
     </div>
   );

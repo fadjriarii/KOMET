@@ -1,8 +1,31 @@
+const { Prisma } = require('@prisma/client');
 const prisma = require('../../config/prisma');
 const sevimaApi = require('../../config/sevimaApi');
 const logger = require('../../utils/logger');
+const { STUDENT_STATUS } = require('@komet/shared/constants');
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function envInt(name, fallback) {
+  const parsed = Number.parseInt(process.env[name], 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+// Berapa halaman SEVIMA yang boleh ada di jaringan sekaligus. Window ini yang
+// membuat latensi ambil halaman berikutnya tumpang tindih dengan tulis DB halaman sekarang.
+const SYNC_FETCH_WINDOW = Math.max(1, envInt('SEVIMA_FETCH_WINDOW', 3));
+const SYNC_PAGE_DELAY_MS = envInt('SEVIMA_PAGE_DELAY_MS', 150);
+const DB_CHUNK_SIZE = Math.max(1, envInt('SEVIMA_DB_CHUNK_SIZE', 200));
+
+function chunkBy(items, size = DB_CHUNK_SIZE) {
+  const chunks = [];
+  for (let i = 0; i < items.length; i += size) chunks.push(items.slice(i, i + size));
+  return chunks;
+}
+
+const toStr = (value) => String(value ?? '');
+const toNum = (value) => Number(value) || 0;
+const sqlIdent = (name) => Prisma.raw(`\`${String(name).replace(/[^A-Za-z0-9_]/g, '')}\``);
 
 // Helper untuk membersihkan teks dan mencocokkan HTML entities
 function cleanText(str) {
@@ -13,6 +36,16 @@ function cleanText(str) {
 function sanitizeText(str) {
   if (!str) return '';
   return str.replace(/&amp;/g, '&').trim();
+}
+
+/**
+ * Placeholder "tidak diisi" dari SEVIMA (`-`, `–`) ditulis apa adanya ke kolom
+ * teks bebas, sehingga read-path dulu harus mengenal dua cara menuliskan kosong.
+ * Sekarang dinormalisasi sekali di jalur tulis: kosong selalu `''`.
+ */
+function normalizeOptionalText(value) {
+  const text = sanitizeText(value);
+  return text === '-' || text === '–' ? '' : text;
 }
 
 const PRODI_RENAME_MAP = {
@@ -43,40 +76,19 @@ function sanitizeProdiName(str) {
 }
 
 /**
- * Helper untuk menghitung kode periode (YYYY1 / YYYY2) dari tanggal transfer (misal "2024-09-02").
- * Aturan:
- * - September (bulan 9) hingga Maret (bulan 3): Ganjil (YYYY1). Note: Sep-Des tahun Y, Jan-Mar tahun Y+1?
- *   Khususnya: Sep–Des Y -> Y1. Jan–Mar Y -> (Y-1)1.
- * - Maret (bulan 3) ke September (bulan 9): Genap (YYYY2). Maret–Agustus Y -> (Y-1)2.
+ * Kode periode akademik (YYYY1 / YYYY2) dari tanggal transfer, mis. "2024-09-02".
  *
- * Penjelasan Tahun Akademik berdasarkan Tanggal Transfer:
- * - September Y s.d. Maret Y+1 -> Semester Ganjil Tahun Akademik Y (YYYY1).
- *   - Jika bulan Sep-Des Y: YYYY1 (misal 2024-09-02 -> 20241)
- *   - Jika bulan Jan-Mar Y: (Y-1)1 (misal 2025-01-15 -> 20241)
- * - Maret Y s.d. September Y -> Semester Genap Tahun Akademik Y-1 (YYYY2).
- *   - Jika bulan Mar-Agu Y: (Y-1)2 (misal 2024-04-10 -> 20232)
+ * Satu aturan untuk seluruh aplikasi — sama dengan getCurrentAcademicPeriode():
+ * - Ganjil: September tahun Y s.d. Februari tahun Y+1 -> kode tahun Y.
+ *   2024-09-02 -> 20241, 2025-02-10 -> 20241
+ * - Genap: Maret s.d. Agustus tahun Y -> kode tahun Y-1.
+ *   2025-03-01 -> 20242, 2024-04-10 -> 20232
+ * Tanggal kosong/invalid menghasilkan '' supaya caller memakai fallback id_periode.
  */
 function getPeriodeFromTanggalTransfer(tanggalTransferStr) {
   if (!tanggalTransferStr) return '';
   const date = new Date(tanggalTransferStr);
-  if (isNaN(date.getTime())) return '';
-
-  const year = date.getFullYear();
-  const month = date.getMonth() + 1; // 1-12
-
-  // September (9) s.d. Desember (12) -> year + "1"
-  if (month >= 9 && month <= 12) {
-    return `${year}1`;
-  }
-  // Januari (1) s.d. Maret (3) -> (year - 1) + "1"
-  if (month >= 1 && month <= 3) {
-    return `${year - 1}1`;
-  }
-  // April (4) s.d. Agustus (8) -> (year - 1) + "2"
-  if (month >= 4 && month <= 8) {
-    return `${year - 1}2`;
-  }
-  return '';
+  return Number.isNaN(date.getTime()) ? '' : getCurrentAcademicPeriode(date);
 }
 
 /**
@@ -91,7 +103,7 @@ function formatAngkatan(idPeriode) {
 function normalizeAcademicPeriod(value, defaultTerm = '1') {
   const raw = String(value ?? '').trim();
   if (!raw) return '';
-  const compact = raw.replace(/[\/\-\s]+/g, '');
+  const compact = raw.replace(/[/\-\s]+/g, '');
   if (/^\d{5}$/.test(compact) && ['1', '2'].includes(compact[4])) return compact;
   if (/^\d{4}$/.test(compact)) return `${compact}${defaultTerm}`;
   const match = raw.match(/^(\d{4}).*?([12])$/);
@@ -173,7 +185,7 @@ function hitungSemester(periodeMasuk, periodeTerakhir, periodeMasukAwal = null) 
 
     const totalSemester = (tahunAkhir - tahunMasuk) * 2 + (termAkhir - termMasuk) + 1;
     return totalSemester > 0 ? totalSemester : 1;
-  } catch (e) {
+  } catch {
     return 1;
   }
 }
@@ -307,7 +319,7 @@ async function resolveTargetNimBatch(items, extractNimFn, extractNamaFn, extraDa
         const rawProdi = extraData.programStudi || extraData.prodiName || '';
         const prodi = sanitizeProdiName(rawProdi);
         const jenjang = extraData.jenjang || extraData.id_jenjang_program_studi || 'S1';
-        const statusKeaktifan = extraData.defaultStatusKeaktifan || 'Aktif';
+        const statusKeaktifan = extraData.defaultStatusKeaktifan || STUDENT_STATUS.AKTIF;
         const fakultas =
           extraData.fakultas ||
           prodiFakultasMap.get(cleanText(rawProdi)) ||
@@ -315,14 +327,14 @@ async function resolveTargetNimBatch(items, extractNimFn, extractNamaFn, extraDa
           '';
         const semester =
           extraData.defaultSemester ||
-          (statusKeaktifan === 'Lulus' ? hitungSemester(idPeriode, idPeriode) : 1);
+          (statusKeaktifan === STUDENT_STATUS.LULUS ? hitungSemester(idPeriode, idPeriode) : 1);
 
         studentsToCreate.push({
           nim: targetNim,
           nama: extractNamaFn(item) || '',
           jenjang,
           periodeMasuk: idPeriode,
-          periodeTerakhir: statusKeaktifan === 'Lulus' ? idPeriode : '',
+          periodeTerakhir: statusKeaktifan === STUDENT_STATUS.LULUS ? idPeriode : '',
           angkatan: formatAngkatan(idPeriode),
           periode: extractPeriode(idPeriode),
           programStudi: prodi,
@@ -401,10 +413,226 @@ async function processInBatches(items, batchSize = 25, asyncFn) {
   return results;
 }
 
+/**
+ * Ambil halaman sebuah endpoint SEVIMA secara berurutan dengan window kecil.
+ * Halaman ke-N+1 diminta sebelum halaman ke-N ditulis ke DB, sehingga waktu jaring
+ * dan waktu tulis saling menimpa (bukan berantai).
+ */
+async function paginateSevimaPages({ endpoint, startPage = 1, onPage }) {
+  const inflight = new Map();
+  const swallowRemaining = () => {
+    for (const promise of inflight.values()) promise.catch(() => {});
+    inflight.clear();
+  };
+  const fetchPage = (page) => sevimaApi.get(`${endpoint}?page=${page}`).then((r) => r.data);
+
+  let lastPage = Number.POSITIVE_INFINITY;
+  let nextPage = startPage;
+  let pagesProcessed = 0;
+
+  while (inflight.size < SYNC_FETCH_WINDOW && nextPage <= lastPage) {
+    inflight.set(nextPage, fetchPage(nextPage));
+    nextPage += 1;
+  }
+
+  try {
+    while (inflight.size > 0) {
+      const page = Math.min(...inflight.keys());
+      const payload = await inflight.get(page);
+      inflight.delete(page);
+
+      const numericLastPage = Number(payload?.meta?.last_page);
+      if (Number.isFinite(numericLastPage) && numericLastPage > 0) lastPage = numericLastPage;
+
+      const listData = payload?.data;
+      if (!listData || listData.length === 0) break;
+
+      await onPage(listData, {
+        page,
+        totalPages: Number.isFinite(lastPage) ? lastPage : 0,
+        meta: payload?.meta,
+      });
+      pagesProcessed += 1;
+
+      if (nextPage <= lastPage) {
+        inflight.set(nextPage, fetchPage(nextPage));
+        nextPage += 1;
+      }
+      if (inflight.size > 0 && SYNC_PAGE_DELAY_MS > 0) await sleep(SYNC_PAGE_DELAY_MS);
+    }
+  } catch (error) {
+    swallowRemaining();
+    throw error;
+  }
+
+  swallowRemaining();
+  return { pagesProcessed };
+}
+
+const STUDENT_COLUMNS = [
+  'nim',
+  'nama',
+  'jenjang',
+  'periodeMasuk',
+  'periodeTerakhir',
+  'angkatan',
+  'periode',
+  'programStudi',
+  'fakultas',
+  'statusKeaktifan',
+  'semester',
+  'kewarganegaraan',
+  'nik',
+  'tanggalLahir',
+];
+
+/**
+ * Tulis satu halaman mahasiswa dengan satu statement per chunk.
+ * upsert() per baris membuat 1 roundtrip per mahasiswa; ON DUPLICATE KEY UPDATE
+ * menurunkan seluruh halaman menjadi beberapa statement saja.
+ */
+async function bulkUpsertStudents(rows) {
+  if (!rows || rows.length === 0) return 0;
+  const columnList = Prisma.join([...STUDENT_COLUMNS.map(sqlIdent), sqlIdent('updatedAt')], ', ');
+  const updateList = Prisma.join(
+    [
+      ...STUDENT_COLUMNS.filter((column) => column !== 'nim').map((column) =>
+        Prisma.raw(`${sqlIdent(column)} = VALUES(${sqlIdent(column)})`),
+      ),
+      Prisma.raw(`${sqlIdent('updatedAt')} = CURRENT_TIMESTAMP(3)`),
+    ],
+    ', ',
+  );
+
+  for (const chunk of chunkBy(rows)) {
+    const values = Prisma.join(
+      chunk.map(
+        (row) => Prisma.sql`(
+        ${toStr(row.nim)}, ${toStr(row.nama)}, ${toStr(row.jenjang)}, ${toStr(row.periodeMasuk)},
+        ${toStr(row.periodeTerakhir)}, ${toStr(row.angkatan)}, ${toStr(row.periode)},
+        ${toStr(row.programStudi)}, ${toStr(row.fakultas)}, ${toStr(row.statusKeaktifan)},
+        ${toNum(row.semester)}, ${toStr(row.kewarganegaraan)}, ${toStr(row.nik)},
+        ${toStr(row.tanggalLahir)}, CURRENT_TIMESTAMP(3)
+      )`,
+      ),
+      ', ',
+    );
+    await prisma.$executeRaw(Prisma.sql`
+      INSERT INTO ${sqlIdent('students')} (${columnList})
+      VALUES ${values}
+      ON DUPLICATE KEY UPDATE ${updateList}
+    `);
+  }
+  return rows.length;
+}
+
+const GRADUATE_COLUMNS = [
+  'nim',
+  'jenjang',
+  'statusKelulusan',
+  'tahunLulus',
+  'periodeWisuda',
+  'ipk',
+  'sksLulus',
+];
+
+/**
+ * Tulis kelulusan secara massal, lalu tandai mahasiswa terkait sebagai Lulus.
+ * periodeTerakhir dikelompokkan per nilainya agar satu UPDATE menutupi banyak NIM.
+ */
+async function bulkUpsertGraduates(rows) {
+  if (!rows || rows.length === 0) return 0;
+  const columnList = Prisma.join(GRADUATE_COLUMNS.map(sqlIdent), ', ');
+  const updateList = Prisma.join(
+    GRADUATE_COLUMNS.filter((column) => column !== 'nim').map((column) =>
+      Prisma.raw(`${sqlIdent(column)} = VALUES(${sqlIdent(column)})`),
+    ),
+    ', ',
+  );
+
+  for (const chunk of chunkBy(rows)) {
+    const values = Prisma.join(
+      chunk.map(
+        (row) => Prisma.sql`(
+          ${toStr(row.nim)}, ${toStr(row.jenjang)}, ${toStr(row.statusKelulusan)},
+          ${toStr(row.tahunLulus)}, ${toStr(row.periodeWisuda)}, ${toNum(row.ipk)},
+          ${toNum(row.sksLulus)}
+        )`,
+      ),
+      ', ',
+    );
+    await prisma.$executeRaw(Prisma.sql`
+      INSERT INTO ${sqlIdent('graduates')} (${columnList})
+      VALUES ${values}
+      ON DUPLICATE KEY UPDATE ${updateList}
+    `);
+
+    const nims = chunk.map((row) => toStr(row.nim));
+    await prisma.$executeRaw(Prisma.sql`
+      UPDATE ${sqlIdent('students')}
+      SET ${sqlIdent('statusKeaktifan')} = ${STUDENT_STATUS.LULUS}
+      WHERE ${sqlIdent('nim')} IN (${Prisma.join(nims)})
+    `);
+
+    const nimsByPeriode = new Map();
+    chunk.forEach((row, index) => {
+      const periode = toStr(row.periodeTerakhir);
+      if (!periode) return;
+      if (!nimsByPeriode.has(periode)) nimsByPeriode.set(periode, []);
+      nimsByPeriode.get(periode).push(nims[index]);
+    });
+    for (const [periode, subset] of nimsByPeriode) {
+      await prisma.$executeRaw(Prisma.sql`
+        UPDATE ${sqlIdent('students')}
+        SET ${sqlIdent('periodeTerakhir')} = ${periode}
+        WHERE ${sqlIdent('nim')} IN (${Prisma.join(subset)})
+      `);
+    }
+  }
+  return rows.length;
+}
+
+/**
+ * MBKM selalu di-truncate sebelum sinkronisasi, jadi cukup satu createMany per chunk
+ * tanpa upsert per baris.
+ */
+async function bulkCreateMbkmActivities(rows) {
+  if (!rows || rows.length === 0) return 0;
+  for (const chunk of chunkBy(rows)) {
+    await prisma.mbkmActivity.createMany({
+      data: chunk.map((row) => ({
+        nim: toStr(row.nim),
+        periode: toStr(row.periode),
+        programStudi: toStr(row.programStudi),
+        fakultas: toStr(row.fakultas),
+        jenjang: toStr(row.jenjang),
+        statusKeaktifan: toStr(row.statusKeaktifan),
+        jenisAktivitas: toStr(row.jenisAktivitas),
+        judulAktivitas: toStr(row.judulAktivitas),
+        mitra: toStr(row.mitra),
+        statusAktivitas: toStr(row.statusAktivitas),
+      })),
+    });
+  }
+  return rows.length;
+}
+
+/**
+ * Invalidate cache opsi filter ketiga tab. Setelah sync, isi kolom (prodi, fakultas,
+ * angkatan, periode) bisa berubah, jadi cache wajib dibaca ulang — bukan cuma milik
+ * modul yang disinkronkan.
+ */
+function clearFilterCaches() {
+  require('../../services/students/filterOptions').clearFilterCache();
+  require('../../services/graduates/filterOptions').clearGraduateFilterCache();
+  require('../../services/mbkm/filterOptions').clearMbkmFilterCache();
+}
+
 module.exports = {
   sleep,
   cleanText,
   sanitizeText,
+  normalizeOptionalText,
   sanitizeProdiName,
   getPeriodeFromTanggalTransfer,
   formatAngkatan,
@@ -418,4 +646,12 @@ module.exports = {
   resolveTargetNimBatch,
   getProdiFakultasMap,
   processInBatches,
+  chunkBy,
+  paginateSevimaPages,
+  bulkUpsertStudents,
+  bulkUpsertGraduates,
+  bulkCreateMbkmActivities,
+  clearFilterCaches,
+  SYNC_FETCH_WINDOW,
+  SYNC_PAGE_DELAY_MS,
 };

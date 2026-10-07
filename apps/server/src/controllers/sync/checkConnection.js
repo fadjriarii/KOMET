@@ -1,4 +1,7 @@
 const sevimaApi = require('../../config/sevimaApi');
+const logger = require('../../utils/logger');
+
+const SEVIMA_ENDPOINT = 'https://api.sevimaplatform.com/siakadcloud/v1/*';
 
 const checkConnection = async (req, res) => {
   const startTime = Date.now();
@@ -7,26 +10,25 @@ const checkConnection = async (req, res) => {
       timeout: 10000,
       params: { limit: 1 },
     });
-    const latencyMs = Date.now() - startTime;
-    return res.status(200).json({
+    return res.json({
       success: true,
       status: 'CONNECTED',
-      latencyMs,
-      endpoint: 'https://api.sevimaplatform.com/siakadcloud/v1/*',
+      latencyMs: Date.now() - startTime,
+      endpoint: SEVIMA_ENDPOINT,
       timestamp: new Date().toISOString(),
-      message: 'Koneksi ke SEVIMA Cloud API berhasil dan stabil.',
     });
   } catch (error) {
-    const latencyMs = Date.now() - startTime;
-    const isRateLimit = error.response?.status === 429;
-    return res.status(200).json({
+    // Pesan axios bisa memuat URL/credential; detailnya hanya untuk log server.
+    logger.warn('[checkConnection] SEVIMA tidak terjangkau.', {
+      status: error.response?.status,
+      detail: error.message,
+    });
+    return res.json({
       success: false,
-      status: isRateLimit ? 'RATE_LIMITED' : 'DISCONNECTED',
-      latencyMs,
-      endpoint: 'https://api.sevimaplatform.com/siakadcloud/v1/*',
+      status: error.response?.status === 429 ? 'RATE_LIMITED' : 'DISCONNECTED',
+      latencyMs: Date.now() - startTime,
+      endpoint: SEVIMA_ENDPOINT,
       timestamp: new Date().toISOString(),
-      message:
-        error.response?.data?.message || error.message || 'Gagal terhubung ke SEVIMA Cloud API.',
     });
   }
 };

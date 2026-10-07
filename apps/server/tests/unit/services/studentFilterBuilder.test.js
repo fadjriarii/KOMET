@@ -3,9 +3,13 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const {
+  FILTER_SCOPES,
   buildStudentFilter,
-  buildBaseFilter,
-  buildStatelessFilter,
+  buildTerminalPeriodCondition,
+  ensurePopulationFilter,
+  getAcademicPeriodBounds,
+  isTerminalInAcademicYear,
+  matchesStudentCondition,
 } = require('../../../src/services/students/filterBuilder');
 
 describe('student filter builder', () => {
@@ -29,16 +33,29 @@ describe('student filter builder', () => {
   });
 
   it('applies multi-select filters and defaults status to Aktif', () => {
-    const filter = buildBaseFilter({ jenjang: 'S1', semester: '1', periodeMasuk: 'Ganjil' });
+    const filter = buildStudentFilter({ jenjang: 'S1', semester: '1', periodeMasuk: 'Ganjil' });
     expect(filter.jenjang).toEqual({ in: ['S1'] });
     expect(filter.semester).toEqual({ in: [1] });
     expect(filter.periodeMasuk).toEqual({ endsWith: '1' });
     expect(filter.statusKeaktifan).toBe('Aktif');
   });
 
-  it('removes status predicate when UI requests Semua Status (ALL)', () => {
-    const filter = buildBaseFilter({ statusKeaktifan: '__ALL__' });
-    expect(filter.statusKeaktifan).toBeUndefined();
+  it('Semua Status (ALL) menjadi predikat eksplisit, bukan default Aktif', () => {
+    const filter = buildStudentFilter({ statusKeaktifan: 'ALL' });
+    expect(filter.statusKeaktifan).toEqual({ not: '' });
+  });
+
+  it('Semua Status (ALL) bertahan setelah ensurePopulationFilter', () => {
+    // Kartu mahasiswa aktif & mahasiswa asing memakai populasi yang sama
+    // dengan filter pengguna, bukan dipaksa kembali ke 'Aktif'.
+    const filter = ensurePopulationFilter(buildStudentFilter({ statusKeaktifan: 'ALL' }));
+    expect(filter.statusKeaktifan).toEqual({ not: '' });
+  });
+
+  it('kosong atau tidak dikirim memakai populasi default Aktif', () => {
+    expect(buildStudentFilter({}).statusKeaktifan).toBe('Aktif');
+    expect(buildStudentFilter({ statusKeaktifan: '' }).statusKeaktifan).toBe('Aktif');
+    expect(buildStudentFilter({ statusKeaktifan: [] }).statusKeaktifan).toBe('Aktif');
   });
 
   it('ignores non-string selectedPeriode values (e.g. array)', () => {
@@ -89,7 +106,7 @@ describe('student filter builder', () => {
   // ── Tahun Ajaran + Semua Status ─────────────────────────────────────────────
 
   it('TA + Semua Status: seluruh mahasiswa dari awal berdiri s.d. akhir TA, tanpa filter status', () => {
-    const filter = buildStudentFilter({ tahunAjaran: '2026/2027', statusKeaktifan: '__ALL__' });
+    const filter = buildStudentFilter({ tahunAjaran: '2026/2027', statusKeaktifan: 'ALL' });
 
     // Hanya kondisi periodeMasuk <= akhir TA — tidak ada batasan periodeTerakhir
     expect(filter.AND).toContainEqual({ periodeMasuk: { lte: '20262' } });
@@ -101,9 +118,21 @@ describe('student filter builder', () => {
     expect(filter.statusKeaktifan).toBeUndefined();
   });
 
-  it('TA + Semua Status array kosong []: sama seperti __ALL__', () => {
+  it('TA + status kosong [] sama dengan tidak dikirim: default populasi Aktif', () => {
     const filter = buildStudentFilter({ tahunAjaran: '2025/2026', statusKeaktifan: [] });
     expect(filter.AND).toContainEqual({ periodeMasuk: { lte: '20252' } });
+    expect(filter.AND).toContainEqual({
+      OR: [
+        {
+          OR: [
+            { statusKeaktifan: 'Aktif' },
+            { periodeTerakhir: '' },
+            { periodeTerakhir: { gt: '20252' } },
+            { AND: [{ periodeTerakhir: '20252' }, { periodeMasuk: { endsWith: '2' } }] },
+          ],
+        },
+      ],
+    });
     expect(filter.statusKeaktifan).toBeUndefined();
   });
 
@@ -245,10 +274,76 @@ describe('student filter builder', () => {
     expect(filter.statusKeaktifan).toBeUndefined();
   });
 
-  it('intake stateless filter keeps the selected TA boundary but removes snapshot status', () => {
-    const snapshot = buildBaseFilter({ tahunAjaran: '2025/2026', statusKeaktifan: 'Aktif' });
-    const stateless = buildStatelessFilter(snapshot);
-    expect(stateless.AND).toContainEqual({ periodeMasuk: { lte: '20252' } });
-    expect(JSON.stringify(stateless)).not.toContain('periodeTerakhir');
+  // ── Scope filter: populasi dipilih saat filter dibangun, bukan dibuang sesudahnya ──
+
+  it('COHORT: batas tahun akademik tetap ada, predikat status tidak pernah dibangun', () => {
+    const cohort = buildStudentFilter(
+      { tahunAjaran: '2025/2026', statusKeaktifan: 'Aktif' },
+      { scope: FILTER_SCOPES.COHORT },
+    );
+    expect(cohort.AND).toEqual([{ periodeMasuk: { lte: '20252' } }]);
+    expect(cohort.statusKeaktifan).toBeUndefined();
+  });
+
+  it('ALL_YEARS: tahun akademik terpilih diabaikan, status berjalan tetap berlaku', () => {
+    const allYears = buildStudentFilter(
+      { tahunAjaran: '2025/2026', statusKeaktifan: 'Aktif' },
+      { scope: FILTER_SCOPES.ALL_YEARS },
+    );
+    expect(allYears.AND).toBeUndefined();
+    expect(allYears.statusKeaktifan).toBe('Aktif');
+  });
+
+  it('search yang menyebut nama field filter tidak mengubah set kondisi', () => {
+    // Regresi: dulu kondisi dibuang dengan mencocokkan hasil JSON.stringify,
+    // jadi kata "periodeMasuk"/"periodeTerakhir" di dalam `search` ikut
+    // mengubah populasi. Sekarang scope memilih kondisi sejak awal.
+    for (const term of ['periodeMasuk', 'periodeTerakhir', 'statusKeaktifan']) {
+      const withTerm = buildStudentFilter({ tahunAjaran: '2025/2026', search: term });
+      const without = buildStudentFilter({ tahunAjaran: '2025/2026' });
+      // `search` hanya menambah satu kondisi OR paling akhir; tidak ada
+      // kondisi snapshot yang hilang karena namanya ikut disebut.
+      expect(withTerm.AND).toHaveLength(without.AND.length + 1);
+      expect(withTerm.AND.slice(0, without.AND.length)).toEqual(without.AND);
+    }
+
+    const searchOnly = buildStudentFilter({ search: 'periodeTerakhir' });
+    expect(searchOnly.statusKeaktifan).toBe('Aktif');
+    expect(searchOnly.AND).toEqual([
+      {
+        OR: [{ nim: { contains: 'periodeTerakhir' } }, { nama: { contains: 'periodeTerakhir' } }],
+      },
+    ]);
+  });
+
+  it('satu aturan periode akademik: proyeksi tabel mirror kondisi SQL terminal', () => {
+    const academicYear = { startYear: '2024' };
+    const { start, end } = getAcademicPeriodBounds(academicYear);
+    const terminalCondition = buildTerminalPeriodCondition(start, end);
+
+    const rows = [
+      { periodeMasuk: '20241', periodeTerakhir: '' },
+      { periodeMasuk: '20241', periodeTerakhir: '20232' },
+      { periodeMasuk: '20241', periodeTerakhir: '20241' },
+      { periodeMasuk: '20241', periodeTerakhir: '20242' },
+      { periodeMasuk: '20242', periodeTerakhir: '20242' },
+      { periodeMasuk: '20241', periodeTerakhir: '20251' },
+      // Periode masuk cacat (4 digit): kondisi SQL tidak menganggapnya Ganjil,
+      // jadi proyeksi status juga tidak boleh.
+      { periodeMasuk: '2024', periodeTerakhir: '20242' },
+    ];
+
+    rows.forEach((row) => {
+      expect(isTerminalInAcademicYear(row, academicYear)).toBe(
+        matchesStudentCondition(row, terminalCondition),
+      );
+    });
+    expect(isTerminalInAcademicYear(rows[rows.length - 1], academicYear)).toBe(false);
+  });
+
+  it('matchesStudentCondition menolak operator yang belum dikenali, bukan menebak', () => {
+    expect(() => matchesStudentCondition({ nim: '1' }, { nim: { someop: '1' } })).toThrow(
+      /belum didukung/,
+    );
   });
 });

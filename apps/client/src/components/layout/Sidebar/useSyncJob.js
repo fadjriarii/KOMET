@@ -81,7 +81,12 @@ export default function useSyncJob({ isOpen }) {
     maxPercentRef.current = 100;
     setPercent(100);
     setPhase('completed');
-    queryClient.invalidateQueries();
+    // Invalidate per modul yang benar-benar disinkronkan. Invalidate tanpa filter
+    // akan mem-fetch ulang seluruh tab sekaligus pada saat DB baru saja selesai
+    // dipakai menulis, yang membuat tampilan terasa "loading lama sekali".
+    scopeRef.current.forEach((module) => {
+      queryClient.invalidateQueries({ queryKey: [module] });
+    });
   }, [queryClient]);
 
   const fail = useCallback((message) => {
