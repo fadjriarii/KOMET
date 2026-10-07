@@ -53,7 +53,7 @@ function buildTerminalPeriodCondition(academicStart, academicEnd) {
   };
 }
 
-function buildActiveSnapshotCondition(academicStart, academicEnd) {
+function buildActiveSnapshotCondition(academicEnd) {
   return {
     OR: [
       { statusKeaktifan: DEFAULT_STATUS },
@@ -128,7 +128,7 @@ function buildSnapshotStatusCondition(academicStart, academicEnd, statusValues) 
 
   const branches = [];
   if (statuses.includes(DEFAULT_STATUS)) {
-    branches.push(buildActiveSnapshotCondition(academicStart, academicEnd));
+    branches.push(buildActiveSnapshotCondition(academicEnd));
   }
 
   const terminalStatuses = statuses.filter((status) => status !== DEFAULT_STATUS);
