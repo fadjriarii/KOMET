@@ -1,106 +1,85 @@
 import { useEffect, useRef } from 'react';
-import { Check, Clock, Minus } from 'lucide-react';
-import { MODULE_OPTIONS } from './syncModules';
+import { resolveStatus } from './syncModules';
 
-function CheckboxBox({ checked, indeterminate = false }) {
-  const active = checked || indeterminate;
+const BOX_CLASS =
+  'rounded border-gray-300 accent-digital-blue-600 cursor-pointer disabled:cursor-not-allowed';
+
+/** Checkbox yang bisa berada di state "sebagian terpilih" (garis mendatar). */
+function TriCheckbox({ checked, indeterminate, disabled, onChange, label, className }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = indeterminate;
+  }, [indeterminate]);
+
   return (
-    <span
-      className={`w-4.5 h-4.5 shrink-0 rounded-md border flex items-center justify-center transition-all duration-200 ${
-        active
-          ? 'border-digital-blue-600 bg-digital-blue-600 text-white'
-          : 'border-gray-300 bg-white text-transparent'
-      }`}
-    >
-      {checked ? (
-        <Check size={12} strokeWidth={3.5} />
-      ) : indeterminate ? (
-        <Minus size={12} strokeWidth={3.5} />
-      ) : null}
-    </span>
+    <input
+      ref={ref}
+      type="checkbox"
+      aria-label={label}
+      checked={checked}
+      disabled={disabled}
+      onChange={onChange}
+      className={className}
+    />
   );
 }
 
-/** Daftar pilihan modul sync; `job` datang dari useSyncJob, jadi tidak ada state lokal. */
-export default function SyncModulePicker({ job, selectedCount, lastSyncLabel }) {
-  const masterRef = useRef(null);
-  const isIndeterminate = job.someSelected && !job.allSelected;
-
-  useEffect(() => {
-    if (masterRef.current) masterRef.current.indeterminate = isIndeterminate;
-  }, [isIndeterminate]);
-
-  const rowClass = job.isRunning
-    ? 'opacity-60 cursor-not-allowed'
-    : 'cursor-pointer hover:bg-gray-50/80';
-
+/**
+ * Kolom kiri popup sinkronisasi: tiga modul yang benar-benar dikenal `/api/sync`,
+ * satu baris per modul beserta statusnya. Bentuk kartunya sengaja identik dengan
+ * kolom kanan, jadi popup tidak terasa berganti layout saat Sync ditekan.
+ */
+export default function SyncModulePicker({ job }) {
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-1">
-        <span className="text-xs font-bold text-gray-700 uppercase tracking-wider select-none">
-          Pilih Data
+    <div className="flex flex-col gap-2.5 min-w-0 min-h-0">
+      <div className="flex items-center justify-between gap-2 px-0.5 shrink-0">
+        <span className="text-[13px] font-semibold text-gray-900 tracking-tight select-none">
+          Select Data
         </span>
-        {lastSyncLabel && (
-          <span className="inline-flex items-center gap-1.5 text-[11px] text-gray-500">
-            <Clock size={12} className="text-gray-400 shrink-0" />
-            <span>
-              Sinkron terakhir:{' '}
-              <span className="font-semibold text-gray-700">{lastSyncLabel} WIB</span>
-            </span>
-          </span>
-        )}
+        <label className="flex items-center gap-1.5 text-gray-500 hover:text-gray-900 select-none cursor-pointer">
+          <TriCheckbox
+            checked={job.allSelected}
+            indeterminate={job.someSelected && !job.allSelected}
+            disabled={job.isRunning}
+            onChange={job.toggleAll}
+            label="Select All"
+            className={`w-3.5 h-3.5 ${BOX_CLASS}`}
+          />
+          <span className="text-[11px] font-medium">Select All</span>
+        </label>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-200/90 shadow-2xs flex flex-col overflow-hidden transition-all duration-300">
-        <label
-          className={`flex items-center gap-3 px-4 py-3 border-b border-gray-100 transition-colors ${rowClass}`}
-        >
-          <input
-            ref={masterRef}
-            type="checkbox"
-            checked={job.allSelected}
-            onChange={job.toggleAll}
-            disabled={job.isRunning}
-            className="sr-only"
-          />
-          <CheckboxBox checked={job.allSelected} indeterminate={isIndeterminate} />
-          <span className="text-sm font-bold text-gray-800">Semua data</span>
-          <span className="ml-auto text-[11px] font-semibold text-gray-500 tabular-nums shrink-0">
-            {selectedCount}/{MODULE_OPTIONS.length} dipilih
-          </span>
-        </label>
-
-        <div className="max-h-56 overflow-y-auto custom-scrollbar flex flex-col gap-0.5 p-1.5">
-          {MODULE_OPTIONS.map((option) => {
-            const Icon = option.icon;
-            const checked = job.selected[option.key];
-            return (
-              <label
-                key={option.key}
-                className={`flex items-center gap-3 rounded-xl px-2.5 py-2 transition-colors ${rowClass}`}
+      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar rounded-xl bg-white border border-gray-200/70 shadow-2xs">
+        {job.moduleRows.map((row) => {
+          const status = resolveStatus(row);
+          return (
+            <label
+              key={row.key}
+              className={`group flex items-center gap-2.5 px-3 py-2.5 border-b border-gray-100 last:border-b-0 transition-colors ${
+                job.isRunning
+                  ? 'opacity-60 cursor-not-allowed'
+                  : 'hover:bg-digital-blue-50/60 cursor-pointer'
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={!!job.selected[row.key]}
+                onChange={() => job.toggleModule(row.key)}
+                disabled={job.isRunning}
+                aria-label={`Select ${row.label}`}
+                className={`w-4 h-4 shrink-0 ${BOX_CLASS}`}
+              />
+              <span className="text-[13px] font-semibold text-gray-900 truncate group-hover:text-digital-blue-700">
+                {row.label}
+              </span>
+              <span
+                className={`ml-auto shrink-0 px-2 py-0.5 rounded-md text-[11px] font-medium ${status.chip}`}
               >
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={() => job.toggleModule(option.key)}
-                  disabled={job.isRunning}
-                  className="sr-only"
-                />
-                <CheckboxBox checked={checked} />
-                <Icon
-                  size={15}
-                  className={`shrink-0 transition-colors duration-200 ${
-                    checked ? 'text-digital-blue-600' : 'text-gray-400'
-                  }`}
-                />
-                <span className="text-sm font-semibold text-gray-800 truncate">{option.label}</span>
-                <span className="ml-auto text-[11px] text-gray-400 truncate hidden sm:block max-w-40 shrink-0">
-                  {option.description}
-                </span>
-              </label>
-            );
-          })}
-        </div>
+                {status.label}
+              </span>
+            </label>
+          );
+        })}
       </div>
     </div>
   );

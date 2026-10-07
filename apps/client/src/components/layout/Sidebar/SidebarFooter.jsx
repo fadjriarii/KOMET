@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Settings } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import ConfigurationModal from './ConfigurationModal';
 
 export default function SidebarFooter() {
@@ -27,11 +27,11 @@ export default function SidebarFooter() {
           onClick={handleOpen}
           className="w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100/80 active:bg-gray-200/60 rounded-lg transition-colors cursor-pointer group"
         >
-          <Settings
+          <RefreshCw
             size={18}
-            className="text-gray-500 group-hover:text-gray-700 group-hover:rotate-45 transition-transform duration-300"
+            className="text-gray-500 group-hover:text-gray-700 group-hover:rotate-180 transition-transform duration-300"
           />
-          <span>Configuration</span>
+          <span>Synchronization</span>
         </button>
       </div>
 

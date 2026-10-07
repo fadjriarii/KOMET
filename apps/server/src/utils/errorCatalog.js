@@ -30,9 +30,19 @@ const ERROR_CATALOG = {
     statusCode: HTTP_STATUS.BAD_REQUEST,
     message: 'Query parameter tidak valid.',
   },
+  /** Gagal menulis (insert/hapus) — pembacaan memakai `DATA_READ_FAILED`. */
+  DATA_WRITE_FAILED: {
+    statusCode: HTTP_STATUS.INTERNAL_SERVER_ERROR,
+    message: 'Gagal menyimpan data.',
+  },
   SYNC_FAILED: {
     statusCode: HTTP_STATUS.INTERNAL_SERVER_ERROR,
     message: 'Sinkronisasi gagal diselesaikan.',
+  },
+  /** Id riwayat tidak ada — biasanya barisnya baru saja dihapus di tab lain. */
+  SYNC_RUN_NOT_FOUND: {
+    statusCode: HTTP_STATUS.NOT_FOUND,
+    message: 'Riwayat sinkronisasi tidak ditemukan.',
   },
 };
 

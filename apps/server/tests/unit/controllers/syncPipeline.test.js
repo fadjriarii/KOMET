@@ -139,6 +139,26 @@ describe('bulkUpsertStudents', () => {
     expect(captured[0].values).toContain(rows[0].nama);
   });
 
+  it('identifier tercetak sebagai nama kolom, bukan objek fragmen', async () => {
+    // Regresi nyata: `Prisma.raw` yang disisipkan ke template `Prisma.raw` mencetak
+    // `[object Object] = VALUES([object Object])` dan MariaDB menolak statement itu
+    // (error 1064) — sync students & graduates mati total. Bentuk SQL-nya harus
+    // diperiksa, bukan sekadar "ada klausa ON DUPLICATE KEY UPDATE".
+    const captured = [];
+    prisma.$executeRaw = async (query) => {
+      captured.push(query.sql);
+      return 1;
+    };
+
+    await bulkUpsertStudents([{ nim: 'A1', nama: 'Ann', semester: 1 }]);
+
+    expect(captured[0]).toContain('INSERT INTO `students` (`nim`, `nama`, `jenjang`');
+    expect(captured[0]).toContain('`nama` = VALUES(`nama`)');
+    expect(captured[0]).toContain('`updatedAt` = VALUES(`updatedAt`)');
+    expect(captured[0]).not.toContain('`nim` = VALUES(`nim`)');
+    expect(captured[0]).not.toContain('[object Object]');
+  });
+
   it('chunkBy memotong list sesuai ukuran', () => {
     expect(chunkBy([], 10)).toEqual([]);
     expect(chunkBy([1, 2, 3], 2).length).toBe(2);

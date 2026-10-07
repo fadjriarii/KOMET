@@ -4,6 +4,10 @@ import {
   HTTP_STATUS,
   MAX_PAGE_SIZE,
   STUDENT_STATUS,
+  SYNC_ACTOR,
+  SYNC_MODULES,
+  SYNC_MODULE_KEYS,
+  SYNC_TRIGGER,
   TABLE_LIMIT,
   TARGET_IKU2_PERCENT,
 } from '../src/constants.js';
@@ -40,5 +44,19 @@ describe('konstanta bersama', () => {
   it('target IKU-2 adalah angka, bukan label', () => {
     expect(typeof TARGET_IKU2_PERCENT).toBe('number');
     expect(Number.isFinite(TARGET_IKU2_PERCENT)).toBe(true);
+  });
+
+  it('kunci modul sync unik dan tiap kunci punya label — server dan client baca daftar yang sama', () => {
+    expect(SYNC_MODULE_KEYS).toEqual(SYNC_MODULES.map((module) => module.key));
+    expect(new Set(SYNC_MODULE_KEYS).size).toBe(SYNC_MODULE_KEYS.length);
+    expect(SYNC_MODULES.every((module) => module.label.length > 0)).toBe(true);
+  });
+
+  it('nilai trigger dan actor adalah string DB yang unik', () => {
+    for (const vocabulary of [SYNC_TRIGGER, SYNC_ACTOR]) {
+      const values = Object.values(vocabulary);
+      expect(new Set(values).size).toBe(values.length);
+      expect(values.every((value) => typeof value === 'string' && value.length > 0)).toBe(true);
+    }
   });
 });

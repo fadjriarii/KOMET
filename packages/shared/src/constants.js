@@ -69,3 +69,30 @@ export const SERVER_REQUEST_TIMEOUT_MS = 30000;
  * sama dan tidak pernah diketahui siapa yang menang.
  */
 export const CLIENT_REQUEST_TIMEOUT_MS = SERVER_REQUEST_TIMEOUT_MS - 5000;
+
+/**
+ * Modul yang benar-benar dikenal `/api/sync`. Daftarnya dipakai dua arah: server
+ * menolak kunci di luar ini sebagai cakupan job, client merender daftar pilihannya.
+ * `label` ikut di sini supaya kunci modul tidak punya dua nama di dua app.
+ */
+export const SYNC_MODULES = [
+  { key: 'students', label: 'Student Data' },
+  { key: 'graduates', label: 'Graduate Data' },
+  { key: 'mbkm', label: 'MBKM Data' },
+];
+
+export const SYNC_MODULE_KEYS = SYNC_MODULES.map((module) => module.key);
+
+/**
+ * Pemicu sebuah job, disimpan apa adanya di kolom `sync_runs.trigger`. Yang ditulis
+ * server hari ini hanya `manual` (POST /api/sync); `automatic` disiapkan untuk
+ * penjadwal yang belum ada, bukan sebagai hiasan.
+ */
+export const SYNC_TRIGGER = { MANUAL: 'manual', AUTOMATIC: 'automatic' };
+
+/**
+ * Siapa yang memicu job, diturunkan server dari kredensial yang dipakai — bukan dari
+ * string yang dikirim klien, jadi tidak bisa dipalsukan. Belum ada login user, jadi
+ * isinya jenis kredensial, bukan nama orang.
+ */
+export const SYNC_ACTOR = { DASHBOARD: 'Dashboard', API_KEY: 'API Key' };

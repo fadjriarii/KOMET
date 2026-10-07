@@ -10,7 +10,16 @@ const { chunkBy } = require('./config');
 
 const toStr = (value) => String(value ?? '');
 const toNum = (value) => Number(value) || 0;
-const sqlIdent = (name) => Prisma.raw(`\`${String(name).replace(/[^A-Za-z0-9_]/g, '')}\``);
+/**
+ * Nama kolom/tabel tidak bisa dikirim sebagai parameter, jadi ditulis mentah.
+ * `ident` mengembalikan string agar bisa dirangkai (mis. daftar kolom dan klausa
+ * `x = VALUES(x)`); `sqlIdent` membungkus satu nama jadi fragmen mentah untuk
+ * disisipkan ke `Prisma.sql`. Yang tidak boleh: menyisipkan hasil `sqlIdent` ke
+ * dalam template string lain — objeknya tercetak `[object Object]` dan MariaDB
+ * menolak statement-nya (error 1064).
+ */
+const ident = (name) => `\`${String(name).replace(/[^A-Za-z0-9_]/g, '')}\``;
+const sqlIdent = (name) => Prisma.raw(ident(name));
 
 const STUDENT_COLUMNS = [
   'nim',
@@ -45,12 +54,12 @@ const GRADUATE_COLUMNS = [
  * join, dan statement-nya sama persis.
  */
 async function bulkUpsert({ table, columns, keyColumn, rows, valuesOf, afterChunk }) {
-  const columnList = Prisma.join(columns.map(sqlIdent), ', ');
-  const updateList = Prisma.join(
+  const columnList = Prisma.raw(columns.map(ident).join(', '));
+  const updateList = Prisma.raw(
     columns
       .filter((column) => column !== keyColumn)
-      .map((column) => Prisma.raw(`${sqlIdent(column)} = VALUES(${sqlIdent(column)})`)),
-    ', ',
+      .map((column) => `${ident(column)} = VALUES(${ident(column)})`)
+      .join(', '),
   );
 
   for (const chunk of chunkBy(rows)) {

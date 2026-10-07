@@ -1,5 +1,6 @@
 const logger = require('../../utils/logger');
 const syncJobTracker = require('../../utils/syncJobTracker');
+const { recordRun } = require('../../services/sync/syncRunLog');
 const { sendServerError, safePublicMessage } = require('../../utils/errorHandler');
 const { HTTP_STATUS } = require('@komet/shared/constants');
 
@@ -18,6 +19,29 @@ function clearFilterCachesSafely() {
 function syncFailureDetail(error) {
   const raw = error?.response?.data || error?.message;
   return typeof raw === 'string' ? raw : JSON.stringify(raw);
+}
+
+/**
+ * Tutup job: tulis riwayat dulu, baru tandai selesai.
+ *
+ * Urutannya penting — klien membaca `/api/sync/status` tiap 2 detik, jadi bila
+ * `finishJob` jalan lebih dulu ada jendela job terlihat 'completed' sementara baris
+ * riwayatnya belum ada. Gagal menulis log tidak boleh menggagalkan sinkronisasi:
+ * datanya sudah terlanjur masuk, tinggal catatannya hilang, dan itu cukup jadi
+ * pesan di log server.
+ */
+async function endJob(req, success, error = null) {
+  try {
+    await recordRun({
+      state: syncJobTracker.peekState(),
+      success,
+      error,
+      actor: req.syncActor,
+    });
+  } catch (logError) {
+    logger.error('[syncRunLog] Gagal mencatat riwayat sinkronisasi:', logError.message);
+  }
+  syncJobTracker.finishJob(success, error);
 }
 
 /**
@@ -51,10 +75,10 @@ function createSyncHandler({ moduleName, label, execute, successMessage }) {
       syncJobTracker.startJob(moduleName, scope);
       setImmediate(() => {
         runJob()
-          .then(() => syncJobTracker.finishJob(true))
+          .then(() => endJob(req, true))
           .catch((error) => {
             logger.error(`[AsyncJob:${moduleName}] Sinkronisasi gagal:`, syncFailureDetail(error));
-            syncJobTracker.finishJob(false, safePublicMessage(syncFailureDetail(error)));
+            return endJob(req, false, safePublicMessage(syncFailureDetail(error)));
           });
       });
 
@@ -67,10 +91,10 @@ function createSyncHandler({ moduleName, label, execute, successMessage }) {
     try {
       syncJobTracker.startJob(moduleName, scope);
       const result = await runJob();
-      syncJobTracker.finishJob(true);
+      await endJob(req, true);
       return res.json({ success: true, message: successMessage(result), data: result });
     } catch (error) {
-      syncJobTracker.finishJob(false, safePublicMessage(syncFailureDetail(error)));
+      await endJob(req, false, safePublicMessage(syncFailureDetail(error)));
       return sendServerError(res, 'SYNC_FAILED', error, `sync/${moduleName}`);
     }
   };

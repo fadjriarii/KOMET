@@ -1,73 +1,89 @@
+import { useEffect, useRef } from 'react';
 import { formatNumber } from '@komet/shared/formatters';
+import scubaCat from '../../../assets/scuba-cat.gif';
+import { SYNC_STATUS } from './syncModules';
 
-const ROW_STATUS = {
-  idle: { dot: 'bg-gray-300', text: 'text-gray-500', label: 'Menunggu' },
-  pending: { dot: 'bg-gray-300', text: 'text-gray-500', label: 'Menunggu' },
-  running: {
-    dot: 'bg-digital-blue-500 animate-pulse',
-    text: 'text-digital-blue-600',
-    label: 'Menyinkronkan',
-  },
-  completed: { dot: 'bg-emerald-500', text: 'text-emerald-600', label: 'Selesai' },
-};
-
-const PHASE_DOT = { completed: 'bg-emerald-500', failed: 'bg-red-500' };
-
-/** Panel progres: satu baris keseluruhan plus satu baris per modul yang dicakup job. */
+/**
+ * Kolom kanan popup sinkronisasi: angka progres di kanan dengan kucing berlari di
+ * atas bar, dan log bergaya terminal. Baris log diturunkan dari status modul yang
+ * sama dengan chip di kolom kiri, jadi keduanya tidak bisa berbeda cerita.
+ */
 export default function SyncProgressPanel({ job }) {
-  const progressLabel =
-    job.phase === 'completed'
-      ? 'Selesai 100%'
-      : job.phase === 'failed'
-        ? 'Sinkronisasi terhenti'
-        : job.statusMessage || 'Sinkronisasi berjalan...';
+  const logRef = useRef(null);
+
+  const logs = job.moduleRows.filter((row) => row.inScope && SYNC_STATUS[row.status]?.logText);
+  const { synced, skipped } = job.totals;
+
+  // Baris baru selalu muncul di bawah, jadi log ikut digulir ke bawah saat jalan.
+  useEffect(() => {
+    const box = logRef.current;
+    if (box) box.scrollTop = box.scrollHeight;
+  }, [logs.length, job.isRunning]);
 
   return (
-    <div className="flex flex-col gap-2">
-      <span className="px-1 text-xs font-bold text-gray-700 uppercase tracking-wider select-none">
-        Progres Sinkronisasi
-      </span>
+    <div className="rounded-xl border border-gray-200/70 bg-digital-blue-50/70 p-4 flex flex-col gap-2 min-w-0 min-h-0 overflow-hidden">
+      {/* Kucing hanya ada selama ada progres: ia muncul dari kiri mengikuti bar, dan
+          pada 100% ia berlari dua kali badannya ke luar kanan sampai terpotong kartu.
+          opacity menahannya di 0% supaya lompatan balik saat sync ulang tidak terlihat. */}
+      <div className="relative flex h-8 items-end justify-end">
+        <img
+          src={scubaCat}
+          alt=""
+          aria-hidden="true"
+          style={{
+            left: `${job.percent}%`,
+            transform: `translateX(${job.percent === 100 ? 100 : -job.percent}%)`,
+            opacity: job.percent ? 1 : 0,
+          }}
+          className="absolute bottom-0 h-8 w-8 transition-all duration-500 ease-out"
+        />
+        <span className="relative z-10 text-[28px] leading-none font-bold text-digital-blue-700 tracking-tight tabular-nums">
+          {job.percent}%
+        </span>
+      </div>
 
-      <div className="bg-white rounded-2xl border border-gray-200/90 shadow-2xs p-4 flex flex-col gap-3 transition-all duration-300">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 min-w-0">
-            <span
-              className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                PHASE_DOT[job.phase] || 'bg-digital-blue-500 animate-pulse'
-              }`}
-            />
-            <span className="text-xs font-semibold text-gray-700 truncate">{progressLabel}</span>
-          </div>
-          <span className="text-xs font-mono font-bold text-digital-blue-700 tabular-nums shrink-0">
-            {job.percent}%
-          </span>
-        </div>
+      <div className="w-full h-2 rounded-full bg-digital-blue-100 overflow-hidden">
+        <div
+          style={{ width: `${job.percent}%` }}
+          className="h-full rounded-full bg-digital-blue-600 transition-[width] duration-500 ease-out"
+        />
+      </div>
 
-        <div className="h-3 w-full rounded-full bg-gray-100 overflow-hidden border border-gray-200/70">
-          <div
-            style={{ width: `${job.percent}%` }}
-            className={`h-full rounded-full bg-gradient-to-r from-digital-blue-600 via-[#5b79aa] to-digital-blue-400 transition-[width] duration-700 ease-out ${
-              job.isRunning ? 'animate-pulse' : ''
-            }`}
-          />
-        </div>
+      {synced > 0 && (
+        <span className="text-[11px] text-gray-500 tabular-nums">
+          {formatNumber(synced)} rows synced
+          {skipped > 0 ? ` · ${formatNumber(skipped)} skipped` : ''}
+        </span>
+      )}
 
-        <div className="flex flex-col gap-1.5 pt-0.5">
-          {job.moduleRows.map((row) => {
-            const status = ROW_STATUS[row.status] || ROW_STATUS.idle;
+      <div className="flex flex-col gap-1.5 border-t border-gray-200/70 pt-3 flex-1 min-h-0">
+        <span className="font-mono text-[10px] uppercase tracking-wider text-gray-500 select-none shrink-0">
+          Recent Activity
+        </span>
+        <div
+          ref={logRef}
+          className="flex-1 min-h-0 overflow-y-auto custom-scrollbar rounded-lg bg-black border border-neutral-700 px-2.5 py-2 font-terminal text-[10px] leading-relaxed text-neutral-300"
+        >
+          {logs.map((row) => {
+            const status = SYNC_STATUS[row.status];
             return (
-              <div key={row.key} className="flex items-center gap-2 text-xs">
-                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${status.dot}`} />
-                <span className="font-semibold text-gray-700 truncate">{row.label}</span>
-                <span className={`ml-auto shrink-0 font-semibold ${status.text}`}>
-                  {status.label}
-                </span>
-                <span className="w-24 shrink-0 text-right font-mono text-[11px] text-gray-500 tabular-nums">
-                  {row.synced > 0 ? `${formatNumber(row.synced)} baris` : '—'}
+              <div key={row.key} className="flex items-center gap-1.5">
+                <span aria-hidden="true">{status.glyph}</span>
+                <span className="truncate">
+                  {row.label} {status.logText}
                 </span>
               </div>
             );
           })}
+          {job.phase === 'failed' && job.lastError && <div>✗ {job.lastError}</div>}
+          {!logs.length && !job.lastError && (
+            <span className="text-neutral-500">— awaiting command</span>
+          )}
+          {job.isRunning && (
+            <span aria-hidden="true" className="animate-pulse">
+              |
+            </span>
+          )}
         </div>
       </div>
     </div>
