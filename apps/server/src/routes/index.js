@@ -21,7 +21,7 @@ function registerApplicationRoutes(app) {
 
   // Health detail (uptime + latensi DB) adalah fingerprint infrastruktur:
   // hanya layak untuk monitoring service-to-server dengan credential sync.
-  app.get('/api/health', apiKeyAuth, statusLimiter, async (req, res) => {
+  app.get('/api/health', statusLimiter, apiKeyAuth, async (req, res) => {
     let dbStatus = 'ok';
     let dbLatencyMs = null;
     try {
