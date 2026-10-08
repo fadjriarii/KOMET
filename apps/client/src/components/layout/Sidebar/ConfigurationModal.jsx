@@ -13,7 +13,7 @@ const CTA = {
 };
 
 /**
- * Popup Synchronization: dua kolom — pilihan modul dengan status per baris di kiri,
+ * Popup Synchronization: dua kolom — pilihan modul yang dikelompokkan di kiri,
  * dan di kanan riwayat sync terakhir dari server selama belum ada job, yang berganti
  * ke angka progres beserta log aktivitas begitu Sync ditekan — dan aksi di footer.
  * Kotak popup memakai shell Modal yang sama dengan popup rincian lain.
@@ -64,13 +64,6 @@ export default function ConfigurationModal({ isOpen, onClose, originRect }) {
               The sync keeps running in the background, you can close this window anytime.
             </span>
           </span>
-          <button
-            type="button"
-            onClick={close}
-            className="px-3 h-9 rounded-lg text-[13px] font-medium text-gray-700 hover:bg-gray-100 active:scale-99 transition-all cursor-pointer"
-          >
-            Close
-          </button>
           <button
             type="button"
             onClick={run}

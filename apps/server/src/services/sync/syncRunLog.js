@@ -1,4 +1,5 @@
 const prisma = require('../../config/prisma');
+const syncJobTracker = require('../../utils/syncJobTracker');
 const { SYNC_TRIGGER } = require('@komet/shared/constants');
 
 /**
@@ -46,15 +47,24 @@ const toModules = (state) =>
  * @param {string|null} options.error pesan publik yang sudah diredaksi
  * @param {string} options.actor kredensial pemicu, dari `req.syncActor`
  * @param {string} options.trigger `SYNC_TRIGGER.MANUAL` | `.AUTOMATIC`
+ * @param {Date} [options.finishedAt] waktu mati job, bukan waktu tulis — dipakai
+ *   `settleUnloggedDeath` supaya barisnya bisa dikenali sebagai dobel
  * @returns {Promise<object|null>} run yang ditulis, atau null bila job belum selesai
  */
-async function recordRun({ state, success, error = null, actor, trigger = SYNC_TRIGGER.MANUAL }) {
+async function recordRun({
+  state,
+  success,
+  error = null,
+  actor,
+  trigger = SYNC_TRIGGER.MANUAL,
+  finishedAt = null,
+}) {
   if (!isJobOver(state, success)) return null;
 
   const modules = toModules(state);
   const created = await prisma.syncRun.create({
     data: {
-      finishedAt: new Date(),
+      finishedAt: finishedAt || new Date(),
       trigger,
       actor,
       status: success ? COMPLETED : FAILED,
@@ -73,6 +83,32 @@ async function recordRun({ state, success, error = null, actor, trigger = SYNC_T
   if (oldest) await prisma.syncRun.deleteMany({ where: { id: { lt: oldest.id } } });
 
   return created;
+}
+
+/**
+ * Catat job yang mati tanpa pernah menutup dirinya — prosesnya terputus, atau ia berhenti
+ * menulis progres. Tidak ada `endJob` untuk job seperti ini, jadi barisnya ditulis oleh
+ * pembaca pertama `/api/sync/history`, SEBELUM daftarnya diambil: siapa pun yang melihat
+ * 'failed' di riwayat menemukan barisnya dalam respons yang sama, invarian urutan yang
+ * sama dengan `endJob`. `finishedAt` kematian dipakai sebagai kunci idempoten karena
+ * beberapa worker PM2 bisa membaca kematian yang sama. Tulis yang gagal tetap hanya jadi
+ * pesan di log server.
+ */
+async function settleUnloggedDeath() {
+  const death = syncJobTracker.takeUnloggedDeath();
+  if (!death) return null;
+
+  const finishedAt = new Date(death.finishedAt);
+  const seen = await prisma.syncRun.findFirst({ where: { finishedAt }, select: { id: true } });
+  if (seen) return null;
+
+  return recordRun({
+    state: death.state,
+    success: false,
+    error: death.reason,
+    actor: death.actor,
+    finishedAt,
+  });
 }
 
 /** Baris siap-render: hitungannya sudah selesai di sini, client tinggal menampilkan. */
@@ -106,4 +142,11 @@ async function deleteRun(id) {
   return count > 0;
 }
 
-module.exports = { HISTORY_LIMIT, isJobOver, recordRun, listRuns, deleteRun };
+module.exports = {
+  HISTORY_LIMIT,
+  isJobOver,
+  recordRun,
+  settleUnloggedDeath,
+  listRuns,
+  deleteRun,
+};

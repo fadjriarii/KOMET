@@ -1,13 +1,23 @@
-const { listRuns, deleteRun } = require('../../services/sync/syncRunLog');
+const logger = require('../../utils/logger');
+const { listRuns, deleteRun, settleUnloggedDeath } = require('../../services/sync/syncRunLog');
 const { sendServerError, sendRejected } = require('../../utils/errorHandler');
 const { ERROR_CATALOG } = require('../../utils/errorCatalog');
 
 /**
  * Riwayat sinkronisasi: seluruh perhitungan (jumlah modul yang berhasil, bentuk
  * tanggal) sudah selesai di `syncRunLog`. Controller ini hanya membungkusnya.
+ *
+ * Pembacaan daftar ini juga menutup job yang mati di tengah jalan: job seperti itu tidak
+ * pernah lewat `endJob`, jadi tidak ada yang menulis barisnya. Ditulis DI SINI, sebelum
+ * daftarnya diambil, supaya 'Failed' sudah ikut dalam respons yang sama — dan tidak
+ * bergantung pada siapa yang membaca `/api/sync/status` lebih dulu. Gagal mencatat tidak
+ * boleh merusak daftar, sama seperti `endJob`: cukup jadi pesan di log server.
  */
 async function getSyncHistory(req, res) {
   try {
+    await settleUnloggedDeath().catch((error) =>
+      logger.error('[syncRunLog] Gagal mencatat riwayat sinkronisasi:', error.message),
+    );
     return res.json({ success: true, data: await listRuns() });
   } catch (error) {
     return sendServerError(res, 'DATA_READ_FAILED', error, 'sync/history');

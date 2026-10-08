@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { ChevronDown, Clock, Trash2 } from 'lucide-react';
+import { ChevronDown, Clock, PackageOpen, Trash2 } from 'lucide-react';
 import { SYNC_TRIGGER } from '@komet/shared/constants';
+import EmptyState from '../../common/feedback/EmptyState';
 import { MODULE_LABELS, SYNC_STATUS, TRIGGER_LABELS } from './syncModules';
 
 /** "Wed, 07 Oct 2026, 14:32" — hari, jam, tanggal, dan tahun sekaligus. */
@@ -36,7 +37,11 @@ export default function SyncHistoryPanel({ history, error, onRemove }) {
         {error && <p className="px-3 py-2.5 text-[13px] text-red-600">{error}</p>}
 
         {!error && !history.length && (
-          <p className="px-3 py-2.5 text-[13px] text-gray-500">No sync recorded yet</p>
+          <EmptyState
+            title="No sync recorded yet"
+            description="Start a sync and its log will appear here."
+            icon={PackageOpen}
+          />
         )}
 
         {!error &&
@@ -45,6 +50,9 @@ export default function SyncHistoryPanel({ history, error, onRemove }) {
             const id = `sync-history-${entry.id}`;
             const stamp = formatStamp(entry.finishedAt);
             const partial = entry.succeeded < entry.total;
+            // Status run dikirim server; kata dan warnanya diambil dari kosakata yang sama
+            // dengan chip per modul, jadi "Done" di baris dan di rincian tidak bisa berbeda.
+            const status = SYNC_STATUS[entry.status] || SYNC_STATUS.failed;
 
             return (
               <div key={entry.id} className="border-b border-gray-100 last:border-b-0">
@@ -64,12 +72,17 @@ export default function SyncHistoryPanel({ history, error, onRemove }) {
                     </span>
                   </span>
                   <span className="ml-auto flex shrink-0 items-center gap-1.5">
+                    {/* Angka hanya muncul bila tidak semua modul ikut selesai: untuk run
+                        yang tuntas, label status di sebelahnya sudah cukup. */}
+                    {partial && (
+                      <span className="text-[10px] font-medium text-gray-400 tabular-nums">
+                        {entry.succeeded} / {entry.total}
+                      </span>
+                    )}
                     <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-medium tabular-nums ${
-                        partial ? SYNC_STATUS.failed.chip : 'bg-gray-100 text-gray-500'
-                      }`}
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${status.chip}`}
                     >
-                      {entry.succeeded} / {entry.total} synced
+                      {status.label}
                     </span>
                     <button
                       type="button"
