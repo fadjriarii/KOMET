@@ -30,13 +30,13 @@ function syncFailureDetail(error) {
  * datanya sudah terlanjur masuk, tinggal catatannya hilang, dan itu cukup jadi
  * pesan di log server.
  */
-async function endJob(req, success, error = null) {
+async function endJob(actor, success, error = null) {
   try {
     await recordRun({
       state: syncJobTracker.peekState(),
       success,
       error,
-      actor: req.syncActor,
+      actor,
     });
   } catch (logError) {
     logger.error('[syncRunLog] Gagal mencatat riwayat sinkronisasi:', logError.message);
@@ -70,15 +70,16 @@ function createSyncHandler({ moduleName, label, execute, successMessage }) {
     // Job berurutan dari UI mengirim daftar modul yang dipilihnya; tanpa cakupan
     // ini, status hanya bisa menebak dari modul yang sedang berjalan.
     const scope = req?.body?.scope;
+    const actor = req?.syncActor;
 
     if (isAsync) {
-      syncJobTracker.startJob(moduleName, scope, { actor: req.syncActor });
+      syncJobTracker.startJob(moduleName, scope, { actor });
       setImmediate(() => {
         runJob()
-          .then(() => endJob(req, true))
+          .then(() => endJob(actor, true))
           .catch((error) => {
             logger.error(`[AsyncJob:${moduleName}] Sinkronisasi gagal:`, syncFailureDetail(error));
-            return endJob(req, false, safePublicMessage(syncFailureDetail(error)));
+            return endJob(actor, false, safePublicMessage(syncFailureDetail(error)));
           });
       });
 
@@ -89,12 +90,12 @@ function createSyncHandler({ moduleName, label, execute, successMessage }) {
     }
 
     try {
-      syncJobTracker.startJob(moduleName, scope, { actor: req.syncActor });
+      syncJobTracker.startJob(moduleName, scope, { actor });
       const result = await runJob();
-      await endJob(req, true);
+      await endJob(actor, true);
       return res.json({ success: true, message: successMessage(result), data: result });
     } catch (error) {
-      await endJob(req, false, safePublicMessage(syncFailureDetail(error)));
+      await endJob(actor, false, safePublicMessage(syncFailureDetail(error)));
       return sendServerError(res, 'SYNC_FAILED', error, `sync/${moduleName}`);
     }
   };
