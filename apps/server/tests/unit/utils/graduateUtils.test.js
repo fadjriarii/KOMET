@@ -9,7 +9,6 @@ const {
 describe('graduateUtils', () => {
   it('calculatePredikat harus mengembalikan "Cum Laude" untuk IPK >= 3.51', () => {
     expect(calculatePredikat(3.8)).toBe('Cum Laude');
-    expect(calculatePredikat(3.8, true)).toBe('Dengan Pujian (Cum Laude)');
   });
 
   it('calculatePredikat harus mengembalikan "Sangat Memuaskan" untuk IPK 3.01 - 3.50', () => {

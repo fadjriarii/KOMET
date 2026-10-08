@@ -39,12 +39,15 @@ const executeSyncGraduates = async ({ runDedup = true } = {}) => {
           tahunLulus = attr.tanggal_sk_yudisium.substring(0, 4);
         }
 
-        // Status keaktifan ("Aktif") dan placeholder ("-") bukan predikat kelulusan;
-        // ETL yang memilih nilai layak, read-path tidak menambalnya lagi.
+        // /kelulusan hanya memuat wisudawan: status diambil dari status keaktifan
+        // sumber, predikat diambil apa adanya dari SK yudisium. Keduanya dulu
+        // bertukar tempat — `nama_predikat` tersimpan di kolom status dan ikut
+        // muncul sebagai pilihan di filter Status.
+        const sourceStatus = normalizeOptionalText(attr.nama_status_mahasiswa);
         const statusKelulusan =
-          [attr.nama_predikat, attr.nama_status_mahasiswa]
-            .map(normalizeOptionalText)
-            .find((value) => value && value !== STUDENT_STATUS.AKTIF) || STUDENT_STATUS.LULUS;
+          sourceStatus && sourceStatus !== STUDENT_STATUS.AKTIF
+            ? sourceStatus
+            : STUDENT_STATUS.LULUS;
 
         validItems.push({
           nim: attr.nim,
@@ -53,6 +56,7 @@ const executeSyncGraduates = async ({ runDedup = true } = {}) => {
           id_periode_akademik: attr.id_periode_akademik || '',
           programStudi: prodiName,
           statusKelulusan,
+          predikatLulus: normalizeOptionalText(attr.nama_predikat),
           tahunLulus,
           ipk: parseFloat(attr.ipk_lulusan) || 0,
           sksLulus: parseInt(attr.sks_total) || 0,
@@ -77,6 +81,7 @@ const executeSyncGraduates = async ({ runDedup = true } = {}) => {
             nim: nimMap.get(item) || item.nim,
             jenjang: item.jenjang,
             statusKelulusan: item.statusKelulusan,
+            predikatLulus: item.predikatLulus || '',
             tahunLulus: item.tahunLulus,
             periodeWisuda: item.id_periode_akademik || '',
             ipk: item.ipk,

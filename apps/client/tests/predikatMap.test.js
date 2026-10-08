@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CUM_LAUDE_FULL_LABEL, PREDIKAT, UNCLASSIFIED_PREDIKAT } from '@komet/shared/constants';
+import { PREDIKAT, UNCLASSIFIED_PREDIKAT } from '@komet/shared/constants';
 import {
   BADGE_BY_PREDIKAT,
   badgeVariantForPredikat,
@@ -13,9 +13,7 @@ import {
  */
 describe('peta predikat → badge', () => {
   it('mempunyai gaya untuk setiap label yang bisa dikirim server', () => {
-    expect(Object.keys(BADGE_BY_PREDIKAT).sort()).toEqual(
-      [CUM_LAUDE_FULL_LABEL, ...Object.values(PREDIKAT)].sort(),
-    );
+    expect(Object.keys(BADGE_BY_PREDIKAT).sort()).toEqual(Object.values(PREDIKAT).sort());
   });
 
   it('IPK kosong (Belum Terklasifikasi) memakai gaya default, bukan hilang', () => {

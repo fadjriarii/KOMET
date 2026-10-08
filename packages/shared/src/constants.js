@@ -51,7 +51,6 @@ export const PREDIKAT = {
   SANGAT_MEMUASKAN: 'Sangat Memuaskan',
   MEMUASKAN: 'Memuaskan',
 };
-export const CUM_LAUDE_FULL_LABEL = 'Dengan Pujian (Cum Laude)';
 export const UNCLASSIFIED_PREDIKAT = 'Belum Terklasifikasi';
 
 /**

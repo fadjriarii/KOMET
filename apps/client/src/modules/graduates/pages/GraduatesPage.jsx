@@ -1,5 +1,6 @@
 import { Award, BookOpenCheck, Clock, GraduationCap } from 'lucide-react';
 import DashboardPage from '../../../components/common/layout/DashboardPage';
+import HeaderAcademicYearFilter from '../../../components/common/filters/HeaderAcademicYearFilter';
 import { formatKpiDisplay } from '../../../utils/uiHelpers';
 import GraduateDataTable from '../components/GraduateDataTable';
 import GraduateDetailModal from '../components/GraduateDetailModal';
@@ -65,6 +66,7 @@ export default function GraduatesPage() {
       buildCards={buildCards}
       Table={GraduateDataTable}
       DetailModal={GraduateDetailModal}
+      headerExtra={HeaderAcademicYearFilter}
     />
   );
 }

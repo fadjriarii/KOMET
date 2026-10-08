@@ -1,5 +1,6 @@
 import { Award, Briefcase, Building2, UserCheck } from 'lucide-react';
 import DashboardPage from '../../../components/common/layout/DashboardPage';
+import HeaderAcademicYearFilter from '../../../components/common/filters/HeaderAcademicYearFilter';
 import { formatKpiDisplay } from '../../../utils/uiHelpers';
 import MbkmDataTable from '../components/MbkmDataTable';
 import MbkmDetailModal from '../components/MbkmDetailModal';
@@ -65,6 +66,7 @@ export default function MbkmPage() {
       buildCards={buildCards}
       Table={MbkmDataTable}
       DetailModal={MbkmDetailModal}
+      headerExtra={HeaderAcademicYearFilter}
     />
   );
 }

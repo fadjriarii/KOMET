@@ -6,24 +6,20 @@
 
 // Label hidup di @komet/shared agar client yang memwarnai badge memakai string
 // yang sama persis — bukan salinan yang bisa bergeser diam-diam.
-const {
-  PREDIKAT,
-  CUM_LAUDE_FULL_LABEL,
-  UNCLASSIFIED_PREDIKAT,
-} = require('@komet/shared/constants');
+const { PREDIKAT, UNCLASSIFIED_PREDIKAT } = require('@komet/shared/constants');
 
 /**
- * Menghitung predikat kelulusan berdasarkan nilai IPK.
- * IPK kosong/bukan angka tidak diklasifikasikan (bukan 'Memuaskan').
+ * Menghitung predikat kelulusan berdasarkan nilai IPK. IPK kosong/bukan angka
+ * tidak diklasifikasikan (bukan 'Memuaskan'). Ini jalur cadangan: baris yang
+ * sudah disinkron ulang membawa label resmi dari SK yudisium.
  *
  * @param {number|string|null} ipk
- * @param {boolean} fullLabel - Apakah menggunakan label lengkap ("Dengan Pujian (Cum Laude)")
  * @returns {string|null} Predikat kelulusan, atau null bila IPK tidak tersedia
  */
-function calculatePredikat(ipk, fullLabel = false) {
+function calculatePredikat(ipk) {
   const value = Number(ipk);
   if (!Number.isFinite(value) || value <= 0) return null;
-  if (value >= 3.51) return fullLabel ? CUM_LAUDE_FULL_LABEL : PREDIKAT.CUM_LAUDE;
+  if (value >= 3.51) return PREDIKAT.CUM_LAUDE;
   if (value >= 3.01) return PREDIKAT.SANGAT_MEMUASKAN;
   return PREDIKAT.MEMUASKAN;
 }
@@ -35,7 +31,7 @@ const PREDIKAT_LABELS = [...Object.values(PREDIKAT), UNCLASSIFIED_PREDIKAT];
 function countByPredikat(rows, getIpk = (row) => row.ipk) {
   const counts = Object.fromEntries(PREDIKAT_LABELS.map((label) => [label, 0]));
   rows.forEach((row) => {
-    const label = calculatePredikat(getIpk(row)) ?? UNCLASSIFIED_PREDIKAT;
+    const label = row.predikatLulus || calculatePredikat(getIpk(row)) || UNCLASSIFIED_PREDIKAT;
     counts[label] = (counts[label] || 0) + 1;
   });
   return counts;
@@ -44,7 +40,6 @@ function countByPredikat(rows, getIpk = (row) => row.ipk) {
 module.exports = {
   PREDIKAT,
   PREDIKAT_LABELS,
-  CUM_LAUDE_FULL_LABEL,
   UNCLASSIFIED_PREDIKAT,
   calculatePredikat,
   countByPredikat,

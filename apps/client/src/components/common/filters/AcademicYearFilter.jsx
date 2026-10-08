@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Calendar, ChevronDown, Check } from 'lucide-react';
 
 /**
- * StudentAcademicYearFilter
+ * AcademicYearFilter
  *
  * - Custom row: "AY .... / ...." — titik-titiknya adalah input transparan
  *   yang tampak seperti teks biasa; user mengetik langsung di situ
@@ -10,7 +10,7 @@ import { Calendar, ChevronDown, Check } from 'lucide-react';
  *   "Silahkan masukkan tahun ajaran kustom" dengan panah mengarah ke baris
  * - Semua baris tinggi seragam (h-9)
  */
-export default function StudentAcademicYearFilter({
+export default function AcademicYearFilter({
   value = '',
   onChange,
   options = [],

@@ -4,7 +4,7 @@ import DashboardPage from '../../../components/common/layout/DashboardPage';
 import { formatKpiDisplay } from '../../../utils/uiHelpers';
 import StudentDataTable from '../components/StudentDataTable';
 import StudentDetailModal from '../components/StudentDetailModal';
-import StudentAcademicYearFilter from '../components/header/StudentAcademicYearFilter';
+import AcademicYearFilter from '../../../components/common/filters/AcademicYearFilter';
 import { studentFilterForm, useStudentFilters } from '../hooks/useStudentFilters';
 import { useStudentKpiDisplay } from '../hooks/useStudentKpiDisplay';
 import { useStudentFilterOptions } from '../hooks/useStudentFilterOptions';
@@ -72,7 +72,7 @@ function buildCards({
 /** Filter tahun ajaran hidup di header, bukan di grid filter. */
 function AcademicYearHeaderFilter({ filters, setters, summaryQuery, options }) {
   return (
-    <StudentAcademicYearFilter
+    <AcademicYearFilter
       value={filters.tahunAjaran}
       onChange={setters.setTahunAjaran}
       options={options.academicYearOptions || getRollingAcademicYears(5)}

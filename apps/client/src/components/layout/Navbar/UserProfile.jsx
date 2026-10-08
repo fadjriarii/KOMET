@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ChevronDown, User, LogOut, ShieldCheck } from 'lucide-react';
+import { ChevronDown, LogOut } from 'lucide-react';
 
 export default function UserProfile() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -7,6 +7,7 @@ export default function UserProfile() {
 
   // 📍 TEMPAT KUSTOMISASI: Nanti ganti dengan data dari Context (misal: AuthContext) atau hasil fetch API.
   const userFullName = 'Dr. Ir. Hendra S., M.Sc.';
+  const userDivision = 'Divisi Perencanaan & Evaluasi';
   const userRole = 'Administrator';
   const userInitials = 'HS';
 
@@ -64,33 +65,10 @@ export default function UserProfile() {
       >
         <div className="px-4 py-2.5 border-b border-gray-100/80">
           <p className="text-xs font-bold text-gray-900 truncate">{userFullName}</p>
-          <p className="text-[11px] text-gray-500 font-medium">{userRole}</p>
+          <p className="text-[11px] text-gray-500 font-medium truncate">{userDivision}</p>
         </div>
 
-        <div className="p-1.5 space-y-0.5">
-          <button
-            onClick={() => setIsDropdownOpen(false)}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-digital-blue-50/80 hover:text-digital-blue-700 rounded-xl transition-colors duration-200 cursor-pointer group"
-          >
-            <User
-              size={15}
-              className="text-gray-400 group-hover:text-digital-blue-600 transition-colors"
-            />
-            <span>Profil Pengguna</span>
-          </button>
-          <button
-            onClick={() => setIsDropdownOpen(false)}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-digital-blue-50/80 hover:text-digital-blue-700 rounded-xl transition-colors duration-200 cursor-pointer group"
-          >
-            <ShieldCheck
-              size={15}
-              className="text-gray-400 group-hover:text-digital-blue-600 transition-colors"
-            />
-            <span>Keamanan & Akun</span>
-          </button>
-        </div>
-
-        <div className="border-t border-gray-100/80 p-1.5 pt-1">
+        <div className="p-1.5">
           <button
             onClick={() => setIsDropdownOpen(false)}
             className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50/80 rounded-xl transition-colors duration-200 cursor-pointer group"
