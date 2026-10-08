@@ -1,11 +1,19 @@
-import { SYNC_MODULES, SYNC_TRIGGER } from '@komet/shared/constants';
+import { SYNC_MODULES, SYNC_MODULE_KEYS, SYNC_TRIGGER } from '@komet/shared/constants';
 
 /**
- * Kosakata tampilan sinkronisasi: label modul, label pemicu, dan gaya status.
+ * Kosakata tampilan sinkronisasi: label modul, kelompok pilihan, label pemicu, dan gaya status.
  * Daftarnya sendiri (`SYNC_MODULES`) hidup di @komet/shared dan dibaca server serta
  * kontrak respons juga, jadi tidak ada lagi daftar modul yang bisa berbeda sendiri.
  */
 export const MODULE_LABELS = Object.fromEntries(SYNC_MODULES.map(({ key, label }) => [key, label]));
+
+/**
+ * Kelompok tampilan kartu "Select Data": baris `>` yang membuka/menutup pilihan di dalamnya.
+ * Semua modul hari ini masih satu kelompok; ketika kelompok kedua muncul, `moduleKeys`
+ * dipecah eksplisit per kelompok — modul yang tidak disebut di kelompok mana pun tidak
+ * akan muncul di kartu, jadi tiap penambahan modul wajib menyebut kelompoknya.
+ */
+export const MODULE_GROUPS = [{ key: 'student', label: 'Student', moduleKeys: SYNC_MODULE_KEYS }];
 
 /** Server mengirim nilainya (`manual` / `automatic`); kata yang dibaca user ada di sini. */
 export const TRIGGER_LABELS = {
@@ -14,7 +22,7 @@ export const TRIGGER_LABELS = {
 };
 
 /**
- * `chip` dipakai baris daftar; `glyph` + `logText` dipakai terminal, dan hadirnya
+ * `chip` dipakai rincian riwayat di kolom kanan; `glyph` + `logText` dipakai terminal, dan hadirnya
  * `logText` menandai baris mana yang layak masuk log. Kuncinya sama dengan status
  * yang dikirim `/api/sync/status` dan `sync_runs`: `idle` sebelum ada job,
  * `pending` saat job mulai, lalu `running` dan `completed` per modul.
@@ -36,6 +44,3 @@ export const SYNC_STATUS = {
   failed: { label: 'Failed', chip: 'bg-red-50 text-red-700', glyph: '✗', logText: 'failed' },
   idle: { label: 'Ready', chip: 'bg-gray-100 text-gray-500' },
 };
-
-/** Status sebuah baris pilihan: di luar cakupan job, angka lama tidak boleh terbaca. */
-export const resolveStatus = (row) => (row?.inScope && SYNC_STATUS[row.status]) || SYNC_STATUS.idle;

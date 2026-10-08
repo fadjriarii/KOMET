@@ -72,7 +72,7 @@ function createSyncHandler({ moduleName, label, execute, successMessage }) {
     const scope = req?.body?.scope;
 
     if (isAsync) {
-      syncJobTracker.startJob(moduleName, scope);
+      syncJobTracker.startJob(moduleName, scope, { actor: req.syncActor });
       setImmediate(() => {
         runJob()
           .then(() => endJob(req, true))
@@ -89,7 +89,7 @@ function createSyncHandler({ moduleName, label, execute, successMessage }) {
     }
 
     try {
-      syncJobTracker.startJob(moduleName, scope);
+      syncJobTracker.startJob(moduleName, scope, { actor: req.syncActor });
       const result = await runJob();
       await endJob(req, true);
       return res.json({ success: true, message: successMessage(result), data: result });

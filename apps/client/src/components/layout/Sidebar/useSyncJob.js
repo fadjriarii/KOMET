@@ -13,6 +13,8 @@ const SYNC_ENDPOINTS = {
 
 const POLL_MS = 2000;
 const IDLE_STATUS = 'idle';
+const COMPLETED_STATUS = 'completed';
+const FAILED_STATUS = 'failed';
 const DEFAULT_SELECTED = Object.fromEntries(MODULES.map((key) => [key, true]));
 const NO_TOTALS = { synced: 0, skipped: 0 };
 // Array konstan: baris riwayat baru dibuat saat server benar-benar mengirim data,
@@ -263,6 +265,18 @@ export default function useSyncJob({ isOpen }) {
     });
   }, [isRunning]);
 
+  /** Checkbox kelompok menyetel seluruh modul di dalamnya sekaligus, bukan membalik per modul. */
+  const toggleGroup = useCallback(
+    (keys) => {
+      if (isRunning) return;
+      setSelected((prev) => {
+        const nextValue = !keys.every((key) => prev[key]);
+        return { ...prev, ...Object.fromEntries(keys.map((key) => [key, nextValue])) };
+      });
+    },
+    [isRunning],
+  );
+
   const selectedCount = useMemo(() => MODULES.filter((key) => selected[key]).length, [selected]);
   const allSelected = selectedCount === MODULES.length;
   const someSelected = selectedCount > 0;
@@ -273,17 +287,21 @@ export default function useSyncJob({ isOpen }) {
     () =>
       MODULES.map((key) => {
         const entry = snapshot?.progress?.[key];
+        const raw = entry?.status || IDLE_STATUS;
         return {
           key,
           label: MODULE_LABELS[key],
           inScope: scope.includes(key),
-          status: entry?.status || IDLE_STATUS,
+          // Cermin normalisasi server (`syncRunLog`): job yang berakhir gagal berarti
+          // apa pun di dalamnya yang tidak selesai adalah Failed — bukan "Processing"
+          // selamanya, karena server tidak pernah mengirim status 'failed' per modul.
+          status: phase === 'failed' && raw !== COMPLETED_STATUS ? FAILED_STATUS : raw,
           percent: entry?.percent || 0,
           synced: entry?.total_synced || 0,
           skipped: entry?.skipped || 0,
         };
       }),
-    [scope, snapshot],
+    [phase, scope, snapshot],
   );
 
   const totals = snapshot?.totals || NO_TOTALS;
@@ -293,6 +311,7 @@ export default function useSyncJob({ isOpen }) {
     selectedCount,
     toggleModule,
     toggleAll,
+    toggleGroup,
     allSelected,
     someSelected,
     phase,

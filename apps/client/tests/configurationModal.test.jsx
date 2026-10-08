@@ -169,6 +169,16 @@ async function open() {
 /** Baris riwayat tempat sebuah pill angka berada. */
 const rowOf = (dialog, pillText) => within(dialog).getByText(pillText).closest('div').parentElement;
 
+/** Baris riwayat ke-i (terbaru paling atas), tanpa bergantung pada teks di dalamnya. */
+const rowAt = (dialog, index) => {
+  const rows = within(dialog).getAllByRole('button', { name: /details of/ });
+  return rows[index].closest('div').parentElement;
+};
+
+/** Kartu pilihan tertutup sejak awal, jadi baris modul dibuka lewat ">" dulu sebelum disentuh. */
+const expandGroups = (dialog) =>
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Expand Student group' }));
+
 describe('Synchronization modal terhubung ke server', () => {
   it('kolom kiri hanya memuat modul yang benar-benar dikenal /api/sync', async () => {
     const { dialog } = await open();
@@ -180,9 +190,37 @@ describe('Synchronization modal terhubung ke server', () => {
     // Kosakata mock lama tidak meninggalkan jejak.
     expect(within(dialog).queryByText('Lecturers')).toBeNull();
     expect(within(dialog).queryByText('Cleaning Service')).toBeNull();
-    // Select All + tiga modul; tidak ada grup yang perlu dibuka.
-    expect(within(dialog).getAllByRole('checkbox')).toHaveLength(4);
-    expect(within(dialog).getAllByText('Ready')).toHaveLength(3);
+    // Select All + checkbox kelompok + tiga modul. Baris modul tertinggal di DOM saat
+    // kelompoknya tertutup (animasi accordion), jadi dihitung lewat `hidden`.
+    expect(within(dialog).getAllByRole('checkbox', { hidden: true })).toHaveLength(5);
+    // Baris pilihan polos: status hanya hidup di kolom kanan, tidak dua kali.
+    expect(within(dialog).queryByText('Ready')).toBeNull();
+  });
+
+  it('pilihan tertutup sejak awal: ">" membukanya, checkbox kelompok menyetel isinya', async () => {
+    const { dialog } = await open();
+    const group = within(dialog).getByRole('checkbox', { name: 'Select every module in Student' });
+
+    // Semua modul terpilih sejak awal, jadi checkbox kelompok ikut tercentang.
+    expect(group.checked).toBe(true);
+    // Tertutup: barisnya tetap ada untuk animasi accordion, tapi tidak terbaca screen
+    // reader dan tidak jadi target Tab di dalam popup.
+    const collapsed = within(dialog).getByRole('checkbox', {
+      name: 'Select Student Data',
+      hidden: true,
+    });
+    expect(collapsed.tabIndex).toBe(-1);
+    expect(collapsed.closest('[aria-hidden="true"]')).toBeTruthy();
+    expect(within(dialog).queryByRole('button', { name: 'Collapse Student group' })).toBeNull();
+
+    expandGroups(dialog);
+    expect(within(dialog).getByRole('checkbox', { name: 'Select Student Data' }).tabIndex).toBe(0);
+
+    fireEvent.click(group);
+    expect(within(dialog).getByRole('checkbox', { name: 'Select Student Data' }).checked).toBe(
+      false,
+    );
+    expect(within(dialog).getByRole('button', { name: 'Sync 0 modules' }).disabled).toBe(true);
   });
 
   it('sebelum Sync ditekan, popup hanya membaca status dan riwayat', async () => {
@@ -211,16 +249,23 @@ describe('Synchronization modal terhubung ke server', () => {
     expect(within(dialog).getAllByText('Manual')).toHaveLength(1);
     expect(within(dialog).getAllByText('Automatic')).toHaveLength(2);
 
-    // Angkanya hasil hitungan server, dan penyebutnya ikut apa yang dicakup job.
-    expect(within(dialog).getByText('3 / 3 synced')).toBeTruthy();
-    expect(within(dialog).getByText('2 / 3 synced')).toBeTruthy();
-    expect(within(dialog).getByText('1 / 1 synced')).toBeTruthy();
+    // Status run dikirim server ('completed'/'failed'); label dan warnanya milik client,
+    // dan angkanya hanya tampil bila tidak semua modul dalam cakupan ikut selesai.
+    expect(within(dialog).getAllByText('Done')).toHaveLength(2);
+    expect(within(dialog).getByText('Failed')).toBeTruthy();
+    expect(within(dialog).getByText('2 / 3')).toBeTruthy();
+    expect(within(dialog).queryByText('3 / 3 synced')).toBeNull();
+    expect(within(dialog).queryByText('1 / 1 synced')).toBeNull();
+    // Warnanya datang dari kosakata status yang sama dengan chip per modul.
+    expect(within(dialog).getAllByText('Done')[0].className).toContain('text-emerald-700');
+    expect(within(dialog).getByText('Failed').className).toContain('text-red-700');
 
     const group = toggles[1].parentElement;
-    expect(group.firstElementChild.textContent).toBe('2 / 3 synced');
-    expect(group.children[1].getAttribute('aria-label')).toMatch(/^Delete the log of/);
+    // Angkanya di kiri label: tempat di belakang waktu bebas untuk label mode.
+    expect(group.firstElementChild.textContent).toBe('2 / 3');
+    expect(group.children[1].textContent).toBe('Failed');
+    expect(group.children[2].getAttribute('aria-label')).toMatch(/^Delete the log of/);
     expect(group.lastElementChild).toBe(toggles[1]);
-    // Angkanya di kiri ikon >, jadi tempat di belakang waktu bebas untuk label mode.
     const mode = within(toggles[1].closest('div')).getByText('Automatic');
     expect(mode.previousElementSibling.textContent).toMatch(
       /^\w{3}, \d{2} \w{3} \d{4}, \d{2}:\d{2}$/,
@@ -233,23 +278,25 @@ describe('Synchronization modal terhubung ke server', () => {
     fireEvent.click(within(dialog).getAllByRole('button', { name: /details of/ })[1]);
 
     // Baris yang sama: chip kiri dan detail adalah anak-anak satu kontainer.
-    const row = rowOf(dialog, '2 / 3 synced');
+    const row = rowOf(dialog, '2 / 3');
     // Namanya di baris pertama: terbaca begitu detail dibuka, tanpa menggulir.
     const who = within(row).getByText('Synced by API Key');
     expect(who.parentElement.firstElementChild).toBe(who);
     expect(within(row).getByText('Sinkronisasi gagal diselesaikan.')).toBeTruthy();
     expect(within(row).getByText('Graduate Data')).toBeTruthy();
-    expect(within(row).getAllByText('Failed')).toHaveLength(1);
+    // Dua-duanya jujur: label run di baris (Failed) plus rincian per modul —
+    // graduates gagal, students & mbkm selesai.
+    expect(within(row).getAllByText('Failed')).toHaveLength(2);
     expect(within(row).getAllByText('Done')).toHaveLength(2);
   });
 
   it('mengklik bagian mana pun dari baris riwayat membuka detailnya', async () => {
     const { dialog } = await open();
 
-    fireEvent.click(within(dialog).getByText('1 / 1 synced'));
+    const row = rowAt(dialog, 2);
+    fireEvent.click(within(row).getByText('Done'));
 
     expect(within(dialog).getByRole('button', { name: /^Collapse details of/ })).toBeTruthy();
-    const row = rowOf(dialog, '1 / 1 synced');
     expect(within(row).getByText('Synced by Dashboard')).toBeTruthy();
     // Job satu modul hanya menyebut satu modul di detailnya.
     expect(within(row).getAllByText(/Data$/)).toHaveLength(1);
@@ -266,7 +313,8 @@ describe('Synchronization modal terhubung ke server', () => {
     expect(writesFor('/sync/history/12')[0].method).toBe('DELETE');
     // Menghapus tidak membuka detail: semua baris masih tertutup.
     expect(within(dialog).getAllByRole('button', { name: /^Expand details of/ })).toHaveLength(2);
-    expect(within(dialog).queryByText('3 / 3 synced')).toBeNull();
+    // Baris yang terhapus adalah satu-satunya bertrigger Manual.
+    expect(within(dialog).queryByText('Manual')).toBeNull();
 
     fireEvent.click(within(dialog).getAllByRole('button', { name: /^Delete the log of/ })[0]);
     await waitFor(() =>
@@ -281,6 +329,9 @@ describe('Synchronization modal terhubung ke server', () => {
     const { dialog } = await open();
 
     expect(await within(dialog).findByText('No sync recorded yet')).toBeTruthy();
+    // EmptyState yang dipakai popup lain: ikon kardus terbuka + penjelasan, bukan teks polos.
+    expect(dialog.querySelector('svg.lucide-package-open')).toBeTruthy();
+    expect(within(dialog).getByText('Start a sync and its log will appear here.')).toBeTruthy();
   });
 
   it('riwayat yang gagal dimuat tidak menyeret seluruh popup rusak', async () => {
@@ -297,6 +348,7 @@ describe('Synchronization modal terhubung ke server', () => {
 
   it('"Select All" mengosongkan pilihan dan mengunci tombol Sync', async () => {
     const { dialog } = await open();
+    expandGroups(dialog);
     const master = within(dialog).getByRole('checkbox', { name: 'Select All' });
 
     fireEvent.click(master);
@@ -311,6 +363,7 @@ describe('Synchronization modal terhubung ke server', () => {
   it('menekan Sync memulai job async dengan scope modul yang dipilih', async () => {
     const { dialog } = await open();
 
+    expandGroups(dialog);
     fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Select MBKM Data' }));
     fireEvent.click(within(dialog).getByRole('button', { name: 'Sync 2 modules' }));
 
@@ -331,6 +384,41 @@ describe('Synchronization modal terhubung ke server', () => {
 
     expect(writesFor('/sync/all')[0].body).toEqual({ async: true, scope: [...SYNC_MODULE_KEYS] });
     expect(writesFor('/sync/students')).toHaveLength(0);
+  });
+
+  it('job yang server laporkan gagal berhenti poll dan menampilkan Failed', async () => {
+    // Server hanya mengirim status modul 'completed' saat sukses; kegagalan terlihat
+    // dari status job. Popup harus menormalkan sisanya seperti `sync_runs` — bukan
+    // membiarkan barisnya tertulis "syncing..." selamanya di bawah pesan gagal.
+    respondWith((url, info) => {
+      if (url.split('?')[0] !== '/sync/status') return serve(url, info);
+      if (!writesFor('/sync/all').length) return { success: true, data: store.status };
+      return {
+        success: true,
+        data: jobState({
+          status: 'failed',
+          lastError: 'Sinkronisasi gagal diselesaikan.',
+          progress: {
+            students: entry({ status: 'running', current_page: 1, total_pages: 4, percent: 25 }),
+            graduates: entry({ status: 'pending' }),
+            mbkm: entry(),
+          },
+          overallPercent: 8,
+        }),
+      };
+    });
+
+    const { dialog } = await open();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Sync 3 modules' }));
+
+    expect(await within(dialog).findByText('Student Data failed')).toBeTruthy();
+    expect(within(dialog).getByText('Graduate Data failed')).toBeTruthy();
+    expect(within(dialog).getByText('MBKM Data failed')).toBeTruthy();
+    expect(within(dialog).queryByText(/syncing\.\.\./)).toBeNull();
+    expect(within(dialog).getByText(/Sinkronisasi gagal diselesaikan\./)).toBeTruthy();
+    // Job selesai: tombol kembali seperti semula dan poll berhenti (tidak ada kursor).
+    expect(within(dialog).getByRole('button', { name: 'Sync Again' })).toBeTruthy();
+    expect(dialog.querySelector('.animate-pulse')).toBeNull();
   });
 
   it('job yang sedang berjalan di server langsung tampil saat popup dibuka', async () => {
@@ -363,13 +451,11 @@ describe('Synchronization modal terhubung ke server', () => {
 
     expect(await within(dialog).findByText('50%')).toBeTruthy();
     expect(within(dialog).getByText('2.659 rows synced · 3 skipped')).toBeTruthy();
-    // Terminal hanya menyebut modul yang ikut dicakup job ini.
+    // Terminal hanya menyebut modul yang ikut dicakup job ini, jadi nama MBKM hanya
+    // tersisa satu: barisnya di kartu pilihan.
     expect(within(dialog).getByText('Student Data done')).toBeTruthy();
     expect(within(dialog).getByText('Graduate Data syncing...')).toBeTruthy();
     expect(within(dialog).getAllByText('MBKM Data')).toHaveLength(1);
-    // Modul di luar cakupan tidak membaca angka lama: statusnya 'Ready', bukan 'Queued'.
-    expect(within(dialog).getAllByText('Ready')).toHaveLength(1);
-    expect(within(dialog).queryByText('Queued')).toBeNull();
     // Kucing mengikuti persentase server, bukan langkah animasi lokal.
     expect(dialog.querySelector('img').style.left).toBe('50%');
   });
@@ -381,21 +467,21 @@ describe('Synchronization modal terhubung ke server', () => {
     // Progres dibaca lewat polling 2 detik sekali; inilah test yang harus menunggu.
     expect(await within(dialog).findByRole('button', { name: 'Sync Again' })).toBeTruthy();
 
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Tutup popup' }));
     reopen(false);
     reopen(true);
 
     const again = await screen.findByRole('dialog');
     const toggles = within(again).getAllByRole('button', { name: /details of/ });
     expect(toggles).toHaveLength(4);
-    // Baris paling atas adalah sync yang baru saja selesai (bukan seed '3 / 3' yang
-    // lama), jadi barisnya yang diambil, bukan angkanya.
+    // Baris paling atas adalah sync yang baru saja selesai (bukan seed lama), jadi
+    // barisnya yang diambil, bukan label statusnya — 'Done' ada di semua baris sukses.
     const first = toggles[0].closest('div').parentElement;
-    expect(within(first).getByText('3 / 3 synced')).toBeTruthy();
     expect(within(first).getByText('Manual')).toBeTruthy();
     fireEvent.click(within(first).getByRole('button', { name: /^Expand details of/ }));
     expect(within(first).getByText('Synced by Dashboard')).toBeTruthy();
-    expect(within(first).getAllByText('Done')).toHaveLength(3);
+    // Chip baris + tiga modul: empat 'Done' untuk job yang tuntas seluruhnya.
+    expect(within(first).getAllByText('Done')).toHaveLength(4);
   });
 
   it('setelah 100% lalu ditutup, dibuka lagi kembali ke riwayat', async () => {
@@ -404,7 +490,7 @@ describe('Synchronization modal terhubung ke server', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Sync 3 modules' }));
     await within(dialog).findByRole('button', { name: 'Sync Again' });
 
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Tutup popup' }));
     reopen(false);
     reopen(true);
 
@@ -416,7 +502,9 @@ describe('Synchronization modal terhubung ke server', () => {
   it('seluruh teks popup berbahasa Inggris', async () => {
     const { dialog } = await open();
 
-    expect(within(dialog).getByRole('button', { name: 'Close' })).toBeTruthy();
+    // Footer hanya berisi aksi Sync; menutup popup lewat X milik Modal, sama popup lain.
+    expect(within(dialog).getByRole('button', { name: /^Sync / })).toBeTruthy();
+    expect(within(dialog).queryByRole('button', { name: 'Close' })).toBeNull();
     expect(within(dialog).getByText(/keeps running in the background/)).toBeTruthy();
     expect(dialog.textContent).not.toMatch(
       /sinkron|pilih|menunggu|siap|tutup|grup|baris|dilewati/i,

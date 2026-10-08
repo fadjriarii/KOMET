@@ -87,3 +87,4 @@ requirements/
 graphify-out/
 .aws/
 komet-orchestrator/
+task/
