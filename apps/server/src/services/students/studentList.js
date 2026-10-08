@@ -38,8 +38,9 @@ function projectSnapshotStudent(student, academicYear, statusValues) {
  * Daftar mahasiswa. `whereFilter` (termasuk status) sepenuhnya dimiliki
  * buildStudentFilter(); fungsi ini hanya menambah pagination dan proyeksi kolom.
  *
- * Urutan selalu `nim` ascending karena itu satu-satunya kunci yang stabil untuk
- * keyset pagination (`cursor`).
+ * Tabel ber-offset diurut terbaru dulu (lihat `buildStudentListQuery`). Jalur
+ * `cursor` tetap `nim` ascending karena itu satu-satunya kunci yang stabil untuk
+ * keyset pagination.
  *
  * @param {object} whereFilter Prisma where clause dari buildStudentFilter()
  * @param {number} page        Halaman untuk mode offset (default 1)
@@ -104,7 +105,12 @@ function buildStudentListQuery(whereFilter, page, limit, cursor) {
       statusKeaktifan: true,
     },
     take: limit + 1,
-    orderBy: { nim: 'asc' },
+    // Mahasiswa terbaru di atas: angkatan tertinggi (masih semester 1) dulu,
+    // periode masuk Ganjil/Genap mengikuti, `nim` menutup ties supaya urutan
+    // antar halaman tidak bergeser.
+    orderBy: cursor
+      ? { nim: 'asc' }
+      : [{ angkatan: 'desc' }, { periodeMasuk: 'desc' }, { nim: 'desc' }],
   };
 
   if (cursor) {

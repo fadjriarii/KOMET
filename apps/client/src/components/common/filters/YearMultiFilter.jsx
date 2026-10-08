@@ -4,7 +4,10 @@ import { getYearDisplayText, toggleYear } from '../../../utils/yearSelection';
 
 /**
  * Multi-select tahun (angkatan / tahun lulus) sebagai popover checkbox.
- * Bedanya dengan modul lain hanya pada teks, jadi teks itu prop.
+ * Bedanya dengan modul lain hanya pada teks, jadi teks itu prop. `allowCustom`
+ * menambah satu baris isian bebas; tahun yang boleh diketik adalah `minYear`
+ * sampai setahun di bawah pilihan tertua di checkbox — di atas itu tahunnya
+ * sudah ada sebagai baris centang dan cukup dicentang dari situ.
  */
 export default function YearMultiFilter({
   selectedYears = [],
@@ -14,12 +17,17 @@ export default function YearMultiFilter({
   placeholder = 'Pilih Tahun',
   allTimeLabel = 'Semua Tahun',
   yearLabel = 'Tahun',
+  allowCustom = false,
+  customLabel = `${yearLabel} kustom`,
+  minYear = 0,
   disabled = false,
   className = '',
   id,
 }) {
   const selectId = id || (label ? `filter-${label.toLowerCase().replace(/\s+/g, '-')}` : undefined);
   const [isOpen, setIsOpen] = useState(false);
+  const [customYear, setCustomYear] = useState('');
+  const [customError, setCustomError] = useState(false);
   const dropdownRef = useRef(null);
 
   useEffect(() => {
@@ -40,6 +48,31 @@ export default function YearMultiFilter({
   }, []);
 
   const isAllTime = selectedYears.length === 0;
+  const listedYears = new Set(years.map(String));
+  // Tahun kustom tidak ada di daftar rolling; ia tetap tampil sebagai baris
+  // terpilih supaya bisa dilepas lagi.
+  const customSelectedYears = selectedYears.filter((year) => !listedYears.has(String(year)));
+  // Daftar rolling menurun dan berurutan, jadi batas atas kustom = pilihan tertua − 1.
+  const oldestListedYear = Math.min(...years.map(Number).filter(Number.isFinite));
+  const maxCustomYear = Number.isFinite(oldestListedYear) ? oldestListedYear - 1 : null;
+
+  const selectYear = (value) => {
+    if (!selectedYears.includes(value)) onChange?.([...selectedYears, value]);
+  };
+
+  const addCustomYear = (value) => {
+    const listed = listedYears.has(value);
+    const allowed =
+      /^\d{4}$/.test(value) && Number(value) >= minYear && Number(value) <= maxCustomYear;
+    if (!listed && !allowed) {
+      setCustomError(true);
+      return;
+    }
+    // Tahun yang sudah muncul sebagai centang cukup dicentang, tidak ditambahkan dua kali.
+    selectYear(value);
+    setCustomYear('');
+    setCustomError(false);
+  };
 
   return (
     <div className={`flex flex-col gap-1.5 w-full relative ${className}`} ref={dropdownRef}>
@@ -109,6 +142,73 @@ export default function YearMultiFilter({
                 />
               );
             })}
+
+            {customSelectedYears.map((year) => (
+              <YearOption
+                key={`selected-${year}`}
+                checked
+                onSelect={() => onChange?.(toggleYear(selectedYears, String(year)))}
+                label={`${yearLabel} ${year}`}
+              />
+            ))}
+
+            {allowCustom && maxCustomYear !== null && (
+              <div>
+                <label
+                  className={`w-full flex items-center justify-between gap-2 px-3 py-2 text-xs font-medium rounded-xl transition-all duration-150 cursor-pointer ${
+                    customError
+                      ? 'bg-red-50 text-red-600'
+                      : 'text-gray-700 hover:bg-digital-blue-50/70 hover:text-digital-blue-700'
+                  }`}
+                >
+                  <span className="flex items-center gap-2.5 min-w-0">
+                    <span
+                      className={`w-4 h-4 flex-shrink-0 rounded-md border flex items-center justify-center text-[11px] font-bold ${
+                        customError
+                          ? 'border-red-300 bg-white'
+                          : 'border-dashed border-gray-300 bg-white'
+                      }`}
+                    >
+                      {customError ? '!' : '+'}
+                    </span>
+                    <span className="truncate">{customLabel}</span>
+                  </span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    aria-label={customLabel}
+                    value={customYear}
+                    onChange={(event) => {
+                      const value = event.target.value.replace(/\D/g, '').slice(0, 4);
+                      // Tahun penuh langsung dipilih, seperti pada filter Tahun Ajaran;
+                      // Enter tetap jalan untuk input yang belum lengkap.
+                      if (value.length === 4) addCustomYear(value);
+                      else {
+                        setCustomYear(value);
+                        if (customError) setCustomError(false);
+                      }
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'Enter') return;
+                      event.preventDefault();
+                      addCustomYear(customYear);
+                    }}
+                    placeholder="...."
+                    maxLength={4}
+                    className={`w-11 flex-shrink-0 bg-transparent border-none outline-none text-right p-0 text-xs font-semibold placeholder:font-normal ${
+                      customError
+                        ? 'text-red-500 placeholder-red-300'
+                        : 'text-gray-900 placeholder-gray-400 caret-digital-blue-500'
+                    }`}
+                  />
+                </label>
+                {customError && (
+                  <p className="px-3 pb-1 text-[11px] font-semibold text-red-500 leading-snug">
+                    Hanya {minYear}–{maxCustomYear}; {oldestListedYear} ke atas sudah ada di daftar.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

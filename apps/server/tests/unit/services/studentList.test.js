@@ -16,6 +16,12 @@ describe('student list pagination query', () => {
     expect(query.skip).toBe(20);
     expect(query.take).toBe(11);
     expect(query.cursor).toBeUndefined();
+    // Tabel terbaru dulu: angkatan tertinggi, lalu `nim` sebagai pemecah ties.
+    expect(query.orderBy).toEqual([
+      { angkatan: 'desc' },
+      { periodeMasuk: 'desc' },
+      { nim: 'desc' },
+    ]);
   });
 
   it('uses cursor pagination and stable primary-key ordering', () => {

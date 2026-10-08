@@ -42,6 +42,7 @@ const GRADUATE_COLUMNS = [
   'nim',
   'jenjang',
   'statusKelulusan',
+  'predikatLulus',
   'tahunLulus',
   'periodeWisuda',
   'ipk',
@@ -133,8 +134,8 @@ async function bulkUpsertGraduates(rows) {
     rows,
     valuesOf: (row) => Prisma.sql`(
       ${toStr(row.nim)}, ${toStr(row.jenjang)}, ${toStr(row.statusKelulusan)},
-      ${toStr(row.tahunLulus)}, ${toStr(row.periodeWisuda)}, ${toNum(row.ipk)},
-      ${toNum(row.sksLulus)}
+      ${toStr(row.predikatLulus)}, ${toStr(row.tahunLulus)},
+      ${toStr(row.periodeWisuda)}, ${toNum(row.ipk)}, ${toNum(row.sksLulus)}
     )`,
     afterChunk: markStudentsGraduated,
   });

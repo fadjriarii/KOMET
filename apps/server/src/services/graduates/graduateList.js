@@ -17,6 +17,7 @@ async function getGraduateList(whereFilter, page = 1, limit = TABLE_LIMIT) {
       nim: true,
       jenjang: true,
       statusKelulusan: true,
+      predikatLulus: true,
       tahunLulus: true,
       periodeWisuda: true,
       ipk: true,
@@ -52,7 +53,9 @@ async function getGraduateList(whereFilter, page = 1, limit = TABLE_LIMIT) {
     sksLulus: g.sksLulus,
     // Status terkini berasal dari data, bukan label yang dikarang per baris.
     statusKeaktifan: g.student?.statusKeaktifan ?? null,
-    predikatLulus: calculatePredikat(g.ipk, true),
+    // Label resmi dari SK yudisium; ambang IPK hanya dipakai untuk baris yang
+    // belum disinkron ulang sejak kolom `predikatLulus` ada.
+    predikatLulus: g.predikatLulus || calculatePredikat(g.ipk),
     statusKelulusan: g.statusKelulusan,
   }));
 

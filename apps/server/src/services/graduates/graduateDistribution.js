@@ -5,10 +5,10 @@
  * di `totalLulusan.js`, yang sudah memecahnya per jenjang — menyajikannya lagi di sini
  * hanya menuliskan satu angka dengan dua nama kunci.
  *
- * ponytail: predikat adalah kelas IPK (`countByPredikat`) yang hanya boleh hidup satu
- * kali, jadi agregasinya tetap di Node. Batasnya O(lulusan dalam jendela 5 tahun).
- * Upgrade path: kolom turunan `predikat` berindeks di `graduates` (diisi saat ETL),
- * lalu distribusi menjadi satu `GROUP BY`.
+ * ponytail: pemetaan predikat (`countByPredikat`) hanya boleh hidup satu kali, jadi
+ * agregasinya tetap di Node. Batasnya O(lulusan dalam jendela 5 tahun).
+ * Upgrade path: `GROUP BY predikatLulus` — kolomnya sudah diisi saat ETL dan label
+ * resmi kampus sudah tersimpan di sana, tinggal butuh indeks.
  */
 
 const prisma = require('../../config/prisma');
@@ -19,7 +19,7 @@ const { rate } = require('../../utils/percentageUtils');
 async function getGraduateDistribution(whereFilter) {
   const graduates = await prisma.graduate.findMany({
     where: { ...whereFilter, tahunLulus: { in: getYearRange() } },
-    select: { ipk: true },
+    select: { ipk: true, predikatLulus: true },
   });
 
   const totalGraduates = graduates.length;

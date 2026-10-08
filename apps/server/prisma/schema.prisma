@@ -55,6 +55,7 @@ model Graduate {
   nim             String   @unique
   jenjang         String
   statusKelulusan String
+  predikatLulus   String   @default("")
   tahunLulus      String
   periodeWisuda   String   @default("")
   ipk             Float

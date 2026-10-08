@@ -44,6 +44,9 @@ function Control({ field, value, onChange, choices, disabled }) {
         placeholder={field.placeholder}
         allTimeLabel={field.allTimeLabel}
         yearLabel={field.yearLabel}
+        allowCustom={field.allowCustom}
+        customLabel={field.customLabel}
+        minYear={field.customMinYear}
         disabled={disabled}
       />
     );

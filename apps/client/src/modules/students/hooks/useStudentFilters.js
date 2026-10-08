@@ -78,6 +78,11 @@ export const studentFilterFields = {
     placeholder: 'Pilih Tahun',
     allTimeLabel: 'All Time',
     yearLabel: 'Angkatan',
+    // Daftar rolling hanya 5 tahun terbaru; angkatan lama diketik bebas, dari
+    // 2014 sampai satu tahun di bawah pilihan tertua di daftar.
+    allowCustom: true,
+    customLabel: 'Tambah Tahun Angkatan',
+    customMinYear: 2014,
   },
   selectedSemester: {
     initial: [],
