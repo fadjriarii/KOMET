@@ -13,7 +13,6 @@ const {
   COHORT_EVALUATION_LAG,
 } = require('../../../src/services/graduates/keberhasilanStudi');
 
-const EVALUATION_WINDOW_YEARS = 5;
 // Jenjang dinamis: Prof ikut populasi (lag 2 — profesi 1 tahun + 1 tenggang).
 const JENJANGS = ['S1', 'S2', 'Prof'];
 
