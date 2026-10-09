@@ -23,6 +23,17 @@ const limitParam = z
   .transform(Number)
   .pipe(z.number().int().min(1).max(100))
   .optional();
+// Label tahun ajaran kanonis `YYYY/YYYY` (mis. "2025/2026"): satu-satunya bentuk
+// yang diterima untuk kolom angkatan/tahunLulus. Tahun mentah `YYYY` ditolak
+// dengan pesan jelas supaya client tidak pernah menebak format.
+const academicYearLabelParam = z
+  .string()
+  .trim()
+  .max(20)
+  .regex(/^\d{4}\/\d{4}$/);
+const academicYearLabelOrArray = z
+  .union([academicYearLabelParam, z.array(academicYearLabelParam).max(50)])
+  .optional();
 // Batas topN diletakkan di schema (bukan clamp per controller) supaya seragam di semua endpoint.
 const topNParam = z
   .string()
@@ -43,8 +54,8 @@ const studentQuerySchema = z.object({
   search: z.string().trim().max(100).optional(),
   fakultas: stringOrArray,
   programStudi: stringOrArray,
-  angkatan: stringOrArray,
-  angkatanTahun: stringOrArray,
+  angkatan: academicYearLabelOrArray,
+  angkatanTahun: academicYearLabelOrArray,
   jenjang: stringOrArray,
   semester: stringOrArray,
   periodeMasuk: z.enum(['Ganjil', 'Genap']).optional(),
@@ -69,15 +80,13 @@ const graduateQuerySchema = z.object({
   search: z.string().trim().max(100).optional(),
   fakultas: stringOrArray,
   programStudi: stringOrArray,
-  tahunLulus: stringOrArray,
-  periodeWisuda: stringOrArray,
-  statusKelulusan: stringOrArray,
-  periodeMasuk: z
-    .string()
-    .trim()
-    .max(20)
-    .regex(/^\d{4}[12]$/)
-    .optional(),
+  tahunLulus: academicYearLabelOrArray,
+  // Periode Wisuda = Periode Masuk versi Student: Ganjil/Genap.
+  periodeWisuda: z.enum(['Ganjil', 'Genap']).optional(),
+  // Filter predikat kelulusan; label di UI tetap "Status Kelulusan".
+  predikat: stringOrArray,
+  // Angkatan = gaya kohort tab Student (sama persis per label ajaran).
+  angkatanTahun: academicYearLabelOrArray,
   jenjang: stringOrArray,
 });
 
@@ -88,7 +97,7 @@ const mbkmQuerySchema = z.object({
   search: z.string().trim().max(100).optional(),
   fakultas: stringOrArray,
   programStudi: stringOrArray,
-  angkatan: stringOrArray,
+  angkatan: academicYearLabelOrArray,
   statusAktivitas: stringOrArray,
   jenjang: stringOrArray,
   periode: z

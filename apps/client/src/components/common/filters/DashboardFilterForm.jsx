@@ -10,7 +10,7 @@ const SECOND_ROW_CLASS = {
   5: 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-4.5 w-full items-end pt-1',
 };
 
-function Control({ field, value, onChange, choices, disabled }) {
+function Control({ field, value, onChange, choices, customMeta, disabled }) {
   const common = {
     label: field.label,
     value,
@@ -46,7 +46,7 @@ function Control({ field, value, onChange, choices, disabled }) {
         yearLabel={field.yearLabel}
         allowCustom={field.allowCustom}
         customLabel={field.customLabel}
-        minYear={field.customMinYear}
+        customMeta={customMeta}
         disabled={disabled}
       />
     );
@@ -80,6 +80,7 @@ const DashboardFilterForm = memo(function DashboardFilterForm({
       value: values[key],
       onChange: setters[field.setter],
       choices: options[field.optionsKey ?? key] || [],
+      customMeta: field.customMetaKey ? (options[field.customMetaKey] ?? null) : null,
     });
   }
 

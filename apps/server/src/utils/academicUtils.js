@@ -11,6 +11,7 @@
 const {
   getCurrentAcademicYearStart,
   getAcademicYearWindow,
+  formatAcademicYearLabel,
   parseAcademicYear: getAcademicYearStart,
 } = require('@komet/shared/academicYear');
 
@@ -41,6 +42,39 @@ function get5YearRollingAcademicYears(availableAcademicYears = []) {
   const latestStartYear = startYears.length ? Math.max(...startYears) : new Date().getFullYear();
 
   return getAcademicYearWindow(latestStartYear, TREND_WINDOW_YEARS);
+}
+
+/**
+ * Jendela 5 label ajaran ke belakang dari tahun referensi label ajaran
+ * (mis. `"2025/2026"`), dipakai kartu lulusan yang membaca kolom `tahunLulus`
+ * yang kini menyimpan label. Bukan `getYearRange` (label kalender mentah).
+ */
+function getLabelYearRange(referenceLabel) {
+  const refStart = getAcademicYearStart(referenceLabel);
+  const anchor = refStart === null ? getReferenceLabelStart() : refStart;
+  return Array.from({ length: TREND_WINDOW_YEARS }, (_, i) =>
+    formatAcademicYearLabel(anchor - (TREND_WINDOW_YEARS - 1 - i)),
+  );
+}
+
+/**
+ * Tahun awal label ajaran terbaru yang ada di data (mis. `"2025/2026"` →
+ * `2025`), atau tahun lalu bila tidak ada label yang valid. Jendela kartu
+ * lulusan ikut data, bukan kalender.
+ */
+function getReferenceLabelStart(labels = []) {
+  const starts = (Array.isArray(labels) ? labels : [])
+    .map(getAcademicYearStart)
+    .filter((year) => year !== null && year > 1900);
+  return starts.length ? Math.max(...starts) : new Date().getFullYear() - 1;
+}
+
+/**
+ * Label ajaran referensi kalender (tahun lalu), mis. `"2025/2026"`.
+ * Padanan label dari `getReferenceYear` untuk kolom yang menyimpan label.
+ */
+function getReferenceLabel() {
+  return formatAcademicYearLabel(getReferenceLabelStart());
 }
 
 /**
@@ -89,10 +123,12 @@ function getPeriodeYear(value) {
   return parsePeriode(value)?.year ?? null;
 }
 
-/** Tahun awal studi: `periodeMasuk` bila ada, kalau tidak `angkatan`. */
+/** Tahun awal studi: `periodeMasuk` bila ada, kalau tidak `angkatan` (label ajaran). */
 function getStudyStartYear(student) {
   const fromPeriode = getPeriodeYear(student?.periodeMasuk);
   if (fromPeriode !== null) return fromPeriode;
+  const labelStart = getAcademicYearStart(String(student?.angkatan ?? '').trim());
+  if (labelStart !== null) return labelStart;
   const angkatan = Number(String(student?.angkatan ?? '').trim());
   return Number.isInteger(angkatan) && angkatan >= 1900 ? angkatan : null;
 }
@@ -113,6 +149,9 @@ module.exports = {
   getAcademicYearWindow,
   getAcademicYearStart,
   get5YearRollingAcademicYears,
+  getLabelYearRange,
+  getReferenceLabelStart,
+  getReferenceLabel,
   getYearRange,
   getReferenceYear,
   parsePeriode,

@@ -14,49 +14,65 @@ import DistributionChart from '../../../../components/common/charts/Distribution
 import TrendChartTooltip from '../../../../components/common/charts/TrendChartTooltip';
 import { TOTAL_GRADUATE_TABS } from './graduateTrendConfig';
 
+// Warna bar per jenjang — S1/S2 tetap seperti semula, jenjang tambahan (Prof)
+// memakai warna berikutnya dari palet yang sama.
+const JENJANG_COLORS = [DIGITAL_BLUE[600], DIGITAL_BLUE[400], '#10B981', '#F59E0B', '#8B5CF6'];
+
+const JENJANG_LABEL = { s1: 'S1', s2: 'S2' };
+const jenjangName = (key) => JENJANG_LABEL[key] ?? key.toUpperCase();
+
 const EMPTY_ITEMS = [];
 
-const TOTAL_TABLE_COLUMNS = [
-  {
-    key: 'tahun',
-    label: 'Tahun Kelulusan',
-    icon: Calendar,
-    render: (row) => (
-      <div className="flex items-center gap-2">
-        <span className="w-1.5 h-1.5 rounded-full bg-digital-blue-500" />
-        <span className="font-semibold text-gray-900">{row.tahun}</span>
-      </div>
-    ),
-  },
-  {
-    key: 's1Count',
-    label: 'Lulusan Jenjang S1',
-    icon: GraduationCap,
-    headerClassName: 'text-right',
-    cellClassName: 'text-right font-medium text-digital-blue-900',
-    render: (row) => (
-      <span className="bg-digital-blue-50/80 text-digital-blue-800 px-2.5 py-0.5 rounded-md border border-digital-blue-100 font-semibold">
-        {formatNumber(row.s1Count)} lulusan
-      </span>
-    ),
-  },
-  {
-    key: 's2Count',
-    label: 'Lulusan Jenjang S2',
-    icon: GraduationCap,
-    headerClassName: 'text-right',
-    cellClassName: 'text-right font-medium text-gray-800',
-    render: (row) => `${formatNumber(row.s2Count)} lulusan`,
-  },
-  {
-    key: 'total',
-    label: 'Total Wisudawan',
-    icon: Users,
-    headerClassName: 'text-right',
-    cellClassName: 'text-right font-bold text-gray-900',
-    render: (row) => `${formatNumber(row.total)} lulusan`,
-  },
-];
+const JENJANG_TONE = { s1Count: 'text-digital-blue-900', s2Count: 'text-gray-800' };
+
+// Kolom jenjang dinamis dari baris pertama: S1/S2 tampil seperti semula,
+// jenjang tambahan (Prof) memakai kolom yang sama polanya.
+function totalTableColumns(rows) {
+  const jenjangKeys = Object.keys(rows[0] ?? {})
+    .filter((key) => key !== 'tahun' && key !== 'total' && key.endsWith('Count'))
+    .sort((a, b) => (a === 's1Count' ? -1 : b === 's1Count' ? 1 : a.localeCompare(b)));
+  return [
+    {
+      key: 'tahun',
+      label: 'Tahun Kelulusan',
+      icon: Calendar,
+      render: (row) => (
+        <div className="flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-digital-blue-500" />
+          <span className="font-semibold text-gray-900">{row.tahun}</span>
+        </div>
+      ),
+    },
+    ...jenjangKeys.map((key) => ({
+      key,
+      label: `Lulusan Jenjang ${jenjangName(key.replace(/Count$/, ''))}`,
+      icon: GraduationCap,
+      headerClassName: 'text-right',
+      cellClassName: `text-right font-medium ${JENJANG_TONE[key] ?? 'text-gray-800'}`,
+      render: (row) => `${formatNumber(row[key])} lulusan`,
+    })),
+    {
+      key: 'total',
+      label: 'Total Lulusan',
+      icon: Users,
+      headerClassName: 'text-right',
+      cellClassName: 'text-right font-bold text-gray-900',
+      render: (row) => `${formatNumber(row.total)} lulusan`,
+    },
+  ];
+}
+
+function trendBars(rows) {
+  const jenjangKeys = Object.keys(rows[0] ?? {})
+    .filter((key) => key !== 'tahun' && key !== 'total' && key.endsWith('Count'))
+    .sort((a, b) => (a === 's1Count' ? -1 : b === 's1Count' ? 1 : a.localeCompare(b)));
+  return jenjangKeys.map((key, index) => ({
+    dataKey: key,
+    name: `Lulusan ${jenjangName(key.replace(/Count$/, ''))}`,
+    color: JENJANG_COLORS[index % JENJANG_COLORS.length],
+    labelKey: key,
+  }));
+}
 
 export default function TotalGraduatesModal({ isOpen, onClose, originRect, data, filters }) {
   const { activeTab, handleTabChange, slideClass } = useTabTransition(TOTAL_GRADUATE_TABS, 'tren');
@@ -86,9 +102,28 @@ export default function TotalGraduatesModal({ isOpen, onClose, originRect, data,
   });
 
   const kpis = data?.kpis || {};
-  const summary = data?.summary || {};
 
   const combinedTrend = totalData?.byYear || EMPTY_ITEMS;
+  const bars = useMemo(() => trendBars(combinedTrend), [combinedTrend]);
+  const columns = useMemo(() => totalTableColumns(combinedTrend), [combinedTrend]);
+  const tooltipRows = useMemo(
+    () =>
+      bars.map((bar, index) => ({
+        key: bar.dataKey,
+        label: bar.name,
+        colorClass: index < 2 ? `bg-digital-blue-${index === 0 ? 600 : 400}` : 'bg-emerald-500',
+      })),
+    [bars],
+  );
+  const byJenjang = kpis.totalGraduatesByJenjang || {};
+  const composition = useMemo(
+    () =>
+      Object.entries(byJenjang)
+        .sort(([a], [b]) => (a === 's1' ? -1 : b === 's1' ? 1 : a.localeCompare(b)))
+        .map(([key, value]) => `${formatNumber(value)} lulusan ${jenjangName(key)}`)
+        .join(', '),
+    [byJenjang],
+  );
 
   const predikatList = useMemo(() => distData?.byPredikat || [], [distData]);
 
@@ -100,28 +135,12 @@ export default function TotalGraduatesModal({ isOpen, onClose, originRect, data,
             <TrendBarChart
               data={combinedTrend}
               xDataKey="tahun"
-              bars={[
-                {
-                  dataKey: 's1Count',
-                  name: 'Lulusan S1',
-                  color: DIGITAL_BLUE[600],
-                  labelKey: 's1Count',
-                },
-                {
-                  dataKey: 's2Count',
-                  name: 'Lulusan S2',
-                  color: DIGITAL_BLUE[400],
-                  labelKey: 's2Count',
-                },
-              ]}
+              bars={bars}
               tooltipContent={
                 <TrendChartTooltip
                   titleKey="tahun"
-                  rows={[
-                    { key: 's1Count', label: 'Lulusan S1', colorClass: 'bg-digital-blue-600' },
-                    { key: 's2Count', label: 'Lulusan S2', colorClass: 'bg-digital-blue-400' },
-                  ]}
-                  footer={{ key: 'total', label: 'Total Wisudawan' }}
+                  rows={tooltipRows}
+                  footer={{ key: 'total', label: 'Total Lulusan' }}
                 />
               }
             />
@@ -149,7 +168,7 @@ export default function TotalGraduatesModal({ isOpen, onClose, originRect, data,
       tabel: (
         <div className="h-full flex flex-col pt-0.5 pb-1">
           <ModalTable
-            columns={TOTAL_TABLE_COLUMNS}
+            columns={columns}
             data={[...combinedTrend].reverse()}
             isLoading={isLoadingTotal}
             error={totalError}
@@ -166,8 +185,8 @@ export default function TotalGraduatesModal({ isOpen, onClose, originRect, data,
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Rincian Total Wisudawan"
-      subtitle="Statistik volume kelulusan mahasiswa jenjang S1 dan S2 per tahun"
+      title="Rincian Total Lulusan"
+      subtitle="Statistik volume kelulusan mahasiswa per jenjang per tahun"
       maxWidth="max-w-4xl"
       originRect={originRect}
       showCloseButton
@@ -179,17 +198,17 @@ export default function TotalGraduatesModal({ isOpen, onClose, originRect, data,
               <p>
                 Total lulusan mencatat sebanyak{' '}
                 <strong className="text-digital-blue-900 font-bold">
-                  {kpis.totalGraduates || 0} wisudawan
+                  {kpis.totalGraduates || 0} lulusan
                 </strong>{' '}
-                yang menyelesaikan studi dalam rentang 5 tahun akademik terakhir. Terdiri dari{' '}
-                <strong>{formatNumber(summary.totalLulusan?.s1)} lulusan S1</strong> dan{' '}
-                <strong>{formatNumber(summary.totalLulusan?.s2)} lulusan S2</strong>.
+                yang menyelesaikan studi{' '}
+                {kpis.totalScopePhrase || 'di seluruh tahun akademik tercatat'}. Terdiri dari{' '}
+                <strong>{composition || '-'}</strong>.
               </p>
             </div>
           }
-          label="Total Wisudawan"
+          label="Total Lulusan"
           value={formatNumber(kpis.totalGraduates)}
-          sublabel="Jenjang S1 & S2"
+          sublabel={`Per jenjang: ${composition || '-'}`}
         />
 
         <div className="flex-1 flex flex-col min-h-0">

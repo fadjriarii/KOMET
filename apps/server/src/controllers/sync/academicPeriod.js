@@ -26,12 +26,25 @@ function getPeriodeFromTanggalTransfer(tanggalTransferStr) {
 }
 
 /**
- * Helper untuk memformat Angkatan dari kode periode Sevima.
- * Ambil 4 digit pertama sebagai tahun saja (misal: "20261" -> "2026", "20262" -> "2026").
+ * Helper untuk memformat Angkatan dari kode periode Sevima sebagai label tahun
+ * ajaran (misal: "20261" -> "2026/2027"). Label ajaran adalah nilai kanonis
+ * kolom `angkatan`: ditulis sekali saat sync, dibaca verbatim setelahnya.
  */
 function formatAngkatan(idPeriode) {
   if (!idPeriode || idPeriode.length < 4) return '';
-  return idPeriode.substring(0, 4);
+  const start = Number(idPeriode.substring(0, 4));
+  if (!Number.isInteger(start) || start < 1900) return '';
+  return `${start}/${start + 1}`;
+}
+
+/**
+ * Label tahun ajaran dari tahun lulus mentah saat ETL kelulusan
+ * (misal: "2025" -> "2025/2026"). Nilai kanonis kolom `tahunLulus`.
+ */
+function formatTahunLulus(rawYear) {
+  const start = Number(String(rawYear ?? '').trim());
+  if (!Number.isInteger(start) || start < 1900) return '';
+  return `${start}/${start + 1}`;
 }
 
 function normalizeAcademicPeriod(value, defaultTerm = '1') {
@@ -115,6 +128,7 @@ function hitungSemester(periodeMasuk, periodeTerakhir, periodeMasukAwal = null) 
 module.exports = {
   getPeriodeFromTanggalTransfer,
   formatAngkatan,
+  formatTahunLulus,
   normalizeAcademicPeriod,
   extractPeriode,
   getCurrentAcademicPeriode,

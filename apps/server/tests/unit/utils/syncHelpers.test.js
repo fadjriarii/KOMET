@@ -56,9 +56,9 @@ describe('sync helpers — Data Cleansing & Transformation', () => {
 
   // ─── formatAngkatan ───
   describe('formatAngkatan', () => {
-    it('digit 1 atau 2 → hanya tahun (4 digit)', () => {
-      expect(formatAngkatan('20261')).toBe('2026');
-      expect(formatAngkatan('20262')).toBe('2026');
+    it('digit 1 atau 2 → label ajaran penuh', () => {
+      expect(formatAngkatan('20261')).toBe('2026/2027');
+      expect(formatAngkatan('20262')).toBe('2026/2027');
     });
 
     describe('normalizeAcademicPeriod', () => {
@@ -69,8 +69,8 @@ describe('sync helpers — Data Cleansing & Transformation', () => {
       });
     });
 
-    it('4 digit tahun → hanya tahun', () => {
-      expect(formatAngkatan('2026')).toBe('2026');
+    it('4 digit tahun → label ajaran penuh', () => {
+      expect(formatAngkatan('2026')).toBe('2026/2027');
     });
 
     it('input kosong → string kosong', () => {

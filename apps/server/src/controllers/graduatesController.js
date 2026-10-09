@@ -47,11 +47,18 @@ const getIpkTrendDetail = async (req, res) => {
       getIpkOverview(whereFilter),
     ]);
     // Key disebut satu-satu: spread tidak bisa menimpa key dari sumber lain secara diam-diam.
+    // `byJenjang` = kunci jenjang dinamis (lowercase) dari tiap metrik + kunci
+    // batas/evaluasi; client merender tab/kolom tambahannya dari sini.
     return res.json({
       success: true,
       data: {
         s1Gpa: avgIpk.s1,
         s2Gpa: avgIpk.s2,
+        gpaByJenjang: Object.fromEntries(
+          Object.entries(avgIpk).filter(
+            ([key]) => key !== 's1' && key !== 's2' && key !== 'tahunScope',
+          ),
+        ),
         byYear,
         prodiGpaData: overview.prodiGpaData,
         facultyGpaData: overview.facultyGpaData,

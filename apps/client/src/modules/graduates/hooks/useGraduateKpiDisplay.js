@@ -10,6 +10,13 @@ export function useGraduateKpiDisplay(summaryData, isLoading) {
     // harus terbaca begitu di kartu, bukan sebagai nol yang meyakinkan.
     const s1Gpa = formatDecimal(kpis.averageGpaS1, 2);
     const s2Gpa = formatDecimal(kpis.averageGpaS2, 2);
+    const byJenjang = kpis.totalGraduatesByJenjang || {};
+    const extraJenjangs = Object.keys(byJenjang)
+      .filter((key) => key !== 's1' && key !== 's2')
+      .sort();
+    const extraSubtitle = extraJenjangs
+      .map((key) => `${key.toUpperCase()}: ${formatNumber(byJenjang[key])}`)
+      .join(' • ');
     const s1OnTime = formatPercentage(kpis.onTimeGraduationRateS1, 1);
     const s2OnTime = formatPercentage(kpis.onTimeGraduationRateS2, 1);
     const s1StudySuccess = formatPercentage(kpis.studySuccessRateS1, 1);
@@ -17,7 +24,8 @@ export function useGraduateKpiDisplay(summaryData, isLoading) {
     const subtitles = {
       total: `S1: ${formatNumber(kpis.totalGraduatesS1)} • S2: ${formatNumber(
         kpis.totalGraduatesS2,
-      )} Wisudawan`,
+      )}${extraSubtitle ? ` • ${extraSubtitle}` : ''} Lulusan`,
+      totalScope: kpis.totalScopeLabel || 'Semua Tahun',
       gpa: `S1: ${s1Gpa} • S2: ${s2Gpa}`,
       onTime: `S1: ${s1OnTime} • S2: ${s2OnTime}`,
       studySuccess: summary.keberhasilanStudi?.angkatanS1

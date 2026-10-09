@@ -35,9 +35,23 @@ keberhasilanStudi.getKeberhasilanStudi = async () => AGG.keberhasilan;
 const { getGraduateSummary } = require('../../../src/services/graduates/graduateSummary');
 
 const WITH_S2 = {
-  total: { s1: 100, s2: 20 },
-  ipk: { s1: { average: 3.4 }, s2: { average: 3.6 } },
-  tepatWaktu: { s1: 80, s2: 70 },
+  total: {
+    s1: 100,
+    s2: 20,
+    prof: 5,
+    tahunScope: {
+      labels: ['2023/2024'],
+      isDefault: false,
+      label: '2023/2024',
+      phrase: 'pada tahun ajaran 2023/2024',
+    },
+  },
+  ipk: {
+    s1: { average: 3.4 },
+    s2: { average: 3.6 },
+    prof: { average: 3.8 },
+  },
+  tepatWaktu: { s1: 80, s2: 70, prof: 100 },
   keberhasilan: { s1: 90, s2: null },
 };
 
@@ -52,20 +66,35 @@ describe('getGraduateSummary', () => {
     const result = await getGraduateSummary({});
 
     expect(result.kpis).toEqual({
-      totalGraduates: 120,
+      // Total = seluruh jenjang populasi (incl Prof), bukan S1+S2 saja.
+      totalGraduates: 125,
       totalGraduatesS1: 100,
       totalGraduatesS2: 20,
+      totalGraduatesByJenjang: { s1: 100, s2: 20, prof: 5 },
+      totalScopeLabel: '2023/2024',
+      totalScopePhrase: 'pada tahun ajaran 2023/2024',
       onTimeGraduationRateS1: 80,
       onTimeGraduationRateS2: 70,
+      onTimeByJenjang: { s1: 80, s2: 70, prof: 100 },
       studySuccessRateS1: 90,
       averageGpaS1: 3.4,
       averageGpaS2: 3.6,
+      averageGpaByJenjang: { s1: 3.4, s2: 3.6, prof: 3.8 },
     });
   });
 
   it('"tidak ada data" tetap null, bukan 0 yang terlihat seperti angka', async () => {
     AGG = {
-      total: { s1: null, s2: null },
+      total: {
+        s1: null,
+        s2: null,
+        tahunScope: {
+          labels: [],
+          isDefault: true,
+          label: 'Semua Tahun',
+          phrase: 'di seluruh tahun akademik tercatat',
+        },
+      },
       ipk: { s1: { average: null }, s2: { average: null } },
       tepatWaktu: { s1: null, s2: null },
       keberhasilan: { s1: null, s2: null },

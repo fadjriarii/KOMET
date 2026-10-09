@@ -28,16 +28,16 @@ describe('serialisasi query ke server', () => {
       faculty: ['A'],
       prodi: ['B'],
       jenjang: ['S1'],
-      tahunLulus: ['2024'],
-      periodeMasuk: '2023/2024',
+      tahunLulus: ['2024/2025'],
+      periodeWisuda: 'Ganjil',
       search: '  ani  ',
     });
     expect(qs).toBe(
-      'fakultas=A&programStudi=B&jenjang=S1&tahunLulus=2024&periodeMasuk=2023%2F2024&search=ani',
+      'fakultas=A&programStudi=B&jenjang=S1&tahunLulus=2024%2F2025&periodeWisuda=Ganjil&search=ani',
     );
-    expect(mbkmService.toQueryString({ angkatan: ['2022'], statusAktivitas: ['Selesai'] })).toBe(
-      'angkatan=2022&statusAktivitas=Selesai',
-    );
+    expect(
+      mbkmService.toQueryString({ angkatan: ['2022/2023'], statusAktivitas: ['Selesai'] }),
+    ).toBe('angkatan=2022%2F2023&statusAktivitas=Selesai');
   });
 
   it('membedakan "semua status" dari status yang tidak dipilih', () => {

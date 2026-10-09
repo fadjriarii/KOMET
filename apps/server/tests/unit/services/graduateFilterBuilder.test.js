@@ -16,11 +16,11 @@ describe('graduate filter builder', () => {
       programStudi: ['Informatika', 'Akuntansi'],
     });
 
+    // Populasi student-base: kolom student flat di top-level.
+    expect(where.statusKeaktifan).toBe('Lulus');
     expect(where.jenjang).toEqual({ in: ['S1', 'S2'] });
-    expect(where.student).toEqual({
-      fakultas: { in: ['FIK', 'FEB'] },
-      programStudi: { in: ['Informatika', 'Akuntansi'] },
-    });
+    expect(where.fakultas).toEqual({ in: ['FIK', 'FEB'] });
+    expect(where.programStudi).toEqual({ in: ['Informatika', 'Akuntansi'] });
   });
 
   it('membaca bentuk `{ in: [...] }`, bukan hanya string', () => {
@@ -35,10 +35,39 @@ describe('graduate filter builder', () => {
     expect(includesJenjang(buildGraduateFilter({ jenjang: 'S2' }), 'S2')).toBe(true);
   });
 
-  it('tanpa filter jenjang, kedua level diminta', () => {
-    expect(getRequestedJenjang({})).toEqual(['S1', 'S2']);
-    expect(getRequestedJenjang(buildGraduateFilter({}))).toEqual(['S1', 'S2']);
-    // Nilai tak dikenal tidak boleh meloloskan level apa pun secara diam-diam.
-    expect(getRequestedJenjang({ jenjang: 'D3' })).toEqual(['S1', 'S2']);
+  it('tanpa filter jenjang, seluruh populasi diminta (bukan daftar statis)', () => {
+    // `Prof` ikut populasi: helper tak boleh mengunci S1/S2.
+    expect(getRequestedJenjang({})).toBeNull();
+    expect(getRequestedJenjang(buildGraduateFilter({}))).toBeNull();
+    expect(includesJenjang({}, 'Prof', ['S1', 'S2', 'Prof'])).toBe(true);
+    // Nilai yang diminta user dikembalikan apa adanya — termasuk yang asing.
+    expect(getRequestedJenjang({ jenjang: 'D3' })).toEqual(['D3']);
+  });
+
+  it('periode wisuda Ganjil/Genap = akhiran kode seperti periode masuk', () => {
+    expect(buildGraduateFilter({ periodeWisuda: 'Ganjil' }).graduate.periodeWisuda).toEqual({
+      endsWith: '1',
+    });
+    expect(buildGraduateFilter({ periodeWisuda: 'Genap' }).graduate.periodeWisuda).toEqual({
+      endsWith: '2',
+    });
+  });
+
+  it('tahun lulus hidup di relasi graduate, bukan kolom student', () => {
+    const where = buildGraduateFilter({ tahunLulus: '2023/2024' });
+    expect(where.tahunLulus).toBeUndefined();
+    expect(where.graduate.tahunLulus).toEqual({ in: ['2023/2024'] });
+  });
+
+  it('angkatan memakai label ajaran penuh (exact-match in)', () => {
+    const where = buildGraduateFilter({ angkatanTahun: ['2021/2022', '2020/2021'] });
+    expect(where.angkatan).toEqual({ in: ['2021/2022', '2020/2021'] });
+  });
+
+  it('predikat memfilter label tersimpan ATAU fallback IPK baris lama', () => {
+    const where = buildGraduateFilter({ predikat: ['Cum Laude'] });
+    const branch = where.graduate.AND[0].OR[0].OR;
+    expect(branch).toContainEqual({ predikatLulus: 'Cum Laude' });
+    expect(branch).toContainEqual({ predikatLulus: '', ipk: { gte: 3.51 } });
   });
 });

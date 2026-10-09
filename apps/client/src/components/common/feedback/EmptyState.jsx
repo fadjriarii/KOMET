@@ -14,9 +14,11 @@ export default function EmptyState({
     <div
       className={`flex flex-col items-center justify-center p-8 text-center text-gray-500 gap-3 ${className}`}
     >
-      <div className="p-3 bg-gray-100 rounded-2xl text-gray-400">
-        <Icon size={28} />
-      </div>
+      {Icon ? (
+        <div className="p-3 bg-gray-100 rounded-2xl text-gray-400">
+          <Icon size={28} />
+        </div>
+      ) : null}
       <div className="max-w-xs">
         <h4 className="text-sm font-bold text-gray-800">{title}</h4>
         <p className="text-xs text-gray-400 mt-1 leading-relaxed">{description}</p>

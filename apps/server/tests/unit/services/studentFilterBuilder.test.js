@@ -23,14 +23,13 @@ describe('student filter builder', () => {
     expect(filter.AND).toBeUndefined();
   });
 
-  it('keeps angkatan year filtering as OR startsWith conditions', () => {
+  it('keeps angkatan cohort filtering as exact label matches', () => {
     const filter = buildStudentFilter({
-      angkatanTahun: ['2025', '2024'],
+      angkatanTahun: ['2025/2026', '2024/2025'],
       statusKeaktifan: 'Aktif',
     });
-    expect(filter.AND).toEqual([
-      { OR: [{ angkatan: { startsWith: '2025' } }, { angkatan: { startsWith: '2024' } }] },
-    ]);
+    expect(filter.angkatan).toEqual({ in: ['2025/2026', '2024/2025'] });
+    expect(filter.AND).toBeUndefined();
     expect(filter.statusKeaktifan).toBe('Aktif');
   });
 
@@ -40,6 +39,17 @@ describe('student filter builder', () => {
     expect(filter.semester).toEqual({ in: [1] });
     expect(filter.periodeMasuk).toEqual({ endsWith: '1' });
     expect(filter.statusKeaktifan).toBe('Aktif');
+  });
+
+  it('grup 9+ memetakan ke semester >= 9', () => {
+    expect(buildStudentFilter({ semester: '9+' }).semester).toEqual({ gte: 9 });
+  });
+
+  it('grup 9+ digabung OR dengan semester angka biasa', () => {
+    const filter = buildStudentFilter({ semester: ['2', '9+'] });
+    expect(filter.AND).toContainEqual({
+      OR: [{ semester: { in: [2] } }, { semester: { gte: 9 } }],
+    });
   });
 
   it('Semua Status (ALL) menjadi predikat eksplisit, bukan default Aktif', () => {

@@ -2,29 +2,96 @@
  * filterBuilder.js
  *
  * Mengkonversi query parameters dari HTTP request menjadi Prisma where clause
- * untuk tabel graduates (dan relasi student).
+ * untuk tabel students (dan relasi graduate).
+ *
+ * Populasi tab lulusan = seluruh mahasiswa Lulus (student-base): kartu, deret,
+ * dan tabel membaca populasi yang sama sehingga tidak bisa selisih by
+ * construction (terukur: graduate-base 1090 vs student Lulus 1132 = 37 Prof
+ * dikunci-out + 5 orphan S1 tanpa baris graduate). Field kelulusan
+ * (tahunLulus/periodeWisuda/predikat) hidup di relasi `graduate`.
  */
 
+const prisma = require('../../config/prisma');
 const { addInFilter, addSearchFilter, hasFilters, toArray } = require('../shared/filterUtils');
-const { JENJANGS } = require('@komet/shared/constants');
+const { PREDIKAT, UNCLASSIFIED_PREDIKAT } = require('@komet/shared/constants');
+const {
+  IPK_THRESHOLD_CUM_LAUDE,
+  IPK_THRESHOLD_SANGAT_MEMUASKAN,
+} = require('../../utils/graduateUtils');
 
 /**
- * Jenjang yang benar-benar diminta sebuah filter graduate.
+ * Jenjang yang benar-benar diminta sebuah filter graduate — dibaca apa adanya
+ * dari nilai yang diminta user, TANPA daftar statis. `JENJANGS` (= S1/S2) hanya
+ * cakupan IKU tab Student; tab Lulusan memakai seluruh jenjang populasi
+ * termasuk `Prof` (terukur: 37 Prof ada di DB tapi dikunci-out helper lama).
  *
- * `buildGraduateFilter()` membangun `{ in: [...] }`, sehingga perbandingan string
- * seperti `whereFilter.jenjang === 'S2'` selalu false: service lalu menghitung
- * kedua jenjang dari populasi filter yang sama dan melaporkannya dua kali
- * (terukur: `?jenjang=S1` menghasilkan `totalGraduates` 1514 = 757 dihitung dua
- * kali). Semua service lulusan menanyakan "level ini diminta?" lewat sini.
+ * Tanpa filter jenjang: null = seluruh populasi (pemanggil tidak menyaring).
+ * Nilai tak dikenal dikembalikan apa adanya — server tidak menebak maksud user.
  */
 function getRequestedJenjang(whereFilter = {}) {
   const requested = toArray(whereFilter.jenjang?.in ?? whereFilter.jenjang) || [];
-  const known = requested.filter((jenjang) => JENJANGS.includes(jenjang));
-  return known.length ? known : JENJANGS;
+  return requested.length ? [...new Set(requested)] : null;
 }
 
-function includesJenjang(whereFilter, jenjang) {
-  return getRequestedJenjang(whereFilter).includes(jenjang);
+function includesJenjang(whereFilter, jenjang, knownJenjangs = null) {
+  const requested = getRequestedJenjang(whereFilter);
+  if (requested) return requested.includes(jenjang);
+  // Tanpa filter: seluruh populasi diminta — level dikenal selalu termasuk.
+  return knownJenjangs ? knownJenjangs.includes(jenjang) : true;
+}
+
+/**
+ * Seluruh jenjang dalam populasi terfilter (distinct DB, dinamis — bukan daftar
+ * statis). Dipakai metrik yang merender satu kolom per jenjang. Filter jenjang
+ * user selalu menang; tanpanya = semua yang ada, termasuk `Prof`.
+ */
+async function getScopeJenjangs(whereFilter = {}) {
+  const requested = getRequestedJenjang(whereFilter);
+  if (requested) return requested;
+  const { ...rest } = whereFilter;
+  delete rest.jenjang;
+  const rows = await prisma.student.groupBy({ by: ['jenjang'], where: rest });
+  return rows.map((row) => row.jenjang).sort();
+}
+
+/** Periode Wisuda = Periode Masuk versi Student: Ganjil/Genap = akhiran kode 1/2. */
+function buildPeriodeWisudaFilter(value) {
+  if (value === 'Ganjil') return { endsWith: '1' };
+  if (value === 'Genap') return { endsWith: '2' };
+  return null;
+}
+
+/**
+ * Satu label predikat = nilai tersimpan ATAU fallback IPK untuk baris lama yang
+ * `predikatLulus`-nya masih kosong (label resmi SK yudisium belum disinkron).
+ * Ambang memakai konstanta `graduateUtils` — bukan salinan angka.
+ */
+function predikatBranch(label) {
+  const stored = { predikatLulus: label };
+  const fallback = { predikatLulus: '' };
+  switch (label) {
+    case PREDIKAT.CUM_LAUDE:
+      return { OR: [stored, { ...fallback, ipk: { gte: IPK_THRESHOLD_CUM_LAUDE } }] };
+    case PREDIKAT.SANGAT_MEMUASKAN:
+      return {
+        OR: [
+          stored,
+          {
+            ...fallback,
+            ipk: { gte: IPK_THRESHOLD_SANGAT_MEMUASKAN, lt: IPK_THRESHOLD_CUM_LAUDE },
+          },
+        ],
+      };
+    case PREDIKAT.MEMUASKAN:
+      return {
+        OR: [stored, { ...fallback, ipk: { gt: 0, lt: IPK_THRESHOLD_SANGAT_MEMUASKAN } }],
+      };
+    case UNCLASSIFIED_PREDIKAT:
+      // Tanpa IPK yang sah = tidak terklasifikasi (lihat `calculatePredikat`).
+      return { ...fallback, ipk: { lte: 0 } };
+    default:
+      return stored;
+  }
 }
 
 function buildGraduateFilter(query) {
@@ -32,33 +99,41 @@ function buildGraduateFilter(query) {
     programStudi,
     tahunLulus,
     periodeWisuda,
-    statusKelulusan,
+    predikat,
     fakultas,
-    periodeMasuk,
+    angkatanTahun,
     jenjang,
     search,
   } = query;
 
-  const where = {};
+  // Top-level = kolom students (model yang di-query). Tanpa `statusKeaktifan`
+  // eksplisit populasi selalu Lulus — tab ini tidak menampilkan status lain.
+  const where = { statusKeaktifan: 'Lulus' };
+  addInFilter(where, 'jenjang', jenjang);
+  addInFilter(where, 'programStudi', programStudi);
+  addInFilter(where, 'fakultas', fakultas);
+  // Angkatan = label ajaran penuh: pencocokan persis seperti tab Student.
+  addInFilter(where, 'angkatan', angkatanTahun);
+  addSearchFilter(where, search);
 
-  // Populasi tab lulusan = JENJANGS, dipilih di query bukan disaring setelah hasil.
-  // Tanpa paksaan ini `/graduates/list` menampilkan baris yang tidak pernah dihitung
-  // kartu (terukur pada data nyata: 37 lulusan berjenjang `Prof` ada di daftar,
-  // tidak di summary).
-  where.jenjang = { in: getRequestedJenjang({ jenjang }) };
-  addInFilter(where, 'tahunLulus', tahunLulus);
-  addInFilter(where, 'periodeWisuda', periodeWisuda);
-  addInFilter(where, 'statusKelulusan', statusKelulusan);
+  // Field kelulusan hidup di relasi `graduate` (left join: orphan Lulus tanpa
+  // baris graduate tetap tampil dengan field null — total tak pernah selisih).
+  const graduateFilter = {};
+  addInFilter(graduateFilter, 'tahunLulus', tahunLulus);
 
-  // Filter lewat relasi ke student
-  const studentFilter = {};
-  addInFilter(studentFilter, 'programStudi', programStudi);
-  addInFilter(studentFilter, 'fakultas', fakultas);
-  if (periodeMasuk) studentFilter.periodeMasuk = periodeMasuk;
-  addSearchFilter(studentFilter, search);
+  const periodeWisudaFilter = buildPeriodeWisudaFilter(periodeWisuda);
+  if (periodeWisudaFilter) graduateFilter.periodeWisuda = periodeWisudaFilter;
 
-  if (hasFilters(studentFilter)) {
-    where.student = studentFilter;
+  const predikatValues = toArray(predikat)?.filter(Boolean) || [];
+  if (predikatValues.length) {
+    graduateFilter.AND = [
+      ...(graduateFilter.AND || []),
+      { OR: predikatValues.map(predikatBranch) },
+    ];
+  }
+
+  if (hasFilters(graduateFilter)) {
+    where.graduate = graduateFilter;
   }
 
   return where;
@@ -68,4 +143,5 @@ module.exports = {
   buildGraduateFilter,
   getRequestedJenjang,
   includesJenjang,
+  getScopeJenjangs,
 };

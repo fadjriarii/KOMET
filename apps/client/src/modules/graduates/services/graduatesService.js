@@ -3,8 +3,8 @@ import { createQueryParams } from '../../../services/queryParams';
 import { createQuerySanitizer } from '../../../utils/querySanitizer';
 
 const sanitizeGraduateQuery = createQuerySanitizer({
-  single: ['periodeMasuk'],
-  multi: ['faculty', 'prodi', 'jenjang', 'tahunLulus', 'periodeWisuda', 'statusKelulusan'],
+  single: ['periodeWisuda'],
+  multi: ['faculty', 'prodi', 'jenjang', 'tahunLulus', 'predikat', 'angkatan'],
 });
 
 function toQueryParams(filters = {}, pagination = {}) {
@@ -16,9 +16,9 @@ function toQueryParams(filters = {}, pagination = {}) {
   appendMany('programStudi', sanitized.prodi);
   appendMany('jenjang', sanitized.jenjang);
   appendMany('tahunLulus', sanitized.tahunLulus);
-  appendMany('periodeWisuda', sanitized.periodeWisuda);
-  appendMany('statusKelulusan', sanitized.statusKelulusan);
-  append('periodeMasuk', sanitized.periodeMasuk);
+  append('periodeWisuda', sanitized.periodeWisuda);
+  appendMany('predikat', sanitized.predikat);
+  appendMany('angkatanTahun', sanitized.angkatan);
   append('search', sanitized.search);
   append('page', pagination.page);
   append('limit', pagination.limit);

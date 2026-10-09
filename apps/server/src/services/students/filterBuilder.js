@@ -74,16 +74,24 @@ function buildMultiSelectFilters(query, where) {
 
   const cohortYears = toArray(query.angkatanTahun);
   if (cohortYears) {
-    addOrCondition(
-      where,
-      cohortYears.map((year) => ({ angkatan: { startsWith: year } })),
-    );
+    // Kolom `angkatan` menyimpan label ajaran penuh, jadi filter kohort adalah
+    // pencocokan persis — bukan `startsWith` atas tahun mentah.
+    addInFilter(where, 'angkatan', cohortYears);
   }
 
-  const semesters = toArray(query.semester)
-    ?.map(Number)
+  const semesterValues = toArray(query.semester) || [];
+  // Grup "9+" = semester 9 ke atas (molor); selebihnya angka biasa.
+  const hasExtendedSemester = semesterValues.includes('9+');
+  const semesters = semesterValues
+    .map(Number)
     .filter((value) => Number.isInteger(value) && value > 0);
-  if (semesters?.length) where.semester = { in: semesters };
+  if (hasExtendedSemester && semesters.length) {
+    addOrCondition(where, [{ semester: { in: semesters } }, { semester: { gte: 9 } }]);
+  } else if (hasExtendedSemester) {
+    where.semester = { gte: 9 };
+  } else if (semesters.length) {
+    where.semester = { in: semesters };
+  }
 }
 
 function buildStatusFilter(statusValues) {

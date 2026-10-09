@@ -6,21 +6,23 @@
  * hanya menuliskan satu angka dengan dua nama kunci.
  *
  * ponytail: pemetaan predikat (`countByPredikat`) hanya boleh hidup satu kali, jadi
- * agregasinya tetap di Node. Batasnya O(lulusan dalam jendela 5 tahun).
+ * agregasinya tetap di Node. Batasnya O(lulusan dalam scope kartu).
  * Upgrade path: `GROUP BY predikatLulus` — kolomnya sudah diisi saat ETL dan label
  * resmi kampus sudah tersimpan di sana, tinggal butuh indeks.
  */
 
 const prisma = require('../../config/prisma');
-const { getYearRange } = require('../../utils/academicUtils');
 const { countByPredikat } = require('../../utils/graduateUtils');
 const { rate } = require('../../utils/percentageUtils');
+const { resolveTahunScope, withTahunScope } = require('./yearJenjangSeries');
 
 async function getGraduateDistribution(whereFilter) {
-  const graduates = await prisma.graduate.findMany({
-    where: { ...whereFilter, tahunLulus: { in: getYearRange() } },
-    select: { ipk: true, predikatLulus: true },
+  const { scope } = await resolveTahunScope(whereFilter);
+  const students = await prisma.student.findMany({
+    where: withTahunScope(whereFilter, scope),
+    select: { graduate: { select: { ipk: true, predikatLulus: true } } },
   });
+  const graduates = students.map((s) => s.graduate).filter(Boolean);
 
   const totalGraduates = graduates.length;
   const predikatCounts = countByPredikat(graduates);
