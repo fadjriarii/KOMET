@@ -1,8 +1,10 @@
 const logger = require('../../utils/logger');
 const syncJobTracker = require('../../utils/syncJobTracker');
+const prisma = require('../../config/prisma');
 const createSyncHandler = require('./createSyncHandler');
 const { deduplicateStudents } = require('../../services/studentDeduplicationService');
 const { sanitizeProdiName, normalizeOptionalText } = require('./text');
+const { formatTahunLulus } = require('./academicPeriod');
 const { resolveTargetNimBatch, paginateSevimaPages } = require('./sevimaLookup');
 const { bulkUpsertGraduates } = require('./bulkWrite');
 const { STUDENT_STATUS } = require('@komet/shared/constants');
@@ -29,14 +31,15 @@ const executeSyncGraduates = async ({ runDedup = true } = {}) => {
 
         const prodiName = sanitizeProdiName(attr.program_studi || '');
 
-        // Ekstrak Tahun Lulus
+        // Ekstrak Tahun Lulus sebagai label ajaran ("2025" -> "2025/2026"):
+        // nilai kanonis kolom `tahunLulus`, dihitung sekali di sini.
         let tahunLulus = '';
         if (attr.id_periode_akademik && attr.id_periode_akademik.length >= 4) {
-          tahunLulus = attr.id_periode_akademik.substring(0, 4);
+          tahunLulus = formatTahunLulus(attr.id_periode_akademik.substring(0, 4));
         } else if (attr.tanggal_keluar) {
-          tahunLulus = attr.tanggal_keluar.substring(0, 4);
+          tahunLulus = formatTahunLulus(attr.tanggal_keluar.substring(0, 4));
         } else if (attr.tanggal_sk_yudisium) {
-          tahunLulus = attr.tanggal_sk_yudisium.substring(0, 4);
+          tahunLulus = formatTahunLulus(attr.tanggal_sk_yudisium.substring(0, 4));
         }
 
         // /kelulusan hanya memuat wisudawan: status diambil dari status keaktifan
@@ -103,6 +106,30 @@ const executeSyncGraduates = async ({ runDedup = true } = {}) => {
 
   let deduplicationResult = null;
   if (runDedup) deduplicationResult = await deduplicateStudents();
+
+  // Backfill: mahasiswa berstatus Lulus tanpa baris graduate (terukur 5 NIM —
+  // tak pernah diterbitkan endpoint /kelulusan Sevima) dibuatkan baris
+  // graduate minimal agar field kelulusan konsisten; predikat dihitung dari
+  // IPK oleh reader (fallback `calculatePredikat`).
+  const orphans = await prisma.student.findMany({
+    where: { statusKeaktifan: STUDENT_STATUS.LULUS, graduate: null },
+    select: { nim: true, jenjang: true, periodeMasuk: true, ipk: true },
+  });
+  if (orphans.length > 0) {
+    await bulkUpsertGraduates(
+      orphans.map((s) => ({
+        nim: s.nim,
+        jenjang: s.jenjang,
+        statusKelulusan: STUDENT_STATUS.LULUS,
+        predikatLulus: '',
+        tahunLulus: formatTahunLulus(String(s.periodeMasuk ?? '').substring(0, 4)),
+        periodeWisuda: s.periodeMasuk || '',
+        ipk: Number(s.ipk) || 0,
+        sksLulus: 0,
+        periodeTerakhir: s.periodeMasuk || '',
+      })),
+    );
+  }
 
   syncJobTracker.updateProgress('graduates', {
     status: 'completed',

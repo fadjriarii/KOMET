@@ -1,9 +1,15 @@
-import { Award, BookOpen, Building2, Calendar, CalendarDays, UserCheck } from 'lucide-react';
+import { Award, BookOpen, Building2, CalendarDays, UserCheck } from 'lucide-react';
 import { useDashboardFilters } from '../../../hooks/useDashboardFilters';
 import { sanitizeSearch } from '../../../utils/querySanitizer';
 
 /**
  * Field filter lulusan: state ↔ URL ↔ param server ↔ kontrol tampilan.
+ * Fakultas/Prodi/Jenjang identik tab Student; Tahun Lulus memakai gaya
+ * rolling + input kustom Angkatan; Periode Lulus = Ganjil/Genap seperti
+ * Periode Masuk; "Status Kelulusan" memfilter predikat; Periode Masuk
+ * diganti Angkatan kohort.
+ *
+ * Urutan baris kedua: Angkatan, Tahun Lulus, Status Kelulusan, Periode Lulus.
  */
 export const graduateFilterFields = {
   searchQuery: {
@@ -13,8 +19,8 @@ export const graduateFilterFields = {
     sanitize: sanitizeSearch,
     control: 'search',
     row: 1,
-    label: 'Cari Wisudawan',
-    placeholder: 'Cari berdasarkan NIM atau Nama wisudawan...',
+    label: 'Cari Lulusan',
+    placeholder: 'Cari berdasarkan NIM atau Nama lulusan...',
   },
   selectedFaculty: {
     initial: [],
@@ -51,46 +57,55 @@ export const graduateFilterFields = {
     optionsKey: 'jenjang',
     placeholder: 'Semua Jenjang',
   },
+  selectedAngkatan: {
+    initial: [],
+    api: 'angkatanTahun',
+    setter: 'setSelectedAngkatan',
+    control: 'years',
+    label: 'Angkatan',
+    optionsKey: 'rollingAngkatan',
+    placeholder: 'Pilih Tahun',
+    allTimeLabel: 'All Time',
+    yearLabel: 'Angkatan',
+    allowCustom: true,
+    customLabel: 'Tambah Tahun Angkatan',
+    customMetaKey: 'customAngkatanMeta',
+  },
   selectedTahunLulus: {
     initial: [],
-    param: 'tahunLulus',
+    api: 'tahunLulus',
     setter: 'setSelectedTahunLulus',
     control: 'years',
-    label: 'Tahun Kelulusan',
-    optionsKey: 'tahunLulus',
+    label: 'Tahun Lulus',
+    optionsKey: 'rollingYears',
     placeholder: 'Pilih Tahun',
     allTimeLabel: 'Semua Tahun',
     yearLabel: 'Tahun',
-  },
-  selectedPeriodeWisuda: {
-    initial: [],
-    param: 'periodeWisuda',
-    setter: 'setSelectedPeriodeWisuda',
-    control: 'multi',
-    label: 'Periode Wisuda',
-    icon: CalendarDays,
-    optionsKey: 'periodeWisuda',
-    placeholder: 'Semua Periode Wisuda',
+    allowCustom: true,
+    customLabel: 'Tambah Tahun Kelulusan',
+    customMetaKey: 'customYearMeta',
   },
   selectedStatusKelulusan: {
     initial: [],
-    param: 'statusKelulusan',
+    param: 'predikat',
+    api: 'predikat',
     setter: 'setSelectedStatusKelulusan',
     control: 'multi',
     label: 'Status Kelulusan',
     icon: UserCheck,
-    optionsKey: 'statusKelulusan',
+    optionsKey: 'predikatOptions',
     placeholder: 'Semua Status',
   },
-  selectedPeriodeMasuk: {
+  selectedPeriodeWisuda: {
     initial: '',
-    param: 'periodeMasuk',
-    setter: 'setSelectedPeriodeMasuk',
+    param: 'periodeWisuda',
+    api: 'periodeWisuda',
+    setter: 'setSelectedPeriodeWisuda',
     control: 'single',
-    label: 'Periode Masuk',
-    icon: Calendar,
-    optionsKey: 'periodeMasuk',
-    placeholder: 'Semua Periode Masuk',
+    label: 'Periode Lulus',
+    icon: CalendarDays,
+    optionsKey: 'periodeOptions',
+    placeholder: 'Semua Periode Lulus',
   },
 };
 

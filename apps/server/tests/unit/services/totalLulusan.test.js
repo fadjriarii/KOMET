@@ -3,57 +3,78 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const prisma = require('../../../src/config/prisma');
-const { getYearRange } = require('../../../src/utils/academicUtils');
 const { getTotalLulusan } = require('../../../src/services/graduates/totalLulusan');
 const { buildGraduateFilter } = require('../../../src/services/graduates/filterBuilder');
 
-const originalGroupBy = prisma.graduate.groupBy;
+const ALL_SCOPE = {
+  labels: [],
+  isDefault: true,
+  label: 'Semua Tahun',
+  phrase: 'di seluruh tahun akademik tercatat',
+};
+
+const originalFindMany = prisma.student.findMany;
+const originalGroupBy = prisma.student.groupBy;
+// Populasi student-base: S1 + S2 + Prof (37 Prof dulu dikunci-out helper lama).
 const LEVELS = [
-  { jenjang: 'S1', _count: 757 },
-  { jenjang: 'S2', _count: 36 },
+  { jenjang: 'S1', _count: 1046 },
+  { jenjang: 'S2', _count: 49 },
+  { jenjang: 'Prof', _count: 37 },
 ];
 
 let calls = [];
 
 beforeEach(() => {
   calls = [];
-  prisma.graduate.groupBy = vi.fn(async (args) => {
+  prisma.student.groupBy = vi.fn(async (args) => {
     calls.push(args);
     return LEVELS;
   });
+  prisma.student.findMany = vi.fn(async () => []);
 });
 
 afterEach(() => {
-  prisma.graduate.groupBy = originalGroupBy;
+  prisma.student.groupBy = originalGroupBy;
+  prisma.student.findMany = originalFindMany;
 });
 
 describe('getTotalLulusan', () => {
-  it('satu groupBy untuk kedua jenjang', async () => {
-    expect(await getTotalLulusan({})).toEqual({ s1: 757, s2: 36 });
+  it('satu groupBy student Lulus untuk semua jenjang termasuk Prof', async () => {
+    expect(await getTotalLulusan({})).toEqual({
+      s1: 1046,
+      s2: 49,
+      prof: 37,
+      tahunScope: ALL_SCOPE,
+    });
     expect(calls).toHaveLength(1);
     expect(calls[0].by).toEqual(['jenjang']);
+    expect(calls[0].where.statusKeaktifan).toBe('Lulus');
+  });
+
+  it('tanpa filter tahun menghitung seluruh populasi, bukan jendela 5 tahun', async () => {
+    const result = await getTotalLulusan(buildGraduateFilter({}));
+
+    expect(calls[0].where.graduate).toBeUndefined();
+    expect(result.tahunScope).toEqual(ALL_SCOPE);
+  });
+
+  it('filter tahunLulus user mempersempit kartu seperti tabel', async () => {
+    const result = await getTotalLulusan(buildGraduateFilter({ tahunLulus: '2023/2024' }));
+
+    expect(calls[0].where.graduate).toEqual({ tahunLulus: { in: ['2023/2024'] } });
+    expect(result.tahunScope).toEqual({
+      labels: ['2023/2024'],
+      isDefault: false,
+      label: '2023/2024',
+      phrase: 'pada tahun ajaran 2023/2024',
+    });
   });
 
   it('filter jenjang tidak membuat satu level dihitung dua kali', async () => {
-    // Regresi: `whereFilter.jenjang === 'S1'` tidak pernah cocok dengan bentuk
-    // `{ in: [...] }`, sehingga `?jenjang=S1` melaporkan 757 untuk S1 DAN S2
-    // (totalGraduates 1514 atas data yang sebenarnya 793).
     expect(await getTotalLulusan(buildGraduateFilter({ jenjang: 'S1' }))).toEqual({
-      s1: 757,
+      s1: 1046,
       s2: null,
+      tahunScope: ALL_SCOPE,
     });
-  });
-
-  it('jenjang dikeluarkan dari where karena menjadi kunci grouping', async () => {
-    await getTotalLulusan({
-      ...buildGraduateFilter({ jenjang: 'S2', tahunLulus: '2020' }),
-      student: { fakultas: { in: ['FT'] } },
-    });
-
-    expect(calls[0].where.jenjang).toBeUndefined();
-    expect(calls[0].where.student).toEqual({ fakultas: { in: ['FT'] } });
-    // Kartu ini didefinisikan atas jendela 5 tahun; jendela adalah definisi
-    // metriknya, bukan filter yang bisa mempersempitnya dari client.
-    expect(calls[0].where.tahunLulus).toEqual({ in: getYearRange() });
   });
 });

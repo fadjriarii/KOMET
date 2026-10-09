@@ -1,4 +1,3 @@
-import { GraduationCap, Users } from 'lucide-react';
 import DataTable from '../../../components/common/tables/DataTable';
 import Badge from '../../../components/common/ui/Badge';
 import { getStatusBadgeVariant } from '../../../utils/uiHelpers';
@@ -50,8 +49,7 @@ const COLUMNS = [
     headerClassName: 'w-[7%]',
     cellClassName: 'whitespace-normal break-words',
     render: (row) => (
-      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-700 whitespace-normal">
-        <GraduationCap size={13} className="text-gray-400" />
+      <span className="text-xs font-semibold text-gray-700 whitespace-normal">
         {row.angkatan || '-'}
       </span>
     ),
@@ -135,7 +133,7 @@ export default function StudentDataTable({
       isLoading={isLoading}
       emptyTitle="Mahasiswa Tidak Ditemukan"
       emptyMessage="Tidak ada mahasiswa yang cocok dengan filter yang dipilih."
-      emptyIcon={Users}
+      emptyIcon={null}
       pagination={pagination}
       onPageChange={onPageChange}
       tableClassName="table-fixed min-w-[760px]"

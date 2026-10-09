@@ -11,7 +11,7 @@ const { getTotalLulusan } = require('./totalLulusan');
 const { getAvgIpk } = require('./ipkTrend');
 const { getTepatWaktu } = require('./tepatWaktu');
 const { getKeberhasilanStudi } = require('./keberhasilanStudi');
-const { getYearRange, getReferenceYear } = require('../../utils/academicUtils');
+const { getGraduateLabelWindow } = require('./yearJenjangSeries');
 
 const sumOrNull = (values) => {
   const known = values.filter((value) => typeof value === 'number');
@@ -21,7 +21,7 @@ const sumOrNull = (values) => {
 /**
  * Param query yang dibaca tiap agregasi — dasar badge "Terfilter" di client.
  * Keberhasilan studi menghitung kohort angkatan, jadi `tahunLulus`,
- * `periodeWisuda` dan `statusKelulusan` tidak mempersempitnya (lihat
+ * `periodeWisuda` dan `predikat` tidak mempersempitnya (lihat
  * `getCohortScope`); memakainya sebagai pembilang akan memaksa rasio mendekati
  * 100%.
  */
@@ -32,33 +32,56 @@ const GRADUATE_PARAMS = [
   'jenjang',
   'tahunLulus',
   'periodeWisuda',
-  'statusKelulusan',
-  'periodeMasuk',
+  'predikat',
+  'angkatanTahun',
 ];
-const COHORT_PARAMS = ['search', 'fakultas', 'programStudi', 'jenjang', 'periodeMasuk'];
+const COHORT_PARAMS = ['search', 'fakultas', 'programStudi', 'jenjang', 'angkatanTahun'];
 
 async function getGraduateSummary(whereFilter) {
-  const [filterOptions, totalLulusan, avgIpk, tepatWaktu, keberhasilanStudi] = await Promise.all([
-    getGraduateFilterOptions(),
-    getTotalLulusan(whereFilter),
-    getAvgIpk(whereFilter),
-    getTepatWaktu(whereFilter),
-    getKeberhasilanStudi(whereFilter),
-  ]);
+  const [filterOptions, totalLulusan, avgIpk, tepatWaktu, keberhasilanStudi, labelRange] =
+    await Promise.all([
+      getGraduateFilterOptions(),
+      getTotalLulusan(whereFilter),
+      getAvgIpk(whereFilter),
+      getTepatWaktu(whereFilter),
+      getKeberhasilanStudi(whereFilter),
+      getGraduateLabelWindow(),
+    ]);
+
+  // Total = seluruh jenjang populasi (dinamis incl `Prof`) — bukan S1+S2 saja.
+  const jenjangCounts = Object.entries(totalLulusan).filter(
+    ([key, value]) => key !== 'tahunScope' && typeof value === 'number',
+  );
 
   return {
-    referenceYear: getReferenceYear(),
-    yearRange: getYearRange(),
+    referenceLabel: labelRange[labelRange.length - 1],
+    labelRange,
     summary: { totalLulusan, avgIpk, tepatWaktu, keberhasilanStudi },
     kpis: {
-      totalGraduates: sumOrNull([totalLulusan.s1, totalLulusan.s2]),
-      totalGraduatesS1: totalLulusan.s1,
-      totalGraduatesS2: totalLulusan.s2,
-      onTimeGraduationRateS1: tepatWaktu.s1,
-      onTimeGraduationRateS2: tepatWaktu.s2,
-      studySuccessRateS1: keberhasilanStudi.s1,
-      averageGpaS1: avgIpk.s1.average,
-      averageGpaS2: avgIpk.s2.average,
+      totalGraduates: sumOrNull(jenjangCounts.map(([, value]) => value)),
+      totalGraduatesS1: totalLulusan.s1 ?? null,
+      totalGraduatesS2: totalLulusan.s2 ?? null,
+      totalGraduatesByJenjang: Object.fromEntries(jenjangCounts),
+      onTimeGraduationRateS1: tepatWaktu.s1 ?? null,
+      onTimeGraduationRateS2: tepatWaktu.s2 ?? null,
+      onTimeByJenjang: Object.fromEntries(
+        Object.entries(tepatWaktu).filter(
+          ([key, value]) =>
+            key !== 'referenceLabel' &&
+            key !== 'tahunScope' &&
+            (typeof value === 'number' || value === null),
+        ),
+      ),
+      studySuccessRateS1: keberhasilanStudi.s1 ?? null,
+      averageGpaS1: avgIpk.s1?.average ?? null,
+      averageGpaS2: avgIpk.s2?.average ?? null,
+      averageGpaByJenjang: Object.fromEntries(
+        Object.entries(avgIpk)
+          .filter(([key, value]) => key !== 'tahunScope' && value && typeof value === 'object')
+          .map(([key, value]) => [key, value.average ?? null]),
+      ),
+      totalScopeLabel: totalLulusan.tahunScope?.label ?? null,
+      totalScopePhrase: totalLulusan.tahunScope?.phrase ?? null,
     },
     kpiFilterScope: {
       total: GRADUATE_PARAMS,

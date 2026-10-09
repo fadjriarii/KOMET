@@ -103,11 +103,16 @@ const GRADUATE_SUMMARY_KPIS = [
   'totalGraduates',
   'totalGraduatesS1',
   'totalGraduatesS2',
+  'totalGraduatesByJenjang',
+  'totalScopeLabel',
+  'totalScopePhrase',
   'onTimeGraduationRateS1',
   'onTimeGraduationRateS2',
+  'onTimeByJenjang',
   'studySuccessRateS1',
   'averageGpaS1',
   'averageGpaS2',
+  'averageGpaByJenjang',
 ];
 
 const MBKM_SUMMARY_KPIS = [

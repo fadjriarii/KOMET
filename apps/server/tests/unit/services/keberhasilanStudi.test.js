@@ -4,21 +4,29 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const prisma = require('../../../src/config/prisma');
 const { getReferenceYear } = require('../../../src/utils/academicUtils');
+const { formatAcademicYearLabel } = require('@komet/shared/academicYear');
 const {
   getKeberhasilanStudi,
   getKeberhasilanStudiByAngkatan,
+  getEvaluationWindow,
+  getAngkatanEvaluasiStart,
   COHORT_EVALUATION_LAG,
 } = require('../../../src/services/graduates/keberhasilanStudi');
 
 const EVALUATION_WINDOW_YEARS = 5;
-const JENJANGS = ['S1', 'S2'];
+// Jenjang dinamis: Prof ikut populasi (lag 2 — profesi 1 tahun + 1 tenggang).
+const JENJANGS = ['S1', 'S2', 'Prof'];
 
-const windowYears = (jenjang) => {
-  const last = getReferenceYear() - COHORT_EVALUATION_LAG[jenjang];
-  return Array.from({ length: EVALUATION_WINDOW_YEARS }, (_, index) =>
-    String(last - (EVALUATION_WINDOW_YEARS - 1 - index)),
-  );
-};
+const originalAggregate = prisma.graduate.aggregate;
+const originalGroupBy = prisma.student.groupBy;
+
+const REF_START = getReferenceYear();
+
+prisma.graduate.aggregate = async () => ({
+  _max: { tahunLulus: formatAcademicYearLabel(REF_START) },
+});
+
+const windowYears = (jenjang) => getEvaluationWindow(jenjang, REF_START);
 
 // Data sintetis dengan komposisi berbeda per tahun dan per jenjang, supaya
 // salah pengelompokan tahun langsung terlihat.
@@ -27,7 +35,7 @@ function buildDataset() {
   const rows = [];
   for (let year = ref - 15; year <= ref + 1; year += 1) {
     for (const jenjang of JENJANGS) {
-      const lulus = (year % 4) + (jenjang === 'S2' ? 1 : 0) + 1;
+      const lulus = (year % 4) + (jenjang === 'S2' ? 1 : jenjang === 'Prof' ? 2 : 0) + 1;
       const aktif = year % 3;
       for (let index = 0; index < lulus; index += 1) {
         rows.push({ jenjang, fakultas: 'FT', periodeMasuk: `${year}1`, statusKeaktifan: 'Lulus' });
@@ -48,10 +56,14 @@ function buildDataset() {
 }
 
 /** Kelompok (periodeMasuk, statusKeaktifan) sesuai where yang diminta service. */
-function stubGroupBy(dataset) {
+function stubGroupBy(dataset, jenjangs = JENJANGS) {
   const calls = [];
   prisma.student.groupBy = vi.fn(async (args) => {
     calls.push(args);
+    // Penyebut kohort = seluruh angkatan: statusKeaktifan tak boleh ikut where.
+    if (args.by.length === 1 && args.by[0] === 'jenjang') {
+      return jenjangs.map((jenjang) => ({ jenjang }));
+    }
     const { jenjang, fakultas, periodeMasuk } = args.where;
     const matched = dataset.filter(
       (row) =>
@@ -93,10 +105,9 @@ function expectedCohort(dataset, jenjang, angkatan, fakultas) {
 }
 
 describe('keberhasilan studi agregasi cohort', () => {
-  const originalGroupBy = prisma.student.groupBy;
-
   afterAll(() => {
     prisma.student.groupBy = originalGroupBy;
+    prisma.graduate.aggregate = originalAggregate;
   });
 
   it('satu agregat per jenjang untuk seluruh jendela evaluasi', async () => {
@@ -105,10 +116,15 @@ describe('keberhasilan studi agregasi cohort', () => {
 
     const result = await getKeberhasilanStudiByAngkatan({});
 
-    expect(calls).toHaveLength(2);
-    expect(calls[0].by).toEqual(['periodeMasuk', 'statusKeaktifan']);
-    expect(result.s1.map((row) => row.angkatan)).toEqual(windowYears('S1'));
-    expect(result.s2.map((row) => row.angkatan)).toEqual(windowYears('S2'));
+    // 1 query jenjang dinamis + 3 agregat kohort.
+    expect(calls).toHaveLength(4);
+    expect(calls[0].by).toEqual(['jenjang']);
+    expect(result.s1.map((row) => row.cohortLabel)).toEqual(
+      windowYears('S1').map((label) => `Angkatan ${label}`),
+    );
+    expect(result.prof.map((row) => row.cohortLabel)).toEqual(
+      windowYears('Prof').map((label) => `Angkatan ${label}`),
+    );
   });
 
   it('menghasilkan angka yang sama dengan perhitungan per-angkatan lama', async () => {
@@ -119,7 +135,7 @@ describe('keberhasilan studi agregasi cohort', () => {
 
     for (const jenjang of JENJANGS) {
       result[jenjang.toLowerCase()].forEach((row) => {
-        expect(row).toMatchObject(expectedCohort(dataset, jenjang, row.angkatan));
+        expect(row).toMatchObject(expectedCohort(dataset, jenjang, String(row.angkatan)));
       });
     }
   });
@@ -128,11 +144,12 @@ describe('keberhasilan studi agregasi cohort', () => {
     const dataset = buildDataset();
     const calls = stubGroupBy(dataset);
 
-    const result = await getKeberhasilanStudiByAngkatan({ student: { fakultas: 'FT' } });
+    // Builder baru flat: kolom student di top-level (nesting lama tetap jalan).
+    const result = await getKeberhasilanStudiByAngkatan({ fakultas: 'FT' });
 
-    expect(calls[0].where.fakultas).toBe('FT');
+    expect(calls[1].where.fakultas).toBe('FT');
     result.s1.forEach((row) => {
-      expect(row).toMatchObject(expectedCohort(dataset, 'S1', row.angkatan, 'FT'));
+      expect(row).toMatchObject(expectedCohort(dataset, 'S1', String(row.angkatan), 'FT'));
     });
   });
 
@@ -142,33 +159,43 @@ describe('keberhasilan studi agregasi cohort', () => {
 
     const cards = await getKeberhasilanStudi({});
 
-    expect(calls).toHaveLength(2);
-    expect(cards.s1).toBe(expectedCohort(dataset, 'S1', windowYears('S1').at(-1)).rate);
-    expect(cards.s2).toBe(expectedCohort(dataset, 'S2', windowYears('S2').at(-1)).rate);
+    expect(calls).toHaveLength(4);
+    expect(cards.s1).toBe(
+      expectedCohort(dataset, 'S1', String(getAngkatanEvaluasiStart('S1', REF_START))).rate,
+    );
+    expect(cards.s2).toBe(
+      expectedCohort(dataset, 'S2', String(getAngkatanEvaluasiStart('S2', REF_START))).rate,
+    );
+    expect(cards.prof).toBe(
+      expectedCohort(dataset, 'Prof', String(getAngkatanEvaluasiStart('Prof', REF_START))).rate,
+    );
     expect(cards).toMatchObject({
       angkatanS1: windowYears('S1').at(-1),
       angkatanS2: windowYears('S2').at(-1),
     });
   });
 
-  it('filter jenjang S2 membatalkan perhitungan S1 tanpa mengirim query', async () => {
+  it('filter jenjang S2 membatalkan perhitungan lain tanpa mengirim query', async () => {
     const dataset = buildDataset();
-    const calls = stubGroupBy(dataset);
+    const calls = stubGroupBy(dataset, ['S2']);
 
     const cards = await getKeberhasilanStudi({ jenjang: 'S2' });
     const series = await getKeberhasilanStudiByAngkatan({ jenjang: 'S2' });
 
+    // Jenjang yang tidak diminta → null (bukan undefined/0%).
     expect(cards.s1).toBeNull();
     expect(cards.s2).not.toBeNull();
-    // Kartu S1 + series S1 sama-sama dilewati: 1 query masing-masing.
+    // Kartu S2 + series S2: 1 query masing-masing.
     expect(calls).toHaveLength(2);
     expect(series.s1).toBeNull();
-    expect(series.s2.map((row) => row.angkatan)).toEqual(windowYears('S2'));
+    expect(series.s2.map((row) => row.cohortLabel)).toEqual(
+      windowYears('S2').map((label) => `Angkatan ${label}`),
+    );
   });
 
   it('filter bentuk Prisma ({ in: [...] }) juga membatalkan jenjang yang tidak diminta', async () => {
     const dataset = buildDataset();
-    const calls = stubGroupBy(dataset);
+    const calls = stubGroupBy(dataset, ['S2']);
 
     // `buildGraduateFilter()` menghasilkan `{ in: [...] }`, bukan string.
     const cards = await getKeberhasilanStudi({ jenjang: { in: ['S2'] } });
@@ -183,19 +210,26 @@ describe('keberhasilan studi agregasi cohort', () => {
     const calls = stubGroupBy(dataset);
 
     await getKeberhasilanStudiByAngkatan({
-      student: { fakultas: 'FT' },
-      tahunLulus: { in: ['2025'] },
-      periodeWisuda: { in: ['20251'] },
-      statusKelulusan: { in: ['Lulus'] },
+      fakultas: 'FT',
+      graduate: { tahunLulus: { in: ['2025/2026'] }, periodeWisuda: { endsWith: '1' } },
+      statusKeaktifan: 'Lulus',
     });
 
-    // Metrik kohort hanya membaca sisi mahasiswa; tiga filter atas `graduates`
-    // sengaja tidak berpengaruh (menyaring peristiwa kelulusan akan memaksa
-    // pembilangnya menjadi 100%).
-    expect(calls[0].where).toEqual({
-      fakultas: 'FT',
-      jenjang: 'S1',
-      periodeMasuk: expect.any(Object),
-    });
+    // Metrik kohort hanya membaca sisi mahasiswa; filter peristiwa kelulusan +
+    // statusKeaktifan kartu sengaja tidak berpengaruh (menyaring penyebut akan
+    // memaksa pembilangnya menjadi 100%).
+    const cohortCalls = calls.filter(
+      (call) => JSON.stringify(call.by) === JSON.stringify(['periodeMasuk', 'statusKeaktifan']),
+    );
+    expect(cohortCalls.length).toBeGreaterThan(0);
+    for (const cohortCall of cohortCalls) {
+      expect(cohortCall.where.statusKeaktifan).toBeUndefined();
+      expect(cohortCall.where.graduate).toBeUndefined();
+      expect(cohortCall.where.fakultas).toBe('FT');
+    }
+  });
+
+  it('lag evaluasi Prof = 2 (profesi 1 tahun + 1 tenggang)', () => {
+    expect(COHORT_EVALUATION_LAG.PROF).toBe(2);
   });
 });

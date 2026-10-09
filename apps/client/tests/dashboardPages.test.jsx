@@ -12,7 +12,7 @@ vi.mock('../src/services/apiClient', () => import('./apiMock'));
 const STUDENT_ROW = {
   nim: '20211001',
   nama: 'Mahasiswa Satu',
-  angkatan: '2021',
+  angkatan: '2021/2022',
   periode: 'Ganjil',
   periodeMasuk: '20211',
   periodeTerakhir: '20251',
@@ -27,12 +27,12 @@ const STUDENT_ROW = {
 const GRADUATE_ROW = {
   id: 1,
   nim: '20191002',
-  nama: 'Wisudawan Dua',
-  angkatan: '2019',
+  nama: 'Lulusan Dua',
+  angkatan: '2019/2020',
   programStudi: 'Ilmu Komputer',
   fakultas: 'FST',
   jenjang: 'S1',
-  tahunLulus: '2023',
+  tahunLulus: '2023/2024',
   ipk: 3.5,
   sksLulus: 144,
   statusKeaktifan: 'Aktif',
@@ -45,8 +45,8 @@ const MBKM_ROW = {
   nim: '20201003',
   nama: 'Peserta Tiga',
   periode: '20251',
-  tahun: '2025',
-  angkatan: '2020',
+  tahun: '2025/2026',
+  angkatan: '2020/2021',
   programStudi: 'Ilmu Komputer',
   fakultas: 'FST',
   jenjang: 'S1',
@@ -99,8 +99,8 @@ const GRADUATE_PARAMS = [
   'jenjang',
   'tahunLulus',
   'periodeWisuda',
-  'statusKelulusan',
-  'periodeMasuk',
+  'predikat',
+  'angkatanTahun',
 ];
 const ACTIVITY_PARAMS = [
   'search',
@@ -155,6 +155,8 @@ const ROUTES = {
       totalGraduates: 1234,
       totalGraduatesS1: 1000,
       totalGraduatesS2: 234,
+      totalScopeLabel: 'Semua Tahun',
+      totalScopePhrase: 'di seluruh tahun akademik tercatat',
       averageGpaS1: 3.45,
       averageGpaS2: null,
       onTimeGraduationRateS1: 78.9,
@@ -164,7 +166,7 @@ const ROUTES = {
     listPayload: listPayload([GRADUATE_ROW]),
     extraPaths: {},
     cards: [
-      { key: 'total', title: 'Total Wisudawan' },
+      { key: 'total', title: 'Total Lulusan' },
       { key: 'gpa', title: 'Rata-rata IPK Lulusan' },
       { key: 'onTime', title: 'Kelulusan Tepat Waktu' },
       { key: 'studySuccess', title: 'Keberhasilan Studi' },
@@ -173,11 +175,11 @@ const ROUTES = {
       total: GRADUATE_PARAMS,
       gpa: GRADUATE_PARAMS,
       onTime: GRADUATE_PARAMS,
-      studySuccess: ['search', 'fakultas', 'programStudi', 'jenjang', 'periodeMasuk'],
+      studySuccess: ['search', 'fakultas', 'programStudi', 'jenjang', 'angkatanTahun'],
     },
     filterCases: [
       { url: '/graduates?faculty=FST', api: 'fakultas', value: 'FST' },
-      { url: '/graduates?periodeWisuda=1', api: 'periodeWisuda', value: '1' },
+      { url: '/graduates?periodeWisuda=Ganjil', api: 'periodeWisuda', value: 'Ganjil' },
     ],
     rowLabel: '20191002',
   },
@@ -321,6 +323,8 @@ describe('kartu KPI Graduates', () => {
           totalGraduates: null,
           totalGraduatesS1: 0,
           totalGraduatesS2: 0,
+          totalScopeLabel: null,
+          totalScopePhrase: null,
           averageGpaS1: 0,
           averageGpaS2: null,
           onTimeGraduationRateS1: null,
@@ -334,7 +338,7 @@ describe('kartu KPI Graduates', () => {
 
     await cardsReady(ROUTES.graduates);
     // `null` dari server = "-", bukan 0; `0` asli tetap terbaca 0.
-    expect(cardOf('Total Wisudawan').textContent).toContain('-');
+    expect(cardOf('Total Lulusan').textContent).toContain('-');
     expect(cardOf('Rata-rata IPK Lulusan').textContent).toContain('0.00');
     expect(cardOf('Rata-rata IPK Lulusan').textContent).toContain('S2: -');
     expect(cardOf('Kelulusan Tepat Waktu').textContent).toContain('-');
@@ -345,7 +349,7 @@ describe('kartu KPI Graduates', () => {
     renderPage(GraduatesPage);
     await waitFor(() => expect(callsFor('/graduates/summary')).toHaveLength(1));
 
-    const searchInput = screen.getByLabelText('Cari Wisudawan');
+    const searchInput = screen.getByLabelText('Cari Lulusan');
     ['a', 'ab', 'abc'].forEach((value) =>
       act(() => fireEvent.change(searchInput, { target: { value } })),
     );
@@ -374,7 +378,7 @@ describe('kartu KPI Graduates', () => {
     mockModule('graduates');
     const { goTo } = renderPage(GraduatesPage);
     await cardsReady(ROUTES.graduates);
-    const cardTitle = screen.getByText('Total Wisudawan');
+    const cardTitle = screen.getByText('Total Lulusan');
 
     goTo('/graduates?page=2');
     await waitFor(() => expect(callsFor('/graduates/list')).toHaveLength(2));

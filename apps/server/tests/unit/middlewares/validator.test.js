@@ -53,11 +53,22 @@ describe('student query validation', () => {
 
   it('bounds graduate and MBKM filter fields to their accepted formats', () => {
     expect(
-      graduateQuerySchema.safeParse({ periodeMasuk: '20251', jenjang: ['S1', 'S2'] }).success,
+      graduateQuerySchema.safeParse({ periodeWisuda: 'Ganjil', jenjang: ['S1', 'S2'] }).success,
     ).toBe(true);
-    expect(graduateQuerySchema.safeParse({ periodeMasuk: '2025/2026' }).success).toBe(false);
+    expect(graduateQuerySchema.safeParse({ periodeWisuda: '20251' }).success).toBe(false);
     expect(mbkmQuerySchema.safeParse({ periode: '20252', topN: '10' }).success).toBe(true);
     expect(mbkmQuerySchema.safeParse({ periode: '2025/2026', topN: '-1' }).success).toBe(false);
+  });
+
+  it('menerima label ajaran penuh, menolak tahun mentah YYYY', () => {
+    expect(
+      studentQuerySchema.safeParse({ angkatanTahun: ['2025/2026', '2024/2025'] }).success,
+    ).toBe(true);
+    expect(studentQuerySchema.safeParse({ angkatanTahun: ['2025'] }).success).toBe(false);
+    expect(graduateQuerySchema.safeParse({ tahunLulus: '2025/2026' }).success).toBe(true);
+    expect(graduateQuerySchema.safeParse({ tahunLulus: '2025' }).success).toBe(false);
+    expect(graduateQuerySchema.safeParse({ angkatanTahun: '2024/2025' }).success).toBe(true);
+    expect(graduateQuerySchema.safeParse({ angkatanTahun: '2024' }).success).toBe(false);
   });
 });
 

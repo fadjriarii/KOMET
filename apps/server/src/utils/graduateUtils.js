@@ -1,4 +1,12 @@
 /**
+ * Ambang IPK predikat — satu-satunya sumber angka 3.51/3.01. Dipakai
+ * `calculatePredikat` dan filter predikat (rentang Prisma) supaya tidak
+ * ada dua salinan yang bisa bergeser diam-diam.
+ */
+const IPK_THRESHOLD_CUM_LAUDE = 3.51;
+const IPK_THRESHOLD_SANGAT_MEMUASKAN = 3.01;
+
+/**
  * graduateUtils.js
  *
  * Helper utilitas untuk domain lulusan (Graduates).
@@ -19,8 +27,8 @@ const { PREDIKAT, UNCLASSIFIED_PREDIKAT } = require('@komet/shared/constants');
 function calculatePredikat(ipk) {
   const value = Number(ipk);
   if (!Number.isFinite(value) || value <= 0) return null;
-  if (value >= 3.51) return PREDIKAT.CUM_LAUDE;
-  if (value >= 3.01) return PREDIKAT.SANGAT_MEMUASKAN;
+  if (value >= IPK_THRESHOLD_CUM_LAUDE) return PREDIKAT.CUM_LAUDE;
+  if (value >= IPK_THRESHOLD_SANGAT_MEMUASKAN) return PREDIKAT.SANGAT_MEMUASKAN;
   return PREDIKAT.MEMUASKAN;
 }
 
@@ -41,6 +49,8 @@ module.exports = {
   PREDIKAT,
   PREDIKAT_LABELS,
   UNCLASSIFIED_PREDIKAT,
+  IPK_THRESHOLD_CUM_LAUDE,
+  IPK_THRESHOLD_SANGAT_MEMUASKAN,
   calculatePredikat,
   countByPredikat,
 };

@@ -134,29 +134,62 @@ export default function OnTimeGraduationModal({ isOpen, onClose, originRect, dat
 
   const batasS1 = detailData?.batasS1;
   const batasS2 = detailData?.batasS2;
-  const tabs = useMemo(() => onTimeTabs({ s1: batasS1, s2: batasS2 }), [batasS1, batasS2]);
+  const batasProf = detailData?.batasProf;
+  const tabs = useMemo(
+    () => onTimeTabs({ s1: batasS1, s2: batasS2, prof: batasProf }),
+    [batasS1, batasS2, batasProf],
+  );
   const { activeTab, handleTabChange, slideClass } = useTabTransition(tabs, 's1');
 
   const kpis = data?.kpis || {};
   const onTimeS1 = formatPercentage(kpis.onTimeGraduationRateS1, 1, '0.0%');
   const onTimeS2 = formatPercentage(kpis.onTimeGraduationRateS2, 1, '0.0%');
 
-  const s1Cohorts = useMemo(() => detailData?.s1 || [], [detailData]);
-  const s2Cohorts = useMemo(() => detailData?.s2 || [], [detailData]);
+  const cohortsByJenjang = useMemo(() => {
+    const entries = Object.entries(detailData ?? {}).filter(
+      ([key, value]) =>
+        key !== 'batasS1' && key !== 'batasS2' && key !== 'batasProf' && Array.isArray(value),
+    );
+    return Object.fromEntries(entries);
+  }, [detailData]);
+  const s1Cohorts = useMemo(() => cohortsByJenjang.s1 || [], [cohortsByJenjang]);
+  const s2Cohorts = useMemo(() => cohortsByJenjang.s2 || [], [cohortsByJenjang]);
+  const extraCohorts = useMemo(
+    () => Object.entries(cohortsByJenjang).filter(([key]) => key !== 's1' && key !== 's2'),
+    [cohortsByJenjang],
+  );
 
-  const content = useMemo(
-    () => ({
+  const content = useMemo(() => {
+    const entries = {
       s1: (
         <CohortTrendChart cohorts={s1Cohorts} batas={batasS1} isLoading={isLoading} error={error} />
       ),
       s2: (
         <CohortTrendChart cohorts={s2Cohorts} batas={batasS2} isLoading={isLoading} error={error} />
       ),
+    };
+    for (const [key, cohorts] of extraCohorts) {
+      entries[key] = (
+        <CohortTrendChart
+          cohorts={cohorts}
+          batas={key === 'prof' ? batasProf : undefined}
+          isLoading={isLoading}
+          error={error}
+        />
+      );
+    }
+    return {
+      ...entries,
       tabel: (
         <div className="h-full flex flex-col gap-4 pt-0.5 pb-1 overflow-y-auto custom-scrollbar">
           {[
             ['S1', s1Cohorts, batasS1],
             ['S2', s2Cohorts, batasS2],
+            ...extraCohorts.map(([key, cohorts]) => [
+              key.toUpperCase(),
+              cohorts,
+              key === 'prof' ? batasProf : undefined,
+            ]),
           ].map(([jenjang, cohorts, batas]) => (
             <div key={jenjang} className="space-y-1.5">
               <h4 className="text-xs font-bold text-gray-700">
@@ -175,9 +208,8 @@ export default function OnTimeGraduationModal({ isOpen, onClose, originRect, dat
           ))}
         </div>
       ),
-    }),
-    [batasS1, batasS2, error, isLoading, s1Cohorts, s2Cohorts],
-  );
+    };
+  }, [batasProf, batasS1, batasS2, error, extraCohorts, isLoading, s1Cohorts, s2Cohorts]);
 
   return (
     <Modal

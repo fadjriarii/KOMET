@@ -1,4 +1,3 @@
-import { GraduationCap, Award, CheckCircle2 } from 'lucide-react';
 import DataTable from '../../../components/common/tables/DataTable';
 import Badge from '../../../components/common/ui/Badge';
 import { formatNumber } from '@komet/shared/formatters';
@@ -62,8 +61,7 @@ const COLUMNS = [
     headerClassName: 'w-[7%] text-center',
     cellClassName: 'text-center whitespace-normal break-words',
     render: (row) => (
-      <span className="inline-flex items-center gap-1 text-xs font-semibold text-gray-700 whitespace-normal">
-        <GraduationCap size={13} className="text-gray-400" />
+      <span className="text-xs font-semibold text-gray-700 whitespace-normal">
         {row.angkatan || '-'}
       </span>
     ),
@@ -74,9 +72,7 @@ const COLUMNS = [
     headerClassName: 'w-[8%] text-center',
     cellClassName: 'text-center',
     render: (row) => (
-      <span className="inline-flex items-center justify-center min-w-8 h-7 px-2 rounded-lg bg-gray-100 text-gray-700 text-xs font-bold">
-        {row.tahunLulus ?? '-'}
-      </span>
+      <span className="text-xs font-semibold text-gray-700">{row.tahunLulus ?? '-'}</span>
     ),
   },
   {
@@ -110,7 +106,6 @@ const COLUMNS = [
           variant={badgeVariantForPredikat(row.predikatLulus)}
           className="justify-center text-xs"
         >
-          <Award size={12} className="mr-1 opacity-80" />
           <span className="whitespace-normal break-words">{predikat}</span>
         </Badge>
       );
@@ -123,7 +118,6 @@ const COLUMNS = [
     cellClassName: 'text-center',
     render: (row) => (
       <Badge size="sm" variant="success" className="justify-center text-xs">
-        <CheckCircle2 size={12} className="mr-1 opacity-80" />
         <span>{row.statusKelulusan || 'Lulus'}</span>
       </Badge>
     ),
@@ -131,7 +125,7 @@ const COLUMNS = [
 ];
 
 /**
- * GraduateDataTable - Pure presenter tabel daftar wisudawan / lulusan
+ * GraduateDataTable - Pure presenter tabel daftar lulusan
  * Data berasal dari endpoint GET /api/graduates/list (server-side pagination).
  */
 export default function GraduateDataTable({
@@ -143,15 +137,16 @@ export default function GraduateDataTable({
   return (
     <DataTable
       title="Daftar Lulusan"
-      description="Daftar identitas wisudawan, capaian IPK, SKS lulus, dan predikat kelulusan."
+      description="Daftar identitas lulusan, capaian IPK, SKS lulus, dan predikat kelulusan."
       headerMeta={`${formatNumber(pagination?.total || 0)} lulusan`}
       columns={COLUMNS}
       rowNumber
+      rowKey="nim"
       data={rows}
       isLoading={isLoading}
       emptyTitle="Lulusan Tidak Ditemukan"
       emptyMessage="Tidak ada data lulusan yang cocok dengan filter yang dipilih."
-      emptyIcon={GraduationCap}
+      emptyIcon={null}
       pagination={pagination}
       onPageChange={onPageChange}
       tableClassName="table-fixed min-w-[850px]"

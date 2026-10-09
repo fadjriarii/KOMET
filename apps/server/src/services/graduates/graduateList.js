@@ -1,7 +1,9 @@
 /**
  * graduateList.js
  *
- * Query daftar lulusan dengan filter lengkap, kalkulasi predikatLulus, dan pagination.
+ * Daftar lulusan dibaca dari tabel students (base Lulus, left join graduate
+ * untuk field kelulusan) — total tabel = total kartu by construction.
+ * 5 orphan Lulus tanpa baris graduate tampil dengan field '-' (bukan hilang).
  */
 
 const prisma = require('../../config/prisma');
@@ -10,54 +12,56 @@ const { paginateList } = require('../../utils/paginationUtils');
 const { TABLE_LIMIT } = require('@komet/shared/constants');
 
 async function getGraduateList(whereFilter, page = 1, limit = TABLE_LIMIT) {
-  const { rows, pagination } = await paginateList(prisma.graduate, {
+  const { rows, pagination } = await paginateList(prisma.student, {
     where: whereFilter,
     select: {
-      id: true,
       nim: true,
+      nama: true,
+      angkatan: true,
+      programStudi: true,
+      fakultas: true,
       jenjang: true,
-      statusKelulusan: true,
-      predikatLulus: true,
-      tahunLulus: true,
-      periodeWisuda: true,
-      ipk: true,
-      sksLulus: true,
-      student: {
+      statusKeaktifan: true,
+      graduate: {
         select: {
-          nama: true,
-          angkatan: true,
-          programStudi: true,
-          fakultas: true,
-          statusKeaktifan: true,
+          jenjang: true,
+          statusKelulusan: true,
+          predikatLulus: true,
+          tahunLulus: true,
+          periodeWisuda: true,
+          ipk: true,
+          sksLulus: true,
         },
       },
     },
-    orderBy: [{ tahunLulus: 'desc' }, { student: { nama: 'asc' } }],
+    orderBy: [{ nama: 'asc' }],
     page,
     limit,
   });
 
   // Kontrak daftar lulusan: camelCase saja — tanpa salinan snake_case per kolom.
-  const data = rows.map((g) => ({
-    id: g.id,
-    nim: g.nim,
-    nama: g.student?.nama || '',
-    angkatan: g.student?.angkatan || '',
-    programStudi: g.student?.programStudi || '',
-    fakultas: g.student?.fakultas || '',
-    jenjang: g.jenjang,
-    // `tahunLulus` String sesuai skema; mengubahnya jadi angka di sini membuat
-    // daftar dan jalur tren memakai dua tipe untuk kolom yang sama.
-    tahunLulus: g.tahunLulus,
-    ipk: g.ipk,
-    sksLulus: g.sksLulus,
-    // Status terkini berasal dari data, bukan label yang dikarang per baris.
-    statusKeaktifan: g.student?.statusKeaktifan ?? null,
-    // Label resmi dari SK yudisium; ambang IPK hanya dipakai untuk baris yang
-    // belum disinkron ulang sejak kolom `predikatLulus` ada.
-    predikatLulus: g.predikatLulus || calculatePredikat(g.ipk),
-    statusKelulusan: g.statusKelulusan,
-  }));
+  const data = rows.map((s) => {
+    const g = s.graduate;
+    return {
+      id: s.nim,
+      nim: s.nim,
+      nama: s.nama || '',
+      angkatan: s.angkatan || '',
+      programStudi: s.programStudi || '',
+      fakultas: s.fakultas || '',
+      jenjang: s.jenjang,
+      // `tahunLulus` String sesuai skema; orphan tanpa baris graduate = null.
+      tahunLulus: g?.tahunLulus ?? null,
+      ipk: g?.ipk ?? null,
+      sksLulus: g?.sksLulus ?? null,
+      // Status terkini berasal dari data, bukan label yang dikarang per baris.
+      statusKeaktifan: s.statusKeaktifan ?? null,
+      // Label resmi dari SK yudisium; ambang IPK hanya dipakai untuk baris yang
+      // belum disinkron ulang sejak kolom `predikatLulus` ada.
+      predikatLulus: g?.predikatLulus || calculatePredikat(g?.ipk),
+      statusKelulusan: g?.statusKelulusan ?? 'Lulus',
+    };
+  });
 
   return { data, pagination };
 }

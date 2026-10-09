@@ -31,6 +31,17 @@ export function parseAcademicYear(label) {
 }
 
 /**
+ * Label tahun ajaran dari tahun mulai, mis. `2025` → `"2025/2026"`.
+ * Satu-satunya pembentuk label: sync writers dan derive opsi filter memakainya,
+ * tidak ada yang merangkai string manual di tempat lain.
+ */
+export function formatAcademicYearLabel(startYear) {
+  const start = Number(startYear);
+  if (!Number.isInteger(start) || start < 1900) return null;
+  return `${start}/${start + 1}`;
+}
+
+/**
  * Cek label tahun akademik: bentuk `YYYY/YYYY` dan tahun kedua benar-benar
  * mengikuti tahun pertama. Nilai kosong dianggap "tidak diisi" (valid), karena
  * pemeriksaan ini dipakai untuk menerima input dari URL, bukan mewajibkan isi.

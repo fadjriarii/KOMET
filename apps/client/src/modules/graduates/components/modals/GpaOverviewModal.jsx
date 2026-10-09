@@ -15,6 +15,8 @@ import { GPA_OVERVIEW_TABS } from './graduateTrendConfig';
 
 const EMPTY_ITEMS = [];
 
+const JENJANG_IPK_COLORS = [DIGITAL_BLUE[600], DIGITAL_BLUE[400], '#10B981', '#F59E0B', '#8B5CF6'];
+
 export default function GpaOverviewModal({ isOpen, onClose, originRect, data, filters }) {
   const { activeTab, handleTabChange, slideClass } = useTabTransition(GPA_OVERVIEW_TABS, 'tren');
 
@@ -33,10 +35,48 @@ export default function GpaOverviewModal({ isOpen, onClose, originRect, data, fi
   const kpis = data?.kpis || {};
   const gpaS1 = formatDecimal(kpis.averageGpaS1, 2, '0.00');
   const gpaS2 = formatDecimal(kpis.averageGpaS2, 2, '0.00');
+  const gpaByJenjang = kpis.averageGpaByJenjang || {};
+  const extraGpa = useMemo(
+    () =>
+      Object.entries(gpaByJenjang)
+        .filter(([key]) => key !== 's1' && key !== 's2')
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, value]) => `${formatDecimal(value, 2, '0.00')} (Jenjang ${key.toUpperCase()})`)
+        .join(', '),
+    [gpaByJenjang],
+  );
   const ipkDetail = ipkData || {};
 
-  // Server sudah mengirim satu deret per tahun untuk kedua jenjang, terurut naik.
+  // Server mengirim satu deret per tahun untuk semua jenjang, terurut naik.
+  // Bar IPK dinamis dari kunci baris pertama — S1/S2 tampil seperti semula.
   const combinedTrend = ipkDetail.byYear || EMPTY_ITEMS;
+  const avgBars = useMemo(() => {
+    const keys = Object.keys(combinedTrend[0] ?? {})
+      .filter((key) => key !== 'tahun' && key.endsWith('AvgIpk'))
+      .sort((a, b) => (a === 's1AvgIpk' ? -1 : b === 's1AvgIpk' ? 1 : a.localeCompare(b)));
+    return keys.map((key, index) => ({
+      dataKey: key,
+      name: `IPK ${key.replace(/AvgIpk$/, '').toUpperCase()}`,
+      color: JENJANG_IPK_COLORS[index % JENJANG_IPK_COLORS.length],
+      labelKey: key,
+      labelFormatter: (value) => formatDecimal(value, 2),
+    }));
+  }, [combinedTrend]);
+  const avgTooltipRows = useMemo(
+    () =>
+      avgBars.map((bar, index) => ({
+        key: bar.dataKey,
+        label: `Rata-rata ${bar.name}`,
+        colorClass:
+          index === 0
+            ? 'bg-digital-blue-600'
+            : index === 1
+              ? 'bg-digital-blue-400'
+              : 'bg-emerald-500',
+        format: (val) => formatDecimal(val, 2),
+      })),
+    [avgBars],
+  );
 
   const prodiList = ipkDetail.prodiGpaData || EMPTY_ITEMS;
   const facultyList = ipkDetail.facultyGpaData || EMPTY_ITEMS;
@@ -50,41 +90,8 @@ export default function GpaOverviewModal({ isOpen, onClose, originRect, data, fi
             <TrendBarChart
               data={combinedTrend}
               xDataKey="tahun"
-              bars={[
-                {
-                  dataKey: 's1AvgIpk',
-                  name: 'IPK S1',
-                  color: DIGITAL_BLUE[600],
-                  labelKey: 's1AvgIpk',
-                  labelFormatter: (value) => formatDecimal(value, 2),
-                },
-                {
-                  dataKey: 's2AvgIpk',
-                  name: 'IPK S2',
-                  color: DIGITAL_BLUE[400],
-                  labelKey: 's2AvgIpk',
-                  labelFormatter: (value) => formatDecimal(value, 2),
-                },
-              ]}
-              tooltipContent={
-                <TrendChartTooltip
-                  titleKey="tahun"
-                  rows={[
-                    {
-                      key: 's1AvgIpk',
-                      label: 'Rata-rata IPK S1',
-                      colorClass: 'bg-digital-blue-600',
-                      format: (val) => formatDecimal(val, 2),
-                    },
-                    {
-                      key: 's2AvgIpk',
-                      label: 'Rata-rata IPK S2',
-                      colorClass: 'bg-digital-blue-400',
-                      format: (val) => formatDecimal(val, 2),
-                    },
-                  ]}
-                />
-              }
+              bars={avgBars}
+              tooltipContent={<TrendChartTooltip titleKey="tahun" rows={avgTooltipRows} />}
             />
           </div>
         </div>
@@ -163,7 +170,13 @@ export default function GpaOverviewModal({ isOpen, onClose, originRect, data, fi
                 Rata-rata Indeks Prestasi Kumulatif (IPK) lulusan adalah{' '}
                 <strong className="text-digital-blue-900 font-bold">{gpaS1} (Jenjang S1)</strong>{' '}
                 dan{' '}
-                <strong className="text-digital-blue-900 font-bold">{gpaS2} (Jenjang S2)</strong>{' '}
+                <strong className="text-digital-blue-900 font-bold">{gpaS2} (Jenjang S2)</strong>
+                {extraGpa ? (
+                  <>
+                    {' '}
+                    dan <strong className="text-digital-blue-900 font-bold">{extraGpa}</strong>
+                  </>
+                ) : null}{' '}
                 dari skala maksimal 4.00.
               </p>
             </div>

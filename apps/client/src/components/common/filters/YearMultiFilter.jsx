@@ -1,13 +1,41 @@
 import { useState, useRef, useEffect } from 'react';
-import { Calendar, ChevronDown, Check } from 'lucide-react';
-import { getYearDisplayText, toggleYear } from '../../../utils/yearSelection';
+import { Calendar, ChevronDown, Check, Plus } from 'lucide-react';
+import { isValidAcademicYear } from '@komet/shared/academicYear';
+
+const CUSTOM_FORMAT = /^\d{4}\/\d{4}$/;
+const FALLBACK_MIN_LABEL = '2014/2015';
 
 /**
- * Multi-select tahun (angkatan / tahun lulus) sebagai popover checkbox.
- * Bedanya dengan modul lain hanya pada teks, jadi teks itu prop. `allowCustom`
- * menambah satu baris isian bebas; tahun yang boleh diketik adalah `minYear`
- * sampai setahun di bawah pilihan tertua di checkbox — di atas itu tahunnya
- * sudah ada sebagai baris centang dan cukup dicentang dari situ.
+ * Metadata cadangan bila server belum mengirim `customMeta`: batas bawah
+ * statis, batas atas = label tertua rolling. Perbandingan murni
+ * leksikografis — label `YYYY/YYYY` selalu bisa diurutkan sebagai string.
+ */
+function deriveLocalMeta(years = []) {
+  const oldest = [...new Set(years.map(String).filter(Boolean))].sort()[0] ?? null;
+  return {
+    minLabel: FALLBACK_MIN_LABEL,
+    maxLabel: oldest,
+    placeholder: oldest ?? FALLBACK_MIN_LABEL,
+    helperText: oldest
+      ? `Angkatan lama tidak ada di atas? Ketik tahun ajaran ${FALLBACK_MIN_LABEL}–${oldest}.`
+      : `Ketik tahun ajaran mulai ${FALLBACK_MIN_LABEL}.`,
+    errorText: oldest
+      ? `Hanya ${FALLBACK_MIN_LABEL}–${oldest}.`
+      : `Hanya mulai ${FALLBACK_MIN_LABEL}.`,
+  };
+}
+
+function toggleValue(selected = [], value) {
+  return selected.includes(value)
+    ? selected.filter((item) => item !== value)
+    : [...selected, value];
+}
+
+/**
+ * Multi-select tahun ajaran (angkatan / tahun lulus) sebagai popover checkbox.
+ * Semua label dirender verbatim dari server (`YYYY/YYYY`); tidak ada aritmetika
+ * tahun di sini. `customMeta` (dari `options[field.customMetaKey]`) membawa
+ * batas + teks bantuan; bila null, fallback lokal di atas dipakai.
  */
 export default function YearMultiFilter({
   selectedYears = [],
@@ -19,7 +47,7 @@ export default function YearMultiFilter({
   yearLabel = 'Tahun',
   allowCustom = false,
   customLabel = `${yearLabel} kustom`,
-  minYear = 0,
+  customMeta = null,
   disabled = false,
   className = '',
   id,
@@ -47,14 +75,12 @@ export default function YearMultiFilter({
     };
   }, []);
 
+  const meta = customMeta ?? deriveLocalMeta(years);
   const isAllTime = selectedYears.length === 0;
   const listedYears = new Set(years.map(String));
   // Tahun kustom tidak ada di daftar rolling; ia tetap tampil sebagai baris
   // terpilih supaya bisa dilepas lagi.
   const customSelectedYears = selectedYears.filter((year) => !listedYears.has(String(year)));
-  // Daftar rolling menurun dan berurutan, jadi batas atas kustom = pilihan tertua − 1.
-  const oldestListedYear = Math.min(...years.map(Number).filter(Number.isFinite));
-  const maxCustomYear = Number.isFinite(oldestListedYear) ? oldestListedYear - 1 : null;
 
   const selectYear = (value) => {
     if (!selectedYears.includes(value)) onChange?.([...selectedYears, value]);
@@ -62,8 +88,9 @@ export default function YearMultiFilter({
 
   const addCustomYear = (value) => {
     const listed = listedYears.has(value);
-    const allowed =
-      /^\d{4}$/.test(value) && Number(value) >= minYear && Number(value) <= maxCustomYear;
+    const inRange =
+      (!meta.minLabel || value >= meta.minLabel) && (!meta.maxLabel || value <= meta.maxLabel);
+    const allowed = CUSTOM_FORMAT.test(value) && isValidAcademicYear(value) && inRange;
     if (!listed && !allowed) {
       setCustomError(true);
       return;
@@ -111,7 +138,7 @@ export default function YearMultiFilter({
               isAllTime ? 'text-gray-400 font-normal' : 'text-gray-900 font-semibold'
             }`}
           >
-            {getYearDisplayText(selectedYears, placeholder)}
+            {selectedYears.length ? selectedYears.join(', ') : placeholder}
           </span>
 
           <ChevronDown
@@ -137,7 +164,7 @@ export default function YearMultiFilter({
                 <YearOption
                   key={yearStr}
                   checked={selectedYears.includes(yearStr)}
-                  onSelect={() => onChange?.(toggleYear(selectedYears, yearStr))}
+                  onSelect={() => onChange?.(toggleValue(selectedYears, yearStr))}
                   label={`${yearLabel} ${yearStr}`}
                 />
               );
@@ -147,42 +174,37 @@ export default function YearMultiFilter({
               <YearOption
                 key={`selected-${year}`}
                 checked
-                onSelect={() => onChange?.(toggleYear(selectedYears, String(year)))}
+                onSelect={() => onChange?.(toggleValue(selectedYears, String(year)))}
                 label={`${yearLabel} ${year}`}
               />
             ))}
 
-            {allowCustom && maxCustomYear !== null && (
-              <div>
+            {allowCustom && (
+              <div className="mt-1 border-t border-dashed border-gray-200 pt-2">
+                <p className="px-3 text-[11px] leading-snug text-gray-500">{meta.helperText}</p>
                 <label
-                  className={`w-full flex items-center justify-between gap-2 px-3 py-2 text-xs font-medium rounded-xl transition-all duration-150 cursor-pointer ${
+                  className={`mt-1 flex items-center gap-2 rounded-xl border border-dashed px-3 py-2 transition-all focus-within:border-digital-blue-400 focus-within:bg-digital-blue-50/50 focus-within:ring-2 focus-within:ring-digital-blue-500/15 ${
                     customError
-                      ? 'bg-red-50 text-red-600'
-                      : 'text-gray-700 hover:bg-digital-blue-50/70 hover:text-digital-blue-700'
+                      ? 'border-red-300 bg-red-50/60'
+                      : 'border-gray-300 bg-gray-50/60 hover:border-digital-blue-300'
                   }`}
                 >
-                  <span className="flex items-center gap-2.5 min-w-0">
-                    <span
-                      className={`w-4 h-4 flex-shrink-0 rounded-md border flex items-center justify-center text-[11px] font-bold ${
-                        customError
-                          ? 'border-red-300 bg-white'
-                          : 'border-dashed border-gray-300 bg-white'
-                      }`}
-                    >
-                      {customError ? '!' : '+'}
-                    </span>
-                    <span className="truncate">{customLabel}</span>
+                  <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-digital-blue-600 text-white">
+                    <Plus size={13} strokeWidth={3} />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-xs font-semibold text-gray-700">
+                    {customLabel}
                   </span>
                   <input
                     type="text"
-                    inputMode="numeric"
+                    inputMode="text"
                     aria-label={customLabel}
                     value={customYear}
                     onChange={(event) => {
-                      const value = event.target.value.replace(/\D/g, '').slice(0, 4);
-                      // Tahun penuh langsung dipilih, seperti pada filter Tahun Ajaran;
+                      const value = event.target.value.replace(/[^0-9/]/g, '').slice(0, 9);
+                      // Format penuh langsung dipilih, seperti pada filter Tahun Ajaran;
                       // Enter tetap jalan untuk input yang belum lengkap.
-                      if (value.length === 4) addCustomYear(value);
+                      if (value.length === 9) addCustomYear(value);
                       else {
                         setCustomYear(value);
                         if (customError) setCustomError(false);
@@ -193,9 +215,9 @@ export default function YearMultiFilter({
                       event.preventDefault();
                       addCustomYear(customYear);
                     }}
-                    placeholder="...."
-                    maxLength={4}
-                    className={`w-11 flex-shrink-0 bg-transparent border-none outline-none text-right p-0 text-xs font-semibold placeholder:font-normal ${
+                    placeholder={meta.placeholder}
+                    maxLength={9}
+                    className={`w-28 flex-shrink-0 rounded-lg border border-gray-200 bg-white px-2 py-1 text-center text-xs font-semibold outline-none placeholder:font-normal focus:border-digital-blue-400 ${
                       customError
                         ? 'text-red-500 placeholder-red-300'
                         : 'text-gray-900 placeholder-gray-400 caret-digital-blue-500'
@@ -203,8 +225,8 @@ export default function YearMultiFilter({
                   />
                 </label>
                 {customError && (
-                  <p className="px-3 pb-1 text-[11px] font-semibold text-red-500 leading-snug">
-                    Hanya {minYear}–{maxCustomYear}; {oldestListedYear} ke atas sudah ada di daftar.
+                  <p className="px-3 pt-1 text-[11px] font-semibold text-red-500 leading-snug">
+                    {meta.errorText}
                   </p>
                 )}
               </div>

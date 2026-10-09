@@ -5,31 +5,43 @@
  */
 
 const prisma = require('../../config/prisma');
-const { getReferenceYear } = require('../../utils/academicUtils');
+const { getAcademicYearStart, getReferenceLabelStart } = require('../../utils/academicUtils');
+const { formatAcademicYearLabel } = require('@komet/shared/academicYear');
 const { roundedRate } = require('../../utils/percentageUtils');
 const { getRequestedJenjang } = require('./filterBuilder');
-const { JENJANGS } = require('@komet/shared/constants');
 const { STUDENT_STATUS } = require('@komet/shared/constants');
 
 /**
- * Kohort yang dievaluasi = angkatan `n` tahun di belakang tahun referensi,
- * karena hanya kohort itu yang hasil akhirnya sudah pasti pada tahun tersebut.
- * Ini BUKAN batas masa studi "tepat waktu" (`BATAS_STUDI_TEPAT_WAKTU` pada
- * tepatWaktu.js); keduanya sengaja bernilai dan bernama berbeda.
+ * Kohort yang dievaluasi = label angkatan `lag` tahun ajaran di belakang label
+ * referensi terbaru di DB, karena hanya kohort itu yang hasil akhirnya sudah
+ * pasti pada tahun tersebut. Ini BUKAN batas masa studi "tepat waktu"
+ * (`BATAS_STUDI_TEPAT_WAKTU` pada tepatWaktu.js); keduanya sengaja bernilai
+ * dan bernama berbeda.
+ *
+ * `Prof` = pendidikan profesi 1 tahun: lag evaluasi 2 (masuk → lulus 1 tahun,
+ * +1 tahun tenggang hasil akhir).
  */
-const COHORT_EVALUATION_LAG = { S1: 7, S2: 4 };
+const COHORT_EVALUATION_LAG = { S1: 7, S2: 4, PROF: 2 };
 const EVALUATION_WINDOW_YEARS = 5;
 
-function getAngkatanEvaluasi(jenjang) {
-  const refYear = getReferenceYear();
-  return String(refYear - COHORT_EVALUATION_LAG[jenjang]);
+/** Referensi = MAX(tahunLulus) DB; fallback kalender bila tabel kosong. */
+async function getGraduateReferenceStart() {
+  const latest = await prisma.graduate.aggregate({ _max: { tahunLulus: true } });
+  const maxLabel = latest._max?.tahunLulus;
+  return getReferenceLabelStart(maxLabel ? [maxLabel] : []);
 }
 
-/** Angkatan yang dievaluasi + 4 tahun sebelumnya, urut naik. */
-function getEvaluationWindow(jenjang) {
-  const last = Number(getAngkatanEvaluasi(jenjang));
+function getAngkatanEvaluasiStart(jenjang, refStart) {
+  const lag = COHORT_EVALUATION_LAG[jenjang] ?? COHORT_EVALUATION_LAG[jenjang?.toUpperCase()];
+  return lag === undefined ? null : refStart - lag;
+}
+
+/** Angkatan yang dievaluasi + 4 tahun sebelumnya, sebagai label ajaran urut naik. */
+function getEvaluationWindow(jenjang, refStart) {
+  const last = getAngkatanEvaluasiStart(jenjang, refStart);
+  if (last === null) return [];
   return Array.from({ length: EVALUATION_WINDOW_YEARS }, (_, index) =>
-    String(last - (EVALUATION_WINDOW_YEARS - 1 - index)),
+    formatAcademicYearLabel(last - (EVALUATION_WINDOW_YEARS - 1 - index)),
   );
 }
 
@@ -38,8 +50,8 @@ function getEvaluationWindow(jenjang) {
  * angkatan per jenjang (20 query untuk satu endpoint).
  */
 async function countCohorts(jenjang, studentWhere, angkatanList) {
-  const firstYear = Number(angkatanList[0]);
-  const lastYear = Number(angkatanList[angkatanList.length - 1]);
+  const firstYear = getAcademicYearStart(angkatanList[0]);
+  const lastYear = getAcademicYearStart(angkatanList[angkatanList.length - 1]);
   const rows = await prisma.student.groupBy({
     by: ['periodeMasuk', 'statusKeaktifan'],
     where: {
@@ -51,12 +63,13 @@ async function countCohorts(jenjang, studentWhere, angkatanList) {
     _count: { periodeMasuk: true },
   });
 
+  const starts = angkatanList.map((label) => String(getAcademicYearStart(label)));
   const cohorts = new Map(angkatanList.map((angkatan) => [angkatan, { total: 0, lulus: 0 }]));
   for (const row of rows) {
     const count = row._count.periodeMasuk;
-    const angkatan = angkatanList.find((year) => String(row.periodeMasuk).startsWith(year));
-    if (!angkatan) continue;
-    const cohort = cohorts.get(angkatan);
+    const index = starts.findIndex((year) => String(row.periodeMasuk).startsWith(year));
+    if (index === -1) continue;
+    const cohort = cohorts.get(angkatanList[index]);
     cohort.total += count;
     if (row.statusKeaktifan === STUDENT_STATUS.LULUS) cohort.lulus += count;
   }
@@ -70,58 +83,82 @@ function toPercentage({ total, lulus }) {
 /**
  * Kontrak filter metrik kohort. Pertanyaannya "dari yang masuk angkatan X,
  * berapa yang akhirnya lulus?" — penyebutnya seluruh kohort, jadi atribut satu
- * peristiwa kelulusan (`tahunLulus`, `periodeWisuda`, `statusKelulusan`) sengaja
+ * peristiwa kelulusan (`tahunLulus`, `periodeWisuda`, `predikat`) sengaja
  * tidak berpengaruh: memakainya akan memaksa pembilang metrik mendekati 100%.
- * Yang dibaca hanya sisi mahasiswa dan `jenjang`, sama seperti kartu intake di
- * tab Student yang mengabaikan status.
+ * Builder baru flat (kolom student top-level); nesting `student` lama tetap
+ * diterima. `jenjang` dinamis: filter user menang, tanpanya = jenjang yang ada
+ * di populasi (distinct DB).
  */
-function getCohortScope(whereFilter = {}) {
-  return {
-    studentWhere: whereFilter.student || {},
-    jenjangs: getRequestedJenjang(whereFilter),
-  };
+async function getCohortScope(whereFilter = {}) {
+  const { student, graduate, tahunLulus, ...rest } = whereFilter;
+  void graduate;
+  void tahunLulus;
+  const studentWhere = { ...(student || {}), ...rest };
+  // Penyebut kohort = SELURUH angkatan (semua status): `statusKeaktifan: Lulus`
+  // dari builder hanya berlaku untuk populasi kartu/tabel, bukan kohort.
+  delete studentWhere.statusKeaktifan;
+  delete studentWhere.jenjang;
+  let jenjangs = getRequestedJenjang(whereFilter);
+  if (!jenjangs) {
+    const rows = await prisma.student.groupBy({ by: ['jenjang'], where: studentWhere });
+    jenjangs = rows.map((row) => row.jenjang).sort();
+  }
+  return { studentWhere, jenjangs };
 }
 
 /** Metrik yang jenjangnya tidak diminta → null, bukan 0% atau array kosong palsu. */
 function forJenjangs(jenjangs, compute) {
-  return Promise.all(
-    JENJANGS.map((jenjang) => (jenjangs.includes(jenjang) ? compute(jenjang) : null)),
-  );
+  return Promise.all(jenjangs.map((jenjang) => compute(jenjang)));
+}
+
+function angkatanLabel(jenjang, refStart) {
+  const start = getAngkatanEvaluasiStart(jenjang, refStart);
+  return start === null ? null : formatAcademicYearLabel(start);
 }
 
 async function getKeberhasilanStudi(whereFilter) {
-  const { studentWhere, jenjangs } = getCohortScope(whereFilter);
+  const { studentWhere, jenjangs } = await getCohortScope(whereFilter);
+  const refStart = await getGraduateReferenceStart();
 
   const calcPercentage = async (jenjang) => {
-    const angkatan = getAngkatanEvaluasi(jenjang);
+    const angkatan = angkatanLabel(jenjang, refStart);
+    if (!angkatan) return null;
     const cohorts = await countCohorts(jenjang, studentWhere, [angkatan]);
     return toPercentage(cohorts.get(angkatan));
   };
 
-  const [s1, s2] = await forJenjangs(jenjangs, calcPercentage);
+  const values = await forJenjangs(jenjangs, calcPercentage);
 
-  return {
-    s1,
-    s2,
-    angkatanS1: getAngkatanEvaluasi('S1'),
-    angkatanS2: getAngkatanEvaluasi('S2'),
-  };
+  const result = {};
+  jenjangs.forEach((jenjang, index) => {
+    result[jenjang.toLowerCase()] = values[index];
+  });
+  // Kunci lama untuk kompatibilitas kartu S1/S2 yang sudah ada.
+  result.s1 = result.s1 ?? null;
+  result.s2 = result.s2 ?? null;
+  result.angkatanS1 = angkatanLabel('S1', refStart);
+  result.angkatanS2 = angkatanLabel('S2', refStart);
+  return result;
 }
 
 async function getKeberhasilanStudiByAngkatan(whereFilter) {
-  const { studentWhere, jenjangs } = getCohortScope(whereFilter);
+  const { studentWhere, jenjangs } = await getCohortScope(whereFilter);
+  const refStart = await getGraduateReferenceStart();
 
   const calcSeries = async (jenjang) => {
-    const angkatanList = getEvaluationWindow(jenjang);
+    const angkatanList = getEvaluationWindow(jenjang, refStart);
+    if (!angkatanList.length) return null;
     const cohorts = await countCohorts(jenjang, studentWhere, angkatanList);
 
-    return angkatanList.map((angkatanStr) => {
-      const { total, lulus } = cohorts.get(angkatanStr);
+    return angkatanList.map((angkatanLabel) => {
+      const { total, lulus } = cohorts.get(angkatanLabel);
+      const start = getAcademicYearStart(angkatanLabel);
       // Satu nama per metrik: `intake`/`successCount` adalah field kontrak, nilai
-      // mentah `total`/`lulus` hanya dipakai internal di atas.
+      // mentah `total`/`lulus` hanya dipakai internal di atas. `angkatan`
+      // tetap angka start untuk kompatibilitas, label verbatim dibaca modal.
       return {
-        angkatan: angkatanStr,
-        cohortLabel: `Angkatan ${angkatanStr}`,
+        angkatan: start,
+        cohortLabel: `Angkatan ${angkatanLabel}`,
         rate: toPercentage({ total, lulus }),
         successCount: lulus,
         intake: total,
@@ -129,20 +166,27 @@ async function getKeberhasilanStudiByAngkatan(whereFilter) {
     });
   };
 
-  const [s1, s2] = await forJenjangs(jenjangs, calcSeries);
+  const values = await forJenjangs(jenjangs, calcSeries);
 
-  return {
-    s1,
-    s2,
-    batasStudiS1: COHORT_EVALUATION_LAG.S1,
-    batasStudiS2: COHORT_EVALUATION_LAG.S2,
-    angkatanEvaluasiS1: getAngkatanEvaluasi('S1'),
-    angkatanEvaluasiS2: getAngkatanEvaluasi('S2'),
-  };
+  const result = {};
+  jenjangs.forEach((jenjang, index) => {
+    result[jenjang.toLowerCase()] = values[index];
+  });
+  result.s1 = result.s1 ?? null;
+  result.s2 = result.s2 ?? null;
+  result.batasStudiS1 = COHORT_EVALUATION_LAG.S1;
+  result.batasStudiS2 = COHORT_EVALUATION_LAG.S2;
+  result.batasStudiProf = COHORT_EVALUATION_LAG.PROF;
+  result.angkatanEvaluasiS1 = angkatanLabel('S1', refStart);
+  result.angkatanEvaluasiS2 = angkatanLabel('S2', refStart);
+  result.angkatanEvaluasiProf = angkatanLabel('Prof', refStart);
+  return result;
 }
 
 module.exports = {
   getKeberhasilanStudi,
   getKeberhasilanStudiByAngkatan,
+  getEvaluationWindow,
+  getAngkatanEvaluasiStart,
   COHORT_EVALUATION_LAG,
 };

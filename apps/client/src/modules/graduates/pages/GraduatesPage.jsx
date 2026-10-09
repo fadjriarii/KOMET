@@ -12,11 +12,11 @@ function buildCards({ kpis, displaySubtitles, kpiScope, isReady, openModal }) {
   return [
     {
       key: 'total',
-      title: 'Total Wisudawan',
+      title: 'Total Lulusan',
       value: formatKpiDisplay(kpis.totalGraduates),
       subtitle: displaySubtitles.total,
       icon: GraduationCap,
-      badge: '5 Tahun Terakhir',
+      badge: displaySubtitles.totalScope || 'Semua Tahun',
       onViewDetails: (event) => openModal('total', event),
       isFiltered: kpiScope.total && isReady,
     },

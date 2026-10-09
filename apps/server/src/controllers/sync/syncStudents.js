@@ -56,7 +56,8 @@ const executeSyncStudents = async ({ runDedup = true } = {}) => {
         // ─── RULE 4: Periode — field baru "Ganjil"/"Genap" dari digit ke-5 periodeMasuk ───
         const periode = extractPeriode(periodeMasuk);
 
-        // Angkatan = hanya 4 digit tahun masuk (contoh "2026")
+        // Angkatan = label tahun ajaran masuk (contoh "2026/2027"): nilai
+        // kanonis kolom `angkatan`, dihitung sekali di sini.
         const angkatan = formatAngkatan(periodeMasuk);
 
         // ─── RULE 5: Status Keaktifan & Semester — kalkulasi dinamis berdasarkan status ───

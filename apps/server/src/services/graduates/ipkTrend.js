@@ -1,87 +1,98 @@
 /**
  * ipkTrend.js
  *
- * Menghitung rata-rata IPK lulusan (S1 & S2) serta breakdown per tahun, prodi, fakultas, dan gpaBands.
+ * Menghitung rata-rata IPK lulusan per jenjang (dinamis — S1/S2/`Prof`, bukan
+ * daftar statis) serta breakdown per tahun, prodi, fakultas, dan gpaBands.
  */
 
 const prisma = require('../../config/prisma');
-const { getYearRange } = require('../../utils/academicUtils');
 const { rate } = require('../../utils/percentageUtils');
-const { includesJenjang } = require('./filterBuilder');
-const { valuesByYearAndJenjang } = require('./yearJenjangSeries');
-const { JENJANGS } = require('@komet/shared/constants');
+const { getScopeJenjangs } = require('./filterBuilder');
+const {
+  valuesByYearAndJenjang,
+  resolveTahunScope,
+  describeTahunScope,
+  withTahunScope,
+} = require('./yearJenjangSeries');
+
+const avgOf = (items) => {
+  const values = items
+    .map((s) => Number(s.graduate?.ipk))
+    .filter((v) => Number.isFinite(v) && v > 0);
+  if (!values.length) return { average: null, count: 0 };
+  const average = values.reduce((acc, v) => acc + v, 0) / values.length;
+  return { average: parseFloat(average.toFixed(2)), count: values.length };
+};
 
 /**
- * Rata-rata IPK per jenjang dalam jendela 5 tahun.
- * Tidak ada data → `average: null` (bukan 0.00), sama seperti `getIpkByYear`;
- * IPK rata-rata 0 bukan "tidak ada data", melainkan nilai terendah yang mungkin.
+ * Rata-rata IPK per jenjang dalam scope kartu (default seluruh populasi).
+ * Tidak ada data → `average: null` (bukan 0.00); IPK 0 bukan "tidak ada data".
  */
 async function getAvgIpk(whereFilter) {
-  const yearRange = getYearRange();
-  const baseWhere = { ...whereFilter, tahunLulus: { in: yearRange } };
+  const { scope, isDefault } = await resolveTahunScope(whereFilter);
+  const jenjangs = await getScopeJenjangs(whereFilter);
+  const students = await prisma.student.findMany({
+    where: withTahunScope(whereFilter, scope),
+    select: { jenjang: true, graduate: { select: { ipk: true } } },
+  });
 
-  const averages = await Promise.all(
-    JENJANGS.map(async (jenjang) => {
-      if (!includesJenjang(whereFilter, jenjang)) {
-        return { average: null, count: 0 };
-      }
-      const agg = await prisma.graduate.aggregate({
-        where: { ...baseWhere, jenjang },
-        _avg: { ipk: true },
-        _count: true,
-      });
-      return {
-        average: agg._avg.ipk === null ? null : parseFloat(agg._avg.ipk.toFixed(2)),
-        count: agg._count,
-      };
-    }),
-  );
-
-  return { s1: averages[0], s2: averages[1] };
+  const result = { tahunScope: describeTahunScope(scope, isDefault) };
+  for (const jenjang of jenjangs) {
+    result[jenjang.toLowerCase()] = avgOf(students.filter((s) => s.jenjang === jenjang));
+  }
+  // Kunci lama untuk kompatibilitas kartu S1/S2 yang sudah ada.
+  result.s1 = result.s1 ?? { average: null, count: 0 };
+  result.s2 = result.s2 ?? { average: null, count: 0 };
+  return result;
 }
 
 /**
- * Rata-rata IPK per tahun untuk kedua jenjang dalam satu deret terurut naik —
+ * Rata-rata IPK per tahun untuk semua jenjang dalam satu deret terurut naik —
  * bentuk yang sama seperti `byYear` pada `totalLulusan.js`, sehingga halaman
  * tinggal membacanya tanpa menggabungkan dua daftar.
  */
 async function getIpkByYear(whereFilter) {
   const series = await valuesByYearAndJenjang(whereFilter, {
-    aggregate: { _avg: { ipk: true } },
-    valueOf: (row) => (row._avg.ipk === null ? null : parseFloat(row._avg.ipk.toFixed(2))),
+    valueOf: ({ items }) => avgOf(items).average,
     missing: null,
   });
-
-  return series.map(({ tahun, s1, s2 }) => ({ tahun, s1AvgIpk: s1, s2AvgIpk: s2 }));
+  return series.map(({ tahun, ...avgs }) => {
+    const entry = { tahun };
+    for (const [key, value] of Object.entries(avgs)) entry[`${key}AvgIpk`] = value;
+    return entry;
+  });
 }
 
 /**
- * Mendapatkan breakdown IPK untuk GpaOverviewModal.jsx:
+ * Breakdown IPK untuk GpaOverviewModal.jsx:
  * - prodiGpaData: [{ name, gpaValue }]
  * - facultyGpaData: [{ name, gpaValue }]
  * - gpaBandsData: [{ range: "3.51 - 3.75", count }]
  *
  * ponytail: agregasi prodi/fakultas/band dikerjakan di Node atas baris dalam
- * jendela 5 tahun, bukan `GROUP BY` SQL. `groupBy` Prisma tidak bisa mengelompokkan
- * berdasar kolom relasi (prodi/fakultas ada di tabel mahasiswa) dan band IPK adalah
- * aturan kelas yang hanya boleh hidup satu kali. Batasnya O(lulusan dalam jendela).
+ * scope kartu, bukan `GROUP BY` SQL. `groupBy` Prisma tidak bisa mengelompokkan
+ * berdasar kolom campuran student+relasi, dan band IPK adalah aturan kelas
+ * yang hanya boleh hidup satu kali. Batasnya O(lulusan dalam scope).
  * Upgrade path: denormalisasi prodi/fakultas ke `graduates` sebagai kolom turunan
  * berindeks, lalu agregasi pindah ke database.
  */
 async function getIpkOverview(whereFilter) {
-  const yearRange = getYearRange();
+  const { scope } = await resolveTahunScope(whereFilter);
 
-  const results = await prisma.graduate.findMany({
-    where: { ...whereFilter, tahunLulus: { in: yearRange } },
+  const results = await prisma.student.findMany({
+    where: withTahunScope(whereFilter, scope),
     select: {
-      ipk: true,
-      student: { select: { programStudi: true, fakultas: true } },
+      programStudi: true,
+      fakultas: true,
+      graduate: { select: { ipk: true } },
     },
   });
 
   // IPK kosong bukan angka 0: baris tanpa IPK dikeluarkan dari rata-rata dan
   // band, supaya tidak menyeret rata-rata prodi/fakultas ke bawah.
-  const withIpk = results.filter((g) => Number.isFinite(Number(g.ipk)) && Number(g.ipk) > 0);
+  const withIpk = results.filter(
+    (s) => Number.isFinite(Number(s.graduate?.ipk)) && Number(s.graduate?.ipk) > 0,
+  );
 
   const prodiMap = {};
   const facultyMap = {};
@@ -93,10 +104,10 @@ async function getIpkOverview(whereFilter) {
     '3.76 - 4.00': 0,
   };
 
-  withIpk.forEach((g) => {
-    const prodi = g.student?.programStudi || 'Unknown';
-    const faculty = g.student?.fakultas || 'Unknown';
-    const ipk = Number(g.ipk);
+  withIpk.forEach((s) => {
+    const prodi = s.programStudi || 'Unknown';
+    const faculty = s.fakultas || 'Unknown';
+    const ipk = Number(s.graduate.ipk);
 
     // Prodi Map
     if (!prodiMap[prodi]) prodiMap[prodi] = { total: 0, sum: 0 };
