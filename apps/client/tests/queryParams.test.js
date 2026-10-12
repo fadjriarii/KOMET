@@ -28,12 +28,13 @@ describe('serialisasi query ke server', () => {
       faculty: ['A'],
       prodi: ['B'],
       jenjang: ['S1'],
-      tahunLulus: ['2024/2025'],
+      selectedTahunLulus: ['2024/2025'],
+      selectedAngkatan: ['2021/2022'],
       periodeWisuda: 'Ganjil',
       search: '  ani  ',
     });
     expect(qs).toBe(
-      'fakultas=A&programStudi=B&jenjang=S1&tahunLulus=2024%2F2025&periodeWisuda=Ganjil&search=ani',
+      'fakultas=A&programStudi=B&jenjang=S1&tahunLulus=2024%2F2025&periodeWisuda=Ganjil&angkatanTahun=2021%2F2022&search=ani',
     );
     expect(
       mbkmService.toQueryString({ angkatan: ['2022/2023'], statusAktivitas: ['Selesai'] }),

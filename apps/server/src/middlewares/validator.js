@@ -1,6 +1,7 @@
 const { z } = require('zod');
 const { sendRejected } = require('../utils/errorHandler');
 const { HTTP_STATUS } = require('@komet/shared/constants');
+const { isValidAcademicYear } = require('@komet/shared/academicYear');
 
 // Schema pembantu untuk mengizinkan string tunggal atau array of string
 // Byte kontrol (0x00-0x1F, 0x7F) ditolak: string ini lanjut ke LIKE/IN di MySQL dan
@@ -88,6 +89,15 @@ const graduateQuerySchema = z.object({
   // Angkatan = gaya kohort tab Student (sama persis per label ajaran).
   angkatanTahun: academicYearLabelOrArray,
   jenjang: stringOrArray,
+  // Jangkar kohort Opsi A: `YYYY/YYYY` valid → "lulus sampai tahun ajaran ini".
+  tahunAjaran: z
+    .string()
+    .trim()
+    .max(20)
+    .refine(isValidAcademicYear, {
+      message: 'Tahun ajaran harus berupa label YYYY/YYYY.',
+    })
+    .optional(),
 });
 
 // Schema Query Parameter MBKM

@@ -12,8 +12,11 @@ const { paginateList } = require('../../utils/paginationUtils');
 const { TABLE_LIMIT } = require('@komet/shared/constants');
 
 async function getGraduateList(whereFilter, page = 1, limit = TABLE_LIMIT) {
+  // `tahunAjaran` = meta transport Opsi A, bukan kolom Prisma — buang sebelum query.
+  const { tahunAjaran, ...studentWhere } = whereFilter;
+  void tahunAjaran;
   const { rows, pagination } = await paginateList(prisma.student, {
-    where: whereFilter,
+    where: studentWhere,
     select: {
       nim: true,
       nama: true,

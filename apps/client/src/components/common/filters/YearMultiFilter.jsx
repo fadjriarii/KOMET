@@ -202,7 +202,17 @@ export default function YearMultiFilter({
                     value={customYear}
                     onChange={(event) => {
                       const value = event.target.value.replace(/[^0-9/]/g, '').slice(0, 9);
-                      // Format penuh langsung dipilih, seperti pada filter Tahun Ajaran;
+                      // 4 digit tahun awal langsung dilengkapi (`2014` -> `2014/2015`)
+                      // seperti input kustom Tahun Ajaran; validasi + pilih tetap
+                      // lewat addCustomYear, bukan jalur baru.
+                      if (/^\d{4}$/.test(value)) {
+                        const full = `${value}/${Number(value) + 1}`;
+                        setCustomYear(full);
+                        if (customError) setCustomError(false);
+                        addCustomYear(full);
+                        return;
+                      }
+                      // Format penuh langsung dipilih;
                       // Enter tetap jalan untuk input yang belum lengkap.
                       if (value.length === 9) addCustomYear(value);
                       else {

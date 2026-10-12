@@ -79,6 +79,33 @@ describe('valuesByYearAndJenjang', () => {
     expect(series[0]).toEqual({ tahun: YEARS[0], s1: null, s2: null, prof: null });
   });
 
+  it('tahunAjaran memotong deret sampai akhir tahun ajaran itu', async () => {
+    const anchor = YEARS[YEARS.length - 3];
+    const series = await valuesByYearAndJenjang(
+      { statusKeaktifan: 'Lulus', jenjang: { in: ['S1'] }, tahunAjaran: anchor },
+      {
+        valueOf: ({ items }) => items.length,
+        missing: 0,
+      },
+    );
+
+    // YEARS dipotong sampai label jangkar (termasuk), bukan reset default.
+    expect(series.map((entry) => entry.tahun)).toEqual(YEARS.slice(0, YEARS.indexOf(anchor) + 1));
+    expect(calls[0].where.tahunAjaran).toBeUndefined();
+  });
+
+  it('tahunAjaran invalid diperlakukan sebagai tanpa jangkar (regresi)', async () => {
+    const series = await valuesByYearAndJenjang(
+      { statusKeaktifan: 'Lulus', jenjang: { in: ['S1'] }, tahunAjaran: '2023/2025' },
+      {
+        valueOf: ({ items }) => items.length,
+        missing: 0,
+      },
+    );
+
+    expect(series.map((entry) => entry.tahun)).toEqual(YEARS);
+  });
+
   it('filter tahunLulus user menang: deret hanya memuat tahun pilihan', async () => {
     const series = await valuesByYearAndJenjang(
       { statusKeaktifan: 'Lulus', graduate: { tahunLulus: { in: ['2023/2024'] } } },

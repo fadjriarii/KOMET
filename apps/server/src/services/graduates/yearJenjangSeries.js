@@ -16,6 +16,7 @@ const prisma = require('../../config/prisma');
 const { getLabelYearRange, getReferenceLabelStart } = require('../../utils/academicUtils');
 const { toArray } = require('../shared/filterUtils');
 const { formatAcademicYearLabel } = require('@komet/shared/academicYear');
+const { getTahunAjaran, tahunAjaranStart } = require('./tahunAjaran');
 
 /**
  * Lima label ajaran ke belakang dari label terbaru di DB — hanya untuk opsi
@@ -73,8 +74,9 @@ function describeTahunScope(scope, isDefault) {
  * mentah ke Prisma). Tanpa pilihan user scope-nya undefined = seluruh populasi.
  */
 function withTahunScope(whereFilter = {}, scope) {
-  const { tahunLulus, graduate, ...rest } = whereFilter;
+  const { tahunLulus, tahunAjaran, graduate, ...rest } = whereFilter;
   void tahunLulus;
+  void tahunAjaran;
   if (!scope) {
     return graduate ? { ...rest, graduate } : { ...rest };
   }
@@ -112,6 +114,15 @@ async function valuesByYearAndJenjang(whereFilter, { valueOf, missing }) {
     // Orphan Lulus tanpa baris graduate tak punya tahun → dihitung di total,
     // tak tampil di deret (backfill tiap sync menutup celah ini).
     years = [...new Set(students.map((s) => s.graduate?.tahunLulus).filter(Boolean))].sort();
+  }
+
+  // Jangkar `tahunAjaran` (Opsi A, meta dari filterBuilder) memotong deret
+  // sampai akhir tahun ajaran itu — label lebih muda dibuang. Filter
+  // `tahunLulus` eksplisit menang: scope sudah menghasilkan deret pasti.
+  const anchor = getTahunAjaran(whereFilter);
+  if (anchor && !scope) {
+    const anchorStart = tahunAjaranStart(anchor);
+    years = years.filter((tahun) => tahunAjaranStart(tahun) <= anchorStart);
   }
 
   const valueAt = (tahun, jenjang) => {

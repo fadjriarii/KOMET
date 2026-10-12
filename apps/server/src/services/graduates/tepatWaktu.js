@@ -15,6 +15,7 @@ const prisma = require('../../config/prisma');
 const { getStudyStartYear, getAcademicYearStart } = require('../../utils/academicUtils');
 const { formatAcademicYearLabel } = require('@komet/shared/academicYear');
 const { resolveTahunScope, describeTahunScope, withTahunScope } = require('./yearJenjangSeries');
+const { getTahunAjaranLabel } = require('./tahunAjaran');
 const { getScopeJenjangs } = require('./filterBuilder');
 const { rate, roundedRate } = require('../../utils/percentageUtils');
 
@@ -36,13 +37,31 @@ const lamaStudi = (student, tahunLulusLabel) => {
 const batasFor = (jenjang) =>
   BATAS_STUDI_TEPAT_WAKTU[jenjang] ?? BATAS_STUDI_TEPAT_WAKTU[jenjang?.toUpperCase()] ?? null;
 
+/**
+ * Jangkar kohort Opsi A — satu titik override referensi tahun kedua fungsi:
+ * meta `tahunAjaran` (ditempel filterBuilder, bukan kolom Prisma) = "lulus
+ * sampai tahun ajaran ini" (`tahunLulus lte` label jangkar). Filter
+ * `tahunLulus` eksplisit user tetap menang; meta dibuang sebelum query.
+ * Tanpa jangkar (absen/invalid) perilaku lama persis.
+ */
+async function resolveTahunAjaranScope(whereFilter = {}) {
+  const { tahunAjaran, ...cleanFilter } = whereFilter;
+  const { scope, isDefault } = await resolveTahunScope(cleanFilter);
+  const where = withTahunScope(cleanFilter, scope);
+  const explicitTahun = cleanFilter.graduate?.tahunLulus ?? cleanFilter.tahunLulus;
+  const anchor = explicitTahun ? null : getTahunAjaranLabel(tahunAjaran);
+  if (anchor) where.graduate = { ...(where.graduate || {}), tahunLulus: { lte: anchor } };
+  return { cleanFilter, where, scope, isDefault, anchor };
+}
+
 async function getTepatWaktu(whereFilter) {
   // Kartu memakai tahun terbaru dari scope (pilihan user atau default jendela);
   // durasi tiap baris dihitung dari label ajarannya sendiri.
-  const { scope, isDefault } = await resolveTahunScope(whereFilter);
-  const jenjangs = await getScopeJenjangs(whereFilter);
+  const { cleanFilter, where, scope, isDefault, anchor } =
+    await resolveTahunAjaranScope(whereFilter);
+  const jenjangs = await getScopeJenjangs(cleanFilter);
   const students = await prisma.student.findMany({
-    where: withTahunScope(whereFilter, scope),
+    where,
     select: {
       jenjang: true,
       periodeMasuk: true,
@@ -52,11 +71,13 @@ async function getTepatWaktu(whereFilter) {
   });
 
   const refLabel =
+    anchor ??
     students
       .map((s) => s.graduate?.tahunLulus)
       .filter(Boolean)
       .sort()
-      .pop() ?? null;
+      .pop() ??
+    null;
 
   const calcPct = (jenjang) => {
     const batas = batasFor(jenjang);

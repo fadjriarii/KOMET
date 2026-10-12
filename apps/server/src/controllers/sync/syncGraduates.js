@@ -113,7 +113,7 @@ const executeSyncGraduates = async ({ runDedup = true } = {}) => {
   // IPK oleh reader (fallback `calculatePredikat`).
   const orphans = await prisma.student.findMany({
     where: { statusKeaktifan: STUDENT_STATUS.LULUS, graduate: null },
-    select: { nim: true, jenjang: true, periodeMasuk: true, ipk: true },
+    select: { nim: true, jenjang: true, periodeMasuk: true },
   });
   if (orphans.length > 0) {
     await bulkUpsertGraduates(
@@ -124,7 +124,7 @@ const executeSyncGraduates = async ({ runDedup = true } = {}) => {
         predikatLulus: '',
         tahunLulus: formatTahunLulus(String(s.periodeMasuk ?? '').substring(0, 4)),
         periodeWisuda: s.periodeMasuk || '',
-        ipk: Number(s.ipk) || 0,
+        ipk: 0,
         sksLulus: 0,
         periodeTerakhir: s.periodeMasuk || '',
       })),

@@ -9,6 +9,7 @@ const { getAcademicYearStart, getReferenceLabelStart } = require('../../utils/ac
 const { formatAcademicYearLabel } = require('@komet/shared/academicYear');
 const { roundedRate } = require('../../utils/percentageUtils');
 const { getRequestedJenjang } = require('./filterBuilder');
+const { getTahunAjaranLabel, tahunAjaranStart } = require('./tahunAjaran');
 const { STUDENT_STATUS } = require('@komet/shared/constants');
 
 /**
@@ -29,6 +30,16 @@ async function getGraduateReferenceStart() {
   const latest = await prisma.graduate.aggregate({ _max: { tahunLulus: true } });
   const maxLabel = latest._max?.tahunLulus;
   return getReferenceLabelStart(maxLabel ? [maxLabel] : []);
+}
+
+/**
+ * refStart jendela kohort: jangkar `tahunAjaran` (Opsi A, meta dari
+ * filterBuilder) menang → tahun awal tahun ajaran itu; tanpa jangkar →
+ * ref all-time dari DB. Satu-satunya titik override refStart.
+ */
+async function resolveRefStart(whereFilter = {}) {
+  const anchor = getTahunAjaranLabel(whereFilter?.tahunAjaran);
+  return anchor ? tahunAjaranStart(anchor) : getGraduateReferenceStart();
 }
 
 function getAngkatanEvaluasiStart(jenjang, refStart) {
@@ -94,6 +105,9 @@ async function getCohortScope(whereFilter = {}) {
   void graduate;
   void tahunLulus;
   const studentWhere = { ...(student || {}), ...rest };
+  // `tahunAjaran` = meta jangkar kohort Opsi A, bukan kolom Prisma — buang
+  // seperti `graduate`/`tahunLulus` di atas supaya tak bocor ke query.
+  delete studentWhere.tahunAjaran;
   // Penyebut kohort = SELURUH angkatan (semua status): `statusKeaktifan: Lulus`
   // dari builder hanya berlaku untuk populasi kartu/tabel, bukan kohort.
   delete studentWhere.statusKeaktifan;
@@ -118,7 +132,7 @@ function angkatanLabel(jenjang, refStart) {
 
 async function getKeberhasilanStudi(whereFilter) {
   const { studentWhere, jenjangs } = await getCohortScope(whereFilter);
-  const refStart = await getGraduateReferenceStart();
+  const refStart = await resolveRefStart(whereFilter);
 
   const calcPercentage = async (jenjang) => {
     const angkatan = angkatanLabel(jenjang, refStart);
@@ -143,7 +157,7 @@ async function getKeberhasilanStudi(whereFilter) {
 
 async function getKeberhasilanStudiByAngkatan(whereFilter) {
   const { studentWhere, jenjangs } = await getCohortScope(whereFilter);
-  const refStart = await getGraduateReferenceStart();
+  const refStart = await resolveRefStart(whereFilter);
 
   const calcSeries = async (jenjang) => {
     const angkatanList = getEvaluationWindow(jenjang, refStart);

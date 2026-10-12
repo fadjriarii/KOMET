@@ -46,7 +46,7 @@ describe('tambah tahun angkatan', () => {
     expect(onChange).toHaveBeenCalledWith(['2019/2020']);
   });
 
-  it.each(['2013/2014', '2029/2030', '2019', '2019-2020'])(
+  it.each(['2013/2014', '2029/2030', '2019-2020'])(
     'menolak label %s yang di luar kisaran/format',
     (value) => {
       const { onChange, input } = renderFilter();
@@ -55,6 +55,20 @@ describe('tambah tahun angkatan', () => {
       expect(onChange).not.toHaveBeenCalled();
     },
   );
+
+  it('melengkapi 4 digit menjadi label penuh dan langsung memilih', () => {
+    const { onChange, input } = renderFilter();
+    fireEvent.change(input, { target: { value: '2019' } });
+    expect(onChange).toHaveBeenCalledWith(['2019/2020']);
+  });
+
+  it('4 digit di luar kisaran menampilkan error tanpa memilih', () => {
+    const { onChange, input } = renderFilter();
+    fireEvent.change(input, { target: { value: '2030' } });
+    expect(onChange).not.toHaveBeenCalled();
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onChange).not.toHaveBeenCalled();
+  });
 
   it('langsung mencentang label yang sudah tampil sebagai pilihan', () => {
     const { onChange, input } = renderFilter();

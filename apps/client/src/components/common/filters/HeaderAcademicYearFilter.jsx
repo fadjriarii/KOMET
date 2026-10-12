@@ -1,19 +1,15 @@
-import { useState } from 'react';
 import { getRollingAcademicYears } from '@komet/shared/academicYear';
 import AcademicYearFilter from './AcademicYearFilter';
 
 /**
- * Hanya UI: pilihan tahun ajaran disimpan lokal dan belum masuk URL/filterParams.
- * Saat fungsinya dibuat, pindahkan field `tahunAjaran` ke useGraduateFilters /
- * useMbkmFilters seperti di useStudentFilters, lalu buang state lokal ini.
+ * Pemilih tahun ajaran tab Lulusan — nilai hidup di URL lewat field
+ * `tahunAjaran` pada useGraduateFilters (sama pola dengan tab Student).
  */
-export default function HeaderAcademicYearFilter({ summaryQuery }) {
-  const [tahunAjaran, setTahunAjaran] = useState('');
-
+export default function HeaderAcademicYearFilter({ filters, setters, summaryQuery }) {
   return (
     <AcademicYearFilter
-      value={tahunAjaran}
-      onChange={setTahunAjaran}
+      value={filters.tahunAjaran}
+      onChange={setters.setTahunAjaran}
       options={getRollingAcademicYears(5)}
       disabled={summaryQuery?.isLoading}
     />

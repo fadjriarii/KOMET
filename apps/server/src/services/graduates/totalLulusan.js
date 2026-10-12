@@ -17,11 +17,36 @@ const {
 
 /**
  * Kartu KPI = populasi tabel student Lulus. Filter `tahunLulus` dari user
- * selalu menang; tanpa pilihan = seluruh populasi.
+ * selalu menang; tanpa pilihan = seluruh populasi. Jangkar `tahunAjaran`
+ * (Opsi A, meta dari filterBuilder — bukan where Prisma) tanpa `tahunLulus`
+ * = kumulatif alltime `lte` label jangkar; label kartu = label jangkar.
  */
+const AJARAN_PATTERN = /^(\d{4})\/(\d{4})$/;
+// ponytail: validasi label ditulis ulang di sini, bukan import shared, supaya
+// tanpa dependensi baru; ceiling: 1 pemakai. Upgrade path: pakai
+// `isValidAcademicYear` shared bila pemakai bertambah.
+const getAnchorLabel = (value) => {
+  if (typeof value !== 'string') return null;
+  const label = value.trim();
+  const match = AJARAN_PATTERN.exec(label);
+  if (!match || Number(match[1]) < 1900 || Number(match[2]) !== Number(match[1]) + 1) return null;
+  return label;
+};
+
 async function getTotalLulusan(whereFilter = {}) {
-  const { scope, isDefault } = await resolveTahunScope(whereFilter);
-  const where = withTahunScope({ ...whereFilter, statusKeaktifan: 'Lulus' }, scope);
+  const cleanFilter = { ...whereFilter };
+  delete cleanFilter.tahunAjaran;
+  const anchor = getAnchorLabel(whereFilter.tahunAjaran);
+  const hasTahunLulus = cleanFilter.graduate?.tahunLulus ?? cleanFilter.tahunLulus;
+
+  const { scope, isDefault } = await resolveTahunScope(cleanFilter);
+  const where = withTahunScope({ ...cleanFilter, statusKeaktifan: 'Lulus' }, scope);
+
+  let tahunScope = describeTahunScope(scope, isDefault);
+  if (anchor && !hasTahunLulus) {
+    where.graduate = { ...(where.graduate || {}), tahunLulus: { lte: anchor } };
+    tahunScope = describeTahunScope({ in: [anchor] }, false);
+  }
 
   const rows = await prisma.student.groupBy({
     by: ['jenjang'],
@@ -37,7 +62,7 @@ async function getTotalLulusan(whereFilter = {}) {
   for (const row of rows) counts[row.jenjang] = row._count;
   const known = requested || Object.keys(counts).sort();
 
-  const result = { tahunScope: describeTahunScope(scope, isDefault) };
+  const result = { tahunScope };
   for (const jenjang of known) result[jenjang.toLowerCase()] = pick(jenjang);
   // Kunci lama untuk kompatibilitas kartu S1/S2 yang sudah ada.
   result.s1 = result.s1 ?? null;

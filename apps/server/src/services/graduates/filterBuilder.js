@@ -50,6 +50,8 @@ async function getScopeJenjangs(whereFilter = {}) {
   if (requested) return requested;
   const { ...rest } = whereFilter;
   delete rest.jenjang;
+  // `tahunAjaran` = meta transport Opsi A, bukan kolom Prisma (lihat buildGraduateFilter).
+  delete rest.tahunAjaran;
   const rows = await prisma.student.groupBy({ by: ['jenjang'], where: rest });
   return rows.map((row) => row.jenjang).sort();
 }
@@ -98,6 +100,7 @@ function buildGraduateFilter(query) {
   const {
     programStudi,
     tahunLulus,
+    tahunAjaran,
     periodeWisuda,
     predikat,
     fakultas,
@@ -135,6 +138,13 @@ function buildGraduateFilter(query) {
   if (hasFilters(graduateFilter)) {
     where.graduate = graduateFilter;
   }
+
+  // Jangkar kohort Opsi A: meta transport, bukan where Prisma — service yang
+  // membacanya lewat tahunAjaran.js lalu membuangnya sebelum query.
+  // ponytail: label mentah disimpan apa adanya; validasi satu kali di
+  // `getTahunAjaranLabel`, bukan di tiap pemakai. + ceiling: nilai invalid
+  // diperlakukan sebagai "tak ada jangkar". Upgrade path: tolak di validator.
+  if (typeof tahunAjaran === 'string' && tahunAjaran.trim()) where.tahunAjaran = tahunAjaran.trim();
 
   return where;
 }

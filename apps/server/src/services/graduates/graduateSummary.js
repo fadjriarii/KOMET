@@ -34,8 +34,16 @@ const GRADUATE_PARAMS = [
   'periodeWisuda',
   'predikat',
   'angkatanTahun',
+  'tahunAjaran',
 ];
-const COHORT_PARAMS = ['search', 'fakultas', 'programStudi', 'jenjang', 'angkatanTahun'];
+const COHORT_PARAMS = [
+  'search',
+  'fakultas',
+  'programStudi',
+  'jenjang',
+  'angkatanTahun',
+  'tahunAjaran',
+];
 
 async function getGraduateSummary(whereFilter) {
   const [filterOptions, totalLulusan, avgIpk, tepatWaktu, keberhasilanStudi, labelRange] =

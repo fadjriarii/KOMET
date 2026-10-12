@@ -77,4 +77,26 @@ describe('getTotalLulusan', () => {
       tahunScope: ALL_SCOPE,
     });
   });
+
+  it('tahunAjaran + tanpa tahunLulus → kumulatif lte akhir tahun ajaran, label jangkar', async () => {
+    const result = await getTotalLulusan(
+      buildGraduateFilter({ tahunAjaran: '2023/2024', jenjang: 'S1' }),
+    );
+    expect(calls).toHaveLength(1);
+    expect(calls[0].where.graduate).toEqual({ tahunLulus: { lte: '2023/2024' } });
+    expect(result.tahunScope).toEqual({
+      labels: ['2023/2024'],
+      isDefault: false,
+      label: '2023/2024',
+      phrase: 'pada tahun ajaran 2023/2024',
+    });
+  });
+
+  it('tahunAjaran + tahunLulus → exact-match in, tidak dobel', async () => {
+    const result = await getTotalLulusan(
+      buildGraduateFilter({ tahunAjaran: '2023/2024', tahunLulus: '2023/2024' }),
+    );
+    expect(calls[0].where.graduate).toEqual({ tahunLulus: { in: ['2023/2024'] } });
+    expect(result.tahunScope.label).toBe('2023/2024');
+  });
 });

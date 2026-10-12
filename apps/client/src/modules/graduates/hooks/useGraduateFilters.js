@@ -1,6 +1,10 @@
 import { Award, BookOpen, Building2, CalendarDays, UserCheck } from 'lucide-react';
+import { isValidAcademicYear } from '@komet/shared/academicYear';
 import { useDashboardFilters } from '../../../hooks/useDashboardFilters';
 import { sanitizeSearch } from '../../../utils/querySanitizer';
+
+/** Label ajaran invalid dari URL = tanpa jangkar (bukan tahun berjalan seperti student). */
+const sanitizeAcademicYear = (value) => (isValidAcademicYear(value) ? value : '');
 
 /**
  * Field filter lulusan: state ↔ URL ↔ param server ↔ kontrol tampilan.
@@ -21,6 +25,13 @@ export const graduateFilterFields = {
     row: 1,
     label: 'Cari Lulusan',
     placeholder: 'Cari berdasarkan NIM atau Nama lulusan...',
+  },
+  // Jangkar kohort tab Lulusan, dipilih di header halaman (bukan form filter).
+  tahunAjaran: {
+    initial: '',
+    param: 'tahunAjaran',
+    setter: 'setTahunAjaran',
+    sanitize: sanitizeAcademicYear,
   },
   selectedFaculty: {
     initial: [],
