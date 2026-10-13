@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import MetricSummaryGrid from '../cards/MetricSummaryGrid';
 import QueryErrorBanner from '../feedback/QueryErrorBanner';
 import DashboardErrorGuard from './DashboardErrorGuard';
@@ -26,6 +26,13 @@ export default function DashboardPage({
   filterOptions,
   headerExtra: HeaderExtra,
 }) {
+  // Tab Lulusan: tahun ajaran "default" adalah tahun ajaran terbaru
+  // yang ada di data (`academicYearOptions[0]`), bukan tahun kalender
+  // berjalan. Memilihnya sama dengan default "lulus sampai sekarang",
+  // jadi tidak boleh menyala sebagai filter aktif. Baru diketahui setelah
+  // summary termuat, sehingga disimpan di state dan diteruskan pada
+  // render berikutnya; tab lain mengabaikan argumen ini.
+  const [defaultAcademicYear, setDefaultAcademicYear] = useState('');
   const {
     values: filters,
     setters,
@@ -33,7 +40,7 @@ export default function DashboardPage({
     activeFilterParams,
     activeFilterCount,
     resetFilters,
-  } = useFilters();
+  } = useFilters(defaultAcademicYear);
   const { params: requestParams, isDebouncing } = useDebouncedSearchParams(
     filterParams,
     filters.searchQuery,
@@ -44,6 +51,18 @@ export default function DashboardPage({
   const { activeModalType, currentModalType, originRect, openModal, closeModal } = useModalOrigin();
 
   const availableFilterOptions = filterOptions || summaryQuery.data?.filterOptions || {};
+
+  // Sinkronkan tahun ajaran default (terbaru dari data) setelah
+  // summary termuat; render berikutnya menormalisasi pilihan
+  // "tahun ajaran terbaru" kembali ke default tanpa jangkar.
+  // (useState di effect disengaja: default baru diketahui setelah
+  // summaryQuery — yang bergantung pada filterParams dari useFilters —
+  // jadi tidak bisa diturunkan langsung saat render.)
+  const latestAcademicYear = availableFilterOptions.academicYearOptions?.[0] ?? '';
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDefaultAcademicYear((prev) => (prev === latestAcademicYear ? prev : latestAcademicYear));
+  }, [latestAcademicYear]);
 
   // Refetch senyap tidak boleh mengubah kartu yang sudah tampil menjadi skeleton.
   const isKpiLoading = summaryQuery.isLoading || isDebouncing;

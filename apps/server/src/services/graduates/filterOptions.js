@@ -2,6 +2,7 @@ const { createFilterOptionsSource } = require('../filterOptionsSource');
 const { PREDIKAT, UNCLASSIFIED_PREDIKAT } = require('@komet/shared/constants');
 const { getRollingYears, getCustomYearMeta } = require('../students/filterOptions');
 const { get5YearRollingAcademicYears } = require('../../utils/academicUtils');
+const { getTahunAjaranLabel, tahunAjaranStart } = require('./tahunAjaran');
 
 // Populasi tab lulusan = baris graduate (asal `/kelulusan`); opsi dibaca dari
 // populasi yang sama dengan data supaya pilihan UI tak pernah menunjuk populasi
@@ -47,7 +48,36 @@ const graduateFilterOptions = createFilterOptionsSource({
   derive: deriveGraduateOptions,
 });
 
+function withAcademicYearWindow(base, anchorLabel) {
+  // Jangkar "lulus sampai tahun ajaran ini": label ajaran valid mulai
+  // sebelum/sama dengan tahun ajaran terpilih; 5 tahun terbarunya menjadi
+  // opsi Tahun Lulus & Angkatan. Dropdown Tahun Ajaran tidak di-window
+  // (user harus tetap bisa kembali ke tahun ajaran terbaru).
+  const anchor = getTahunAjaranLabel(anchorLabel);
+  if (!anchor) return base;
+  const anchorStart = tahunAjaranStart(anchor);
+  const withinAnchor = (label) => {
+    const start = tahunAjaranStart(label);
+    return Number.isFinite(start) && start <= anchorStart;
+  };
+  const rollingYears = getRollingYears(base.tahunLulus.filter(withinAnchor));
+  const rollingAngkatan = getRollingYears(base.angkatan.filter(withinAnchor));
+  return {
+    ...base,
+    rollingYears,
+    rollingAngkatan,
+    customYearMeta: getCustomYearMeta(rollingYears),
+    customAngkatanMeta: getCustomYearMeta(rollingAngkatan),
+  };
+}
+
+async function getGraduateFilterOptions(anchorLabel = null) {
+  const base = await graduateFilterOptions.getFilterOptions();
+  return withAcademicYearWindow(base, anchorLabel);
+}
+
 module.exports = {
-  getGraduateFilterOptions: graduateFilterOptions.getFilterOptions,
+  getGraduateFilterOptions,
+  withAcademicYearWindow,
   clearGraduateFilterCache: graduateFilterOptions.clearFilterCache,
 };

@@ -1,17 +1,21 @@
+import { useMemo } from 'react';
 import { Award, BookOpen, Building2, CalendarDays, UserCheck } from 'lucide-react';
 import { getCurrentAcademicYear, isValidAcademicYear } from '@komet/shared/academicYear';
 import { useDashboardFilters } from '../../../hooks/useDashboardFilters';
 import { sanitizeSearch } from '../../../utils/querySanitizer';
 
 /**
- * Label ajaran invalid dari URL = tanpa jangkar (bukan tahun berjalan seperti student).
- * Tahun ajaran TERBARU juga dinormalisasi ke '' — memilihnya sama dengan berada di
- * default (server menghitung "lulus sampai sekarang"), jadi ia tidak boleh dihitung
- * sebagai filter aktif dan menyalakan badge "Terfilter" di kartu KPI.
+ * Label ajaran invalid dari URL = tanpa jangkar. Tahun ajaran TERBARU yang
+ * ada di data (`defaultAcademicYear`, dari `filterOptions.academicYearOptions[0]`)
+ * dan tahun berjalan (`getCurrentAcademicYear`) juga dinormalisasi ke '' —
+ * memilihnya sama dengan default ("lulus sampai sekarang", anchor terlemah),
+ * jadi tidak boleh dihitung sebagai filter aktif dan menyalakan badge
+ * "Terfilter" di kartu KPI.
  */
-const sanitizeAcademicYear = (value) => {
+const sanitizeAcademicYear = (value, defaultAcademicYear = '') => {
   if (!isValidAcademicYear(value)) return '';
-  return value && value === getCurrentAcademicYear() ? '' : value;
+  if (value === defaultAcademicYear || value === getCurrentAcademicYear()) return '';
+  return value;
 };
 
 /**
@@ -134,8 +138,19 @@ export const graduateFilterForm = {
   fields: graduateFilterFields,
 };
 
-export function useGraduateFilters() {
-  return useDashboardFilters({
-    fields: graduateFilterFields,
-  });
+export function useGraduateFilters(defaultAcademicYear = '') {
+  // Closure per default: tahun ajaran terbaru dari data (datanya belum
+  // termuat saat hook pertama jalan, baru diketahui setelah summary
+  // selesai — DashboardPage menyimpannya dan memanggil ulang hook ini).
+  const fields = useMemo(
+    () => ({
+      ...graduateFilterFields,
+      tahunAjaran: {
+        ...graduateFilterFields.tahunAjaran,
+        sanitize: (value) => sanitizeAcademicYear(value, defaultAcademicYear),
+      },
+    }),
+    [defaultAcademicYear],
+  );
+  return useDashboardFilters({ fields });
 }

@@ -7,6 +7,7 @@
  */
 
 const { getGraduateFilterOptions } = require('./filterOptions');
+const { getTahunAjaran } = require('./tahunAjaran');
 const { getTotalLulusan } = require('./totalLulusan');
 const { getAvgIpk } = require('./ipkTrend');
 const { getTepatWaktu } = require('./tepatWaktu');
@@ -48,7 +49,7 @@ const COHORT_PARAMS = [
 async function getGraduateSummary(whereFilter) {
   const [filterOptions, totalLulusan, avgIpk, tepatWaktu, keberhasilanStudi, labelRange] =
     await Promise.all([
-      getGraduateFilterOptions(),
+      getGraduateFilterOptions(getTahunAjaran(whereFilter)),
       getTotalLulusan(whereFilter),
       getAvgIpk(whereFilter),
       getTepatWaktu(whereFilter),
