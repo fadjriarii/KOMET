@@ -3,7 +3,17 @@ import globals from 'globals';
 import { defineConfig, globalIgnores } from 'eslint/config';
 
 export default defineConfig([
-  globalIgnores(['**/dist', '**/node_modules', '**/.turbo', '**/coverage', '**/prisma']),
+  globalIgnores([
+    '**/dist',
+    '**/node_modules',
+    '**/.turbo',
+    '**/coverage',
+    '**/prisma',
+    // ponytail: IDE tooling artifacts, bukan kode aplikasi; buang error parse.
+    // Upgrade: hapus ignore ini kalau .qoder/workflows jadi bagian pipeline.
+    '**/.qoder',
+    '**/scratch',
+  ]),
   {
     files: ['**/*.{js,cjs,mjs}'],
     extends: [js.configs.recommended],

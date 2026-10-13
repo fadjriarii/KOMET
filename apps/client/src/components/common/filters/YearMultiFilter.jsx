@@ -17,7 +17,7 @@ function deriveLocalMeta(years = []) {
     maxLabel: oldest,
     placeholder: oldest ?? FALLBACK_MIN_LABEL,
     helperText: oldest
-      ? `Angkatan lama tidak ada di atas? Ketik tahun ajaran ${FALLBACK_MIN_LABEL}–${oldest}.`
+      ? `Tahun ajaran lama tidak ada di atas? Ketik tahun ajaran ${FALLBACK_MIN_LABEL}–${oldest}.`
       : `Ketik tahun ajaran mulai ${FALLBACK_MIN_LABEL}.`,
     errorText: oldest
       ? `Hanya ${FALLBACK_MIN_LABEL}–${oldest}.`

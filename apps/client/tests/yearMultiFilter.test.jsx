@@ -7,7 +7,7 @@ const META = {
   minLabel: '2014/2015',
   maxLabel: '2021/2022',
   placeholder: '2021/2022',
-  helperText: 'Angkatan lama tidak ada di atas? Ketik tahun ajaran 2014/2015–2021/2022.',
+  helperText: 'Tahun ajaran lama tidak ada di atas? Ketik tahun ajaran 2014/2015–2021/2022.',
   errorText: 'Hanya 2014/2015–2021/2022.',
 };
 
@@ -33,7 +33,7 @@ function renderFilter(props = {}) {
 
 /**
  * Checkbox hanya memuat 5 label terbaru, jadi baris kustom adalah satu-satunya
- * jalan ke angkatan lama — dan hanya dalam kisaran customMeta server.
+ * jalan ke tahun ajaran lama — dan hanya dalam kisaran customMeta server.
  */
 describe('tambah tahun angkatan', () => {
   it('menerima label penuh antara minLabel dan maxLabel', () => {

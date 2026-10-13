@@ -127,7 +127,7 @@ describe('keberhasilan studi agregasi cohort', () => {
     );
   });
 
-  it('menghasilkan angka yang sama dengan perhitungan per-angkatan lama', async () => {
+  it('menghasilkan angka yang sama dengan perhitungan per-tahun-ajaran lama', async () => {
     const dataset = buildDataset();
     stubGroupBy(dataset);
 

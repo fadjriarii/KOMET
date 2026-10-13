@@ -71,7 +71,7 @@ function getCustomYearMeta(rollingLabels, minLabel = '2014/2015') {
     maxLabel: maxStart ? formatAcademicYearLabel(maxStart) : null,
     placeholder: maxStart ? formatAcademicYearLabel(maxStart) : minLabel,
     helperText: maxStart
-      ? `Angkatan lama tidak ada di atas? Ketik tahun ajaran ${minLabel}–${formatAcademicYearLabel(maxStart)}.`
+      ? `Tahun ajaran lama tidak ada di atas? Ketik tahun ajaran ${minLabel}–${formatAcademicYearLabel(maxStart)}.`
       : `Ketik tahun ajaran mulai ${minLabel}.`,
     errorText: maxStart
       ? `Hanya ${minLabel}–${formatAcademicYearLabel(maxStart)}.`
