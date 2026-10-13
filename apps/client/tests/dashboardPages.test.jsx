@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { getCurrentAcademicYear } from '@komet/shared/academicYear';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import GraduatesPage from '../src/modules/graduates/pages/GraduatesPage';
 import MbkmPage from '../src/modules/mbkm/pages/MbkmPage';
@@ -101,6 +102,7 @@ const GRADUATE_PARAMS = [
   'periodeWisuda',
   'predikat',
   'angkatanTahun',
+  'tahunAjaran',
 ];
 const ACTIVITY_PARAMS = [
   'search',
@@ -175,7 +177,14 @@ const ROUTES = {
       total: GRADUATE_PARAMS,
       gpa: GRADUATE_PARAMS,
       onTime: GRADUATE_PARAMS,
-      studySuccess: ['search', 'fakultas', 'programStudi', 'jenjang', 'angkatanTahun'],
+      studySuccess: [
+        'search',
+        'fakultas',
+        'programStudi',
+        'jenjang',
+        'angkatanTahun',
+        'tahunAjaran',
+      ],
     },
     filterCases: [
       { url: '/graduates?faculty=FST', api: 'fakultas', value: 'FST' },
@@ -344,6 +353,25 @@ describe('kartu KPI Graduates', () => {
     expect(cardOf('Kelulusan Tepat Waktu').textContent).toContain('-');
   });
 
+  it('memilih tahun ajaran terbaru = default: badge "Terfilter" tidak tertinggal', async () => {
+    const route = mockModule('graduates');
+    const { goTo } = renderPage(GraduatesPage, ['/graduates?tahunAjaran=2025/2026']);
+
+    await cardsReady(route);
+    // Jangkar tahun ajaran sebelumnya = filter aktif, semua kartu membaca paramnya.
+    for (const { title } of route.cards) {
+      expect(badgesOf(title), title).toHaveLength(1);
+    }
+
+    // Kembali ke tahun ajaran terbaru: server memperlakukannya sama dengan tanpa
+    // jangkar (default), jadi URL-nya dinormalisasi dan badge wajib padam.
+    goTo(`/graduates?tahunAjaran=${getCurrentAcademicYear()}`);
+    await waitFor(() => {
+      for (const { title } of route.cards) expect(badgesOf(title), title).toHaveLength(0);
+    });
+    expect(lastQuery(route.summaryPath).getAll('tahunAjaran')).toEqual([]);
+  });
+
   it('satu ketikan lanjutan hanya memicu satu request setelah debounce, bukan per karakter', async () => {
     mockModule('graduates');
     renderPage(GraduatesPage);
@@ -362,7 +390,7 @@ describe('kartu KPI Graduates', () => {
     expect(lastQuery('/graduates/summary').get('search')).toBe('abc');
   });
 
-  it('menampilkan pesan asli dari server ketika summary gagal, bukan teks generik', async () => {
+  it('mengganti isi halaman dengan layar kegagalan saat summary gagal tanpa data lama', async () => {
     respondWith((url) =>
       url.startsWith('/graduates/summary')
         ? Promise.reject(new Error('Query terlalu berat untuk dieksekusi.'))
@@ -370,8 +398,13 @@ describe('kartu KPI Graduates', () => {
     );
     renderPage(GraduatesPage);
 
-    const banner = await screen.findByRole('alert');
-    expect(banner.textContent).toContain('Query terlalu berat untuk dieksekusi.');
+    // Tanpa data lama, bukan banner kecil di header: seluruh halaman jadi layar
+    // kegagalan. Pesan asli server tidak dicetak di layar (mentah bagi pengguna),
+    // tapi tetap terbawa lewat tooltip judul.
+    expect(await screen.findByText('backend not connected')).toBeTruthy();
+    const title = screen.getByTitle('Query terlalu berat untuk dieksekusi.');
+    expect(title).toBeTruthy();
+    expect(document.querySelector('.err-main')).toBeTruthy();
   });
 
   it('pindah halaman tidak me-remount kartu dan tidak memicu ulang summary', async () => {

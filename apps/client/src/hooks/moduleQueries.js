@@ -36,7 +36,9 @@ function useModuleSummary({ namespace, service, queryParams, enabled }) {
     staleTime: DASHBOARD_STALE_TIME_MS,
   });
 
-  return { ...query, error: query.error?.message || null };
+  // `status` diteruskan supaya pemanggil bisa memilih layar kegagalan yang tepat
+  // (401/403/404/500/503); `message` saja tidak cukup untuk itu.
+  return { ...query, error: query.error?.message || null, status: query.error?.status ?? null };
 }
 
 /**

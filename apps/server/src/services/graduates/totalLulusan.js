@@ -1,9 +1,9 @@
 /**
  * totalLulusan.js
  *
- * Total = `prisma.student.count where statusKeaktifan Lulus` — SATU sumber
- * dengan `/mahasiswa?statusKeaktifan=Lulus` (1132), by construction tak bisa
- * selisih. Field kelulusan (tahunLulus) dibaca dari relasi `graduate`.
+ * Total = baris mahasiswa yang punya catatan kelulusan (graduate-base, asal
+ * endpoint `/kelulusan`) — kartu dan tabel memakai populasi yang sama sehingga
+ * tak bisa selisih. Field kelulusan (tahunLulus) dibaca dari relasi `graduate`.
  */
 
 const prisma = require('../../config/prisma');
@@ -16,10 +16,11 @@ const {
 } = require('./yearJenjangSeries');
 
 /**
- * Kartu KPI = populasi tabel student Lulus. Filter `tahunLulus` dari user
- * selalu menang; tanpa pilihan = seluruh populasi. Jangkar `tahunAjaran`
- * (Opsi A, meta dari filterBuilder — bukan where Prisma) tanpa `tahunLulus`
- * = kumulatif alltime `lte` label jangkar; label kartu = label jangkar.
+ * Kartu KPI = populasi baris graduate (asal `/kelulusan`). Filter `tahunLulus`
+ * dari user selalu menang; tanpa pilihan = seluruh populasi. Jangkar
+ * `tahunAjaran` (Opsi A, meta dari filterBuilder — bukan where Prisma) tanpa
+ * `tahunLulus` = kumulatif alltime `lte` label jangkar; label kartu = label
+ * jangkar.
  */
 const AJARAN_PATTERN = /^(\d{4})\/(\d{4})$/;
 // ponytail: validasi label ditulis ulang di sini, bukan import shared, supaya
@@ -40,7 +41,7 @@ async function getTotalLulusan(whereFilter = {}) {
   const hasTahunLulus = cleanFilter.graduate?.tahunLulus ?? cleanFilter.tahunLulus;
 
   const { scope, isDefault } = await resolveTahunScope(cleanFilter);
-  const where = withTahunScope({ ...cleanFilter, statusKeaktifan: 'Lulus' }, scope);
+  const where = withTahunScope({ ...cleanFilter }, scope);
 
   let tahunScope = describeTahunScope(scope, isDefault);
   if (anchor && !hasTahunLulus) {

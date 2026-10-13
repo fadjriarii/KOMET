@@ -15,7 +15,7 @@ const ALL_SCOPE = {
 
 const originalFindMany = prisma.student.findMany;
 const originalGroupBy = prisma.student.groupBy;
-// Populasi student-base: S1 + S2 + Prof (37 Prof dulu dikunci-out helper lama).
+// Populasi graduate-base: S1 + S2 + Prof (semua punya baris `/kelulusan`).
 const LEVELS = [
   { jenjang: 'S1', _count: 1046 },
   { jenjang: 'S2', _count: 49 },
@@ -39,8 +39,8 @@ afterEach(() => {
 });
 
 describe('getTotalLulusan', () => {
-  it('satu groupBy student Lulus untuk semua jenjang termasuk Prof', async () => {
-    expect(await getTotalLulusan({})).toEqual({
+  it('satu groupBy graduate-base untuk semua jenjang termasuk Prof', async () => {
+    expect(await getTotalLulusan(buildGraduateFilter({}))).toEqual({
       s1: 1046,
       s2: 49,
       prof: 37,
@@ -48,7 +48,10 @@ describe('getTotalLulusan', () => {
     });
     expect(calls).toHaveLength(1);
     expect(calls[0].by).toEqual(['jenjang']);
-    expect(calls[0].where.statusKeaktifan).toBe('Lulus');
+    // Populasi = punya baris graduate (asal `/kelulusan`), bukan status Lulus —
+    // predicate-nya datang dari builder, kartu tidak menambah status sendiri.
+    expect(calls[0].where.NOT).toEqual({ graduate: null });
+    expect(calls[0].where.statusKeaktifan).toBeUndefined();
   });
 
   it('tanpa filter tahun menghitung seluruh populasi, bukan jendela 5 tahun', async () => {

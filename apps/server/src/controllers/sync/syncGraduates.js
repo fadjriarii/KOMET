@@ -1,12 +1,13 @@
 const logger = require('../../utils/logger');
-const syncJobTracker = require('../../utils/syncJobTracker');
 const prisma = require('../../config/prisma');
+const syncJobTracker = require('../../utils/syncJobTracker');
 const createSyncHandler = require('./createSyncHandler');
 const { deduplicateStudents } = require('../../services/studentDeduplicationService');
 const { sanitizeProdiName, normalizeOptionalText } = require('./text');
 const { formatTahunLulus } = require('./academicPeriod');
 const { resolveTargetNimBatch, paginateSevimaPages } = require('./sevimaLookup');
 const { bulkUpsertGraduates } = require('./bulkWrite');
+const { selectManualGraduates } = require('./manualGraduates');
 const { STUDENT_STATUS } = require('@komet/shared/constants');
 
 // 2. ETL Sinkronisasi Kelulusan (Graduate)
@@ -15,8 +16,15 @@ const executeSyncGraduates = async ({ runDedup = true } = {}) => {
 
   let totalSynced = 0;
   let totalSkipped = 0;
+  // NIM yang benar-benar diterbitkan `/kelulusan` — dasar keputusan baris manual.
+  const syncedNims = new Set();
 
   syncJobTracker.updateProgress('graduates', { status: 'running', page: 1, totalPages: 0 });
+
+  // Publikasi ulang, bukan tambah-timpa: tabel dibuang lebih dulu agar lulusan
+  // yang tidak lagi diterbitkan endpoint (mis. dibatalkan) tidak tertinggal
+  // selamanya sebagai baris basi. Pola yang sama dipakai MBKM.
+  await prisma.graduate.deleteMany({});
 
   await paginateSevimaPages({
     endpoint: '/siakadcloud/v1/kelulusan',
@@ -92,6 +100,12 @@ const executeSyncGraduates = async ({ runDedup = true } = {}) => {
             periodeTerakhir: item.id_periode_akademik || '',
           })),
         );
+        // NIM mentah DAN hasil resolusi dicatat: baris manual dibandingkan
+        // terhadap keduanya supaya NIM ber-"x" milik API tetap memblokir manual.
+        validItems.forEach((item) => {
+          syncedNims.add(item.nim);
+          syncedNims.add(nimMap.get(item) || item.nim);
+        });
         totalSynced += validItems.length;
       }
 
@@ -107,29 +121,13 @@ const executeSyncGraduates = async ({ runDedup = true } = {}) => {
   let deduplicationResult = null;
   if (runDedup) deduplicationResult = await deduplicateStudents();
 
-  // Backfill: mahasiswa berstatus Lulus tanpa baris graduate (terukur 5 NIM —
-  // tak pernah diterbitkan endpoint /kelulusan Sevima) dibuatkan baris
-  // graduate minimal agar field kelulusan konsisten; predikat dihitung dari
-  // IPK oleh reader (fallback `calculatePredikat`).
-  const orphans = await prisma.student.findMany({
-    where: { statusKeaktifan: STUDENT_STATUS.LULUS, graduate: null },
-    select: { nim: true, jenjang: true, periodeMasuk: true },
-  });
-  if (orphans.length > 0) {
-    await bulkUpsertGraduates(
-      orphans.map((s) => ({
-        nim: s.nim,
-        jenjang: s.jenjang,
-        statusKelulusan: STUDENT_STATUS.LULUS,
-        predikatLulus: '',
-        tahunLulus: formatTahunLulus(String(s.periodeMasuk ?? '').substring(0, 4)),
-        periodeWisuda: s.periodeMasuk || '',
-        ipk: 0,
-        sksLulus: 0,
-        periodeTerakhir: s.periodeMasuk || '',
-      })),
-    );
-  }
+  // Lulusan yang tidak pernah diterbitkan `/kelulusan` (5 NIM terukur) diisi
+  // literalnya supaya jumlah tetap selaras dengan
+  // `/mahasiswa?statusKeaktifan=Lulus`. Baris `graduate` tetap HANYA berasal
+  // dari dua sumber ini: endpoint `/kelulusan` dan daftar manual di
+  // `manualGraduates.js` — sinkron tidak membuat baris dari `/mahasiswa`.
+  const manualCount = await insertManualGraduates(syncedNims);
+  totalSynced += manualCount;
 
   syncJobTracker.updateProgress('graduates', {
     status: 'completed',
@@ -142,6 +140,33 @@ const executeSyncGraduates = async ({ runDedup = true } = {}) => {
   return { totalSynced, totalSkipped, deduplication: deduplicationResult };
 };
 
+/** Insert baris `graduate` untuk NIM yang tidak ada di API (manual seed). */
+async function insertManualGraduates(syncedNims) {
+  const pending = selectManualGraduates(syncedNims);
+  if (pending.length === 0) return 0;
+  const students = await prisma.student.findMany({
+    where: { nim: { in: pending.map((row) => row.nim) } },
+    select: { nim: true, jenjang: true },
+  });
+  const jenjangByNim = new Map(students.map((s) => [s.nim, s.jenjang]));
+  const rows = pending
+    .filter((row) => jenjangByNim.has(row.nim))
+    .map((row) => ({
+      nim: row.nim,
+      jenjang: jenjangByNim.get(row.nim),
+      statusKelulusan: STUDENT_STATUS.LULUS,
+      predikatLulus: '',
+      tahunLulus: row.tahunLulus,
+      periodeWisuda: row.periodeWisuda,
+      ipk: row.ipk,
+      sksLulus: row.sksLulus,
+      periodeTerakhir: row.periodeWisuda,
+    }));
+  if (rows.length === 0) return 0;
+  await bulkUpsertGraduates(rows);
+  return rows.length;
+}
+
 module.exports = createSyncHandler({
   moduleName: 'graduates',
   label: 'Sinkronisasi kelulusan',
@@ -151,3 +176,4 @@ module.exports = createSyncHandler({
 });
 
 module.exports.executeSyncGraduates = executeSyncGraduates;
+module.exports.insertManualGraduates = insertManualGraduates;

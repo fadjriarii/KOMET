@@ -50,14 +50,14 @@ afterEach(() => {
 describe('valuesByYearAndJenjang', () => {
   it('tanpa filter tahun deret memuat seluruh tahun populasi', async () => {
     const series = await valuesByYearAndJenjang(
-      { statusKeaktifan: 'Lulus', jenjang: { in: ['S1'] } },
+      { NOT: { graduate: null }, jenjang: { in: ['S1'] } },
       {
         valueOf: ({ items }) => items.length,
         missing: 0,
       },
     );
 
-    expect(calls[0].where.statusKeaktifan).toBe('Lulus');
+    expect(calls[0].where.NOT).toEqual({ graduate: null });
     expect(calls[0].where.graduate).toBeUndefined();
     expect(series.map((entry) => entry.tahun)).toEqual(YEARS);
   });
@@ -82,7 +82,7 @@ describe('valuesByYearAndJenjang', () => {
   it('tahunAjaran memotong deret sampai akhir tahun ajaran itu', async () => {
     const anchor = YEARS[YEARS.length - 3];
     const series = await valuesByYearAndJenjang(
-      { statusKeaktifan: 'Lulus', jenjang: { in: ['S1'] }, tahunAjaran: anchor },
+      { NOT: { graduate: null }, jenjang: { in: ['S1'] }, tahunAjaran: anchor },
       {
         valueOf: ({ items }) => items.length,
         missing: 0,
@@ -96,7 +96,7 @@ describe('valuesByYearAndJenjang', () => {
 
   it('tahunAjaran invalid diperlakukan sebagai tanpa jangkar (regresi)', async () => {
     const series = await valuesByYearAndJenjang(
-      { statusKeaktifan: 'Lulus', jenjang: { in: ['S1'] }, tahunAjaran: '2023/2025' },
+      { NOT: { graduate: null }, jenjang: { in: ['S1'] }, tahunAjaran: '2023/2025' },
       {
         valueOf: ({ items }) => items.length,
         missing: 0,
@@ -108,7 +108,7 @@ describe('valuesByYearAndJenjang', () => {
 
   it('filter tahunLulus user menang: deret hanya memuat tahun pilihan', async () => {
     const series = await valuesByYearAndJenjang(
-      { statusKeaktifan: 'Lulus', graduate: { tahunLulus: { in: ['2023/2024'] } } },
+      { NOT: { graduate: null }, graduate: { tahunLulus: { in: ['2023/2024'] } } },
       {
         valueOf: ({ items }) => items.length,
         missing: 0,

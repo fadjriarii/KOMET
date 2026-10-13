@@ -105,3 +105,247 @@ body {
   animation: slideInRight 1000ms cubic-bezier(0.16, 1, 0.3, 1) both;
   will-change: transform, opacity;
 }
+
+/* ── Layar kegagalan (modules/errors) ────────────────────────────────────────
+   Port dari `errors-design/styles.css` (Sass → CSS biasa, tanpa variabel).
+   Semua kelas berawalan `.err-` dan tidak menyentuh body/:global, jadi tidak
+   menimpa gaya dashboard. Latar & teks disamakan dengan tema dashboard
+   (bg gray-50 `#f9fafb`, teks gray-800), bukan tema gelap desain asli. */
+
+.err-main {
+  --err-bg: #f9fafb;
+  --err-ink: #1f2937;
+  --err-red: #f04f54;
+  display: flex;
+  align-items: center;
+  align-content: center;
+  justify-content: center;
+  padding: 12px;
+  background: var(--err-bg);
+  color: var(--err-ink);
+  font-family: 'Mona Sans', system-ui, sans-serif;
+  font-feature-settings: 'liga', 'ss05' on, 'ss07' on;
+  font-size: 20px;
+  /* Tinggi sisa setelah navbar 4rem + padding <main> 3rem, supaya tidak muncul
+     scrollbar tambahan di dalam area konten. */
+  min-height: calc(100vh - 7rem);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.err-main ::selection {
+  background: none;
+}
+
+.err-row {
+  display: flex;
+  align-items: center;
+  align-content: center;
+  justify-content: center;
+}
+
+.err-row > div,
+.err-side {
+  position: relative;
+  display: flex;
+  align-items: center;
+  align-content: center;
+  overflow: hidden;
+}
+
+.err-side svg {
+  position: relative;
+  z-index: 1;
+  width: 50px;
+  height: auto;
+}
+
+.err-side polygon {
+  /* Isian poligon = warna latar: menutupi teks di belakangnya sampai animasi
+     errRemoveFill membuatnya transparan. Kalau latar berubah, ini ikut. */
+  fill: var(--err-bg);
+}
+
+.err-line {
+  display: block;
+  position: relative;
+  z-index: 0;
+  padding: 0 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+/* Kiri: teks masuk dari kanan; isian poligon dihapus setelah retakan tergambar. */
+.err-side-left {
+  text-align: right;
+  z-index: 1;
+}
+
+.err-side-left .err-line:nth-of-type(1) {
+  opacity: 0;
+  transform: translateX(100%);
+  animation: errTranslateLeft 1000ms linear 1250ms forwards;
+}
+
+.err-side-left .err-line:nth-of-type(2) {
+  opacity: 0;
+  transform: translateX(100%);
+  animation: errTranslateLeft 1000ms linear 1450ms forwards;
+}
+
+.err-side-left svg polygon {
+  animation: errRemoveFill 10ms ease-out 1600ms forwards;
+}
+
+/* Kanan: teks masuk dari kiri. */
+.err-side-right {
+  z-index: 0;
+  margin-left: -50px;
+}
+
+.err-side-right .err-copy .err-line:nth-of-type(1) {
+  opacity: 0;
+  transform: translateX(-100%);
+  animation: errTranslateRight 1000ms linear 1650ms forwards;
+}
+
+.err-side-right .err-copy .err-line:nth-of-type(2) {
+  opacity: 0;
+  transform: translateX(-100%);
+  animation: errTranslateRight 1000ms linear 1850ms forwards;
+}
+
+/* Retakan: digambar sepanjang garis, di atas kedua pecahan. */
+.err-crack {
+  position: relative;
+  z-index: 4;
+  width: 50px;
+  height: auto;
+  margin-left: -50px;
+}
+
+.err-crack polyline {
+  fill: none;
+  stroke: var(--err-red);
+  stroke-width: 10px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1649.099;
+  stroke-dashoffset: 1649.099;
+  animation: errDrawStroke 1500ms ease-out 500ms forwards;
+}
+
+/* Tautan/aksi pengganti <a><b> desain asli. */
+.err-action {
+  display: block;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  font-weight: 500;
+  white-space: nowrap;
+  text-decoration: none;
+  animation: errPulseColor 1000ms linear 3100ms forwards;
+}
+
+.err-action b {
+  font-weight: 500;
+}
+
+.err-action:hover b,
+.err-action:focus-visible b {
+  color: var(--err-red);
+}
+
+.err-action:active b {
+  color: #b91c1c;
+}
+
+@keyframes errDrawStroke {
+  0% {
+    stroke-dashoffset: 1649.099;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes errRemoveFill {
+  0% {
+    fill: #f9fafb;
+  }
+  100% {
+    fill: rgba(249, 250, 251, 0);
+  }
+}
+
+/* Denyut warna tautan aksi: dari warna teks ke merah dan kembali (bukan putih —
+   latarnya terang, jadi denyut terang akan hilang). */
+@keyframes errPulseColor {
+  0% {
+    color: #1f2937;
+  }
+  25% {
+    color: #f04f54;
+  }
+  50% {
+    color: #1f2937;
+  }
+  75% {
+    color: #f04f54;
+  }
+  100% {
+    color: #1f2937;
+  }
+}
+
+/* Kurva pegas untuk kedua potongan teks (nilai asli desain dipertahankan). */
+@keyframes errTranslateLeft {
+  0% { transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 150, 0, 0, 1); opacity: 1; }
+  7.61% { transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 69.561, 0, 0, 1); }
+  11.41% { transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 39.355, 0, 0, 1); }
+  15.12% { transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 17.801, 0, 0, 1); }
+  18.92% { transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 3.02, 0, 0, 1); }
+  22.72% { transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -5.661, 0, 0, 1); }
+  30.23% { transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -10.852, 0, 0, 1); }
+  50.25% { transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -2.282, 0, 0, 1); }
+  70.27% { transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0.519, 0, 0, 1); }
+  100% { transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1); opacity: 1; }
+}
+
+@keyframes errTranslateRight {
+  0% { transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -150, 0, 0, 1); opacity: 1; }
+  7.61% { transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -69.561, 0, 0, 1); }
+  11.41% { transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -39.355, 0, 0, 1); }
+  15.12% { transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -17.801, 0, 0, 1); }
+  18.92% { transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -3.02, 0, 0, 1); }
+  22.72% { transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 5.661, 0, 0, 1); }
+  30.23% { transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 10.852, 0, 0, 1); }
+  50.25% { transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 2.282, 0, 0, 1); }
+  70.27% { transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -0.519, 0, 0, 1); }
+  100% { transform: matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1); opacity: 1; }
+}
+
+/* Tanpa animasi: langsung tampilkan keadaan akhir (retakan penuh, teks di tempat). */
+@media (prefers-reduced-motion: reduce) {
+  .err-side-left .err-line,
+  .err-side-right .err-copy .err-line,
+  .err-crack polyline,
+  .err-side-left svg polygon,
+  .err-action {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .err-crack polyline {
+    stroke-dashoffset: 0 !important;
+  }
+
+  .err-side-left svg polygon {
+    fill: rgba(249, 250, 251, 0) !important;
+  }
+}

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import MetricSummaryGrid from '../cards/MetricSummaryGrid';
 import QueryErrorBanner from '../feedback/QueryErrorBanner';
+import DashboardErrorGuard from './DashboardErrorGuard';
 import DashboardFilterForm from '../filters/DashboardFilterForm';
 import { useDebouncedSearchParams } from '../../../hooks/useDebouncedSearchParams';
 import { useModalOrigin } from '../../../hooks/useModalOrigin';
@@ -63,47 +64,60 @@ export default function DashboardPage({
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold text-gray-800 tracking-tight">{title}</h1>
-          <p className="text-xs md:text-sm text-gray-500 mt-1">{description}</p>
+    <DashboardErrorGuard
+      error={summaryQuery.error}
+      status={summaryQuery.status}
+      hasData={Boolean(summaryQuery.data)}
+      onRetry={() => summaryQuery.refetch()}
+    >
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold text-gray-800 tracking-tight">{title}</h1>
+            <p className="text-xs md:text-sm text-gray-500 mt-1">{description}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            {HeaderExtra ? (
+              <HeaderExtra
+                filters={filters}
+                setters={setters}
+                summaryQuery={summaryQuery}
+                options={availableFilterOptions}
+              />
+            ) : null}
+            {/* Hanya sampai di sini kalau data lama masih tampil (lihat DashboardErrorGuard). */}
+            <QueryErrorBanner error={summaryQuery.error} hasData={Boolean(summaryQuery.data)} />
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          {HeaderExtra ? (
-            <HeaderExtra
-              filters={filters}
-              setters={setters}
-              summaryQuery={summaryQuery}
-              options={availableFilterOptions}
-            />
-          ) : null}
-          <QueryErrorBanner error={summaryQuery.error} hasData={Boolean(summaryQuery.data)} />
-        </div>
+
+        <MetricSummaryGrid cards={cards} cardProps={cardProps} />
+
+        <DashboardFilterForm
+          {...filterForm}
+          values={filters}
+          setters={setters}
+          options={availableFilterOptions}
+          activeCount={activeFilterCount}
+          onResetAll={resetFilters}
+          isLoading={summaryQuery.isLoading && !summaryQuery.data}
+        />
+
+        <Table
+          rows={rows}
+          pagination={pagination}
+          onPageChange={setPage}
+          isLoading={isListLoading}
+        />
+
+        <DetailModal
+          isOpen={Boolean(activeModalType)}
+          onClose={closeModal}
+          modalType={currentModalType}
+          originRect={originRect}
+          data={summaryQuery.data}
+          filters={requestParams}
+        />
       </div>
-
-      <MetricSummaryGrid cards={cards} cardProps={cardProps} />
-
-      <DashboardFilterForm
-        {...filterForm}
-        values={filters}
-        setters={setters}
-        options={availableFilterOptions}
-        activeCount={activeFilterCount}
-        onResetAll={resetFilters}
-        isLoading={summaryQuery.isLoading && !summaryQuery.data}
-      />
-
-      <Table rows={rows} pagination={pagination} onPageChange={setPage} isLoading={isListLoading} />
-
-      <DetailModal
-        isOpen={Boolean(activeModalType)}
-        onClose={closeModal}
-        modalType={currentModalType}
-        originRect={originRect}
-        data={summaryQuery.data}
-        filters={requestParams}
-      />
-    </div>
+    </DashboardErrorGuard>
   );
 }

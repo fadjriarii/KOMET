@@ -1,22 +1,25 @@
 /**
  * graduateList.js
  *
- * Daftar lulusan dibaca dari tabel students (base Lulus, left join graduate
- * untuk field kelulusan) — total tabel = total kartu by construction.
- * 5 orphan Lulus tanpa baris graduate tampil dengan field '-' (bukan hilang).
+ * Daftar lulusan dibaca dari tabel students yang punya baris graduate
+ * (populasi `/kelulusan`; inner join lewat where builder — graduate field
+ * di-select lewat relasi) — total tabel = total kartu by construction.
+ * Lulusan yang tidak diterbitkan endpoint `/kelulusan` tetap tampil setelah
+ * baris graduate-nya dimasukkan manual ke database.
  */
 
 const prisma = require('../../config/prisma');
 const { calculatePredikat } = require('../../utils/graduateUtils');
 const { paginateList } = require('../../utils/paginationUtils');
+const { withTahunAjaranAnchor } = require('./tahunAjaran');
 const { TABLE_LIMIT } = require('@komet/shared/constants');
 
 async function getGraduateList(whereFilter, page = 1, limit = TABLE_LIMIT) {
-  // `tahunAjaran` = meta transport Opsi A, bukan kolom Prisma — buang sebelum query.
-  const { tahunAjaran, ...studentWhere } = whereFilter;
-  void tahunAjaran;
+  // Jangkar `tahunAjaran` (meta transport Opsi A) memotong tabel seperti kartu:
+  // tanpa filter tahunLulus eksplisit, tabel = "lulus sampai tahun ajaran itu".
+  // Tanpa ini kartu dan tabel menjawab dua rentang berbeda pada jangkar yang sama.
   const { rows, pagination } = await paginateList(prisma.student, {
-    where: studentWhere,
+    where: withTahunAjaranAnchor(whereFilter),
     select: {
       nim: true,
       nama: true,

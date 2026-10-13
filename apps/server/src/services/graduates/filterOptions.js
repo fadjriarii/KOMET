@@ -1,18 +1,19 @@
 const { createFilterOptionsSource } = require('../filterOptionsSource');
 const { PREDIKAT, UNCLASSIFIED_PREDIKAT } = require('@komet/shared/constants');
 const { getRollingYears, getCustomYearMeta } = require('../students/filterOptions');
+const { get5YearRollingAcademicYears } = require('../../utils/academicUtils');
 
-// Populasi tab lulusan = mahasiswa Lulus; opsi dibaca dari populasi yang sama
-// dengan data (student-base) supaya pilihan UI tak pernah menunjuk populasi
+// Populasi tab lulusan = baris graduate (asal `/kelulusan`); opsi dibaca dari
+// populasi yang sama dengan data supaya pilihan UI tak pernah menunjuk populasi
 // kosong. Tanpa `where` statis jenjang: Prof ikut sebagai opsi dinamis.
-const isLulus = { statusKeaktifan: 'Lulus' };
+const hasGraduate = { NOT: { graduate: null } };
 
 const graduateQueries = {
-  programStudi: { model: 'student', field: 'programStudi', where: isLulus },
+  programStudi: { model: 'student', field: 'programStudi', where: hasGraduate },
   tahunLulus: { model: 'graduate', field: 'tahunLulus', desc: true },
-  angkatan: { model: 'student', field: 'angkatan', where: isLulus, desc: true },
-  fakultas: { model: 'student', field: 'fakultas', where: isLulus },
-  jenjang: { model: 'student', field: 'jenjang', where: isLulus },
+  angkatan: { model: 'student', field: 'angkatan', where: hasGraduate, desc: true },
+  fakultas: { model: 'student', field: 'fakultas', where: hasGraduate },
+  jenjang: { model: 'student', field: 'jenjang', where: hasGraduate },
 };
 
 function deriveGraduateOptions({ tahunLulus, angkatan }) {
@@ -23,6 +24,11 @@ function deriveGraduateOptions({ tahunLulus, angkatan }) {
   return {
     rollingYears,
     rollingAngkatan,
+    // Opsi Tahun Ajaran header: jendela 5 tahun dari tahun lulus
+    // terbaru yang ada di data — pola dropdown Tahun Ajaran tab
+    // Student. Tahun yang belum punya lulusannya (mis. 2026/2027)
+    // tidak muncul; pilihan mengikuti SEVIMA, bukan kalender.
+    academicYearOptions: get5YearRollingAcademicYears(tahunLulus).reverse(),
     customYearMeta: getCustomYearMeta(rollingYears),
     customAngkatanMeta: getCustomYearMeta(rollingAngkatan),
     periodeOptions: [

@@ -10,7 +10,6 @@ const { formatAcademicYearLabel } = require('@komet/shared/academicYear');
 const { roundedRate } = require('../../utils/percentageUtils');
 const { getRequestedJenjang } = require('./filterBuilder');
 const { getTahunAjaranLabel, tahunAjaranStart } = require('./tahunAjaran');
-const { STUDENT_STATUS } = require('@komet/shared/constants');
 
 /**
  * Kohort yang dievaluasi = label angkatan `lag` tahun ajaran di belakang label
@@ -57,32 +56,44 @@ function getEvaluationWindow(jenjang, refStart) {
 }
 
 /**
- * Satu agregat menutupi seluruh angkatan yang diminta; sebelumnya 2 query per
- * angkatan per jenjang (20 query untuk satu endpoint).
+ * Satu agregat menutupi seluruh angkatan yang diminta: dua `groupBy` —
+ * penyebut (semua status) dan pembilang (punya baris graduate, asal
+ * `/kelulusan`). Sebelumnya satu query `groupBy(['periodeMasuk',
+ * 'statusKeaktifan'])` memakai status mahasiswa sebagai pembilang; populasi
+ * tab ini kini ditentukan relasi `graduate`, dan `groupBy` tak bisa
+ * mengelompokkan kolom relasi.
  */
 async function countCohorts(jenjang, studentWhere, angkatanList) {
   const firstYear = getAcademicYearStart(angkatanList[0]);
   const lastYear = getAcademicYearStart(angkatanList[angkatanList.length - 1]);
-  const rows = await prisma.student.groupBy({
-    by: ['periodeMasuk', 'statusKeaktifan'],
-    where: {
-      ...studentWhere,
-      jenjang,
-      // Batas leksikografis: '2020' <= v < '2021' mengambil seluruh periode tahun 2020.
-      periodeMasuk: { gte: String(firstYear), lt: String(lastYear + 1) },
-    },
-    _count: { periodeMasuk: true },
-  });
+  // Batas leksikografis: '2020' <= v < '2021' mengambil seluruh periode tahun 2020.
+  const periodeMasuk = { gte: String(firstYear), lt: String(lastYear + 1) };
+  const base = { ...studentWhere, jenjang, periodeMasuk };
+  const [totalRows, lulusRows] = await Promise.all([
+    prisma.student.groupBy({
+      by: ['periodeMasuk'],
+      where: base,
+      _count: { periodeMasuk: true },
+    }),
+    prisma.student.groupBy({
+      by: ['periodeMasuk'],
+      where: { ...base, NOT: { graduate: null } },
+      _count: { periodeMasuk: true },
+    }),
+  ]);
 
   const starts = angkatanList.map((label) => String(getAcademicYearStart(label)));
+  const indexFor = (value) => starts.findIndex((year) => String(value).startsWith(year));
   const cohorts = new Map(angkatanList.map((angkatan) => [angkatan, { total: 0, lulus: 0 }]));
-  for (const row of rows) {
-    const count = row._count.periodeMasuk;
-    const index = starts.findIndex((year) => String(row.periodeMasuk).startsWith(year));
-    if (index === -1) continue;
-    const cohort = cohorts.get(angkatanList[index]);
-    cohort.total += count;
-    if (row.statusKeaktifan === STUDENT_STATUS.LULUS) cohort.lulus += count;
+  for (const [key, rows] of [
+    ['total', totalRows],
+    ['lulus', lulusRows],
+  ]) {
+    for (const row of rows) {
+      const index = indexFor(row.periodeMasuk);
+      if (index === -1) continue;
+      cohorts.get(angkatanList[index])[key] += row._count.periodeMasuk;
+    }
   }
   return cohorts;
 }
@@ -101,15 +112,17 @@ function toPercentage({ total, lulus }) {
  * di populasi (distinct DB).
  */
 async function getCohortScope(whereFilter = {}) {
-  const { student, graduate, tahunLulus, ...rest } = whereFilter;
+  const { student, graduate, NOT, tahunLulus, ...rest } = whereFilter;
   void graduate;
+  void NOT;
   void tahunLulus;
   const studentWhere = { ...(student || {}), ...rest };
   // `tahunAjaran` = meta jangkar kohort Opsi A, bukan kolom Prisma — buang
-  // seperti `graduate`/`tahunLulus` di atas supaya tak bocor ke query.
+  // seperti `graduate`/`NOT`/`tahunLulus` di atas supaya tak bocor ke query.
   delete studentWhere.tahunAjaran;
-  // Penyebut kohort = SELURUH angkatan (semua status): `statusKeaktifan: Lulus`
-  // dari builder hanya berlaku untuk populasi kartu/tabel, bukan kohort.
+  // Penyebut kohort = SELURUH angkatan: status mahasiswa (maupun relasi
+  // `graduate` dari kartu) tidak boleh ikut menyaring; pembilang dibaca
+  // terpisah lewat relasi `graduate` (lihat `countCohorts`).
   delete studentWhere.statusKeaktifan;
   delete studentWhere.jenjang;
   let jenjangs = getRequestedJenjang(whereFilter);

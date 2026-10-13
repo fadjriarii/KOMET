@@ -28,7 +28,8 @@ prisma.graduate.aggregate = async () => ({
 const windowYears = (jenjang) => getEvaluationWindow(jenjang, REF_START);
 
 // Data sintetis dengan komposisi berbeda per tahun dan per jenjang, supaya
-// salah pengelompokan tahun langsung terlihat.
+// salah pengelompokan tahun langsung terlihat. Pembilang kohort kini dibaca
+// dari relasi `graduate` (baris `/kelulusan`), bukan status mahasiswa.
 function buildDataset() {
   const ref = getReferenceYear();
   const rows = [];
@@ -37,10 +38,10 @@ function buildDataset() {
       const lulus = (year % 4) + (jenjang === 'S2' ? 1 : jenjang === 'Prof' ? 2 : 0) + 1;
       const aktif = year % 3;
       for (let index = 0; index < lulus; index += 1) {
-        rows.push({ jenjang, fakultas: 'FT', periodeMasuk: `${year}1`, statusKeaktifan: 'Lulus' });
+        rows.push({ jenjang, fakultas: 'FT', periodeMasuk: `${year}1`, graduate: true });
       }
       for (let index = 0; index < aktif; index += 1) {
-        rows.push({ jenjang, fakultas: 'FT', periodeMasuk: `${year}2`, statusKeaktifan: 'Aktif' });
+        rows.push({ jenjang, fakultas: 'FT', periodeMasuk: `${year}2`, graduate: false });
       }
     }
   }
@@ -49,45 +50,45 @@ function buildDataset() {
     jenjang: 'S1',
     fakultas: 'FT',
     periodeMasuk: String(ref - 7),
-    statusKeaktifan: 'Lulus',
+    graduate: true,
   });
   return rows;
 }
 
-/** Kelompok (periodeMasuk, statusKeaktifan) sesuai where yang diminta service. */
+/** Kelompok periodeMasuk sesuai where yang diminta service (dua query/jenjang). */
 function stubGroupBy(dataset, jenjangs = JENJANGS) {
   const calls = [];
   prisma.student.groupBy = vi.fn(async (args) => {
     calls.push(args);
-    // Penyebut kohort = seluruh angkatan: statusKeaktifan tak boleh ikut where.
     if (args.by.length === 1 && args.by[0] === 'jenjang') {
       return jenjangs.map((jenjang) => ({ jenjang }));
     }
-    const { jenjang, fakultas, periodeMasuk } = args.where;
-    const matched = dataset.filter(
+    const { jenjang, fakultas, periodeMasuk, NOT } = args.where;
+    let matched = dataset.filter(
       (row) =>
         row.jenjang === jenjang &&
         (!fakultas || row.fakultas === fakultas) &&
         row.periodeMasuk >= periodeMasuk.gte &&
         row.periodeMasuk < periodeMasuk.lt,
     );
+    // Query dengan `NOT: { graduate: null }` = pembilang (punya baris
+    // kelulusan); tanpa itu = penyebut seluruh angkatan.
+    if (NOT) matched = matched.filter((row) => row.graduate);
     const groups = new Map();
     for (const row of matched) {
-      const key = `${row.periodeMasuk}|${row.statusKeaktifan}`;
-      const group = groups.get(key) || {
+      const group = groups.get(row.periodeMasuk) || {
         periodeMasuk: row.periodeMasuk,
-        statusKeaktifan: row.statusKeaktifan,
         _count: { periodeMasuk: 0 },
       };
       group._count.periodeMasuk += 1;
-      groups.set(key, group);
+      groups.set(row.periodeMasuk, group);
     }
     return [...groups.values()];
   });
   return calls;
 }
 
-/** Rumus lama: dua `count` per angkatan (startsWith + status 'Lulus'). */
+/** Rumus independen: dua hitung per angkatan (periodeMasuk + punya graduate). */
 function expectedCohort(dataset, jenjang, angkatan, fakultas) {
   const rows = dataset.filter(
     (row) =>
@@ -95,7 +96,7 @@ function expectedCohort(dataset, jenjang, angkatan, fakultas) {
       row.periodeMasuk.startsWith(angkatan) &&
       (!fakultas || row.fakultas === fakultas),
   );
-  const lulus = rows.filter((row) => row.statusKeaktifan === 'Lulus').length;
+  const lulus = rows.filter((row) => row.graduate).length;
   return {
     intake: rows.length,
     successCount: lulus,
@@ -115,8 +116,8 @@ describe('keberhasilan studi agregasi cohort', () => {
 
     const result = await getKeberhasilanStudiByAngkatan({});
 
-    // 1 query jenjang dinamis + 3 agregat kohort.
-    expect(calls).toHaveLength(4);
+    // 1 query jenjang dinamis + 6 agregat kohort (3 jenjang × penyebut+pembilang).
+    expect(calls).toHaveLength(7);
     expect(calls[0].by).toEqual(['jenjang']);
     expect(result.s1.map((row) => row.cohortLabel)).toEqual(
       windowYears('S1').map((label) => `Angkatan ${label}`),
@@ -158,7 +159,8 @@ describe('keberhasilan studi agregasi cohort', () => {
 
     const cards = await getKeberhasilanStudi({});
 
-    expect(calls).toHaveLength(4);
+    // 1 query jenjang dinamis + 6 agregat kohort (3 jenjang × penyebut+pembilang).
+    expect(calls).toHaveLength(7);
     expect(cards.s1).toBe(
       expectedCohort(dataset, 'S1', String(getAngkatanEvaluasiStart('S1', REF_START))).rate,
     );
@@ -184,8 +186,9 @@ describe('keberhasilan studi agregasi cohort', () => {
     // Jenjang yang tidak diminta → null (bukan undefined/0%).
     expect(cards.s1).toBeNull();
     expect(cards.s2).not.toBeNull();
-    // Kartu S2 + series S2: 1 query masing-masing.
-    expect(calls).toHaveLength(2);
+    // Kartu S2 + series S2: 2 agregat kohort (penyebut + pembilang) masing-masing —
+    // tanpa query jenjang, karena `jenjang` diminta eksplisit.
+    expect(calls).toHaveLength(4);
     expect(series.s1).toBeNull();
     expect(series.s2.map((row) => row.cohortLabel)).toEqual(
       windowYears('S2').map((label) => `Angkatan ${label}`),
@@ -201,7 +204,8 @@ describe('keberhasilan studi agregasi cohort', () => {
 
     expect(cards.s1).toBeNull();
     expect(cards.s2).not.toBeNull();
-    expect(calls).toHaveLength(1);
+    // 2 agregat kohort (penyebut + pembilang) untuk S2, tanpa query jenjang.
+    expect(calls).toHaveLength(2);
   });
 
   it('atribut peristiwa kelulusan tidak ikut menyaring penyebut kohort', async () => {
@@ -212,20 +216,25 @@ describe('keberhasilan studi agregasi cohort', () => {
       fakultas: 'FT',
       graduate: { tahunLulus: { in: ['2025/2026'] }, periodeWisuda: { endsWith: '1' } },
       statusKeaktifan: 'Lulus',
+      NOT: { graduate: null }, // Input shape: builder produces this (passthrough test)
     });
 
-    // Metrik kohort hanya membaca sisi mahasiswa; filter peristiwa kelulusan +
-    // statusKeaktifan kartu sengaja tidak berpengaruh (menyaring penyebut akan
-    // memaksa pembilangnya menjadi 100%).
     const cohortCalls = calls.filter(
-      (call) => JSON.stringify(call.by) === JSON.stringify(['periodeMasuk', 'statusKeaktifan']),
+      (call) => call.by.length === 1 && call.by[0] === 'periodeMasuk',
     );
-    expect(cohortCalls.length).toBeGreaterThan(0);
-    for (const cohortCall of cohortCalls) {
-      expect(cohortCall.where.statusKeaktifan).toBeUndefined();
-      expect(cohortCall.where.graduate).toBeUndefined();
-      expect(cohortCall.where.fakultas).toBe('FT');
+    // Dua query per jenjang (penyebut tanpa NOT, pembilang dengan NOT).
+    expect(cohortCalls).toHaveLength(6);
+    for (const c of cohortCalls) {
+      // Atribut kelulusan dari kartu tidak bocor ke where (hanya fakultas yang diteruskan).
+      expect(c.where.graduate).toBeUndefined();
+      expect(c.where.statusKeaktifan).toBeUndefined();
+      expect(c.where.fakultas).toBe('FT');
     }
+    // Penyebut = seluruh angkatan (tidak ada NOT); pembilang = hanya yang punya baris graduate.
+    const denominators = cohortCalls.filter((c) => !c.where.NOT);
+    const numerators = cohortCalls.filter((c) => c.where.NOT?.graduate === null);
+    expect(denominators).toHaveLength(3);
+    expect(numerators).toHaveLength(3);
   });
 
   it('lag evaluasi Prof = 2 (profesi 1 tahun + 1 tenggang)', () => {

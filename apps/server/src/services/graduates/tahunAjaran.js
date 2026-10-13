@@ -38,4 +38,22 @@ function tahunAjaranStart(label) {
   return Number(String(label).slice(0, 4));
 }
 
-module.exports = { getTahunAjaranLabel, getTahunAjaran, tahunAjaranStart };
+/**
+ * Terapkan jangkar kohort ke where berbasis relasi `graduate`:
+ * "lulus sampai tahun ajaran ini" = `tahunLulus lte` label jangkar.
+ * Filter `tahunLulus` eksplisit dari user selalu menang; kunci meta
+ * `tahunAjaran` (bukan kolom Prisma) dibuang supaya tak bocor ke query.
+ *
+ * `totalLulusan.js` memakai pemetaan yang sama secara inline karena ia sekaligus
+ * memberi label scope kartu; upgrade path: lipat ke helper ini bila pemakai
+ * bertambah lagi.
+ */
+function withTahunAjaranAnchor(whereFilter = {}) {
+  const { tahunAjaran, ...rest } = whereFilter;
+  const anchor = getTahunAjaranLabel(tahunAjaran);
+  const explicit = rest.graduate?.tahunLulus ?? rest.tahunLulus;
+  if (!anchor || explicit) return rest;
+  return { ...rest, graduate: { ...(rest.graduate || {}), tahunLulus: { lte: anchor } } };
+}
+
+module.exports = { getTahunAjaranLabel, getTahunAjaran, tahunAjaranStart, withTahunAjaranAnchor };

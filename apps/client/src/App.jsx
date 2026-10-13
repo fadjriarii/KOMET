@@ -1,11 +1,9 @@
 import { Suspense, useState } from 'react';
 import { Route, Routes, Navigate, useLocation } from 'react-router-dom';
 import MainLayout from './components/layout/MainLayout';
-import Button from './components/common/ui/Button';
-import EmptyState from './components/common/feedback/EmptyState';
 import ErrorBoundary from './components/common/feedback/ErrorBoundary';
+import ErrorPage from './modules/errors/ErrorPage';
 import Skeleton from './components/common/feedback/Skeleton';
-import { AlertTriangle } from 'lucide-react';
 import { NAV_ITEMS } from './constants/navigation';
 
 export default function App() {
@@ -26,17 +24,10 @@ export default function App() {
         <ErrorBoundary
           resetKey={`${pathname}:${retryToken}`}
           fallback={(error) => (
-            <EmptyState
-              title="Halaman Gagal Dimuat"
-              icon={AlertTriangle}
-              description={
-                error?.message ||
-                'Terjadi kesalahan tak terduga saat menampilkan halaman ini. Filter Anda masih tersimpan di URL.'
-              }
-              className="min-h-[50vh]"
-              action={
-                <Button onClick={() => setRetryToken((token) => token + 1)}>Coba Lagi</Button>
-              }
+            <ErrorPage
+              status={error?.status}
+              message={error?.message}
+              onRetry={() => setRetryToken((token) => token + 1)}
             />
           )}
         >
@@ -46,15 +37,7 @@ export default function App() {
               {NAV_ITEMS.map(({ path, Component }) => (
                 <Route key={path} path={path} element={<Component />} />
               ))}
-              <Route
-                path="*"
-                element={
-                  <EmptyState
-                    title="Halaman Tidak Dikenal"
-                    description="Alamat yang dibuka bukan salah satu halaman dashboard ini."
-                  />
-                }
-              />
+              <Route path="*" element={<ErrorPage status={404} />} />
             </Routes>
           </div>
         </ErrorBoundary>

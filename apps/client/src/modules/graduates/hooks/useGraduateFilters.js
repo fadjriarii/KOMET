@@ -1,10 +1,18 @@
 import { Award, BookOpen, Building2, CalendarDays, UserCheck } from 'lucide-react';
-import { isValidAcademicYear } from '@komet/shared/academicYear';
+import { getCurrentAcademicYear, isValidAcademicYear } from '@komet/shared/academicYear';
 import { useDashboardFilters } from '../../../hooks/useDashboardFilters';
 import { sanitizeSearch } from '../../../utils/querySanitizer';
 
-/** Label ajaran invalid dari URL = tanpa jangkar (bukan tahun berjalan seperti student). */
-const sanitizeAcademicYear = (value) => (isValidAcademicYear(value) ? value : '');
+/**
+ * Label ajaran invalid dari URL = tanpa jangkar (bukan tahun berjalan seperti student).
+ * Tahun ajaran TERBARU juga dinormalisasi ke '' — memilihnya sama dengan berada di
+ * default (server menghitung "lulus sampai sekarang"), jadi ia tidak boleh dihitung
+ * sebagai filter aktif dan menyalakan badge "Terfilter" di kartu KPI.
+ */
+const sanitizeAcademicYear = (value) => {
+  if (!isValidAcademicYear(value)) return '';
+  return value && value === getCurrentAcademicYear() ? '' : value;
+};
 
 /**
  * Field filter lulusan: state ↔ URL ↔ param server ↔ kontrol tampilan.

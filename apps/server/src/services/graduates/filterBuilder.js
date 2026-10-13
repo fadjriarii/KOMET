@@ -4,11 +4,15 @@
  * Mengkonversi query parameters dari HTTP request menjadi Prisma where clause
  * untuk tabel students (dan relasi graduate).
  *
- * Populasi tab lulusan = seluruh mahasiswa Lulus (student-base): kartu, deret,
- * dan tabel membaca populasi yang sama sehingga tidak bisa selisih by
- * construction (terukur: graduate-base 1090 vs student Lulus 1132 = 37 Prof
- * dikunci-out + 5 orphan S1 tanpa baris graduate). Field kelulusan
- * (tahunLulus/periodeWisuda/predikat) hidup di relasi `graduate`.
+ * Populasi tab lulusan = baris yang punya catatan kelulusan (graduate-base):
+ * kartu, deret, dan tabel membaca populasi yang sama sehingga tidak bisa
+ * selisih by construction. Sumber baris `graduate` adalah endpoint
+ * `/siakadcloud/v1/kelulusan` (sinkron) ditambah masukan manual untuk
+ * lulusan yang tidak pernah diterbitkan endpoint itu — BUKAN status
+ * `Lulus` dari tabel mahasiswa (`/mahasiswa`). Atribut organisasi (prodi,
+ * fakultas, angkatan, pencarian nama/NIM) tetap dibaca dari relasi
+ * `student`; field kelulusan (tahunLulus/periodeWisuda/predikat/ipk) hidup
+ * di relasi `graduate`.
  */
 
 const prisma = require('../../config/prisma');
@@ -109,9 +113,10 @@ function buildGraduateFilter(query) {
     search,
   } = query;
 
-  // Top-level = kolom students (model yang di-query). Tanpa `statusKeaktifan`
-  // eksplisit populasi selalu Lulus — tab ini tidak menampilkan status lain.
-  const where = { statusKeaktifan: 'Lulus' };
+  // Top-level = kolom students (model yang di-query). Populasi ditentukan oleh
+  // ADA TIDAKNYA baris graduate (asal `/kelulusan`), bukan oleh status
+  // keaktifan mahasiswa — `NOT: { graduate: null }` = "punya catatan kelulusan".
+  const where = { NOT: { graduate: null } };
   addInFilter(where, 'jenjang', jenjang);
   addInFilter(where, 'programStudi', programStudi);
   addInFilter(where, 'fakultas', fakultas);
@@ -119,8 +124,9 @@ function buildGraduateFilter(query) {
   addInFilter(where, 'angkatan', angkatanTahun);
   addSearchFilter(where, search);
 
-  // Field kelulusan hidup di relasi `graduate` (left join: orphan Lulus tanpa
-  // baris graduate tetap tampil dengan field null — total tak pernah selisih).
+  // Field kelulusan hidup di relasi `graduate`; keberadaan barisnya sudah
+  // dijamin `NOT: { graduate: null }` di atas — kondisi berikut mempersempit
+  // nilai field, bukan keberadaan relasi.
   const graduateFilter = {};
   addInFilter(graduateFilter, 'tahunLulus', tahunLulus);
 

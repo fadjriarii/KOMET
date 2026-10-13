@@ -5,7 +5,8 @@
  * (`totalLulusan.js`) dan rata-rata IPK (`ipkTrend.js`) — dengan bentuk kueri yang
  * sama persis. Yang berbeda hanya angka yang diambil dari tiap bucket.
  *
- * Populasi = students Lulus; `tahunLulus` hidup di relasi `graduate`, jadi deret
+ * Populasi = baris graduate (mahasiswa dengan catatan kelulusan asal endpoint
+ * `/kelulusan`); `tahunLulus` hidup di relasi `graduate`, jadi deret
  * dibaca lewat `student.findMany` + agregasi Node (`groupBy` Prisma tak bisa
  * mengelompokkan kolom relasi). Kolom `tahunLulus` menyimpan label ajaran
  * (`YYYY/YYYY`). Jendela 5 label (`getGraduateLabelWindow`) hanya untuk opsi
@@ -111,8 +112,8 @@ async function valuesByYearAndJenjang(whereFilter, { valueOf, missing }) {
     years = [...new Set((toArray(scope?.in ?? scope) || []).filter(Boolean))].sort();
   } else {
     // Deret chart mengikuti cakupan kartu: seluruh tahun yang ada di populasi.
-    // Orphan Lulus tanpa baris graduate tak punya tahun → dihitung di total,
-    // tak tampil di deret (backfill tiap sync menutup celah ini).
+    // Semua baris populasi punya relasi graduate (dijamin filterBuilder),
+    // sehingga tak ada lagi lulusan tanpa tahun yang dihitung di total saja.
     years = [...new Set(students.map((s) => s.graduate?.tahunLulus).filter(Boolean))].sort();
   }
 

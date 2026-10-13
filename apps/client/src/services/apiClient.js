@@ -46,6 +46,29 @@ export function isRetryableError(error) {
   return status >= 500 || status === 429;
 }
 
+/**
+ * Satu tempat yang menamai kegagalan transport, supaya setiap pemanggil menerima
+ * pesan dan status yang sama:
+ *   AbortError  → 408 (server tidak menjawab sampai batas waktu)
+ *   TypeError   → 503 (fetch menolak: backend tak terjangkau / CORS)
+ * Error yang sudah punya status (dari `apiError`) dibiarkan apa adanya.
+ */
+function toTransportError(error) {
+  if (error.name === 'AbortError') {
+    const timedOut = new Error('Request timeout. Silakan coba lagi.', { cause: error });
+    timedOut.status = 408;
+    return timedOut;
+  }
+  if (error.name === 'TypeError' && typeof error.status !== 'number') {
+    const offline = new Error('Backend tidak terjangkau. Pastikan server berjalan.', {
+      cause: error,
+    });
+    offline.status = 503;
+    return offline;
+  }
+  return error;
+}
+
 function mintStudentSession() {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -66,9 +89,7 @@ function mintStudentSession() {
     .catch((error) => {
       sessionPromise = undefined;
       sessionExpiresAt = 0;
-      if (error.name === 'AbortError')
-        throw new Error('Backend session timeout.', { cause: error });
-      throw error;
+      throw toTransportError(error);
     });
   return sessionPromise;
 }
@@ -126,13 +147,7 @@ export async function apiRequest(endpoint, options = {}) {
       return data;
     } catch (error) {
       if (timeout) clearTimeout(timeout);
-      if (error.name === 'AbortError') {
-        // A caller-provided signal is normally TanStack Query cancelling stale
-        // work; preserve it rather than presenting it as a user-facing timeout.
-        if (options.signal?.aborted) throw error;
-        throw new Error('Request timeout. Silakan coba lagi.', { cause: error });
-      }
-      throw error;
+      throw toTransportError(error);
     }
   }
 

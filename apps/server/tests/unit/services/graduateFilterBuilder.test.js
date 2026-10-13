@@ -16,8 +16,10 @@ describe('graduate filter builder', () => {
       programStudi: ['Informatika', 'Akuntansi'],
     });
 
-    // Populasi student-base: kolom student flat di top-level.
-    expect(where.statusKeaktifan).toBe('Lulus');
+    // Populasi graduate-base: baris wajib punya catatan kelulusan (`/kelulusan`),
+    // bukan status mahasiswa; kolom student flat tetap di top-level.
+    expect(where.NOT).toEqual({ graduate: null });
+    expect(where.statusKeaktifan).toBeUndefined();
     expect(where.jenjang).toEqual({ in: ['S1', 'S2'] });
     expect(where.fakultas).toEqual({ in: ['FIK', 'FEB'] });
     expect(where.programStudi).toEqual({ in: ['Informatika', 'Akuntansi'] });
