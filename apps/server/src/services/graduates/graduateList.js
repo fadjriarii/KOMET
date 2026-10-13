@@ -40,7 +40,10 @@ async function getGraduateList(whereFilter, page = 1, limit = TABLE_LIMIT) {
         },
       },
     },
-    orderBy: [{ nama: 'asc' }],
+    // Urutan tabel: lulusan terbaru dulu, IPK tertinggi dalam tahun itu,
+    // nama sebagai tiebreak stabil untuk pagination. Kolom disimpan apa adanya,
+    // jadi pergantian tahun ajaran terurut otomatis tanpa logika tanggal.
+    orderBy: [{ graduate: { tahunLulus: 'desc' } }, { graduate: { ipk: 'desc' } }, { nama: 'asc' }],
     page,
     limit,
   });
