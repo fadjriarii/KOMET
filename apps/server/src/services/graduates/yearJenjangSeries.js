@@ -89,7 +89,7 @@ function withTahunScope(whereFilter = {}, scope) {
  * @param {function({tahun, jenjang, items}): number|null} options.valueOf  angka dari satu bucket tahun×jenjang
  * @param {number|null} options.missing  nilai tahun/jenjang tanpa baris
  * @returns {Promise<Array<{tahun: string, [jenjangLower]: number|null}>>} terurut naik;
- *   kunci jenjang dinamis (s1/s2/prof, bukan daftar statis)
+ *   kunci jenjang dinamis (s1/s2/profesi, bukan daftar statis)
  */
 async function valuesByYearAndJenjang(whereFilter, { valueOf, missing }) {
   const { scope } = await resolveTahunScope(whereFilter);
@@ -99,7 +99,7 @@ async function valuesByYearAndJenjang(whereFilter, { valueOf, missing }) {
   });
 
   // Filter jenjang user menang; tanpanya = semua jenjang yang ada di populasi
-  // (termasuk `Prof`) — dibaca dari data, bukan daftar statis.
+  // (termasuk `Profesi`) — dibaca dari data, bukan daftar statis.
   const requested = [
     ...new Set((toArray(whereFilter.jenjang?.in ?? whereFilter.jenjang) || []).filter(Boolean)),
   ];

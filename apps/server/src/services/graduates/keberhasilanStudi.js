@@ -18,10 +18,10 @@ const { getTahunAjaranLabel, tahunAjaranStart } = require('./tahunAjaran');
  * (`BATAS_STUDI_TEPAT_WAKTU` pada tepatWaktu.js); keduanya sengaja bernilai
  * dan bernama berbeda.
  *
- * `Prof` = pendidikan profesi 1 tahun: lag evaluasi 2 (masuk → lulus 1 tahun,
+ * `Profesi` = pendidikan profesi 1 tahun: lag evaluasi 2 (masuk → lulus 1 tahun,
  * +1 tahun tenggang hasil akhir).
  */
-const COHORT_EVALUATION_LAG = { S1: 7, S2: 4, PROF: 2 };
+const COHORT_EVALUATION_LAG = { S1: 7, S2: 4, PROFESI: 2 };
 const EVALUATION_WINDOW_YEARS = 5;
 
 /** Referensi = MAX(tahunLulus) DB; fallback kalender bila tabel kosong. */
@@ -203,10 +203,10 @@ async function getKeberhasilanStudiByAngkatan(whereFilter) {
   result.s2 = result.s2 ?? null;
   result.batasStudiS1 = COHORT_EVALUATION_LAG.S1;
   result.batasStudiS2 = COHORT_EVALUATION_LAG.S2;
-  result.batasStudiProf = COHORT_EVALUATION_LAG.PROF;
+  result.batasStudiProfesi = COHORT_EVALUATION_LAG.PROFESI;
   result.angkatanEvaluasiS1 = angkatanLabel('S1', refStart);
   result.angkatanEvaluasiS2 = angkatanLabel('S2', refStart);
-  result.angkatanEvaluasiProf = angkatanLabel('Prof', refStart);
+  result.angkatanEvaluasiProfesi = angkatanLabel('Profesi', refStart);
   return result;
 }
 

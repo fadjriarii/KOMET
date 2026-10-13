@@ -15,11 +15,11 @@ const ALL_SCOPE = {
 
 const originalFindMany = prisma.student.findMany;
 const originalGroupBy = prisma.student.groupBy;
-// Populasi graduate-base: S1 + S2 + Prof (semua punya baris `/kelulusan`).
+// Populasi graduate-base: S1 + S2 + Profesi (semua punya baris `/kelulusan`).
 const LEVELS = [
   { jenjang: 'S1', _count: 1046 },
   { jenjang: 'S2', _count: 49 },
-  { jenjang: 'Prof', _count: 37 },
+  { jenjang: 'Profesi', _count: 37 },
 ];
 
 let calls = [];
@@ -39,11 +39,11 @@ afterEach(() => {
 });
 
 describe('getTotalLulusan', () => {
-  it('satu groupBy graduate-base untuk semua jenjang termasuk Prof', async () => {
+  it('satu groupBy graduate-base untuk semua jenjang termasuk Profesi', async () => {
     expect(await getTotalLulusan(buildGraduateFilter({}))).toEqual({
       s1: 1046,
       s2: 49,
-      prof: 37,
+      profesi: 37,
       tahunScope: ALL_SCOPE,
     });
     expect(calls).toHaveLength(1);

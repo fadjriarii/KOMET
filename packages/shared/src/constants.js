@@ -26,7 +26,7 @@ export const HTTP_STATUS = {
   SERVICE_UNAVAILABLE: 503,
 };
 
-/** Jenjang yang dibaca dashboard KPI. Data bisa berisi jenjang lain (mis. `Prof`);
+/** Jenjang yang dibaca dashboard KPI. Data bisa berisi jenjang lain (mis. `Profesi`);
  * itu bukan bagian dari cakupan IKU, dan pembulatan cakupan dilakukan di query,
  * bukan dengan menyaring hasil di JavaScript. */
 export const JENJANGS = ['S1', 'S2'];

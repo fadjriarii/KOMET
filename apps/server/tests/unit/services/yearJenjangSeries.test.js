@@ -21,7 +21,7 @@ const toRows = () =>
 
 beforeEach(() => {
   calls = [];
-  // Satu tahun punya data S2/Prof; S1 punya satu baris per tahun supaya deret
+  // Satu tahun punya data S2/Profesi; S1 punya satu baris per tahun supaya deret
   // data-driven mencakup seluruh YEARS (seperti populasi nyata).
   students = [
     ...YEARS.map((tahunLulus, index) => ({
@@ -30,7 +30,7 @@ beforeEach(() => {
       ipk: index === 1 ? 3.4567 : null,
     })),
     { jenjang: 'S2', tahunLulus: YEARS[1], ipk: null },
-    { jenjang: 'Prof', tahunLulus: YEARS[1], ipk: 3.8 },
+    { jenjang: 'Profesi', tahunLulus: YEARS[1], ipk: 3.8 },
   ];
   prisma.graduate.aggregate = vi.fn(async () => ({ _max: { tahunLulus: REF_LABEL } }));
   prisma.student.findMany = vi.fn(async (args) => {
@@ -75,8 +75,8 @@ describe('valuesByYearAndJenjang', () => {
     );
 
     expect(series.map((entry) => entry.tahun)).toEqual(YEARS);
-    expect(series[1]).toEqual({ tahun: YEARS[1], s1: 3.46, s2: null, prof: 3.8 });
-    expect(series[0]).toEqual({ tahun: YEARS[0], s1: null, s2: null, prof: null });
+    expect(series[1]).toEqual({ tahun: YEARS[1], s1: 3.46, s2: null, profesi: 3.8 });
+    expect(series[0]).toEqual({ tahun: YEARS[0], s1: null, s2: null, profesi: null });
   });
 
   it('tahunAjaran memotong deret sampai akhir tahun ajaran itu', async () => {
@@ -134,15 +134,15 @@ describe('getTotalLulusanByYear', () => {
       tahun: YEARS[1],
       s1Count: 1,
       s2Count: 1,
-      profCount: 1,
+      profesiCount: 1,
       total: 3,
     });
-    // S1 punya satu baris tiap tahun; S2/Prof hanya di YEARS[1].
+    // S1 punya satu baris tiap tahun; S2/Profesi hanya di YEARS[1].
     expect(byYear[0]).toEqual({
       tahun: YEARS[0],
       s1Count: 1,
       s2Count: 0,
-      profCount: 0,
+      profesiCount: 0,
       total: 1,
     });
   });

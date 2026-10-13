@@ -3,7 +3,7 @@ const logger = require('../../utils/logger');
 const syncJobTracker = require('../../utils/syncJobTracker');
 const createSyncHandler = require('./createSyncHandler');
 const { deduplicateStudents } = require('../../services/studentDeduplicationService');
-const { sanitizeProdiName, normalizeOptionalText } = require('./text');
+const { sanitizeProdiName, normalizeOptionalText, normalizeJenjang } = require('./text');
 const {
   resolveTargetNimBatch,
   getProdiFakultasMap,
@@ -42,7 +42,7 @@ const executeSyncMbkm = async ({ runDedup = true } = {}) => {
         validItems.push({
           nim: attr.nim,
           nama_mahasiswa: attr.nama_mahasiswa || '',
-          jenjang: attr.id_jenjang_program_studi || 'S1',
+          jenjang: normalizeJenjang(attr.id_jenjang_program_studi || 'S1'),
           periode: attr.id_periode || '',
           programStudi: prodiName,
           fakultas: resolveFakultas(attr, prodiName, prodiFakultasMap),

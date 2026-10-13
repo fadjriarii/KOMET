@@ -13,8 +13,8 @@ const {
   COHORT_EVALUATION_LAG,
 } = require('../../../src/services/graduates/keberhasilanStudi');
 
-// Jenjang dinamis: Prof ikut populasi (lag 2 — profesi 1 tahun + 1 tenggang).
-const JENJANGS = ['S1', 'S2', 'Prof'];
+// Jenjang dinamis: Profesi ikut populasi (lag 2 — profesi 1 tahun + 1 tenggang).
+const JENJANGS = ['S1', 'S2', 'Profesi'];
 
 const originalAggregate = prisma.graduate.aggregate;
 const originalGroupBy = prisma.student.groupBy;
@@ -35,7 +35,7 @@ function buildDataset() {
   const rows = [];
   for (let year = ref - 15; year <= ref + 1; year += 1) {
     for (const jenjang of JENJANGS) {
-      const lulus = (year % 4) + (jenjang === 'S2' ? 1 : jenjang === 'Prof' ? 2 : 0) + 1;
+      const lulus = (year % 4) + (jenjang === 'S2' ? 1 : jenjang === 'Profesi' ? 2 : 0) + 1;
       const aktif = year % 3;
       for (let index = 0; index < lulus; index += 1) {
         rows.push({ jenjang, fakultas: 'FT', periodeMasuk: `${year}1`, graduate: true });
@@ -122,8 +122,8 @@ describe('keberhasilan studi agregasi cohort', () => {
     expect(result.s1.map((row) => row.cohortLabel)).toEqual(
       windowYears('S1').map((label) => `Angkatan ${label}`),
     );
-    expect(result.prof.map((row) => row.cohortLabel)).toEqual(
-      windowYears('Prof').map((label) => `Angkatan ${label}`),
+    expect(result.profesi.map((row) => row.cohortLabel)).toEqual(
+      windowYears('Profesi').map((label) => `Angkatan ${label}`),
     );
   });
 
@@ -167,8 +167,9 @@ describe('keberhasilan studi agregasi cohort', () => {
     expect(cards.s2).toBe(
       expectedCohort(dataset, 'S2', String(getAngkatanEvaluasiStart('S2', REF_START))).rate,
     );
-    expect(cards.prof).toBe(
-      expectedCohort(dataset, 'Prof', String(getAngkatanEvaluasiStart('Prof', REF_START))).rate,
+    expect(cards.profesi).toBe(
+      expectedCohort(dataset, 'Profesi', String(getAngkatanEvaluasiStart('Profesi', REF_START)))
+        .rate,
     );
     expect(cards).toMatchObject({
       angkatanS1: windowYears('S1').at(-1),
@@ -237,7 +238,7 @@ describe('keberhasilan studi agregasi cohort', () => {
     expect(numerators).toHaveLength(3);
   });
 
-  it('lag evaluasi Prof = 2 (profesi 1 tahun + 1 tenggang)', () => {
-    expect(COHORT_EVALUATION_LAG.PROF).toBe(2);
+  it('lag evaluasi Profesi = 2 (profesi 1 tahun + 1 tenggang)', () => {
+    expect(COHORT_EVALUATION_LAG.PROFESI).toBe(2);
   });
 });

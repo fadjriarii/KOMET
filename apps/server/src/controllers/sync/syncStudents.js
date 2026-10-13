@@ -2,7 +2,7 @@ const logger = require('../../utils/logger');
 const syncJobTracker = require('../../utils/syncJobTracker');
 const createSyncHandler = require('./createSyncHandler');
 const { deduplicateStudents } = require('../../services/studentDeduplicationService');
-const { sanitizeProdiName } = require('./text');
+const { sanitizeProdiName, normalizeJenjang } = require('./text');
 const {
   getPeriodeFromTanggalTransfer,
   formatAngkatan,
@@ -88,7 +88,7 @@ const executeSyncStudents = async ({ runDedup = true } = {}) => {
         validItems.push({
           nim,
           nama: attr.nama || '',
-          jenjang: attr.id_jenjang || 'S1',
+          jenjang: normalizeJenjang(attr.id_jenjang || 'S1'),
           periodeMasuk,
           periodeTerakhir,
           angkatan,

@@ -115,10 +115,10 @@ export default function StudySuccessModal({ isOpen, onClose, originRect, data, f
 
   const batasS1 = detailData?.batasStudiS1;
   const batasS2 = detailData?.batasStudiS2;
-  const batasProf = detailData?.batasStudiProf;
+  const batasProfesi = detailData?.batasStudiProfesi;
   const tabs = useMemo(
-    () => studySuccessTabs({ s1: batasS1, s2: batasS2, prof: batasProf }),
-    [batasS1, batasS2, batasProf],
+    () => studySuccessTabs({ s1: batasS1, s2: batasS2, profesi: batasProfesi }),
+    [batasS1, batasS2, batasProfesi],
   );
   const { activeTab, handleTabChange, slideClass } = useTabTransition(tabs, 's1');
 
@@ -156,7 +156,7 @@ export default function StudySuccessModal({ isOpen, onClose, originRect, data, f
       entries[key] = (
         <CohortTrendChart
           cohorts={cohorts}
-          batas={key === 'prof' ? batasProf : undefined}
+          batas={key === 'profesi' ? batasProfesi : undefined}
           isLoading={isLoading}
           error={error}
         />
@@ -172,7 +172,7 @@ export default function StudySuccessModal({ isOpen, onClose, originRect, data, f
             ...extraCohorts.map(([key, cohorts]) => [
               key.toUpperCase(),
               cohorts,
-              key === 'prof' ? batasProf : undefined,
+              key === 'profesi' ? batasProfesi : undefined,
             ]),
           ].map(([jenjang, cohorts, batas]) => (
             <div key={jenjang} className="space-y-1.5">
@@ -193,7 +193,7 @@ export default function StudySuccessModal({ isOpen, onClose, originRect, data, f
         </div>
       ),
     };
-  }, [batasProf, batasS1, batasS2, error, extraCohorts, isLoading, s1Cohorts, s2Cohorts]);
+  }, [batasProfesi, batasS1, batasS2, error, extraCohorts, isLoading, s1Cohorts, s2Cohorts]);
 
   return (
     <Modal

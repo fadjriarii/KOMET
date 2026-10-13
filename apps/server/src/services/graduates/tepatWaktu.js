@@ -21,12 +21,12 @@ const { rate, roundedRate } = require('../../utils/percentageUtils');
 
 /**
  * Batas masa studi agar sebuah kelulusan dihitung "tepat waktu", dalam tahun.
- * `Prof` = pendidikan profesi 1 tahun pasca-S1 (Apoteker). Beda makna dengan
+ * `Profesi` = pendidikan profesi 1 tahun pasca-S1 (Apoteker). Beda makna dengan
  * `COHORT_EVALUATION_LAG` pada keberhasilanStudi.js (tahun mundur kohort yang
  * hasil akhirnya sudah diketahui), jadi keduanya sengaja memakai nama dan
  * nilai yang berbeda.
  */
-const BATAS_STUDI_TEPAT_WAKTU = { S1: 4, S2: 2, PROF: 1 };
+const BATAS_STUDI_TEPAT_WAKTU = { S1: 4, S2: 2, PROFESI: 1 };
 
 const lamaStudi = (student, tahunLulusLabel) => {
   const tahunMasuk = getStudyStartYear(student);
@@ -173,7 +173,7 @@ async function getTepatWaktuByYear(whereFilter) {
   const result = {
     batasS1: BATAS_STUDI_TEPAT_WAKTU.S1,
     batasS2: BATAS_STUDI_TEPAT_WAKTU.S2,
-    batasProf: BATAS_STUDI_TEPAT_WAKTU.PROF,
+    batasProfesi: BATAS_STUDI_TEPAT_WAKTU.PROFESI,
   };
   for (const jenjang of jenjangs) result[jenjang.toLowerCase()] = buildCohortData(jenjang);
   result.s1 = result.s1 ?? [];

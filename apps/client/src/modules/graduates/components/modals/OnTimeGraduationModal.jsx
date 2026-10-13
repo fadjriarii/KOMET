@@ -134,10 +134,10 @@ export default function OnTimeGraduationModal({ isOpen, onClose, originRect, dat
 
   const batasS1 = detailData?.batasS1;
   const batasS2 = detailData?.batasS2;
-  const batasProf = detailData?.batasProf;
+  const batasProfesi = detailData?.batasProfesi;
   const tabs = useMemo(
-    () => onTimeTabs({ s1: batasS1, s2: batasS2, prof: batasProf }),
-    [batasS1, batasS2, batasProf],
+    () => onTimeTabs({ s1: batasS1, s2: batasS2, profesi: batasProfesi }),
+    [batasS1, batasS2, batasProfesi],
   );
   const { activeTab, handleTabChange, slideClass } = useTabTransition(tabs, 's1');
 
@@ -148,7 +148,7 @@ export default function OnTimeGraduationModal({ isOpen, onClose, originRect, dat
   const cohortsByJenjang = useMemo(() => {
     const entries = Object.entries(detailData ?? {}).filter(
       ([key, value]) =>
-        key !== 'batasS1' && key !== 'batasS2' && key !== 'batasProf' && Array.isArray(value),
+        key !== 'batasS1' && key !== 'batasS2' && key !== 'batasProfesi' && Array.isArray(value),
     );
     return Object.fromEntries(entries);
   }, [detailData]);
@@ -172,7 +172,7 @@ export default function OnTimeGraduationModal({ isOpen, onClose, originRect, dat
       entries[key] = (
         <CohortTrendChart
           cohorts={cohorts}
-          batas={key === 'prof' ? batasProf : undefined}
+          batas={key === 'profesi' ? batasProfesi : undefined}
           isLoading={isLoading}
           error={error}
         />
@@ -188,7 +188,7 @@ export default function OnTimeGraduationModal({ isOpen, onClose, originRect, dat
             ...extraCohorts.map(([key, cohorts]) => [
               key.toUpperCase(),
               cohorts,
-              key === 'prof' ? batasProf : undefined,
+              key === 'profesi' ? batasProfesi : undefined,
             ]),
           ].map(([jenjang, cohorts, batas]) => (
             <div key={jenjang} className="space-y-1.5">
@@ -209,7 +209,7 @@ export default function OnTimeGraduationModal({ isOpen, onClose, originRect, dat
         </div>
       ),
     };
-  }, [batasProf, batasS1, batasS2, error, extraCohorts, isLoading, s1Cohorts, s2Cohorts]);
+  }, [batasProfesi, batasS1, batasS2, error, extraCohorts, isLoading, s1Cohorts, s2Cohorts]);
 
   return (
     <Modal

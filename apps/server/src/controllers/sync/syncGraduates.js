@@ -3,7 +3,7 @@ const prisma = require('../../config/prisma');
 const syncJobTracker = require('../../utils/syncJobTracker');
 const createSyncHandler = require('./createSyncHandler');
 const { deduplicateStudents } = require('../../services/studentDeduplicationService');
-const { sanitizeProdiName, normalizeOptionalText } = require('./text');
+const { sanitizeProdiName, normalizeOptionalText, normalizeJenjang } = require('./text');
 const { formatTahunLulus } = require('./academicPeriod');
 const { resolveTargetNimBatch, paginateSevimaPages } = require('./sevimaLookup');
 const { bulkUpsertGraduates } = require('./bulkWrite');
@@ -63,7 +63,7 @@ const executeSyncGraduates = async ({ runDedup = true } = {}) => {
         validItems.push({
           nim: attr.nim,
           nama: attr.nama || '',
-          jenjang: attr.id_jenjang || 'S1',
+          jenjang: normalizeJenjang(attr.id_jenjang || 'S1'),
           id_periode_akademik: attr.id_periode_akademik || '',
           programStudi: prodiName,
           statusKelulusan,

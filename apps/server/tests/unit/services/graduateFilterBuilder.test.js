@@ -38,10 +38,10 @@ describe('graduate filter builder', () => {
   });
 
   it('tanpa filter jenjang, seluruh populasi diminta (bukan daftar statis)', () => {
-    // `Prof` ikut populasi: helper tak boleh mengunci S1/S2.
+    // `Profesi` ikut populasi: helper tak boleh mengunci S1/S2.
     expect(getRequestedJenjang({})).toBeNull();
     expect(getRequestedJenjang(buildGraduateFilter({}))).toBeNull();
-    expect(includesJenjang({}, 'Prof', ['S1', 'S2', 'Prof'])).toBe(true);
+    expect(includesJenjang({}, 'Profesi', ['S1', 'S2', 'Profesi'])).toBe(true);
     // Nilai yang diminta user dikembalikan apa adanya — termasuk yang asing.
     expect(getRequestedJenjang({ jenjang: 'D3' })).toEqual(['D3']);
   });

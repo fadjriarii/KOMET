@@ -1,7 +1,7 @@
 /**
  * ipkTrend.js
  *
- * Menghitung rata-rata IPK lulusan per jenjang (dinamis — S1/S2/`Prof`, bukan
+ * Menghitung rata-rata IPK lulusan per jenjang (dinamis — S1/S2/`Profesi`, bukan
  * daftar statis) serta breakdown per tahun, prodi, fakultas, dan gpaBands.
  */
 

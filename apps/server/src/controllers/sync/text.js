@@ -62,10 +62,23 @@ function isAkunLama(text) {
   return /keterangan akun lama|akun lama/i.test(text);
 }
 
+/**
+ * SEVIMA masih mengirim jenjang "Prof" untuk pendidikan profesi.
+ * Normalisasi sekali di jalur tulis sehingga DB & read path hanya mengenal
+ * "Profesi".
+ */
+const SEVIMA_JENJANG_RENAME = { Prof: 'Profesi' };
+
+function normalizeJenjang(value) {
+  const text = (value || '').trim();
+  return SEVIMA_JENJANG_RENAME[text] || text;
+}
+
 module.exports = {
   cleanText,
   sanitizeText,
   normalizeOptionalText,
   sanitizeProdiName,
   isAkunLama,
+  normalizeJenjang,
 };

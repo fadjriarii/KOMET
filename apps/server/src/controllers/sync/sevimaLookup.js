@@ -7,7 +7,7 @@ const prisma = require('../../config/prisma');
 const sevimaApi = require('../../config/sevimaApi');
 const logger = require('../../utils/logger');
 const { STUDENT_STATUS } = require('@komet/shared/constants');
-const { cleanText, sanitizeText, sanitizeProdiName } = require('./text');
+const { cleanText, sanitizeText, sanitizeProdiName, normalizeJenjang } = require('./text');
 const { formatAngkatan, extractPeriode, hitungSemester } = require('./academicPeriod');
 const { SYNC_FETCH_WINDOW, SYNC_PAGE_DELAY_MS, sleep } = require('./config');
 
@@ -56,7 +56,9 @@ async function resolveTargetNimBatch(items, extractNimFn, extractNamaFn, extraDa
         const idPeriode = extraData.id_periode_akademik || extraData.id_periode || '';
         const rawProdi = extraData.programStudi || extraData.prodiName || '';
         const prodi = sanitizeProdiName(rawProdi);
-        const jenjang = extraData.jenjang || extraData.id_jenjang_program_studi || 'S1';
+        const jenjang = normalizeJenjang(
+          extraData.jenjang || extraData.id_jenjang_program_studi || 'S1',
+        );
         const statusKeaktifan = extraData.defaultStatusKeaktifan || STUDENT_STATUS.AKTIF;
         const fakultas =
           extraData.fakultas ||

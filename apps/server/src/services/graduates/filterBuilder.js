@@ -27,7 +27,7 @@ const {
  * Jenjang yang benar-benar diminta sebuah filter graduate — dibaca apa adanya
  * dari nilai yang diminta user, TANPA daftar statis. `JENJANGS` (= S1/S2) hanya
  * cakupan IKU tab Student; tab Lulusan memakai seluruh jenjang populasi
- * termasuk `Prof` (terukur: 37 Prof ada di DB tapi dikunci-out helper lama).
+ * termasuk `Profesi` (terukur: 37 Profesi ada di DB tapi dikunci-out helper lama).
  *
  * Tanpa filter jenjang: null = seluruh populasi (pemanggil tidak menyaring).
  * Nilai tak dikenal dikembalikan apa adanya — server tidak menebak maksud user.
@@ -47,7 +47,7 @@ function includesJenjang(whereFilter, jenjang, knownJenjangs = null) {
 /**
  * Seluruh jenjang dalam populasi terfilter (distinct DB, dinamis — bukan daftar
  * statis). Dipakai metrik yang merender satu kolom per jenjang. Filter jenjang
- * user selalu menang; tanpanya = semua yang ada, termasuk `Prof`.
+ * user selalu menang; tanpanya = semua yang ada, termasuk `Profesi`.
  */
 async function getScopeJenjangs(whereFilter = {}) {
   const requested = getRequestedJenjang(whereFilter);

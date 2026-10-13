@@ -57,7 +57,7 @@ async function getGraduateSummary(whereFilter) {
       getGraduateLabelWindow(),
     ]);
 
-  // Total = seluruh jenjang populasi (dinamis incl `Prof`) — bukan S1+S2 saja.
+  // Total = seluruh jenjang populasi (dinamis incl `Profesi`) — bukan S1+S2 saja.
   const jenjangCounts = Object.entries(totalLulusan).filter(
     ([key, value]) => key !== 'tahunScope' && typeof value === 'number',
   );

@@ -14,7 +14,7 @@ import DistributionChart from '../../../../components/common/charts/Distribution
 import TrendChartTooltip from '../../../../components/common/charts/TrendChartTooltip';
 import { TOTAL_GRADUATE_TABS } from './graduateTrendConfig';
 
-// Warna bar per jenjang — S1/S2 tetap seperti semula, jenjang tambahan (Prof)
+// Warna bar per jenjang — S1/S2 tetap seperti semula, jenjang tambahan (Profesi)
 // memakai warna berikutnya dari palet yang sama.
 const JENJANG_COLORS = [DIGITAL_BLUE[600], DIGITAL_BLUE[400], '#10B981', '#F59E0B', '#8B5CF6'];
 
@@ -26,7 +26,7 @@ const EMPTY_ITEMS = [];
 const JENJANG_TONE = { s1Count: 'text-digital-blue-900', s2Count: 'text-gray-800' };
 
 // Kolom jenjang dinamis dari baris pertama: S1/S2 tampil seperti semula,
-// jenjang tambahan (Prof) memakai kolom yang sama polanya.
+// jenjang tambahan (Profesi) memakai kolom yang sama polanya.
 function totalTableColumns(rows) {
   const jenjangKeys = Object.keys(rows[0] ?? {})
     .filter((key) => key !== 'tahun' && key !== 'total' && key.endsWith('Count'))

@@ -6,7 +6,7 @@ const { getTahunAjaranLabel, tahunAjaranStart } = require('./tahunAjaran');
 
 // Populasi tab lulusan = baris graduate (asal `/kelulusan`); opsi dibaca dari
 // populasi yang sama dengan data supaya pilihan UI tak pernah menunjuk populasi
-// kosong. Tanpa `where` statis jenjang: Prof ikut sebagai opsi dinamis.
+// kosong. Tanpa `where` statis jenjang: Profesi ikut sebagai opsi dinamis.
 const hasGraduate = { NOT: { graduate: null } };
 
 const graduateQueries = {
