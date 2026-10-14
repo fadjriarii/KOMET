@@ -93,24 +93,44 @@ async function getInternationalStudentsTrend(query = {}) {
   const populationFilter = buildStudentFilter(baseQuery);
   const windowFilter = buildStudentFilter(baseQuery, { scope: FILTER_SCOPES.ALL_YEARS });
 
-  // Jendela 5 tahun hanya butuh tahun akademik terbaru: cukup satu agregat,
-  // bukan `distinct periodeMasuk` atas seluruh tabel pada setiap request.
-  const latestPeriode = await prisma.student.aggregate({
-    where: ensurePopulationFilter(windowFilter),
-    _max: { periodeMasuk: true },
-  });
-  const availableAcademicYears = [toAcademicYear(latestPeriode._max.periodeMasuk)].filter(Boolean);
-  const rollingYears = get5YearRollingAcademicYears(availableAcademicYears);
+  // Jendela 5 tahun mengikuti tahun ajaran yang dipilih user (mis. pilih
+  // 2021/2022 → 2017/2018 s.d. 2021/2022). Tanpa pilihan, ikut data terbaru
+  // di DB seperti sebelumnya. Satu agregat `_max` hanya dibutuhkan untuk
+  // mode tanpa pilihan — bukan `distinct periodeMasuk` tiap request.
+  const selectedAcademicYear = getSelectedAcademicYear(query);
+  let rollingYears;
+  if (selectedAcademicYear) {
+    rollingYears = get5YearRollingAcademicYears([selectedAcademicYear]);
+  } else {
+    const latestPeriode = await prisma.student.aggregate({
+      where: ensurePopulationFilter(windowFilter),
+      _max: { periodeMasuk: true },
+    });
+    const availableAcademicYears = [toAcademicYear(latestPeriode._max.periodeMasuk)].filter(
+      Boolean,
+    );
+    rollingYears = get5YearRollingAcademicYears(availableAcademicYears);
+  }
+
+  // Filter lintas tahun (ALL_YEARS) masih membawa `statusKeaktifan` berjalan
+  // (mis. 'Aktif' default). Untuk deret historis, status harus diganti oleh
+  // proyeksi snapshot per tahun di bawah — bukan di-AND-kan dengannya. Kalau
+  // tidak dibuang, lulusan 2024/2025 ikut tersaring `status = Aktif saat ini`
+  // sehingga tahun-tahun sebelumnya undercount (hanya yang masih aktif hari
+  // ini dan masuk sebelum tahun itu). Sama seperti filter Tahun Ajaran:
+  // lulusan tahun depan tetap terhitung aktif pada snapshot tahun lama.
+  const windowWithoutStatus = { ...windowFilter };
+  delete windowWithoutStatus.statusKeaktifan;
 
   const trendData = await Promise.all(
     rollingYears.map(async (academicYear) => {
       const ayObj = getAcademicYear(academicYear);
       if (!ayObj) return toTrendRow(academicYear, { total: 0, foreign: 0 });
 
-      const academicConditions = buildAcademicYearFilter(ayObj, query.statusKeaktifan);
+      const academicConditions = buildAcademicYearFilter(ayObj, baseQuery.statusKeaktifan);
       const yearBaseFilter = {
-        ...windowFilter,
-        AND: [...(windowFilter.AND || []), ...academicConditions],
+        ...windowWithoutStatus,
+        AND: [...(windowWithoutStatus.AND || []), ...academicConditions],
       };
 
       return toTrendRow(academicYear, sumNationalityRows(await countByNationality(yearBaseFilter)));
@@ -128,8 +148,8 @@ async function getInternationalStudentsTrend(query = {}) {
 
   // Baris yang mewakili tahun terpilih di banner kartu: tahun ajaran yang diminta
   // bila ada di jendela tren, kalau tidak tahun terakhir. Aturan pilih dinyatakan
-  // di sini supaya klien tidak perlu mencari barisnya sendiri.
-  const selectedAcademicYear = getSelectedAcademicYear(query);
+  // di sini supaya klien tidak perlu mencari barisnya sendiri. Saat filter tahun
+  // aktif, jendela sudah berakhir di tahun itu sehingga `selected` = baris terakhir.
   const selected =
     trendData.find((row) => row.academicYear === selectedAcademicYear) ||
     trendData[trendData.length - 1] ||

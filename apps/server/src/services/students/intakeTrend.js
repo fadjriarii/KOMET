@@ -6,7 +6,7 @@ const {
   get5YearRollingAcademicYears,
 } = require('../../utils/academicUtils');
 const { calculatePercentageChange } = require('../../utils/trendCalculation');
-const { buildStudentFilter, FILTER_SCOPES } = require('./filterBuilder');
+const { buildStudentFilter, FILTER_SCOPES, getSelectedAcademicYear } = require('./filterBuilder');
 
 /**
  * Jumlah mahasiswa yang masuk per tahun akademik dari satu `groupBy` atas
@@ -62,14 +62,22 @@ function buildIntakeRow(tahun, yearCounts) {
   };
 }
 
-function buildIntakeTrend(yearCounts) {
-  return get5YearRollingAcademicYears([...yearCounts.keys()]).map((tahun) =>
+function buildIntakeTrend(yearCounts, selectedAcademicYear = null) {
+  // Jendela 5 tahun mengikuti tahun ajaran yang dipilih user (mis. pilih
+  // 2021/2022 → 2017/2018 s.d. 2021/2022) — sama seperti tren internasional
+  // dan penurunan. Tanpa pilihan, ikut data terbaru seperti sebelumnya.
+  const anchorYears =
+    typeof selectedAcademicYear === 'string' && getAcademicYearStart(selectedAcademicYear) !== null
+      ? [selectedAcademicYear]
+      : [...yearCounts.keys()];
+  return get5YearRollingAcademicYears(anchorYears).map((tahun) =>
     buildIntakeRow(tahun, yearCounts),
   );
 }
 
 async function getIntakeTrend(query = {}) {
-  return { trend: buildIntakeTrend(await getIntakeYearCounts(query)) };
+  const yearCounts = await getIntakeYearCounts(query);
+  return { trend: buildIntakeTrend(yearCounts, getSelectedAcademicYear(query)) };
 }
 
 module.exports = {

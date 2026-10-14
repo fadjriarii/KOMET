@@ -139,6 +139,18 @@ function getNewStudentDecline(selectedPeriode, yearCounts = new Map(), selectedC
     .map((newerCount, index) => calculateChange(newerCount ?? 0, counts[index + 1]));
   const usedChanges = changes.filter((change) => change !== null);
 
+  // Baseline titik terlama: tahun tepat sebelum jendela. `undefined` = tahun
+  // tidak ada di data (tetap null, bukan 0) — aturan yang sama dengan
+  // `buildIntakeRow` sehingga baris tertua konsisten dengan tabel intake.
+  // Rata-rata kartu (4 pembanding di dalam jendela) tidak ikut berubah.
+  const oldestStart = getAcademicYearStart(academicYears[academicYears.length - 1]);
+  const oldestBaseline =
+    oldestStart === null ? undefined : yearCounts.get(`${oldestStart - 1}/${oldestStart}`)?.total;
+  const oldestChange =
+    oldestBaseline === undefined
+      ? null
+      : calculateChange(counts[counts.length - 1] ?? 0, oldestBaseline);
+
   if (!usedChanges.length) {
     logger.info(
       `[declineTrend] Tidak cukup data untuk menghitung penurunan MB pada periode ${anchorYear}.`,
@@ -153,12 +165,15 @@ function getNewStudentDecline(selectedPeriode, yearCounts = new Map(), selectedC
     yearsCount: 5,
     history: academicYears.map((academicYear, index) => ({
       // Satu titik per tahun akademik. `changeFromPrev` = perubahan dari tahun
-      // akademik sebelumnya (lebih tua) ke tahun ini; titik terlama tidak punya
-      // pembanding di dalam jendela, sehingga bernilai null.
+      // akademik sebelumnya (lebih tua) ke tahun ini. Titik terlama memakai
+      // baseline tepat di luar jendela (aturan yang sama dengan `buildIntakeRow`)
+      // bila tahun itu ada di data; bila tidak ada, tetap null. Rata-rata kartu
+      // (4 pembanding di dalam jendela) tidak berubah oleh tambahan tampilan ini.
       label: String.fromCharCode(65 + index),
       academicYear,
       intakeCount: counts[index] ?? 0,
-      changeFromPrev: index < changes.length ? toPercentage(changes[index]) : null,
+      changeFromPrev:
+        index < changes.length ? toPercentage(changes[index]) : toPercentage(oldestChange),
     })),
   };
 }

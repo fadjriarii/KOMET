@@ -82,7 +82,7 @@ async function getStudentSummary(query = {}) {
     getIntakeYearCounts(query),
   ]);
 
-  const intakeTrend = buildIntakeTrend(yearCounts);
+  const intakeTrend = buildIntakeTrend(yearCounts, selectedAcademicYear);
   const newStudentDecline = getNewStudentDecline(
     selectedAcademicYear,
     yearCounts,
