@@ -126,7 +126,12 @@ export default function DashboardPage({
               />
             ) : null}
             {/* Hanya sampai di sini kalau data lama masih tampil (lihat DashboardErrorGuard). */}
-            <QueryErrorBanner error={summaryQuery.error} hasData={Boolean(summaryQuery.data)} />
+            <QueryErrorBanner
+              error={summaryQuery.error}
+              hasData={Boolean(summaryQuery.data)}
+              status={summaryQuery.error?.status}
+              onRetry={() => summaryQuery.refetch()}
+            />
           </div>
         </div>
 

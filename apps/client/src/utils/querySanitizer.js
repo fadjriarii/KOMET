@@ -30,7 +30,15 @@ export function sanitizeText(value, maxLength = MAX_VALUE_LENGTH) {
 }
 
 export function sanitizeSearch(value) {
-  return sanitizeText(value, MAX_SEARCH_LENGTH);
+  if (typeof value !== 'string') return '';
+  // Tidak .trim(): spasi di tengah query ('nama mahasiswa') harus dipertahankan.
+  // Karakter kontrol dihilangkan, panjang dibatasi — tapi tanpa trim yang
+  // membuat spasi awal/akhir hilang dan memicu re-render URL per ketikan.
+  return value
+    .split('')
+    .filter((ch) => !isControlCharacter(ch))
+    .join('')
+    .substring(0, MAX_SEARCH_LENGTH);
 }
 
 /**

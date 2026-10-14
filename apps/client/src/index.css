@@ -112,6 +112,19 @@ body {
    menimpa gaya dashboard. Latar & teks disamakan dengan tema dashboard
    (bg gray-50 `#f9fafb`, teks gray-800), bukan tema gelap desain asli. */
 
+/* Overlay penuh: pengganti MainLayout saat 404 atau error dashboard
+   (dashboard data kosong). Mengganti layout secara penuh, bukan menimpalnya. */
+.err-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  overflow: auto;
+  background: #f9fafb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .err-main {
   --err-bg: #f9fafb;
   --err-ink: #1f2937;
@@ -126,12 +139,18 @@ body {
   font-family: 'Mona Sans', system-ui, sans-serif;
   font-feature-settings: 'liga', 'ss05' on, 'ss07' on;
   font-size: 20px;
-  /* Tinggi sisa setelah navbar 4rem + padding <main> 3rem, supaya tidak muncul
-     scrollbar tambahan di dalam area konten. */
-  min-height: calc(100vh - 7rem);
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Di dalam .err-overlay: full viewport; di dalam MainLayout (ErrorBoundary):
+   sisa setelah navbar 4rem + padding <main> 3rem. */
+.err-overlay .err-main {
+  min-height: 100vh;
+}
+.err-main {
+  min-height: calc(100vh - 7rem);
 }
 
 .err-main ::selection {
