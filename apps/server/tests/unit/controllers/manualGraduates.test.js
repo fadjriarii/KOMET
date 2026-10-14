@@ -5,7 +5,6 @@ const require = createRequire(import.meta.url);
 const prisma = require('../../../src/config/prisma');
 const { selectManualGraduates } = require('../../../src/controllers/sync/manualGraduates');
 const { insertManualGraduates } = require('../../../src/controllers/sync/syncGraduates');
-const { bulkUpsertStudents } = require('../../../src/controllers/sync/bulkWrite');
 
 describe('manual graduates selector', () => {
   it('memilih hanya NIM yang tidak ada di API response', async () => {
