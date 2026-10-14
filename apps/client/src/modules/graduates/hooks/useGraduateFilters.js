@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Award, BookOpen, Building2, CalendarDays, UserCheck } from 'lucide-react';
 import { getCurrentAcademicYear, isValidAcademicYear } from '@komet/shared/academicYear';
 import { useDashboardFilters } from '../../../hooks/useDashboardFilters';
@@ -95,6 +95,10 @@ export const graduateFilterFields = {
     customMetaKey: 'customAngkatanMeta',
   },
   selectedTahunLulus: {
+    // Default = tahun lulus terbaru (dari filterOptions.rollingYears[0],
+    // sudah ter-window oleh jangkar tahun ajaran). Ditetapkan di
+    // useGraduateFilters supaya sama dengan nilai awal: tidak menyala
+    // sebagai filter aktif dan tidak menyalakan badge "Terfilter".
     initial: [],
     api: 'tahunLulus',
     setter: 'setSelectedTahunLulus',
@@ -138,7 +142,7 @@ export const graduateFilterForm = {
   fields: graduateFilterFields,
 };
 
-export function useGraduateFilters(defaultAcademicYear = '') {
+export function useGraduateFilters(defaultAcademicYear = '', defaultTahunLulus = '') {
   // Closure per default: tahun ajaran terbaru dari data (datanya belum
   // termuat saat hook pertama jalan, baru diketahui setelah summary
   // selesai — DashboardPage menyimpannya dan memanggil ulang hook ini).
@@ -149,8 +153,36 @@ export function useGraduateFilters(defaultAcademicYear = '') {
         ...graduateFilterFields.tahunAjaran,
         sanitize: (value) => sanitizeAcademicYear(value, defaultAcademicYear),
       },
+      // Tahun Lulus default = tahun terbaru dalam jangkar (di atas sudah
+      // ter-window server-side); '' sebelum data termuat = semua tahun,
+      // sama perilaku dengan sebelumnya.
+      selectedTahunLulus: {
+        ...graduateFilterFields.selectedTahunLulus,
+        initial: defaultTahunLulus ? [defaultTahunLulus] : [],
+        defaultValue: defaultTahunLulus ? [defaultTahunLulus] : [],
+      },
     }),
-    [defaultAcademicYear],
+    [defaultAcademicYear, defaultTahunLulus],
   );
-  return useDashboardFilters({ fields });
+  const { setters, ...rest } = useDashboardFilters({ fields });
+
+  // Pengikut: Tahun Lulus menyesuaikan saat tahun terbaru bergeser —
+  // user mengganti jangkar tahun ajaran, atau sync menambah tahun baru.
+  // Muatan pertama dilewati supaya pilihan URL eksplisit tidak
+  // diinjak; perubahan berikutnya langsung menulis nilai baru ke URL
+  // sehingga kartu & tabel ikut menampilkan tahun itu.
+  const prevDefaultRef = useRef(defaultTahunLulus);
+  const loadedRef = useRef(false);
+  useEffect(() => {
+    const changed = prevDefaultRef.current !== defaultTahunLulus;
+    prevDefaultRef.current = defaultTahunLulus;
+    if (!changed) return;
+    if (!loadedRef.current) {
+      loadedRef.current = true;
+      return;
+    }
+    if (defaultTahunLulus) setters.setSelectedTahunLulus([defaultTahunLulus]);
+  }, [defaultTahunLulus, setters]);
+
+  return { ...rest, setters };
 }

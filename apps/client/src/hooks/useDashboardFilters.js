@@ -134,5 +134,13 @@ export function useDashboardFilters({ fields }) {
     [fields, setSearchParams],
   );
 
-  return { values, setters, filterParams, activeFilterParams, activeFilterCount, resetFilters };
+  return {
+    fields,
+    values,
+    setters,
+    filterParams,
+    activeFilterParams,
+    activeFilterCount,
+    resetFilters,
+  };
 }

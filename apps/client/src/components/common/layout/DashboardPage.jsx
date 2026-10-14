@@ -33,14 +33,18 @@ export default function DashboardPage({
   // summary termuat, sehingga disimpan di state dan diteruskan pada
   // render berikutnya; tab lain mengabaikan argumen ini.
   const [defaultAcademicYear, setDefaultAcademicYear] = useState('');
+  // Sama dengan defaultAcademicYear: baru diketahui setelah
+  // summary termuat, disimpan di state untuk render berikutnya.
+  const [latestTahunLulus, setLatestTahunLulus] = useState('');
   const {
     values: filters,
     setters,
+    fields: filterFields,
     filterParams,
     activeFilterParams,
     activeFilterCount,
     resetFilters,
-  } = useFilters(defaultAcademicYear);
+  } = useFilters(defaultAcademicYear, latestTahunLulus);
   const { params: requestParams, isDebouncing } = useDebouncedSearchParams(
     filterParams,
     filters.searchQuery,
@@ -60,9 +64,26 @@ export default function DashboardPage({
   // jadi tidak bisa diturunkan langsung saat render.)
   const latestAcademicYear = availableFilterOptions.academicYearOptions?.[0] ?? '';
   useEffect(() => {
+    // Hanya maju, jangan kembali ke '' saat data belum termuat untuk
+    // kunci filter baru: mengosongkan default mengubah kunci query
+    // kembali ke kunci lama (yang datanya ada di cache), lalu default
+    // dipakai lagi — siklus tanpa akhir yang membuat halaman kedip.
+    if (!latestAcademicYear) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setDefaultAcademicYear((prev) => (prev === latestAcademicYear ? prev : latestAcademicYear));
   }, [latestAcademicYear]);
+
+  // Tahun Lulus default = tahun terbaru dalam jangkar (server
+  // sudah ter-window per `tahunAjaran`). Tab lain tak punya
+  // field ini, jadi nilai ini diabaikan hook mereka.
+  const latestTahunLulusFromData = availableFilterOptions.rollingYears?.[0] ?? '';
+  useEffect(() => {
+    if (!latestTahunLulusFromData) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLatestTahunLulus((prev) =>
+      prev === latestTahunLulusFromData ? prev : latestTahunLulusFromData,
+    );
+  }, [latestTahunLulusFromData]);
 
   // Refetch senyap tidak boleh mengubah kartu yang sudah tampil menjadi skeleton.
   const isKpiLoading = summaryQuery.isLoading || isDebouncing;
@@ -113,6 +134,7 @@ export default function DashboardPage({
 
         <DashboardFilterForm
           {...filterForm}
+          fields={filterFields}
           values={filters}
           setters={setters}
           options={availableFilterOptions}

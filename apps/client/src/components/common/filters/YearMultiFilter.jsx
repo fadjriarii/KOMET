@@ -51,6 +51,7 @@ export default function YearMultiFilter({
   disabled = false,
   className = '',
   id,
+  defaultValue = [],
 }) {
   const selectId = id || (label ? `filter-${label.toLowerCase().replace(/\s+/g, '-')}` : undefined);
   const [isOpen, setIsOpen] = useState(false);
@@ -77,6 +78,18 @@ export default function YearMultiFilter({
 
   const meta = customMeta ?? deriveLocalMeta(years);
   const isAllTime = selectedYears.length === 0;
+  // Nilai default (dari field.defaultValue) dianggap state default
+  // secara visual — tanpa badge "N terpilih" dan tanpa warna aktif —
+  // persis seperti CheckboxSelect (status mahasiswa default AKTIF).
+  const defaults = Array.isArray(defaultValue)
+    ? defaultValue.map(String)
+    : defaultValue !== null && defaultValue !== ''
+      ? [String(defaultValue)]
+      : [];
+  const isDefault =
+    selectedYears.length === defaults.length &&
+    selectedYears.every((item) => defaults.includes(String(item)));
+  const isVisualDefault = isAllTime || isDefault;
   const listedYears = new Set(years.map(String));
   // Tahun kustom tidak ada di daftar rolling; ia tetap tampil sebagai baris
   // terpilih supaya bisa dilepas lagi.
@@ -109,7 +122,7 @@ export default function YearMultiFilter({
           className="text-[11.5px] font-bold text-gray-700 uppercase tracking-wider select-none flex items-center justify-between"
         >
           <span>{label}</span>
-          {!isAllTime && (
+          {!isVisualDefault && (
             <span className="text-[10px] font-bold text-digital-blue-700 bg-digital-blue-50 border border-digital-blue-200/60 px-1.5 py-0.2 rounded-md">
               {selectedYears.length} terpilih
             </span>
@@ -135,7 +148,7 @@ export default function YearMultiFilter({
 
           <span
             className={`truncate text-left ${
-              isAllTime ? 'text-gray-400 font-normal' : 'text-gray-900 font-semibold'
+              isVisualDefault ? 'text-gray-400 font-normal' : 'text-gray-900 font-semibold'
             }`}
           >
             {selectedYears.length ? selectedYears.join(', ') : placeholder}

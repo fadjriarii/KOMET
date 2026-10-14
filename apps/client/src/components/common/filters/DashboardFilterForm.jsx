@@ -47,6 +47,7 @@ function Control({ field, value, onChange, choices, customMeta, disabled }) {
         allowCustom={field.allowCustom}
         customLabel={field.customLabel}
         customMeta={customMeta}
+        defaultValue={field.defaultValue}
         disabled={disabled}
       />
     );
