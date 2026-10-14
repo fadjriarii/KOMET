@@ -17,7 +17,7 @@
  * query susulan yang membuat pemanggil harus menunggu setelah batch paralel.
  */
 
-const { getAcademicYearWindow, getAcademicYearStart } = require('../../utils/academicUtils');
+const { getBoundedAcademicYearWindow, getAcademicYearStart } = require('../../utils/academicUtils');
 const { calculatePercentageChange } = require('../../utils/trendCalculation');
 const logger = require('../../utils/logger');
 
@@ -126,8 +126,10 @@ function getNewStudentDecline(selectedPeriode, yearCounts = new Map(), selectedC
     return null;
   }
 
-  // Terbaru → terlama; chart membalik urutannya sendiri di client.
-  const academicYears = getAcademicYearWindow(getAcademicYearStart(anchorYear)).reverse();
+  // Terbaru → terlama; chart membalik urutannya sendiri di client. Awal
+  // jendela dijepit di tahun berdiri kampus (2014/2015): filter 2016/2017
+  // menghasilkan 3 titik, bukan 5 titik berisi tahun kosong.
+  const academicYears = getBoundedAcademicYearWindow(getAcademicYearStart(anchorYear)).reverse();
   // `undefined` = tahun tidak ada di data, `0` = tahun ada tapi kosong. Hanya
   // tahun yang ada yang boleh menjadi pembanding — aturan yang sama dengan
   // deret tren intake (`buildIntakeRow`).
@@ -162,7 +164,7 @@ function getNewStudentDecline(selectedPeriode, yearCounts = new Map(), selectedC
     declinePercentage: average(usedChanges),
     comparisonsUsed: usedChanges.length,
     comparisonsTotal: changes.length,
-    yearsCount: 5,
+    yearsCount: academicYears.length,
     history: academicYears.map((academicYear, index) => ({
       // Satu titik per tahun akademik. `changeFromPrev` = perubahan dari tahun
       // akademik sebelumnya (lebih tua) ke tahun ini. Titik terlama memakai

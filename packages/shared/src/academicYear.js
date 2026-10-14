@@ -60,6 +60,31 @@ export function getAcademicYearWindow(startYear, size = 5) {
   });
 }
 
+/**
+ * Tahun awal tahun akademik pertama kampus beroperasi (`2014/2015`).
+ * Visualisasi tren tidak pernah menampilkan tahun sebelum ini — satu angka
+ * agar semua chart student data memotong jendelanya di titik yang sama.
+ */
+export const MIN_ACADEMIC_YEAR_START = 2014;
+
+/**
+ * Seperti `getAcademicYearWindow`, tapi awal jendela dijepit di
+ * `minStartYear` (default tahun berdiri kampus). Mis. jangkar `2016` dengan
+ * `size` 5 menghasilkan 3 titik (`2014/2015`–`2016/2017`), bukan 5 titik
+ * berisi tahun-tahun kosong sebelum kampus ada. Dijamin minimal 1 titik
+ * (tahun jangkarnya sendiri) walau jangkarnya lebih tua dari batas.
+ */
+export function getBoundedAcademicYearWindow(
+  startYear,
+  size = 5,
+  minStartYear = MIN_ACADEMIC_YEAR_START,
+) {
+  const first = Math.min(Math.max(startYear - (size - 1), minStartYear), startYear);
+  const out = [];
+  for (let start = first; start <= startYear; start++) out.push(`${start}/${start + 1}`);
+  return out;
+}
+
 /** `count` tahun akademik terakhir yang berjalan dari `date`, urut menurun. */
 export function getRollingAcademicYears(count = 5, date = new Date()) {
   return getAcademicYearWindow(getCurrentAcademicYearStart(date), count).reverse();

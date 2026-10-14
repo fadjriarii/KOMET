@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   getAcademicYearWindow,
+  getBoundedAcademicYearWindow,
+  MIN_ACADEMIC_YEAR_START,
   getCurrentAcademicYear,
   isValidAcademicYear,
   getCurrentAcademicYearStart,
@@ -35,6 +37,21 @@ describe('jendela tahun akademik', () => {
       '2025/2026',
       '2024/2025',
     ]);
+  });
+});
+
+describe('jendela tahun terbatas tahun berdiri kampus', () => {
+  it('jangkar baru tidak terpotong', () => {
+    expect(getBoundedAcademicYearWindow(2025)).toEqual(getAcademicYearWindow(2025));
+  });
+
+  it('filter 2016/2017 hanya menampilkan 3 titik sejak 2014/2015', () => {
+    expect(MIN_ACADEMIC_YEAR_START).toBe(2014);
+    expect(getBoundedAcademicYearWindow(2016)).toEqual(['2014/2015', '2015/2016', '2016/2017']);
+  });
+
+  it('filter tahun berdiri hanya menampilkan 1 titik', () => {
+    expect(getBoundedAcademicYearWindow(2014)).toEqual(['2014/2015']);
   });
 });
 

@@ -39,4 +39,26 @@ describe('decline trend calculation', () => {
     expect(decline.declinePercentage).toBeNull();
     expect(decline.comparisonsUsed).toBe(0);
   });
+
+  it('jangkar lama dijepit di 2014/2015: 3 titik tanpa tahun kosong', () => {
+    const counts = new Map([
+      ['2014/2015', { total: 46 }],
+      ['2015/2016', { total: 87 }],
+      ['2016/2017', { total: 99 }],
+      ['2017/2018', { total: 100 }],
+    ]);
+
+    const decline = getNewStudentDecline('2016/2017', counts);
+
+    expect(decline.history.map((row) => row.academicYear)).toEqual([
+      '2016/2017',
+      '2015/2016',
+      '2014/2015',
+    ]);
+    expect(decline.yearsCount).toBe(3);
+    expect(decline.comparisonsUsed).toBe(2);
+    // Titik tertua (2014/2015) tanpa baseline sebelum kampus berdiri: null.
+    expect(decline.history.at(-1).changeFromPrev).toBeNull();
+    expect(decline.history[0].changeFromPrev).toBeCloseTo(13.793, 3);
+  });
 });

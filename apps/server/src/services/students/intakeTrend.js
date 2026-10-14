@@ -3,7 +3,7 @@ const prisma = require('../../config/prisma');
 const {
   parsePeriode,
   getAcademicYearStart,
-  get5YearRollingAcademicYears,
+  getBounded5YearRollingAcademicYears,
 } = require('../../utils/academicUtils');
 const { calculatePercentageChange } = require('../../utils/trendCalculation');
 const { buildStudentFilter, FILTER_SCOPES, getSelectedAcademicYear } = require('./filterBuilder');
@@ -66,11 +66,12 @@ function buildIntakeTrend(yearCounts, selectedAcademicYear = null) {
   // Jendela 5 tahun mengikuti tahun ajaran yang dipilih user (mis. pilih
   // 2021/2022 → 2017/2018 s.d. 2021/2022) — sama seperti tren internasional
   // dan penurunan. Tanpa pilihan, ikut data terbaru seperti sebelumnya.
+  // Awal jendela dijepit di tahun berdiri kampus (2014/2015).
   const anchorYears =
     typeof selectedAcademicYear === 'string' && getAcademicYearStart(selectedAcademicYear) !== null
       ? [selectedAcademicYear]
       : [...yearCounts.keys()];
-  return get5YearRollingAcademicYears(anchorYears).map((tahun) =>
+  return getBounded5YearRollingAcademicYears(anchorYears).map((tahun) =>
     buildIntakeRow(tahun, yearCounts),
   );
 }

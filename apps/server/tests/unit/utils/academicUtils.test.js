@@ -5,6 +5,7 @@ const {
   getReferenceYear,
   getCurrentAcademicYearStart,
   get5YearRollingAcademicYears,
+  getBounded5YearRollingAcademicYears,
 } = require('../../../src/utils/academicUtils');
 
 describe('academicUtils', () => {
@@ -59,6 +60,22 @@ describe('academicUtils', () => {
     expect(years2026).toEqual(['2022/2023', '2023/2024', '2024/2025', '2025/2026', '2026/2027']);
   });
 
+  it('getBounded5YearRollingAcademicYears menjepit awal jendela di 2014/2015', () => {
+    // Filter 2016/2017: 3 titik, tanpa tahun kosong sebelum kampus berdiri.
+    expect(getBounded5YearRollingAcademicYears(['2016/2017'])).toEqual([
+      '2014/2015',
+      '2015/2016',
+      '2016/2017',
+    ]);
+    // Jangkar baru tidak berubah: tetap 5 titik.
+    expect(getBounded5YearRollingAcademicYears(['2026/2027'])).toEqual([
+      '2022/2023',
+      '2023/2024',
+      '2024/2025',
+      '2025/2026',
+      '2026/2027',
+    ]);
+  });
   it('getYearRange harus mengembalikan 5 tahun berturut-turut', () => {
     const range = getYearRange();
     expect(range).toHaveLength(5);

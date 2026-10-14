@@ -11,6 +11,8 @@
 const {
   getCurrentAcademicYearStart,
   getAcademicYearWindow,
+  getBoundedAcademicYearWindow,
+  MIN_ACADEMIC_YEAR_START,
   formatAcademicYearLabel,
   parseAcademicYear: getAcademicYearStart,
 } = require('@komet/shared/academicYear');
@@ -42,6 +44,21 @@ function get5YearRollingAcademicYears(availableAcademicYears = []) {
   const latestStartYear = startYears.length ? Math.max(...startYears) : new Date().getFullYear();
 
   return getAcademicYearWindow(latestStartYear, TREND_WINDOW_YEARS);
+}
+
+/**
+ * Seperti `get5YearRollingAcademicYears`, tapi awal jendela dijepit di tahun
+ * berdiri kampus (`MIN_ACADEMIC_YEAR_START`). Filter `2016/2017` menghasilkan
+ * 3 titik (`2014/2015`–`2016/2017`), bukan 5 titik berisi tahun kosong.
+ */
+function getBounded5YearRollingAcademicYears(availableAcademicYears = []) {
+  const startYears = (Array.isArray(availableAcademicYears) ? availableAcademicYears : [])
+    .map(getAcademicYearStart)
+    .filter((year) => year !== null && year > 1900);
+
+  const latestStartYear = startYears.length ? Math.max(...startYears) : new Date().getFullYear();
+
+  return getBoundedAcademicYearWindow(latestStartYear, TREND_WINDOW_YEARS);
 }
 
 /**
@@ -145,10 +162,13 @@ function toAcademicYear(periodeMasuk) {
 
 module.exports = {
   TREND_WINDOW_YEARS,
+  MIN_ACADEMIC_YEAR_START,
   getCurrentAcademicYearStart,
   getAcademicYearWindow,
+  getBoundedAcademicYearWindow,
   getAcademicYearStart,
   get5YearRollingAcademicYears,
+  getBounded5YearRollingAcademicYears,
   getLabelYearRange,
   getReferenceLabelStart,
   getReferenceLabel,

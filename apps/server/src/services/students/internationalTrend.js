@@ -1,6 +1,9 @@
 /** Aggregates international-student trends directly in MySQL. */
 const prisma = require('../../config/prisma');
-const { toAcademicYear, get5YearRollingAcademicYears } = require('../../utils/academicUtils');
+const {
+  toAcademicYear,
+  getBounded5YearRollingAcademicYears,
+} = require('../../utils/academicUtils');
 const { roundedRate } = require('../../utils/percentageUtils');
 const {
   FILTER_SCOPES,
@@ -95,12 +98,14 @@ async function getInternationalStudentsTrend(query = {}) {
 
   // Jendela 5 tahun mengikuti tahun ajaran yang dipilih user (mis. pilih
   // 2021/2022 → 2017/2018 s.d. 2021/2022). Tanpa pilihan, ikut data terbaru
-  // di DB seperti sebelumnya. Satu agregat `_max` hanya dibutuhkan untuk
-  // mode tanpa pilihan — bukan `distinct periodeMasuk` tiap request.
+  // di DB seperti sebelumnya. Awal jendela dijepit di tahun berdiri kampus
+  // (2014/2015): filter 2016/2017 menghasilkan 3 titik, bukan 5 titik berisi
+  // tahun kosong. Satu agregat `_max` hanya dibutuhkan untuk mode tanpa
+  // pilihan — bukan `distinct periodeMasuk` tiap request.
   const selectedAcademicYear = getSelectedAcademicYear(query);
   let rollingYears;
   if (selectedAcademicYear) {
-    rollingYears = get5YearRollingAcademicYears([selectedAcademicYear]);
+    rollingYears = getBounded5YearRollingAcademicYears([selectedAcademicYear]);
   } else {
     const latestPeriode = await prisma.student.aggregate({
       where: ensurePopulationFilter(windowFilter),
@@ -109,7 +114,7 @@ async function getInternationalStudentsTrend(query = {}) {
     const availableAcademicYears = [toAcademicYear(latestPeriode._max.periodeMasuk)].filter(
       Boolean,
     );
-    rollingYears = get5YearRollingAcademicYears(availableAcademicYears);
+    rollingYears = getBounded5YearRollingAcademicYears(availableAcademicYears);
   }
 
   // Filter lintas tahun (ALL_YEARS) masih membawa `statusKeaktifan` berjalan

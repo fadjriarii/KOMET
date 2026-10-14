@@ -106,6 +106,21 @@ describe('intake year counts', () => {
       isPositive: true,
     });
   });
+
+  it('jangkar 2016/2017 hanya menampilkan 3 titik sejak kampus berdiri', () => {
+    const counts = new Map([
+      ['2014/2015', { total: 46, ganjil: 46, genap: 0 }],
+      ['2015/2016', { total: 87, ganjil: 87, genap: 0 }],
+      ['2016/2017', { total: 99, ganjil: 99, genap: 0 }],
+      ['2017/2018', { total: 100, ganjil: 100, genap: 0 }],
+    ]);
+
+    const trend = buildIntakeTrend(counts, '2016/2017');
+
+    expect(trend.map((row) => row.tahun)).toEqual(['2014/2015', '2015/2016', '2016/2017']);
+    // Titik tertua tanpa baseline di data: tampil tanpa persentase, bukan angka palsu.
+    expect(trend[0].growthPercentage).toBeNull();
+  });
 });
 
 afterAll(() => {
