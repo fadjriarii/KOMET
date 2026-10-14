@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getStudentStatusPresentation } from '../src/utils/uiHelpers';
+import { getDemographicContextLabel, getStudentStatusPresentation } from '../src/utils/uiHelpers';
 
 describe('getStudentStatusPresentation (hanya tata bahasa)', () => {
   it('memakai populasi default sebelum snapshot server tiba', () => {
@@ -35,5 +35,29 @@ describe('getStudentStatusPresentation (hanya tata bahasa)', () => {
       statusLabel: 'semua status',
       isCumulative: true,
     });
+  });
+});
+
+describe('getDemographicContextLabel (hanya tata bahasa)', () => {
+  it('mengosongkan label saat tidak ada filter demografis aktif', () => {
+    expect(getDemographicContextLabel([], [], [])).toBe('');
+    expect(getDemographicContextLabel([[], [], []])).toBe('');
+    expect(getDemographicContextLabel([undefined, null, ''])).toBe('');
+    expect(getDemographicContextLabel()).toBe('');
+  });
+
+  it('tidak menghasilkan koma berlebih saat filter terisi sebagian', () => {
+    expect(getDemographicContextLabel([['FST'], [], []])).toBe('FST');
+    expect(getDemographicContextLabel(['FST'], [], [])).toBe('FST');
+    expect(getDemographicContextLabel([[], ['Informatika'], []])).toBe('Informatika');
+  });
+
+  it('menyambung label multi-pilihan dengan koma', () => {
+    expect(getDemographicContextLabel(['FST'], ['Ilmu Komputer'], ['S1'])).toBe(
+      'FST, Ilmu Komputer, S1',
+    );
+    expect(getDemographicContextLabel([['FST'], ['Ilmu Komputer'], ['S1']])).toBe(
+      'FST, Ilmu Komputer, S1',
+    );
   });
 });

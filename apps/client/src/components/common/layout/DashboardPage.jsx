@@ -87,7 +87,7 @@ export default function DashboardPage({
 
   // Refetch senyap tidak boleh mengubah kartu yang sudah tampil menjadi skeleton.
   const isKpiLoading = summaryQuery.isLoading || isDebouncing;
-  const display = useKpiDisplay(summaryQuery.data, isKpiLoading);
+  const display = useKpiDisplay(summaryQuery.data, isKpiLoading, filters);
   const kpiScope = useMemo(
     () => matchKpiFilterScope(summaryQuery.data?.kpiFilterScope, activeFilterParams),
     [summaryQuery.data?.kpiFilterScope, activeFilterParams],
@@ -99,8 +99,8 @@ export default function DashboardPage({
     [actionLabel, isKpiLoading],
   );
   const cards = useMemo(
-    () => buildCards({ ...display, kpiScope, openModal }),
-    [buildCards, display, kpiScope, openModal],
+    () => buildCards({ ...display, kpiScope, openModal, filterValues: filters }),
+    [buildCards, display, kpiScope, openModal, filters],
   );
 
   return (

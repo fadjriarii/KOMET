@@ -82,10 +82,16 @@ function toTrendRow(academicYear, { total, foreign }) {
 }
 
 async function getInternationalStudentsTrend(query = {}) {
+  // Filter kewarganegaraan dari UI (mis. WNI) tidak boleh mempersempit kartu
+  // mahasiswa internasional (WNA) menjadi 0: kartu ini khusus mengukur WNA
+  // di dalam populasi demografis yang dipilih.
+  const baseQuery = { ...query };
+  delete baseQuery.kewarganegaraan;
+
   // Dua populasi, dua scope — dinyatakan saat filter dibangun, bukan dengan
   // membuang kondisi dari filter yang sudah jadi.
-  const populationFilter = buildStudentFilter(query);
-  const windowFilter = buildStudentFilter(query, { scope: FILTER_SCOPES.ALL_YEARS });
+  const populationFilter = buildStudentFilter(baseQuery);
+  const windowFilter = buildStudentFilter(baseQuery, { scope: FILTER_SCOPES.ALL_YEARS });
 
   // Jendela 5 tahun hanya butuh tahun akademik terbaru: cukup satu agregat,
   // bukan `distinct periodeMasuk` atas seluruh tabel pada setiap request.

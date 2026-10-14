@@ -11,13 +11,16 @@
  * - kartu WNA + chart tren asing  : populasi, jendela tahun dibangun sendiri
  * - kartu intake + penurunan      : COHORT (status tidak membatasi)
  */
-const { buildStudentFilter, getSelectedAcademicYear } = require('./filterBuilder');
+const prisma = require('../../config/prisma');
+const { buildStudentFilter, getSelectedAcademicYear, FILTER_SCOPES } = require('./filterBuilder');
 const { parseStatusSelection, DEFAULT_STATUS } = require('./snapshotConditions');
 const { getTotalActiveStudents } = require('./activeStudents');
 const { getInternationalStudentsTrend } = require('./internationalTrend');
 const { getIntakeYearCounts, buildIntakeRow, buildIntakeTrend } = require('./intakeTrend');
 const { getNewStudentDecline } = require('./declineTrend');
+const { parsePeriode } = require('../../utils/academicUtils');
 const { rate } = require('../../utils/percentageUtils');
+const { toArray } = require('../shared/filterUtils');
 
 /**
  * Param query yang dibaca tiap kartu — dasar badge "Terfilter" di client, supaya
@@ -38,10 +41,12 @@ const POPULATION_PARAMS = [
   'tahunAjaran',
 ];
 const tanpa = (...keys) => POPULATION_PARAMS.filter((key) => !keys.includes(key));
-/** COHORT: intake menghitung semua yang masuk, status tidak membatasi. */
-const TANPA_STATUS = tanpa('statusKeaktifan');
-/** ALL_YEARS: tren membangun jendela tahunnya sendiri. */
-const TANPA_TAHUN_AJARAN = tanpa('tahunAjaran');
+/** COHORT: intake menghitung semua yang masuk, status keaktifan tidak membatasi. Semester dan angkatan memfilter intake. */
+const INTAKE_SCOPE = tanpa('statusKeaktifan');
+/** Tren penurunan kebal terhadap filter semester dan status keaktifan. */
+const DECLINE_SCOPE = tanpa('statusKeaktifan', 'semester');
+/** kewarganegaraan tidak memfilter WNA; tahunAjaran tetap memfilter populasi card. */
+const FOREIGN_SCOPE = tanpa('kewarganegaraan');
 
 /**
  * Fakta seleksi status untuk kartu mahasiswa aktif. `isCumulative` adalah aturan
@@ -61,6 +66,12 @@ function describeStatusSelection(statusValues) {
 
 async function getStudentSummary(query = {}) {
   const selectedAcademicYear = getSelectedAcademicYear(query);
+  const selectedCohortYears = (toArray(query.angkatanTahun) || []).filter(
+    (y) => typeof y === 'string' && /^\d{4}\/\d{4}$/.test(y),
+  );
+  const selectedSemesters = (toArray(query.semester) || [])
+    .map((s) => (s === '9+' ? 9 : Number(s)))
+    .filter((s) => Number.isInteger(s) && s > 0);
 
   const [activeStudentsCount, internationalTrend, yearCounts] = await Promise.all([
     getTotalActiveStudents(buildStudentFilter(query)),
@@ -72,13 +83,85 @@ async function getStudentSummary(query = {}) {
   ]);
 
   const intakeTrend = buildIntakeTrend(yearCounts);
-  const newStudentDecline = getNewStudentDecline(selectedAcademicYear, yearCounts);
+  const newStudentDecline = getNewStudentDecline(
+    selectedAcademicYear,
+    yearCounts,
+    selectedCohortYears,
+  );
 
-  // Kartu intake mengikuti tahun ajaran yang dipilih, bukan selalu tahun
-  // terakhir pada rolling trend.
-  const latestIntake = selectedAcademicYear
-    ? buildIntakeRow(selectedAcademicYear, yearCounts)
-    : intakeTrend[intakeTrend.length - 1];
+  // Kartu intake mengikuti angkatan terpilih bila ada; bila tidak, mengikuti
+  // tahun ajaran yang dipilih atau tahun terakhir pada rolling trend.
+  // Jika ada filter semester, query langsung dari data mahasiswa di semester
+  // tersebut — bukan menebak dengan rumus matematika.
+  let latestIntake;
+  let intakeCohortCount;
+  let intakePeriod;
+  let intakeSemesterTerm = null;
+
+  if (selectedSemesters.length > 0) {
+    // Identifikasi periodeMasuk mahasiswa aktif pada semester terpilih, lalu
+    // hitung TOTAL mahasiswa baru (seluruh status, scope COHORT) yang masuk
+    // pada periodeMasuk tersebut — bukan hanya yang saat ini aktif.
+    const activeFilter = buildStudentFilter(query);
+    const activeGroups = await prisma.student.groupBy({
+      by: ['semester', 'periodeMasuk'],
+      where: activeFilter,
+      _count: { nim: true },
+    });
+
+    // periodeMasuk dominan per semester yang dipilih.
+    const targetPeriods = new Set();
+    const periodStats = [];
+    selectedSemesters.forEach((sem) => {
+      const forSem = activeGroups.filter((g) => g.semester === Number(sem));
+      if (forSem.length > 0) {
+        forSem.sort((a, b) => b._count.nim - a._count.nim);
+        targetPeriods.add(forSem[0].periodeMasuk);
+        periodStats.push(forSem[0].periodeMasuk);
+      }
+    });
+
+    if (targetPeriods.size > 0) {
+      // Hitung total intake pada periodeMasuk tersebut (scope COHORT: seluruh status).
+      const cohortFilter = buildStudentFilter(query, { scope: FILTER_SCOPES.COHORT });
+      delete cohortFilter.semester; // jangan filter semester pada populasi intake
+
+      const intakeRows = await prisma.student.groupBy({
+        by: ['periodeMasuk'],
+        where: { ...cohortFilter, periodeMasuk: { in: [...targetPeriods] } },
+        _count: { nim: true },
+      });
+
+      intakeCohortCount = intakeRows.reduce((sum, r) => sum + r._count.nim, 0);
+
+      if (selectedSemesters.length === 1) {
+        const parsed = parsePeriode(periodStats[0]);
+        intakePeriod = parsed?.academicYear || null;
+        intakeSemesterTerm = parsed ? (parsed.isGanjil ? 'Ganjil' : 'Genap') : null;
+      } else {
+        intakePeriod = 'terpilih';
+      }
+    } else {
+      intakeCohortCount = 0;
+      intakePeriod = selectedSemesters.length === 1 ? null : 'terpilih';
+    }
+  } else if (selectedCohortYears.length === 1) {
+    latestIntake = buildIntakeRow(selectedCohortYears[0], yearCounts);
+    intakeCohortCount = latestIntake.intakeCount;
+    intakePeriod = selectedCohortYears[0];
+  } else if (selectedCohortYears.length > 1) {
+    intakeCohortCount = selectedCohortYears.reduce(
+      (sum, yr) => sum + (yearCounts.get(yr)?.total ?? 0),
+      0,
+    );
+    intakePeriod = 'terpilih';
+  } else {
+    latestIntake = selectedAcademicYear
+      ? buildIntakeRow(selectedAcademicYear, yearCounts)
+      : intakeTrend[intakeTrend.length - 1];
+    intakeCohortCount = latestIntake?.intakeCount ?? 0;
+    intakePeriod = latestIntake?.tahun || null;
+  }
 
   const foreignStudentsCount = internationalTrend.total;
   const declinePercentage = newStudentDecline?.declinePercentage;
@@ -111,21 +194,20 @@ async function getStudentSummary(query = {}) {
       activeStudentStatus: describeStatusSelection(query.statusKeaktifan),
       foreignRate: rate(foreignStudentsCount, activeStudentsCount),
       foreignStudentsCount,
-      intakeCohortCount: latestIntake?.intakeCount ?? 0,
+      intakeCohortCount,
       declinePercentage: hasEnoughDeclineData ? declinePercentage : null,
       isFluctuationPositive: hasEnoughDeclineData && declinePercentage >= 0,
-      intakePeriod: latestIntake?.tahun || null,
+      intakePeriod,
+      intakeSemesterTerm,
       declinePeriod: newStudentDecline?.selectedPeriod || null,
+      declineYearsCount: newStudentDecline?.yearsCount ?? 5,
       hasEnoughDeclineData,
     },
     kpiFilterScope: {
       active: POPULATION_PARAMS,
-      // Tren WNA membangun jendela tahunnya sendiri: tahun akademik terpilih
-      // tidak memotong angkanya.
-      foreign: TANPA_TAHUN_AJARAN,
-      // Intake dan penurunan menghitung kohort yang masuk — status diabaikan.
-      intake: TANPA_STATUS,
-      decline: TANPA_STATUS,
+      foreign: FOREIGN_SCOPE,
+      intake: INTAKE_SCOPE,
+      decline: DECLINE_SCOPE,
     },
   };
 }

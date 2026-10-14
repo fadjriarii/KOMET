@@ -25,15 +25,27 @@ export function getStudentKpiSubtitles(
   { foreignStudentsCount, intakePeriod, declinePeriod } = {},
   activeStatusLabel = STUDENT_STATUS.AKTIF,
 ) {
+  const lowerStatus = activeStatusLabel.toLowerCase();
   return {
-    activeSubtitle: `Total Student Body status ${activeStatusLabel.toLowerCase()}`,
+    activeSubtitle: `Total Student Body status ${lowerStatus}`,
     foreignSubtitle:
       foreignStudentsCount !== undefined && foreignStudentsCount !== null
         ? `${formatNumber(foreignStudentsCount)} Mahasiswa Non-WNI`
-        : 'Non-WNI status aktif',
-    intakeSubtitle: intakePeriod ? `Semester 1 (Periode ${intakePeriod})` : 'Semester 1',
+        : `Non-WNI status ${lowerStatus}`,
+    intakeSubtitle: intakePeriod
+      ? `Semester 1, Periode Ganjil Tahun Ajaran ${intakePeriod}`
+      : 'Semester 1',
     declineSubtitle: declinePeriod ? `Rata-rata 5 Tahun (${declinePeriod})` : 'Rata-rata 5 Tahun',
   };
+}
+/**
+ * Konteks demografis aktif untuk subtitle card — daftar label dari pilihan filter
+ * yang menyimpang dari default (fakultas/prodi/jenjang). Hasil kosong = tidak
+ * ada filter demografis aktif, pemanggil tidak menyisipkan apa pun.
+ */
+export function getDemographicContextLabel(...values) {
+  const parts = values.flat(Infinity).filter((item) => typeof item === 'string' && item !== '');
+  return parts.length ? parts.join(', ') : '';
 }
 /**
  * Label kartu/modal dari seleksi status. Yang boleh ada di sini hanya tata bahasa:

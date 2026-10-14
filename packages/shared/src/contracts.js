@@ -95,7 +95,9 @@ const STUDENT_SUMMARY_KPIS = [
   'declinePercentage',
   'isFluctuationPositive',
   'intakePeriod',
+  'intakeSemesterTerm',
   'declinePeriod',
+  'declineYearsCount',
   'hasEnoughDeclineData',
 ];
 

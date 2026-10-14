@@ -14,6 +14,8 @@ function buildCards({
   kpis,
   activeStudentPresentation,
   displaySubtitles,
+  displayTitles,
+  displayBadges,
   declineTrendStyle,
   kpiScope,
   isReady,
@@ -36,7 +38,7 @@ function buildCards({
       value: formatKpiDisplay(kpis.foreignRate),
       subtitle: displaySubtitles.foreignSubtitle,
       icon: Globe,
-      badge: 'Non-WNI Aktif',
+      badge: `Non-WNI ${activeStudentPresentation.statusLabel}`,
       onViewDetails: (event) => openModal('foreign', event),
       isFiltered: kpiScope.foreign && isReady,
     },
@@ -52,7 +54,7 @@ function buildCards({
     },
     {
       key: 'decline',
-      title: 'Penurunan Mhs Baru (5 Thn)',
+      title: displayTitles.declineTitle,
       value: kpis.declineAvg,
       subtitle: displaySubtitles.declineSubtitle,
       icon:
@@ -62,7 +64,7 @@ function buildCards({
             ? TrendingUp
             : TrendingDown,
       valueClassName: declineTrendStyle.textClass,
-      badge: kpis.hasEnoughDeclineData === false ? 'Data Belum Cukup' : '5-Year Avg',
+      badge: displayBadges.declineBadge,
       onViewDetails: (event) => openModal('decline', event),
       isFiltered: kpiScope.decline && isReady,
     },

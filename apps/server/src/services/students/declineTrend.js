@@ -36,13 +36,88 @@ function getDefaultAcademicYear(yearCounts) {
 }
 
 /**
- * Hitung penurunan mahasiswa baru 5 tahun ke belakang dari periode terpilih.
+ * Hitung penurunan mahasiswa baru 5 tahun ke belakang dari periode terpilih,
+ * atau sesuaikan dengan tahun angkatan yang dipilih user.
  *
  * @param {string|null} selectedPeriode - Tahun akademik "YYYY/YYYY" atau null (terbaru di data)
  * @param {Map<string, {total: number}>} yearCounts - Peta intake per tahun akademik
+ * @param {string[]} [selectedCohortYears=[]] - Filter angkatan eksplisit dari query
  * @returns {object|null} Data decline atau null jika tidak ada data
  */
-function getNewStudentDecline(selectedPeriode, yearCounts = new Map()) {
+function getNewStudentDecline(selectedPeriode, yearCounts = new Map(), selectedCohortYears = []) {
+  // Jika user memilih 1 angkatan: bandingkan dengan tahun sebelumnya
+  if (selectedCohortYears.length === 1) {
+    const targetYear = selectedCohortYears[0];
+    const start = getAcademicYearStart(targetYear);
+    const prevYear = start !== null ? `${start - 1}/${start}` : null;
+    const currentTotal = yearCounts.get(targetYear)?.total ?? 0;
+    const previousTotal = prevYear ? yearCounts.get(prevYear)?.total : undefined;
+    const change = calculateChange(currentTotal, previousTotal);
+    const usedChanges = change !== null ? [change] : [];
+
+    return {
+      selectedPeriod: targetYear,
+      declinePercentage: average(usedChanges),
+      comparisonsUsed: usedChanges.length,
+      comparisonsTotal: 1,
+      yearsCount: 1,
+      history: [
+        ...(prevYear
+          ? [
+              {
+                label: 'A',
+                academicYear: prevYear,
+                intakeCount: previousTotal ?? 0,
+                changeFromPrev: null,
+              },
+            ]
+          : []),
+        {
+          label: prevYear ? 'B' : 'A',
+          academicYear: targetYear,
+          intakeCount: currentTotal,
+          changeFromPrev: toPercentage(change),
+        },
+      ],
+    };
+  }
+
+  // Jika user memilih lebih dari 1 angkatan: rata-rata persentase perubahan tahun terpilih
+  if (selectedCohortYears.length > 1) {
+    const sortedYears = [...selectedCohortYears]
+      .filter((y) => getAcademicYearStart(y) !== null)
+      .sort((a, b) => getAcademicYearStart(a) - getAcademicYearStart(b));
+
+    const changes = sortedYears.map((academicYear) => {
+      const start = getAcademicYearStart(academicYear);
+      const prevYear = `${start - 1}/${start}`;
+      const currentTotal = yearCounts.get(academicYear)?.total ?? 0;
+      const previousTotal = yearCounts.get(prevYear)?.total;
+      return calculateChange(currentTotal, previousTotal);
+    });
+    const usedChanges = changes.filter((change) => change !== null);
+
+    return {
+      selectedPeriod: sortedYears.join(', '),
+      declinePercentage: average(usedChanges),
+      comparisonsUsed: usedChanges.length,
+      comparisonsTotal: sortedYears.length,
+      yearsCount: sortedYears.length,
+      history: sortedYears.map((academicYear, index) => {
+        const start = getAcademicYearStart(academicYear);
+        const prevYear = `${start - 1}/${start}`;
+        const currentTotal = yearCounts.get(academicYear)?.total ?? 0;
+        const previousTotal = yearCounts.get(prevYear)?.total;
+        return {
+          label: String.fromCharCode(65 + index),
+          academicYear,
+          intakeCount: currentTotal,
+          changeFromPrev: toPercentage(calculateChange(currentTotal, previousTotal)),
+        };
+      }),
+    };
+  }
+
   const selectedYear = getAcademicYearStart(selectedPeriode) === null ? null : selectedPeriode;
   const anchorYear = selectedYear || getDefaultAcademicYear(yearCounts);
 
@@ -75,6 +150,7 @@ function getNewStudentDecline(selectedPeriode, yearCounts = new Map()) {
     declinePercentage: average(usedChanges),
     comparisonsUsed: usedChanges.length,
     comparisonsTotal: changes.length,
+    yearsCount: 5,
     history: academicYears.map((academicYear, index) => ({
       // Satu titik per tahun akademik. `changeFromPrev` = perubahan dari tahun
       // akademik sebelumnya (lebih tua) ke tahun ini; titik terlama tidak punya

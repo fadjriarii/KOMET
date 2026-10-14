@@ -1,7 +1,28 @@
 import { useMemo } from 'react';
 import { formatDecimal, formatNumber, formatPercentage } from '@komet/shared/formatters';
+import { getDemographicContextLabel } from '../../../utils/uiHelpers';
 
-export function useGraduateKpiDisplay(summaryData, isLoading) {
+/**
+ * Konteks demografis aktif (fakultas/prodi/jenjang) — berlaku untuk semua card.
+ */
+function buildFilterContext(filterValues = {}) {
+  return getDemographicContextLabel(
+    filterValues.selectedFaculty,
+    filterValues.selectedProdi,
+    filterValues.selectedJenjang,
+  );
+}
+
+/**
+ * Tambahkan konteks filter ke subtitle inti.
+ * Tanpa konteks → subtitle inti apa adanya.
+ */
+function withContext(subtitle, context, { wrap = false } = {}) {
+  if (!context) return subtitle;
+  return wrap ? `${subtitle} (${context})` : `${subtitle} — ${context}`;
+}
+
+export function useGraduateKpiDisplay(summaryData, isLoading, filterValues = {}) {
   return useMemo(() => {
     const kpis = summaryData?.kpis || {};
     const summary = summaryData?.summary || {};
@@ -21,16 +42,28 @@ export function useGraduateKpiDisplay(summaryData, isLoading) {
     const s2OnTime = formatPercentage(kpis.onTimeGraduationRateS2, 1);
     const s1StudySuccess = formatPercentage(kpis.studySuccessRateS1, 1);
 
+    const demographicContext = buildFilterContext(filterValues);
+
+    // Subtitle inti per card
+    const baseTotal = `S1: ${formatNumber(kpis.totalGraduatesS1)} • S2: ${formatNumber(
+      kpis.totalGraduatesS2,
+    )}${extraSubtitle ? ` • ${extraSubtitle}` : ''} Lulusan`;
+    const baseGpa = `S1: ${s1Gpa} • S2: ${s2Gpa}`;
+    const baseOnTime = `S1: ${s1OnTime} • S2: ${s2OnTime}`;
+    const baseStudySuccess = summary.keberhasilanStudi?.angkatanS1
+      ? `Evaluasi Angkatan ${summary.keberhasilanStudi.angkatanS1} (S1)`
+      : 'Tingkat Kelulusan Akhir';
+
     const subtitles = {
-      total: `S1: ${formatNumber(kpis.totalGraduatesS1)} • S2: ${formatNumber(
-        kpis.totalGraduatesS2,
-      )}${extraSubtitle ? ` • ${extraSubtitle}` : ''} Lulusan`,
+      // Card total: semua filter relevan
+      total: withContext(baseTotal, demographicContext),
       totalScope: kpis.totalScopeLabel || 'Semua Tahun',
-      gpa: `S1: ${s1Gpa} • S2: ${s2Gpa}`,
-      onTime: `S1: ${s1OnTime} • S2: ${s2OnTime}`,
-      studySuccess: summary.keberhasilanStudi?.angkatanS1
-        ? `Evaluasi Angkatan ${summary.keberhasilanStudi.angkatanS1} (S1)`
-        : 'Tingkat Kelulusan Akhir',
+      // Card gpa: semua filter relevan
+      gpa: withContext(baseGpa, demographicContext),
+      // Card onTime: semua filter relevan
+      onTime: withContext(baseOnTime, demographicContext),
+      // Card studySuccess: tahunLulus/periodeWisuda/predikat TIDAK relevan (COHORT scope)
+      studySuccess: withContext(baseStudySuccess, demographicContext, { wrap: true }),
     };
 
     return {
@@ -46,5 +79,5 @@ export function useGraduateKpiDisplay(summaryData, isLoading) {
       displaySubtitles: subtitles,
       isReady: Boolean(summaryData?.success) && !isLoading,
     };
-  }, [isLoading, summaryData]);
+  }, [isLoading, summaryData, filterValues]);
 }

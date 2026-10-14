@@ -139,9 +139,9 @@ const ROUTES = {
     ],
     scope: {
       active: POPULATION,
-      foreign: tanpa('tahunAjaran'),
+      foreign: tanpa('kewarganegaraan'),
       intake: tanpa('statusKeaktifan'),
-      decline: tanpa('statusKeaktifan'),
+      decline: tanpa('statusKeaktifan', 'semester'),
     },
     filterCases: [
       { url: '/students?faculty=FST', api: 'fakultas', value: 'FST' },
