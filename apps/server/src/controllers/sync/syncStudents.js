@@ -3,6 +3,7 @@ const syncJobTracker = require('../../utils/syncJobTracker');
 const createSyncHandler = require('./createSyncHandler');
 const { deduplicateStudents } = require('../../services/studentDeduplicationService');
 const { mapStudentRow } = require('./mapStudentRow');
+const { applyTransferSemester } = require('./transferSemester');
 const { getProdiFakultasMap, resolveFakultas, paginateSevimaPages } = require('./sevimaLookup');
 const { bulkUpsertStudents } = require('./bulkWrite');
 
@@ -56,13 +57,17 @@ const executeSyncStudents = async ({ runDedup = true } = {}) => {
     deduplicationResult = await deduplicateStudents({ pruneNims: fetchedNims });
   }
 
+  // Semester enrollment transfer dihitung dari awal masuk rantainya, bukan
+  // dari periode pasca-transfer (aturan: studi kontinu se-jenjang).
+  const transferFix = await applyTransferSemester();
+
   syncJobTracker.updateProgress('students', {
     status: 'completed',
     synced: totalSynced,
     skipped: totalSkipped,
   });
   logger.success(
-    `[Mahasiswa] Selesai! ${totalSynced} data disinkronkan, ${totalSkipped} dilewati, ${deduplicationResult?.deletedStudentsCount || 0} duplikat dibersihkan.`,
+    `[Mahasiswa] Selesai! ${totalSynced} data disinkronkan, ${totalSkipped} dilewati, ${deduplicationResult?.deletedStudentsCount || 0} duplikat dibersihkan, ${transferFix.updated} semester transfer dikoreksi.`,
   );
   return {
     totalSynced,

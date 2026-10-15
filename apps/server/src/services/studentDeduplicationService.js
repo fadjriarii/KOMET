@@ -329,4 +329,6 @@ module.exports = {
   deduplicateStudents,
   isSamePerson,
   survivorFirst,
+  personKeys,
+  isStatusPindah,
 };
