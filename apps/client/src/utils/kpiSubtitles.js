@@ -1,6 +1,7 @@
 /**
  * kpiSubtitles.js — peramu subtitle 4 kartu KPI dari label filter + angka server.
  * Fungsi murni (teks dipin test `kpiDisplayHooks`); hook hanya menyiapkan inputnya.
+ * Aturan jujur: periode/rumus hanya disebut bila datanya ada dari server.
  */
 
 /** Card Active: "Total Mahasiswa {status} {demografi}" */
@@ -10,17 +11,18 @@ export function buildActiveSubtitle(baseSubtitle, cardTitleFragment, demographic
     : baseSubtitle;
 }
 
-/** Card Foreign: "{n} Mahasiswa International {status}, pada {demografi}" */
+/** Card Foreign: "{n} Mahasiswa Internasional {status}, pada {demografi}" */
 export function buildForeignSubtitle(baseSubtitle, foreignCount, statusLabel, demographicLabel) {
   return demographicLabel
-    ? `${foreignCount} Mahasiswa International ${statusLabel}, pada ${demographicLabel}`
+    ? `${foreignCount} Mahasiswa Internasional ${statusLabel}, pada ${demographicLabel}`
     : baseSubtitle;
 }
 
 /**
  * Card Intake. Semester menang atas angkatan (backend sudah mengiris keduanya
- * bila aktif bersamaan). nonCohortLocation = fakultas + prodi + jenjang (tanpa
- * angkatan & semester); angkatanLabel ditambahkan bila ikut aktif.
+ * bila aktif bersamaan). Klausa periode hanya tampil bila backend mengirim
+ * jenis semesternya; angkatan tidak mengklaim periode (cohort mencakup
+ * Ganjil+Genap).
  */
 export function buildIntakeSubtitle({
   baseSubtitle,
@@ -33,21 +35,23 @@ export function buildIntakeSubtitle({
   currentTahunAjaran,
 }) {
   if (selectedSemesters.length === 1) {
-    const periode = intakeSemesterTerm || 'Ganjil';
     const tahun = intakePeriod || currentTahunAjaran;
+    const periode = intakeSemesterTerm
+      ? ` pada periode ${intakeSemesterTerm} pada Tahun Ajaran ${tahun}`
+      : ` pada Tahun Ajaran ${tahun}`;
     return intakeLocation
-      ? `Menjadi Mahasiswa baru Pada periode ${periode} Pada Tahun Ajaran ${tahun}, pada ${intakeLocation}`
-      : `Menjadi Mahasiswa baru Pada periode ${periode} Pada Tahun Ajaran ${tahun}`;
+      ? `Menjadi mahasiswa baru${periode}, pada ${intakeLocation}`
+      : `Menjadi mahasiswa baru${periode}`;
   }
   if (selectedSemesters.length > 1) {
     return intakeLocation
-      ? `Menjadi Mahasiswa baru pada Semester Terpilih, pada ${intakeLocation}`
-      : 'Menjadi Mahasiswa baru pada Semester Terpilih';
+      ? `Menjadi mahasiswa baru pada Semester Terpilih, pada ${intakeLocation}`
+      : 'Menjadi mahasiswa baru pada Semester Terpilih';
   }
   if (selectedYears.length === 1) {
     return nonCohortLocation
-      ? `Semester 1, Periode Ganjil Tahun Ajaran ${selectedYears[0]}, pada ${nonCohortLocation}`
-      : `Semester 1, Periode Ganjil Tahun Ajaran ${selectedYears[0]}`;
+      ? `Semester 1 Tahun Ajaran ${selectedYears[0]}, pada ${nonCohortLocation}`
+      : `Semester 1 Tahun Ajaran ${selectedYears[0]}`;
   }
   if (selectedYears.length > 1) {
     return nonCohortLocation
@@ -57,8 +61,8 @@ export function buildIntakeSubtitle({
   const intakeYear = intakePeriod || currentTahunAjaran || '';
   if (nonCohortLocation) {
     return intakeYear
-      ? `Semester 1, Periode Ganjil Tahun Ajaran ${intakeYear}, pada ${nonCohortLocation}`
-      : `Semester 1, pada ${nonCohortLocation}`;
+      ? `Semester 1 Tahun Ajaran ${intakeYear}, pada ${nonCohortLocation}`
+      : `Semester 1 pada ${nonCohortLocation}`;
   }
   return baseSubtitle;
 }
@@ -76,7 +80,7 @@ export function buildDeclineDisplay({
       declineTitle: 'Penurunan Mhs Baru (1 Thn)',
       declineBadge: hasEnoughDeclineData ? '1-Year Comp' : 'Data Belum Cukup',
       declineSubtitle: declineDemographicLabel
-        ? `Perbandingan dengan tahun sebelumnya, Pada ${declineDemographicLabel}`
+        ? `Perbandingan dengan tahun sebelumnya, pada ${declineDemographicLabel}`
         : `Perbandingan dengan tahun sebelumnya pada ${selectedYears[0]}`,
     };
   }
@@ -85,15 +89,15 @@ export function buildDeclineDisplay({
       declineTitle: `Penurunan Mhs Baru (${selectedYears.length} Thn)`,
       declineBadge: hasEnoughDeclineData ? `${selectedYears.length}-Year Avg` : 'Data Belum Cukup',
       declineSubtitle: declineDemographicLabel
-        ? `Rata-rata Penurunan Mahasiswa Baru dalam ${selectedYears.length} Tahun, Pada ${declineDemographicLabel}`
-        : `Rata-rata Penurunan Mahasiswa Baru dalam ${selectedYears.length} Tahun, Pada Angkatan Terpilih`,
+        ? `Rata-rata Penurunan Mahasiswa Baru dalam ${selectedYears.length} Tahun, pada ${declineDemographicLabel}`
+        : `Rata-rata Penurunan Mahasiswa Baru dalam ${selectedYears.length} Tahun, pada Angkatan Terpilih`,
     };
   }
   return {
     declineTitle: 'Penurunan Mhs Baru (5 Thn)',
     declineBadge: hasEnoughDeclineData ? '5-Year Avg' : 'Data Belum Cukup',
     declineSubtitle: nonCohortLocation
-      ? `Rata-rata Penurunan Mahasiswa Baru dalam 5 Tahun, Pada ${nonCohortLocation}`
+      ? `Rata-rata Penurunan Mahasiswa Baru dalam 5 Tahun, pada ${nonCohortLocation}`
       : baseSubtitle,
   };
 }

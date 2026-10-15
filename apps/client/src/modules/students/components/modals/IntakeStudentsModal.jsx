@@ -65,7 +65,7 @@ export default function IntakeStudentsModal({ isOpen, onClose, originRect, data,
       onClose={onClose}
       originRect={originRect}
       title="Rincian Intake Mahasiswa Baru"
-      subtitle="Riwayat penerimaan mahasiswa baru semester 1 status aktif"
+      subtitle="Riwayat penerimaan mahasiswa baru semester 1 (semua status)"
       banner={
         <ModalSummaryBanner
           description={getStudentIntakeDescription(kpis.intakePeriod, intakeCount)}

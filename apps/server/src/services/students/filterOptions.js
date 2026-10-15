@@ -1,5 +1,9 @@
 const { createFilterOptionsSource, numericAsc } = require('../filterOptionsSource');
-const { toAcademicYear, get5YearRollingAcademicYears } = require('../../utils/academicUtils');
+const {
+  toAcademicYear,
+  get5YearRollingAcademicYears,
+  getAcademicYearStart,
+} = require('../../utils/academicUtils');
 const { formatAcademicYearLabel } = require('@komet/shared/academicYear');
 
 const studentQueries = {
@@ -13,8 +17,8 @@ const studentQueries = {
   jenjang: { model: 'student', field: 'jenjang' },
 };
 
-function deriveStudentOptions({ angkatan, semester, periodeMasuk }) {
-  const rollingYears = getRollingYears(angkatan);
+function deriveStudentOptions({ angkatan, semester, periodeMasuk }, { selectedStart } = {}) {
+  const rollingYears = getRollingYears(angkatan, selectedStart ?? null);
   return {
     rollingYears,
     customYearMeta: getCustomYearMeta(rollingYears),
@@ -51,11 +55,16 @@ function getSemesterOptions(values) {
   return options;
 }
 
-function getRollingYears(values) {
+function getRollingYears(values, selectedStart = null) {
   // Kolom sudah menyimpan label ajaran; rolling dibaca verbatim dari data,
-  // tanpa mem-parsing tahun mentah di mana pun.
-  const labels = [...new Set(values.map(String).filter(Boolean))].sort().reverse().slice(0, 5);
-  return labels.length ? labels : [];
+  // tanpa mem-parsing tahun mentah di mana pun. Bila tahun ajaran terpilih,
+  // jendela 5 tahun mundur mengikuti tahun itu (bukan data terbaru).
+  const labels = [...new Set(values.map(String).filter(Boolean))].sort().reverse();
+  const eligible =
+    selectedStart === null
+      ? labels
+      : labels.filter((label) => getAcademicYearStart(label) <= selectedStart);
+  return eligible.slice(0, 5);
 }
 
 /**
@@ -85,7 +94,10 @@ const studentFilterOptions = createFilterOptionsSource({
 });
 
 module.exports = {
-  getFilterOptions: studentFilterOptions.getFilterOptions,
+  getFilterOptions: (selectedYear) => {
+    const start = typeof selectedYear === 'string' ? getAcademicYearStart(selectedYear) : null;
+    return studentFilterOptions.getFilterOptions(false, { selectedStart: start });
+  },
   clearFilterCache: studentFilterOptions.clearFilterCache,
   // Dipakai ulang tab Graduate untuk rolling tahun/angkatan — satu implementasi.
   getRollingYears,

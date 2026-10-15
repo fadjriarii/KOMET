@@ -93,6 +93,7 @@ async function applyTransferSemester(db = prisma) {
       nim: true,
       jenjang: true,
       periodeMasuk: true,
+      periodeMasukAwal: true,
       periodeTerakhir: true,
       statusKeaktifan: true,
       semester: true,
@@ -104,14 +105,26 @@ async function applyTransferSemester(db = prisma) {
   const awalMap = buildAwalMap(rows);
   const byNim = new Map(rows.map((r) => [r.nim, r]));
   let updated = 0;
+  let awalFilled = 0;
   const details = [];
-  for (const [nim, awal] of awalMap) {
-    const row = byNim.get(nim);
-    const fixed = hitungSemester(row.periodeMasuk, row.periodeTerakhir || null, awal);
-    if (fixed !== row.semester) {
-      await db.student.update({ where: { nim }, data: { semester: fixed } });
-      updated++;
-      details.push({ nim, nama: row.nama, dari: row.semester, ke: fixed, awal });
+  for (const row of rows) {
+    // Awal rantai dipersisten agar jalur baca bisa memproyeksikan semester ke
+    // tahun ajaran mana pun tanpa memindai ulang seluruh tabel.
+    const awal = awalMap.get(row.nim) || '';
+    const fixed =
+      awal && awal < (row.periodeMasuk || '').trim()
+        ? hitungSemester(row.periodeMasuk, row.periodeTerakhir || null, awal)
+        : row.semester;
+    if (fixed !== row.semester || awal !== (row.periodeMasukAwal || '')) {
+      await db.student.update({
+        where: { nim: row.nim },
+        data: { semester: fixed, periodeMasukAwal: awal },
+      });
+      if (awal !== (row.periodeMasukAwal || '')) awalFilled++;
+      if (fixed !== row.semester) {
+        updated++;
+        details.push({ nim: row.nim, nama: row.nama, dari: row.semester, ke: fixed, awal });
+      }
     }
   }
   if (updated > 0) {
@@ -119,7 +132,10 @@ async function applyTransferSemester(db = prisma) {
   } else {
     logger.info('🎓 Tidak ada semester transfer yang perlu dikoreksi.');
   }
-  return { checked: rows.length, chained: awalMap.size, updated, details };
+  if (awalFilled > 0) {
+    logger.info(`🎓 Awal rantai transfer dipersisten: ${awalFilled} enrollment.`);
+  }
+  return { checked: rows.length, chained: awalMap.size, updated, awalFilled, details };
 }
 
 module.exports = { buildAwalMap, applyTransferSemester };

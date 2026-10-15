@@ -60,7 +60,7 @@ describe('useStudentKpiDisplay', () => {
     expect(res4.current.displaySubtitles.activeSubtitle).toBe(
       'Total Mahasiswa Aktif Fakultas Terpilih',
     );
-    expect(res4.current.displaySubtitles.declineSubtitle).toContain('Pada Fakultas Terpilih');
+    expect(res4.current.displaySubtitles.declineSubtitle).toContain('pada Fakultas Terpilih');
   });
 
   it('mengikuti status aktif yang dipilih saat filter fakultas aktif', () => {
@@ -94,13 +94,13 @@ describe('useStudentKpiDisplay', () => {
     const { displaySubtitles } = result.current;
 
     expect(displaySubtitles.foreignSubtitle).toBe(
-      '45 Mahasiswa International Aktif, pada Fakultas FST dan FK',
+      '45 Mahasiswa Internasional Aktif, pada Fakultas FST dan FK',
     );
     expect(displaySubtitles.intakeSubtitle).toBe(
-      'Semester 1, Periode Ganjil Tahun Ajaran 2023/2024, pada Fakultas FST dan FK',
+      'Semester 1 Tahun Ajaran 2023/2024, pada Fakultas FST dan FK',
     );
     expect(displaySubtitles.declineSubtitle).toBe(
-      'Rata-rata Penurunan Mahasiswa Baru dalam 5 Tahun, Pada Fakultas FST dan FK',
+      'Rata-rata Penurunan Mahasiswa Baru dalam 5 Tahun, pada Fakultas FST dan FK',
     );
   });
 
@@ -145,7 +145,7 @@ describe('useStudentKpiDisplay', () => {
     expect(displaySubtitles.activeSubtitle).toBe('Total Mahasiswa Aktif Prodi Terpilih');
     expect(displaySubtitles.foreignSubtitle).toContain('pada Prodi Terpilih');
     expect(displaySubtitles.intakeSubtitle).toContain('Prodi Terpilih');
-    expect(displaySubtitles.declineSubtitle).toContain('Pada Prodi Terpilih');
+    expect(displaySubtitles.declineSubtitle).toContain('pada Prodi Terpilih');
   });
 
   it('menggabungkan filter fakultas dan prodi dengan rapi', () => {
@@ -205,15 +205,13 @@ describe('useStudentKpiDisplay', () => {
 
     expect(displaySubtitles.activeSubtitle).toBe('Total Mahasiswa Aktif Angkatan 2021/2022');
     expect(displaySubtitles.foreignSubtitle).toBe(
-      '15 Mahasiswa International Aktif, pada Angkatan 2021/2022',
+      '15 Mahasiswa Internasional Aktif, pada Angkatan 2021/2022',
     );
-    expect(displaySubtitles.intakeSubtitle).toBe(
-      'Semester 1, Periode Ganjil Tahun Ajaran 2021/2022',
-    );
+    expect(displaySubtitles.intakeSubtitle).toBe('Semester 1 Tahun Ajaran 2021/2022');
     expect(displayTitles.declineTitle).toBe('Penurunan Mhs Baru (1 Thn)');
     expect(displayBadges.declineBadge).toBe('1-Year Comp');
     expect(displaySubtitles.declineSubtitle).toBe(
-      'Perbandingan dengan tahun sebelumnya, Pada Angkatan 2021/2022',
+      'Perbandingan dengan tahun sebelumnya, pada Angkatan 2021/2022',
     );
   });
 
@@ -231,7 +229,7 @@ describe('useStudentKpiDisplay', () => {
     expect(displayTitles.declineTitle).toBe('Penurunan Mhs Baru (2 Thn)');
     expect(displayBadges.declineBadge).toBe('2-Year Avg');
     expect(displaySubtitles.declineSubtitle).toBe(
-      'Rata-rata Penurunan Mahasiswa Baru dalam 2 Tahun, Pada Angkatan Terpilih',
+      'Rata-rata Penurunan Mahasiswa Baru dalam 2 Tahun, pada Angkatan Terpilih',
     );
   });
 
@@ -248,7 +246,7 @@ describe('useStudentKpiDisplay', () => {
       'Total Mahasiswa Aktif Fakultas FST, Angkatan 2021/2022',
     );
     expect(displaySubtitles.intakeSubtitle).toBe(
-      'Semester 1, Periode Ganjil Tahun Ajaran 2021/2022, pada Fakultas FST',
+      'Semester 1 Tahun Ajaran 2021/2022, pada Fakultas FST',
     );
   });
 
@@ -271,10 +269,10 @@ describe('useStudentKpiDisplay', () => {
 
     expect(displaySubtitles.activeSubtitle).toBe('Total Mahasiswa Aktif Semester 5');
     expect(displaySubtitles.foreignSubtitle).toBe(
-      '10 Mahasiswa International Aktif, pada Semester 5',
+      '10 Mahasiswa Internasional Aktif, pada Semester 5',
     );
     expect(displaySubtitles.intakeSubtitle).toBe(
-      'Menjadi Mahasiswa baru Pada periode Ganjil Pada Tahun Ajaran 2022/2023',
+      'Menjadi mahasiswa baru pada periode Ganjil pada Tahun Ajaran 2022/2023',
     );
     // Card Decline kebal semester
     expect(displaySubtitles.declineSubtitle).not.toContain('Semester');
@@ -288,7 +286,7 @@ describe('useStudentKpiDisplay', () => {
 
     expect(displaySubtitles.activeSubtitle).toBe('Total Mahasiswa Aktif Semester Terpilih');
     expect(displaySubtitles.foreignSubtitle).toContain('pada Semester Terpilih');
-    expect(displaySubtitles.intakeSubtitle).toBe('Menjadi Mahasiswa baru pada Semester Terpilih');
+    expect(displaySubtitles.intakeSubtitle).toBe('Menjadi mahasiswa baru pada Semester Terpilih');
     // Card Decline kebal semester
     expect(displaySubtitles.declineSubtitle).not.toContain('Semester');
   });
@@ -308,7 +306,7 @@ describe('useStudentKpiDisplay', () => {
       }),
     );
     expect(result.current.displaySubtitles.intakeSubtitle).toBe(
-      'Menjadi Mahasiswa baru Pada periode Genap Pada Tahun Ajaran 2025/2026',
+      'Menjadi mahasiswa baru pada periode Genap pada Tahun Ajaran 2025/2026',
     );
   });
 
@@ -338,15 +336,15 @@ describe('useStudentKpiDisplay', () => {
     );
     // Card 2: Memuat seluruh filter yang aktif
     expect(displaySubtitles.foreignSubtitle).toBe(
-      '2 Mahasiswa International Aktif, pada Fakultas Kedokteran, Prodi Pendidikan Dokter, Angkatan 2025, Semester 2',
+      '2 Mahasiswa Internasional Aktif, pada Fakultas Kedokteran, Prodi Pendidikan Dokter, Angkatan 2025, Semester 2',
     );
     // Card 3: Periode masuk + lokasi & angkatan
     expect(displaySubtitles.intakeSubtitle).toBe(
-      'Menjadi Mahasiswa baru Pada periode Genap Pada Tahun Ajaran 2025/2026, pada Fakultas Kedokteran, Prodi Pendidikan Dokter, Angkatan 2025',
+      'Menjadi mahasiswa baru pada periode Genap pada Tahun Ajaran 2025/2026, pada Fakultas Kedokteran, Prodi Pendidikan Dokter, Angkatan 2025',
     );
     // Card 4: Kebal semester, hanya memuat lokasi & angkatan
     expect(displaySubtitles.declineSubtitle).toBe(
-      'Perbandingan dengan tahun sebelumnya, Pada Fakultas Kedokteran, Prodi Pendidikan Dokter, Angkatan 2025',
+      'Perbandingan dengan tahun sebelumnya, pada Fakultas Kedokteran, Prodi Pendidikan Dokter, Angkatan 2025',
     );
   });
 });

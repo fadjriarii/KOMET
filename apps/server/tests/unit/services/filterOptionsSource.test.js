@@ -70,7 +70,9 @@ describe('sumber opsi filter', () => {
     const cached = await source.getFilterOptions();
 
     expect(first).toEqual({ fakultas: ['FT'], total: 1 });
-    expect(cached).toBe(first);
+    // Nilai distinct di-cache (satu fetch), turunannya dihitung per panggilan
+    // supaya bisa mengikuti parameter tanpa mengorbankan cache query berat.
+    expect(cached).toEqual(first);
     expect(groupBy).toHaveBeenCalledTimes(1);
 
     await source.getFilterOptions(true);

@@ -1,4 +1,5 @@
 import { buildStudentCards } from './buildStudentCards';
+import { useSearchParams } from 'react-router-dom';
 import { getRollingAcademicYears } from '@komet/shared/academicYear';
 import DashboardPage from '../../../components/common/layout/DashboardPage';
 import StudentDataTable from '../components/StudentDataTable';
@@ -22,8 +23,10 @@ function AcademicYearHeaderFilter({ filters, setters, summaryQuery, options }) {
 }
 
 export default function StudentsPage() {
-  // Pilihan filter datang dari endpoint khusus (di-cache 10 menit), bukan dari summary.
-  const { filterOptions } = useStudentFilterOptions();
+  // Tahun ajaran dibaca dari URL (sumber yang sama dipakai filter) supaya
+  // daftar opsi angkatan mengikuti tahun yang sedang dipilih.
+  const [searchParams] = useSearchParams();
+  const { filterOptions } = useStudentFilterOptions(searchParams.get('tahunAjaran'));
 
   return (
     <DashboardPage

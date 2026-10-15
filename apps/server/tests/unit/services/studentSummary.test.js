@@ -11,7 +11,7 @@ describe('student summary service (real database)', () => {
 
     expect(result.kpis).toMatchObject({
       activeStudentsCount: 616,
-      foreignStudentsCount: 13,
+      foreignStudentsCount: 14,
       intakeCohortCount: 169,
       intakePeriod: '2026/2027',
       intakeSemesterTerm: null,

@@ -15,6 +15,7 @@ function DataTable({
   columns = [], // [{ key: 'id', label: 'ID', render: (row) => ... }]
   data = [],
   isLoading = false,
+  error = null, // kegagalan fetch: tampil jujur, jangan samarkan sebagai "tidak ada data"
   title,
   description,
   headerMeta,
@@ -61,6 +62,11 @@ function DataTable({
       )}
 
       <div className={`flex-1 min-w-0 ${tableInset} ${tableViewportClassName}`}>
+        {error && data.length > 0 && (
+          <p className="px-5 pt-3 text-xs text-amber-700">
+            Data mungkin basi: {typeof error === 'string' ? error : 'gagal memuat ulang.'}
+          </p>
+        )}
         <table className={`w-full text-left border-collapse ${tableClassName}`}>
           <TableHead visibleColumns={visibleColumns} headerPadding={headerPadding} />
           <tbody className="divide-y divide-gray-100/80 text-sm text-gray-700">
@@ -68,6 +74,7 @@ function DataTable({
               visibleColumns={visibleColumns}
               data={data}
               isLoading={isLoading}
+              error={error}
               cellPadding={cellPadding}
               rowKey={rowKey}
               emptyTitle={emptyTitle}

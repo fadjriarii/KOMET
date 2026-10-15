@@ -68,7 +68,7 @@ function toTrendRow(academicYear, { total, foreign }) {
     academicYear,
     foreignCount: foreign,
     totalCount: total,
-    percentage: roundedRate(foreign, total),
+    percentage: roundedRate(foreign, total, null),
   };
 }
 

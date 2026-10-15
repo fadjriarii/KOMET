@@ -11,6 +11,7 @@
  * - kartu WNA + chart tren asing  : populasi, jendela tahun dibangun sendiri
  * - kartu intake + penurunan      : COHORT (status tidak membatasi)
  */
+const prisma = require('../../config/prisma');
 const { buildStudentFilter, getSelectedAcademicYear } = require('./filterBuilder');
 const { parseStatusSelection, DEFAULT_STATUS } = require('./snapshotConditions');
 const { getTotalActiveStudents } = require('./activeStudents');
@@ -18,6 +19,7 @@ const { getInternationalStudentsTrend } = require('./internationalTrend');
 const { getIntakeYearCounts, buildIntakeTrend } = require('./intakeTrend');
 const { getNewStudentDecline } = require('./declineTrend');
 const { rate } = require('../../utils/percentageUtils');
+const { resolveSnapshotSemesterWhere } = require('./studentSnapshot');
 const { INTAKE_SCOPE, DECLINE_SCOPE, FOREIGN_SCOPE, POPULATION_PARAMS } = require('./kpiScopes');
 const {
   resolveIntakeCard,
@@ -47,7 +49,9 @@ async function getStudentSummary(query = {}) {
   const selectedSemesters = parseSelectedSemesters(query);
 
   const [activeStudentsCount, internationalTrend, yearCounts] = await Promise.all([
-    getTotalActiveStudents(buildStudentFilter(query)),
+    getTotalActiveStudents(
+      await resolveSnapshotSemesterWhere(prisma, buildStudentFilter(query), query),
+    ),
     // Total WNA dipakai langsung dari agregat tren, tidak query ulang.
     getInternationalStudentsTrend(query),
     // Satu `groupBy` untuk semua tahun: kartu intake, deret tren, dan pembanding
@@ -101,7 +105,7 @@ async function getStudentSummary(query = {}) {
     kpis: {
       activeStudentsCount,
       activeStudentStatus: describeStatusSelection(query.statusKeaktifan),
-      foreignRate: rate(foreignStudentsCount, activeStudentsCount),
+      foreignRate: rate(foreignStudentsCount, activeStudentsCount, null),
       foreignStudentsCount,
       intakeCohortCount,
       declinePercentage: hasEnoughDeclineData ? declinePercentage : null,

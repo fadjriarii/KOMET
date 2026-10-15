@@ -28,6 +28,10 @@ export default function DeclineStudentsModal({ isOpen, onClose, originRect, data
   });
 
   const kpis = data?.kpis || {};
+  const yearsCount =
+    Number.isInteger(kpis.declineYearsCount) && kpis.declineYearsCount > 0
+      ? kpis.declineYearsCount
+      : 5;
   const declineAverage = kpis.hasEnoughDeclineData
     ? formatSignedPercentage(kpis.declinePercentage)
     : '-';
@@ -49,6 +53,7 @@ export default function DeclineStudentsModal({ isOpen, onClose, originRect, data
             hasData={hasData}
             isLoading={isLoading}
             error={error}
+            yearsCount={yearsCount}
           />
         </div>
       ),
@@ -65,7 +70,7 @@ export default function DeclineStudentsModal({ isOpen, onClose, originRect, data
         </div>
       ),
     }),
-    [chartList, error, hasData, historyList, isLoading],
+    [chartList, error, hasData, historyList, isLoading, yearsCount],
   );
 
   return (
@@ -73,9 +78,16 @@ export default function DeclineStudentsModal({ isOpen, onClose, originRect, data
       isOpen={isOpen}
       onClose={onClose}
       originRect={originRect}
-      title="Rincian Penurunan Mahasiswa Baru (5 Tahun)"
-      subtitle="Formula dan riwayat tren fluktuasi mahasiswa baru periode 5 tahun"
-      banner={<DeclineBanner kpis={kpis} declineAverage={declineAverage} trendStyle={trendStyle} />}
+      title={`Rincian Penurunan Mahasiswa Baru (${yearsCount} Tahun)`}
+      subtitle={`Formula dan riwayat tren fluktuasi mahasiswa baru periode ${yearsCount} tahun`}
+      banner={
+        <DeclineBanner
+          kpis={kpis}
+          declineAverage={declineAverage}
+          trendStyle={trendStyle}
+          yearsCount={yearsCount}
+        />
+      }
       tabs={TREND_TABS}
       activeTab={activeTab}
       onTabChange={handleTabChange}

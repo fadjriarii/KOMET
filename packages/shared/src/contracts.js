@@ -19,6 +19,7 @@ export const STUDENT_ROW_FIELDS = [
   'angkatan',
   'periode',
   'periodeMasuk',
+  'periodeMasukAwal',
   'periodeTerakhir',
   'programStudi',
   'fakultas',

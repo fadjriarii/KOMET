@@ -88,6 +88,12 @@ export default function AcademicYearFilter({
     setEndYear(val);
     if (inputError) setInputError(false);
     if (/^\d{4}$/.test(startYear) && /^\d{4}$/.test(val)) {
+      // Tahun ajaran selalu berurutan (2014/2015): pasangan bebas seperti
+      // 2025/2023 ditolak di sini, bukan diam-diam jadi tahun berjalan.
+      if (Number(val) !== Number(startYear) + 1) {
+        setInputError(true);
+        return;
+      }
       onChange?.(`${startYear}/${val}`);
       setIsCustomMode(false);
       setIsOpen(false);
@@ -100,6 +106,11 @@ export default function AcademicYearFilter({
     const end = endYear.trim();
 
     if (/^\d{4}$/.test(s) && /^\d{4}$/.test(end)) {
+      if (Number(end) !== Number(s) + 1) {
+        setInputError(true);
+        startInputRef.current?.focus();
+        return;
+      }
       onChange?.(`${s}/${end}`);
     } else if (/^\d{4}$/.test(s)) {
       const parsed = parseInt(s, 10);

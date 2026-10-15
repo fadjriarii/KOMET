@@ -39,9 +39,11 @@ function createFilterOptionsSource({ queries, derive }) {
   let cache = null;
   let cacheTime = 0;
 
-  async function getFilterOptions(forceRefresh = false) {
+  async function getFilterOptions(forceRefresh = false, deriveArgs = {}) {
     const now = Date.now();
-    if (!forceRefresh && cache && now - cacheTime < CACHE_TTL_MS) return cache;
+    if (!forceRefresh && cache && now - cacheTime < CACHE_TTL_MS) {
+      return withDerived(cache, deriveArgs);
+    }
 
     const keys = Object.keys(queries);
     const fetched = await Promise.all(keys.map((key) => fetchDistinctValues(queries[key])));
@@ -51,9 +53,16 @@ function createFilterOptionsSource({ queries, derive }) {
       values[key] = shapeValues(queries[key], fetched[index]);
     });
 
-    cache = derive ? { ...values, ...derive(values) } : values;
+    cache = values;
     cacheTime = now;
-    return cache;
+    return withDerived(values, deriveArgs);
+  }
+
+  // Nilai distinct di-cache mentah; turunannya (rolling years dkk.) dihitung
+  // per permintaan supaya bisa mengikuti parameter (mis. tahun ajaran terpilih)
+  // tanpa mengorbankan cache query berat.
+  function withDerived(values, deriveArgs) {
+    return derive ? { ...values, ...derive(values, deriveArgs) } : values;
   }
 
   function clearFilterCache() {

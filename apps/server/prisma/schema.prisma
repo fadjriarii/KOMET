@@ -14,6 +14,10 @@ model Student {
   periodeMasuk    String
   /// Periode terakhir mahasiswa (keluar/lulus), kosong untuk mahasiswa yang masih berjalan.
   periodeTerakhir String           @default("")
+  /// Awal rantai transfer yang bersambung (periode masuk enrollment pertama);
+  /// kosong bila tidak ada. Dipakai memproyeksikan semester ke tahun ajaran
+  /// yang dipilih — semester tersimpan selalu posisi semester berjalan/akhir.
+  periodeMasukAwal String          @default("")
   angkatan        String
   /// Periode semester masuk: "Ganjil" (kode berakhir 1) atau "Genap" (kode berakhir 2)
   periode         String           @default("")

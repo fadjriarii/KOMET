@@ -7,7 +7,7 @@ import { STUDENT_STATUS } from '@komet/shared/constants';
 import { formatNumber } from '@komet/shared/formatters';
 
 export function getStudentIntakeDescription(period, count) {
-  return `Menampilkan total penerimaan mahasiswa baru (intake) sebanyak ${count} mahasiswa yang terdaftar aktif pada semester 1 untuk tahun akademik ${period || 'aktif'}.`;
+  return `Menampilkan total penerimaan mahasiswa baru (intake) sebanyak ${count} mahasiswa pada semester 1 untuk tahun akademik ${period || 'aktif'}.`;
 }
 export function getStudentKpiSubtitles(
   { foreignStudentsCount, intakePeriod, declinePeriod } = {},
@@ -20,9 +20,7 @@ export function getStudentKpiSubtitles(
       foreignStudentsCount !== undefined && foreignStudentsCount !== null
         ? `${formatNumber(foreignStudentsCount)} Mahasiswa Non-WNI`
         : `Non-WNI status ${lowerStatus}`,
-    intakeSubtitle: intakePeriod
-      ? `Semester 1, Periode Ganjil Tahun Ajaran ${intakePeriod}`
-      : 'Semester 1',
+    intakeSubtitle: intakePeriod ? `Semester 1 Tahun Ajaran ${intakePeriod}` : 'Semester 1',
     declineSubtitle: declinePeriod ? `Rata-rata 5 Tahun (${declinePeriod})` : 'Rata-rata 5 Tahun',
   };
 }

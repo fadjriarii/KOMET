@@ -331,4 +331,5 @@ module.exports = {
   survivorFirst,
   personKeys,
   isStatusPindah,
+  validNik,
 };

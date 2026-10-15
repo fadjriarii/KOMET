@@ -96,7 +96,7 @@ const getFilterOptionsHandler = async (req, res) => {
   try {
     return res.json({
       success: true,
-      data: await getFilterOptions(),
+      data: await getFilterOptions(req.query?.tahunAjaran),
     });
   } catch (error) {
     return sendServerError(res, 'DATA_READ_FAILED', error, 'students/getFilterOptions');

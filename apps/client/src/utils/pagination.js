@@ -7,8 +7,12 @@ export function getPaginationMeta({
   pageSize = 10,
   currentCount = 0,
 }) {
-  const start = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
-  const end = Math.min((currentPage - 1) * pageSize + currentCount, totalItems);
+  // Halaman di luar jangkauan (mis. ?page=999): label jujur 0-0, bukan rentang semu.
+  const start =
+    totalItems === 0 || (currentPage - 1) * pageSize >= totalItems
+      ? 0
+      : (currentPage - 1) * pageSize + 1;
+  const end = start === 0 ? 0 : Math.min((currentPage - 1) * pageSize + currentCount, totalItems);
   return {
     currentPage,
     totalPages,

@@ -215,13 +215,38 @@ describe('sync helpers — Data Cleansing & Transformation', () => {
       expect(mapKewarganegaraan('', 'Singapura')).toBe('Singapura');
     });
 
-    it('tidak ada data → default "Indonesia"', () => {
-      expect(mapKewarganegaraan('', '')).toBe('Indonesia');
-      expect(mapKewarganegaraan(null, null)).toBe('Indonesia');
+    it('tidak ada data → "" (tidak diketahui, jangan default Indonesia)', () => {
+      expect(mapKewarganegaraan('', '')).toBe('');
+      expect(mapKewarganegaraan(null, null)).toBe('');
     });
 
-    it('kode tidak dikenali + tanpa nama → default "Indonesia"', () => {
-      expect(mapKewarganegaraan('ZZZ', '')).toBe('Indonesia');
+    it('id_negara menang atas tempat_lahir bila keduanya terisi', () => {
+      expect(mapKewarganegaraan('IDN', '', 'France')).toBe('Indonesia');
+      expect(mapKewarganegaraan('', 'Singapura', 'Jakarta')).toBe('Singapura');
+    });
+
+    it('tempat_lahir dipakai sementara bila id_negara kosong', () => {
+      expect(mapKewarganegaraan('', '', 'Beauvais')).toBe('Perancis');
+      expect(mapKewarganegaraan('', '', 'France')).toBe('Perancis');
+      expect(mapKewarganegaraan('', '', 'Singapore')).toBe('Singapura');
+      expect(mapKewarganegaraan('', '', 'Jakarta')).toBe('Indonesia');
+    });
+
+    it('NIK valid tanpa id_negara = pasti Indonesia', () => {
+      expect(mapKewarganegaraan('', '', 'France', '3201010101010101')).toBe('Indonesia');
+    });
+
+    it('NIK placeholder tidak dihitung (lanjut ke tempat lahir)', () => {
+      expect(mapKewarganegaraan('', '', 'Beauvais', '0000000000000000')).toBe('Perancis');
+      expect(mapKewarganegaraan('', '', '', '123')).toBe('');
+    });
+
+    it('kota tak dikenal tampil apa adanya agar terlihat dan dikoreksi', () => {
+      expect(mapKewarganegaraan('', '', 'Lyon')).toBe('Lyon');
+    });
+
+    it('kode tidak dikenali + tanpa nama → "" (tidak diketahui)', () => {
+      expect(mapKewarganegaraan('ZZZ', '')).toBe('');
     });
   });
 

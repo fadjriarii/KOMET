@@ -41,6 +41,7 @@ describe('student list pagination query', () => {
         'angkatan',
         'periode',
         'periodeMasuk',
+        'periodeMasukAwal',
         'periodeTerakhir',
         'programStudi',
         'fakultas',
@@ -65,14 +66,33 @@ describe('student list pagination query', () => {
     });
   });
 
-  it('marks a student terminal in the same year after an odd number of semesters', () => {
+  it('keluar setelah Genap ditunda ke tahun ajaran berikut (bukan terminal di tahun itu)', () => {
     const student = {
       statusKeaktifan: 'Keluar',
       periodeMasuk: '20141',
       periodeTerakhir: '20142',
     };
-    expect(getSnapshotStatus(student, { startYear: '2014' })).toBe('Keluar');
+    expect(getSnapshotStatus(student, { startYear: '2014' })).toBe('Aktif');
     expect(getSnapshotStatus(student, { startYear: '2015' })).toBe('Keluar');
+  });
+
+  it('lulus Genap tetap terminal di tahun wisudanya (kasus Russell)', () => {
+    const student = {
+      statusKeaktifan: 'Lulus',
+      periodeMasuk: '20221',
+      periodeTerakhir: '20242',
+    };
+    expect(getSnapshotStatus(student, { startYear: '2024' })).toBe('Lulus');
+  });
+
+  it('program singkat Genap-masuk-Genap ditunda (kasus Janick)', () => {
+    const student = {
+      statusKeaktifan: 'Selesai Pendidikan Non Gelar',
+      periodeMasuk: '20252',
+      periodeTerakhir: '20252',
+    };
+    expect(getSnapshotStatus(student, { startYear: '2025' })).toBe('Aktif');
+    expect(getSnapshotStatus(student, { startYear: '2026' })).toBe('Selesai Pendidikan Non Gelar');
   });
 
   it('periode masuk cacat (4 digit) tidak dianggap Ganjil, sama seperti kondisi SQL', () => {

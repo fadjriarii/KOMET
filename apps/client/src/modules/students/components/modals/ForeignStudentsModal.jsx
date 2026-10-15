@@ -4,7 +4,7 @@ import ModalTable from '../../../../components/common/modals/ModalTable';
 import { ForeignBanner } from './ForeignBanner';
 import { FOREIGN_TABLE_COLUMNS } from './foreignTableColumns';
 import { useTabTransition } from '../../../../hooks/useTabTransition';
-import { reverseTrendData } from '../../../../utils/uiHelpers';
+import { getStudentStatusPresentation, reverseTrendData } from '../../../../utils/uiHelpers';
 import { formatNumber, formatPercentage } from '@komet/shared/formatters';
 import { useDetail } from '../../studentQueries';
 import ForeignTrendComposedChart from './ForeignTrendComposedChart';
@@ -30,6 +30,7 @@ export default function ForeignStudentsModal({ isOpen, onClose, originRect, data
   // Baris mana yang mewakili tahun terpilih sudah ditentukan server; klien tinggal
   // membacanya, dan ikut memakai tahun baris itu bila pemilih tahun kosong.
   const targetItem = detailData?.selected || null;
+  const statusLabel = getStudentStatusPresentation(kpis.activeStudentStatus).statusLabel;
 
   const foreignRate = formatPercentage(targetItem?.percentage ?? kpis.foreignRate, 1);
   const foreignCount = formatNumber(targetItem?.foreignCount ?? kpis.foreignStudentsCount);
@@ -72,6 +73,7 @@ export default function ForeignStudentsModal({ isOpen, onClose, originRect, data
           foreignCount={foreignCount}
           activeCount={activeCount}
           displayAcademicYear={displayAcademicYear}
+          statusLabel={statusLabel}
         />
       }
       tabs={TREND_TABS}

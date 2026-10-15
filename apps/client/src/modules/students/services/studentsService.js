@@ -50,7 +50,12 @@ export const studentsService = {
     },
   }),
 
-  getFilterOptions: (options) => apiClient.get('/students/filter-options', options),
+  getFilterOptions: (options) => {
+    const params = options?.tahunAjaran
+      ? `?tahunAjaran=${encodeURIComponent(options.tahunAjaran)}`
+      : '';
+    return apiClient.get(`/students/filter-options${params}`, options);
+  },
 };
 
 export default studentsService;

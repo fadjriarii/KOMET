@@ -44,7 +44,9 @@ export function IntakeChart({ trendList, hasData, isLoading, error }) {
               label: 'Pertumbuhan',
               format: formatSignedPercentage,
               valueClassName: (_value, item) =>
-                `font-bold px-1.5 py-0.5 rounded text-[11px] ${item.isPositive ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`,
+                item.growthPercentage === null || item.growthPercentage === undefined
+                  ? 'font-bold px-1.5 py-0.5 rounded text-[11px] bg-gray-100 text-gray-500'
+                  : `font-bold px-1.5 py-0.5 rounded text-[11px] ${item.isPositive ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`,
             }}
           />
         }

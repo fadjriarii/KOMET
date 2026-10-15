@@ -37,12 +37,17 @@ function parseStatusSelection(statusValues) {
 
 /**
  * Status akhir mana yang sudah tercapai pada tahun akademik `academicYear`.
- * Satu sumber kebenaran dengan `buildTerminalPeriodCondition` — kondisi yang
- * sama dievaluasi di sini, tidak diulang sebagai cabang `if` tersendiri.
+ * Aturan terminal mengikuti STATUS barisnya sendiri: Lulus selalu terminal di
+ * tahun wisudanya; status lain yang keluar setelah Genap baru terminal tahun
+ * berikutnya. Satu sumber kebenaran dengan `buildTerminalPeriodCondition` —
+ * kondisi yang sama dievaluasi di sini, tidak diulang sebagai cabang `if`.
  */
 function isTerminalInAcademicYear(student, academicYear) {
   const { start, end } = getAcademicPeriodBounds(academicYear);
-  return matchesStudentCondition(student, buildTerminalPeriodCondition(start, end));
+  return matchesStudentCondition(
+    student,
+    buildTerminalPeriodCondition(start, end, [student.statusKeaktifan]),
+  );
 }
 
 function buildSnapshotStatusCondition(academicStart, academicEnd, statusValues) {
@@ -62,7 +67,7 @@ function buildSnapshotStatusCondition(academicStart, academicEnd, statusValues) 
           statusKeaktifan:
             terminalStatuses.length === 1 ? terminalStatuses[0] : { in: terminalStatuses },
         },
-        buildTerminalPeriodCondition(academicStart, academicEnd),
+        buildTerminalPeriodCondition(academicStart, academicEnd, terminalStatuses),
       ],
     });
   }

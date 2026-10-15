@@ -7,6 +7,7 @@ import {
   buildForeignSubtitle,
   buildIntakeSubtitle,
 } from '../../../utils/kpiSubtitles';
+import { formatKpiDisplay } from '../../../utils/uiHelpers';
 import { formatNumber, formatPercentage, formatSignedPercentage } from '@komet/shared/formatters';
 import { getTrendStyle, INSUFFICIENT_DATA_TREND_STYLE } from '../../../utils/theme';
 
@@ -32,11 +33,11 @@ export function useStudentKpiDisplay(summaryData, isLoading, filterValues = {}) 
       formattedIntakeCount: formatNumber(rawKpis.intakeCohortCount),
       foreignRate: formatPercentage(rawKpis.foreignRate, 1),
       declineAvg: rawKpis.hasEnoughDeclineData
-        ? formatSignedPercentage(rawKpis.declinePercentage)
+        ? formatKpiDisplay(formatSignedPercentage(rawKpis.declinePercentage))
         : '-',
     };
     const activeStudentPresentation = getStudentStatusPresentation(rawKpis.activeStudentStatus);
-    const hasEnoughDeclineData = kpis.hasEnoughDeclineData !== false;
+    const hasEnoughDeclineData = kpis.hasEnoughDeclineData === true;
     const baseSubtitles = getStudentKpiSubtitles(kpis, activeStudentPresentation.statusLabel);
     if (!hasEnoughDeclineData) {
       baseSubtitles.declineSubtitle = 'Data historis belum cukup untuk perbandingan';
@@ -45,8 +46,7 @@ export function useStudentKpiDisplay(summaryData, isLoading, filterValues = {}) 
     const selectedYears = pickStrings(filterValues.selectedYears);
     const selectedSemesters = pickSemesters(filterValues.selectedSemester);
     const labels = buildFilterLabels(filterValues);
-    const currentTahunAjaran =
-      filterValues.selectedTahunAjaran || filterValues.tahunAjaran || kpis.intakePeriod || '';
+    const currentTahunAjaran = filterValues.tahunAjaran || kpis.intakePeriod || '';
     const intakeLocation = [labels.location, labels.angkatan].filter(Boolean).join(', ');
 
     const activeSubtitle = buildActiveSubtitle(

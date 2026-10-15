@@ -27,6 +27,8 @@ function matchesFieldValue(value, rule) {
         return actual !== String(operand);
       case 'in':
         return operand.map(String).includes(actual);
+      case 'notIn':
+        return !operand.map(String).includes(actual);
       case 'endsWith':
         return actual.endsWith(String(operand));
       case 'startsWith':

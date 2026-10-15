@@ -4,6 +4,7 @@ const {
   getRequestedAcademicYear,
   getSnapshotStatus,
   projectSnapshotStudent,
+  resolveSnapshotSemesterWhere,
 } = require('./studentSnapshot');
 
 /**
@@ -34,10 +35,13 @@ async function getStudentList(whereFilter, page = 1, limit = TABLE_LIMIT, cursor
     }
   }
 
-  const listQuery = buildStudentListQuery(whereFilter, page, limit, cursor);
+  // Filter semester + tahun ajaran diselesaikan dulu menjadi daftar NIM
+  // (nilai tampil tidak bisa dihitung di SQL) agar list dan total konsisten.
+  const where = await resolveSnapshotSemesterWhere(prisma, whereFilter, query);
+  const listQuery = buildStudentListQuery(where, page, limit, cursor);
   const [rawData, total] = await Promise.all([
     prisma.student.findMany(listQuery),
-    cursor ? null : prisma.student.count({ where: whereFilter }),
+    cursor ? null : prisma.student.count({ where }),
   ]);
 
   const hasNextPage = rawData.length > limit;
@@ -68,6 +72,7 @@ function buildStudentListQuery(whereFilter, page, limit, cursor) {
       angkatan: true,
       periode: true,
       periodeMasuk: true,
+      periodeMasukAwal: true,
       periodeTerakhir: true,
       programStudi: true,
       fakultas: true,

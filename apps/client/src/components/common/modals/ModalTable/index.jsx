@@ -50,6 +50,11 @@ export default function ModalTable({
     <div
       className={`bg-white border border-digital-blue-100/90 rounded-2xl overflow-hidden shadow-xs flex flex-col min-w-0 ${className}`}
     >
+      {error && (
+        <p className="px-4 pt-2.5 text-xs text-amber-700">
+          Data mungkin basi: {typeof error === 'string' ? error : 'gagal memuat ulang.'}
+        </p>
+      )}
       <div className="max-h-[235px] overflow-auto custom-scrollbar">
         <table className="w-full min-w-[560px] text-left border-collapse text-xs">
           <ModalTableHead columns={columns} />

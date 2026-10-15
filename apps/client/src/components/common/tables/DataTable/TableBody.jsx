@@ -7,6 +7,7 @@ export function TableBody({
   visibleColumns,
   data,
   isLoading,
+  error,
   cellPadding,
   rowKey,
   emptyTitle,
@@ -35,6 +36,19 @@ export function TableBody({
     );
   }
   if (data.length === 0) {
+    if (error) {
+      return (
+        <tr>
+          <td colSpan={visibleColumns.length} className="px-5 py-14">
+            <EmptyState
+              title="Gagal Memuat Data"
+              description={typeof error === 'string' ? error : 'Terjadi kesalahan.'}
+              icon={emptyIcon}
+            />
+          </td>
+        </tr>
+      );
+    }
     return (
       <tr>
         <td colSpan={visibleColumns.length} className="px-5 py-14">

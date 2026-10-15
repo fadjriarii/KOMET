@@ -5,7 +5,7 @@ import TrendChartTooltip from '../../../../components/common/charts/TrendChartTo
 import { BarChart3 } from 'lucide-react';
 
 /** Chart tren penurunan: skeleton → empty → bar chart intake 5 periode. */
-export function DeclineChart({ chartList, hasData, isLoading, error }) {
+export function DeclineChart({ chartList, hasData, isLoading, error, yearsCount = 5 }) {
   if (isLoading) return <ChartLoadingSkeleton />;
   if (!hasData) {
     return (
@@ -24,7 +24,7 @@ export function DeclineChart({ chartList, hasData, isLoading, error }) {
         bars={[
           {
             dataKey: 'intakeCount',
-            name: 'Jumlah Intake Mahasiswa Baru (5 Periode)',
+            name: `Jumlah Intake Mahasiswa Baru (${yearsCount} Periode)`,
             color: '#2563eb',
             labelKey: 'intakeCount',
           },

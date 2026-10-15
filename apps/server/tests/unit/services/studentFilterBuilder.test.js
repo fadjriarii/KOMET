@@ -90,6 +90,12 @@ describe('student filter builder', () => {
             { periodeTerakhir: '' },
             { periodeTerakhir: { gt: '20232' } },
             { AND: [{ periodeTerakhir: '20232' }, { periodeMasuk: { endsWith: '2' } }] },
+            {
+              AND: [
+                { periodeTerakhir: '20232' },
+                { statusKeaktifan: { notIn: ['Aktif', 'Lulus'] } },
+              ],
+            },
           ],
         },
       ],
@@ -108,6 +114,12 @@ describe('student filter builder', () => {
             { periodeTerakhir: '' },
             { periodeTerakhir: { gt: '20202' } },
             { AND: [{ periodeTerakhir: '20202' }, { periodeMasuk: { endsWith: '2' } }] },
+            {
+              AND: [
+                { periodeTerakhir: '20202' },
+                { statusKeaktifan: { notIn: ['Aktif', 'Lulus'] } },
+              ],
+            },
           ],
         },
       ],
@@ -141,6 +153,12 @@ describe('student filter builder', () => {
             { periodeTerakhir: '' },
             { periodeTerakhir: { gt: '20252' } },
             { AND: [{ periodeTerakhir: '20252' }, { periodeMasuk: { endsWith: '2' } }] },
+            {
+              AND: [
+                { periodeTerakhir: '20252' },
+                { statusKeaktifan: { notIn: ['Aktif', 'Lulus'] } },
+              ],
+            },
           ],
         },
       ],
@@ -162,7 +180,7 @@ describe('student filter builder', () => {
               OR: [
                 { periodeTerakhir: { not: '', lt: '20261' } },
                 { periodeTerakhir: '20261' },
-                { AND: [{ periodeTerakhir: '20262' }, { periodeMasuk: { endsWith: '1' } }] },
+                { periodeTerakhir: '20262' },
               ],
             },
           ],
@@ -181,11 +199,7 @@ describe('student filter builder', () => {
           AND: [
             { statusKeaktifan: 'Transfer' },
             {
-              OR: [
-                { periodeTerakhir: { not: '', lt: '20251' } },
-                { periodeTerakhir: '20251' },
-                { AND: [{ periodeTerakhir: '20252' }, { periodeMasuk: { endsWith: '1' } }] },
-              ],
+              OR: [{ periodeTerakhir: { not: '', lt: '20251' } }, { periodeTerakhir: '20251' }],
             },
           ],
         },
@@ -209,7 +223,7 @@ describe('student filter builder', () => {
               OR: [
                 { periodeTerakhir: { not: '', lt: '20241' } },
                 { periodeTerakhir: '20241' },
-                { AND: [{ periodeTerakhir: '20242' }, { periodeMasuk: { endsWith: '1' } }] },
+                { periodeTerakhir: '20242' },
               ],
             },
           ],
@@ -232,11 +246,7 @@ describe('student filter builder', () => {
           AND: [
             { statusKeaktifan: 'Keluar' },
             {
-              OR: [
-                { periodeTerakhir: { not: '', lt: '20141' } },
-                { periodeTerakhir: '20141' },
-                { AND: [{ periodeTerakhir: '20142' }, { periodeMasuk: { endsWith: '1' } }] },
-              ],
+              OR: [{ periodeTerakhir: { not: '', lt: '20141' } }, { periodeTerakhir: '20141' }],
             },
           ],
         },
@@ -257,6 +267,12 @@ describe('student filter builder', () => {
             { periodeTerakhir: '' },
             { periodeTerakhir: { gt: '20252' } },
             { AND: [{ periodeTerakhir: '20252' }, { periodeMasuk: { endsWith: '2' } }] },
+            {
+              AND: [
+                { periodeTerakhir: '20252' },
+                { statusKeaktifan: { notIn: ['Aktif', 'Lulus'] } },
+              ],
+            },
           ],
         },
         {
@@ -266,7 +282,7 @@ describe('student filter builder', () => {
               OR: [
                 { periodeTerakhir: { not: '', lt: '20251' } },
                 { periodeTerakhir: '20251' },
-                { AND: [{ periodeTerakhir: '20252' }, { periodeMasuk: { endsWith: '1' } }] },
+                { periodeTerakhir: '20252' },
               ],
             },
           ],
@@ -356,5 +372,24 @@ describe('student filter builder', () => {
     expect(() => matchesStudentCondition({ nim: '1' }, { nim: { someop: '1' } })).toThrow(
       /belum didukung/,
     );
+  });
+
+  it('populasi Aktif mencakup non-Lulus yang keluar tepat di akhir tahun (kasus Eliza)', () => {
+    const filter = buildStudentFilter({ tahunAjaran: '2020/2021', statusKeaktifan: 'Aktif' });
+    const snapshotOr = filter.AND.find((c) => c.OR);
+    const activeOr = snapshotOr.OR.find((b) => b.OR);
+    const eliza = {
+      statusKeaktifan: 'Mengundurkan Diri / Keluar',
+      periodeMasuk: '20201',
+      periodeTerakhir: '20202',
+    };
+    expect(matchesStudentCondition(eliza, activeOr)).toBe(true);
+    // Wisudawan Genap tetap di luar populasi aktif tahun wisudanya.
+    const graduate = {
+      statusKeaktifan: 'Lulus',
+      periodeMasuk: '20201',
+      periodeTerakhir: '20202',
+    };
+    expect(matchesStudentCondition(graduate, activeOr)).toBe(false);
   });
 });

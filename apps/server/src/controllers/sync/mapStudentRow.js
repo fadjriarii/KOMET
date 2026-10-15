@@ -60,7 +60,12 @@ function mapStudentRow(attr, prodiFakultasMap, resolveFakultas) {
   const semesterAktif = hitungSemester(periodeMasuk, periodeTerakhir || null);
 
   // ─── RULE 6: Kewarganegaraan — konversi ke nama negara spesifik ───
-  const kewarganegaraan = mapKewarganegaraan(attr.id_negara || '', attr.nama_negara || '');
+  const kewarganegaraan = mapKewarganegaraan(
+    attr.id_negara || '',
+    attr.nama_negara || '',
+    attr.tempat_lahir || '',
+    attr.nik || '',
+  );
 
   return {
     nim,

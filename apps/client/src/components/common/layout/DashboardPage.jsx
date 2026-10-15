@@ -51,7 +51,13 @@ export default function DashboardPage({
   );
 
   const summaryQuery = useSummary(requestParams);
-  const { rows, pagination, setPage, isLoading: isListLoading } = useList(requestParams);
+  const {
+    rows,
+    pagination,
+    setPage,
+    isLoading: isListLoading,
+    error: listError,
+  } = useList(requestParams);
   const { activeModalType, currentModalType, originRect, openModal, closeModal } = useModalOrigin();
 
   const availableFilterOptions = filterOptions || summaryQuery.data?.filterOptions || {};
@@ -135,6 +141,7 @@ export default function DashboardPage({
           pagination={pagination}
           onPageChange={setPage}
           isLoading={isListLoading}
+          error={listError}
         />
 
         <DetailModal
