@@ -15,8 +15,9 @@ const executeSyncAll = async () => {
   const mbkm = await executeSyncMbkm({ runDedup: false });
 
   // Deduplikasi memuat seluruh tabel mahasiswa + MBKM ke memori. Cukup sekali di akhir,
-  // bukan sekali per modul.
-  const deduplication = await deduplicateStudents();
+  // bukan sekali per modul. pruneNims = NIM yang masih ada di API (dari sync
+  // mahasiswa); NIM lain di DB berarti basi dan ikut dibersihkan.
+  const deduplication = await deduplicateStudents({ pruneNims: new Set(students.fetchedNims) });
 
   return {
     totalStudents: students.totalSynced,

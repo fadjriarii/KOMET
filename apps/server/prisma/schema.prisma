@@ -24,6 +24,9 @@ model Student {
   kewarganegaraan String
   nik             String           @default("")
   tanggalLahir    String           @default("")
+  /// Penanda mentah "(Akun Lama)" dari SEVIMA, dibaca sebelum programStudi
+  /// disanitasi. Dipakai dedup untuk mengenali record lama yang punya kembaran.
+  isAkunLama      Boolean          @default(false)
   updatedAt       DateTime         @updatedAt
   
   // Relasi

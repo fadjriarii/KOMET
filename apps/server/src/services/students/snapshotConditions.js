@@ -19,97 +19,20 @@
  * penilai JavaScript (`matchesStudentCondition`) untuk memproyeksi baris tabel —
  * jadi proyeksi tidak pernah menjadi implementasi paralel dari kondisi SQL.
  */
-const { toArray } = require('../shared/filterUtils');
-const { STUDENT_STATUS } = require('@komet/shared/constants');
-
-/**
- * Satu encoding untuk "semua status": sentinel ALL dari klien. Nilai kosong
- * atau tidak dikirim berarti populasi default dashboard (DEFAULT_STATUS).
- */
-const ALL_STATUSES = 'ALL';
-const DEFAULT_STATUS = STUDENT_STATUS.AKTIF;
+const { toArray } = require('@komet/shared/filterUtils');
+const { ALL_STATUSES, DEFAULT_STATUS } = require('./snapshot/status');
+const {
+  getAcademicPeriodBounds,
+  buildTerminalPeriodCondition,
+  buildActiveSnapshotCondition,
+} = require('./snapshot/bounds');
+const { matchesStudentCondition } = require('./snapshot/match');
 
 /** @returns {{isAll: boolean, statuses: string[]}} pemilihan status ternormalisasi. */
 function parseStatusSelection(statusValues) {
   const values = (toArray(statusValues) || []).filter(Boolean);
   if (values.includes(ALL_STATUSES)) return { isAll: true, statuses: [] };
   return { isAll: false, statuses: values.length ? values : [DEFAULT_STATUS] };
-}
-
-/** Batas periode kode (`YYYY1`/`YYYY2`) untuk satu tahun akademik. */
-function getAcademicPeriodBounds(academicYear) {
-  const startYear =
-    typeof academicYear === 'object' && academicYear ? academicYear.startYear : academicYear;
-  return { start: `${startYear}1`, end: `${startYear}2` };
-}
-
-function buildTerminalPeriodCondition(academicStart, academicEnd) {
-  return {
-    OR: [
-      { periodeTerakhir: { not: '', lt: academicStart } },
-      { periodeTerakhir: academicStart },
-      { AND: [{ periodeTerakhir: academicEnd }, { periodeMasuk: { endsWith: '1' } }] },
-    ],
-  };
-}
-
-function buildActiveSnapshotCondition(academicEnd) {
-  return {
-    OR: [
-      { statusKeaktifan: DEFAULT_STATUS },
-      { periodeTerakhir: '' },
-      { periodeTerakhir: { gt: academicEnd } },
-      { AND: [{ periodeTerakhir: academicEnd }, { periodeMasuk: { endsWith: '2' } }] },
-    ],
-  };
-}
-
-/**
- * Penilai kondisi Prisma skala kecil untuk SATU baris mahasiswa. Operator yang
- * belum dikenali melempar error — diam-diam mengembalikan `true`/`false` akan
- * membuat kondisi baru terlihat cocok padahal tidak.
- */
-function matchesFieldValue(value, rule) {
-  const actual = String(value ?? '');
-  if (rule === null || typeof rule === 'string' || typeof rule === 'number') {
-    return actual === String(rule);
-  }
-  return Object.entries(rule).every(([operator, operand]) => {
-    switch (operator) {
-      case 'equals':
-        return actual === String(operand);
-      // Perbandingan string murni seperti MySQL; nilai kosong sengaja TIDAK
-      // dikecualikan di sini — kondisi yang butuh "harus terisi" menyatakan
-      // `{ not: '' }` sendiri, sama seperti di SQL.
-      case 'lt':
-        return actual < String(operand);
-      case 'lte':
-        return actual <= String(operand);
-      case 'gt':
-        return actual > String(operand);
-      case 'gte':
-        return actual >= String(operand);
-      case 'not':
-        return actual !== String(operand);
-      case 'in':
-        return operand.map(String).includes(actual);
-      case 'endsWith':
-        return actual.endsWith(String(operand));
-      case 'startsWith':
-        return actual.startsWith(String(operand));
-      default:
-        throw new Error(`matchesFieldValue: operator "${operator}" belum didukung`);
-    }
-  });
-}
-
-function matchesStudentCondition(row = {}, condition = {}) {
-  return Object.entries(condition).every(([key, rule]) => {
-    if (key === 'AND') return rule.every((nested) => matchesStudentCondition(row, nested));
-    if (key === 'OR') return rule.some((nested) => matchesStudentCondition(row, nested));
-    if (key === 'NOT') return !matchesStudentCondition(row, rule);
-    return matchesFieldValue(row[key], rule);
-  });
 }
 
 /**

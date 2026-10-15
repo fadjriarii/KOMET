@@ -10,9 +10,9 @@ describe('student summary service (real database)', () => {
     const result = await getStudentSummary({});
 
     expect(result.kpis).toMatchObject({
-      activeStudentsCount: 620,
-      foreignStudentsCount: 16,
-      intakeCohortCount: 173,
+      activeStudentsCount: 616,
+      foreignStudentsCount: 13,
+      intakeCohortCount: 169,
       intakePeriod: '2026/2027',
       intakeSemesterTerm: null,
       declinePeriod: '2026/2027',
@@ -52,8 +52,8 @@ describe('student summary service (real database)', () => {
     const result = await getStudentSummary({ semester: '1' });
 
     // Mahasiswa semester 1 masuk pada periode Ganjil 2026/2027 (20261).
-    // Total mahasiswa baru yang masuk pada periode tersebut adalah 173 mahasiswa.
-    expect(result.kpis.intakeCohortCount).toBe(173);
+    // Total mahasiswa baru yang masuk pada periode tersebut adalah 169 mahasiswa.
+    expect(result.kpis.intakeCohortCount).toBe(169);
     expect(result.kpis.intakePeriod).toBe('2026/2027');
     expect(result.kpis.intakeSemesterTerm).toBe('Ganjil');
   });
@@ -61,8 +61,8 @@ describe('student summary service (real database)', () => {
   it('menjumlahkan total mahasiswa baru saat multi-semester dipilih', async () => {
     const result = await getStudentSummary({ semester: ['1', '2'] });
 
-    // 173 (semester 1) + 46 (semester 2) = 219 mahasiswa baru
-    expect(result.kpis.intakeCohortCount).toBe(219);
+    // 169 (semester 1) + 46 (semester 2) = 215 mahasiswa baru
+    expect(result.kpis.intakeCohortCount).toBe(215);
     expect(result.kpis.intakePeriod).toBe('terpilih');
   });
 });

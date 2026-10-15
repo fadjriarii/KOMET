@@ -5,7 +5,7 @@
 
 const prisma = require('../../config/prisma');
 const { parsePeriode } = require('../../utils/academicUtils');
-const { addInFilter, addSearchFilter, hasFilters } = require('../shared/filterUtils');
+const { addInFilter, addSearchFilter, hasFilters } = require('@komet/shared/filterUtils');
 const { STUDENT_STATUS } = require('@komet/shared/constants');
 
 function buildMbkmFilter(query) {

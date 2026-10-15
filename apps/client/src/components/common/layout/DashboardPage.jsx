@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import MetricSummaryGrid from '../cards/MetricSummaryGrid';
-import QueryErrorBanner from '../feedback/QueryErrorBanner';
 import DashboardErrorGuard from './DashboardErrorGuard';
 import DashboardFilterForm from '../filters/DashboardFilterForm';
+import { DashboardHeader } from './DashboardHeader';
+import { useDashboardCards } from './useDashboardCards';
 import { useDebouncedSearchParams } from '../../../hooks/useDebouncedSearchParams';
 import { useModalOrigin } from '../../../hooks/useModalOrigin';
-import { matchKpiFilterScope } from '../../../utils/kpiScope';
 
 /**
  * Kerangka bersama halaman dashboard (students, graduates, mbkm): filter URL →
@@ -28,7 +28,7 @@ export default function DashboardPage({
 }) {
   // Tab Lulusan: tahun ajaran "default" adalah tahun ajaran terbaru
   // yang ada di data (`academicYearOptions[0]`), bukan tahun kalender
-  // berjalan. Memilihnya sama dengan default "lulus sampai sekarang",
+  // berjalan. Memilihnya sama dengan default ("lulus sampai sekarang",
   // jadi tidak boleh menyala sebagai filter aktif. Baru diketahui setelah
   // summary termuat, sehingga disimpan di state dan diteruskan pada
   // render berikutnya; tab lain mengabaikan argumen ini.
@@ -88,20 +88,16 @@ export default function DashboardPage({
   // Refetch senyap tidak boleh mengubah kartu yang sudah tampil menjadi skeleton.
   const isKpiLoading = summaryQuery.isLoading || isDebouncing;
   const display = useKpiDisplay(summaryQuery.data, isKpiLoading, filters);
-  const kpiScope = useMemo(
-    () => matchKpiFilterScope(summaryQuery.data?.kpiFilterScope, activeFilterParams),
-    [summaryQuery.data?.kpiFilterScope, activeFilterParams],
-  );
-
-  const actionLabel = activeFilterCount ? 'Lihat Data Terfilter' : 'Lihat Rincian';
-  const cardProps = useMemo(
-    () => ({ actionLabel, isLoading: isKpiLoading }),
-    [actionLabel, isKpiLoading],
-  );
-  const cards = useMemo(
-    () => buildCards({ ...display, kpiScope, openModal, filterValues: filters }),
-    [buildCards, display, kpiScope, openModal, filters],
-  );
+  const { cards, cardProps } = useDashboardCards({
+    buildCards,
+    display,
+    kpiFilterScope: summaryQuery.data?.kpiFilterScope,
+    activeFilterParams,
+    openModal,
+    filters,
+    activeFilterCount,
+    isKpiLoading,
+  });
 
   return (
     <DashboardErrorGuard
@@ -111,29 +107,15 @@ export default function DashboardPage({
       onRetry={() => summaryQuery.refetch()}
     >
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-xl md:text-2xl font-bold text-gray-800 tracking-tight">{title}</h1>
-            <p className="text-xs md:text-sm text-gray-500 mt-1">{description}</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            {HeaderExtra ? (
-              <HeaderExtra
-                filters={filters}
-                setters={setters}
-                summaryQuery={summaryQuery}
-                options={availableFilterOptions}
-              />
-            ) : null}
-            {/* Hanya sampai di sini kalau data lama masih tampil (lihat DashboardErrorGuard). */}
-            <QueryErrorBanner
-              error={summaryQuery.error}
-              hasData={Boolean(summaryQuery.data)}
-              status={summaryQuery.error?.status}
-              onRetry={() => summaryQuery.refetch()}
-            />
-          </div>
-        </div>
+        <DashboardHeader
+          title={title}
+          description={description}
+          HeaderExtra={HeaderExtra}
+          filters={filters}
+          setters={setters}
+          summaryQuery={summaryQuery}
+          availableFilterOptions={availableFilterOptions}
+        />
 
         <MetricSummaryGrid cards={cards} cardProps={cardProps} />
 

@@ -1,15 +1,13 @@
 import EmptyState from '../../../../components/common/feedback/EmptyState';
 import ChartLoadingSkeleton from '../../../../components/common/feedback/ChartLoadingSkeleton';
-import { formatCompactNumber, formatPercentage } from '@komet/shared/formatters';
+import { formatCompactNumber } from '@komet/shared/formatters';
 import { DIGITAL_BLUE } from '../../../../utils/theme';
-import TrendChartTooltip from '../../../../components/common/charts/TrendChartTooltip';
+import { ForeignChartSeries, ForeignChartTooltipContent } from './ForeignChartParts';
 import { BarChart3 } from 'lucide-react';
 import {
-  Bar,
   CartesianGrid,
   ComposedChart,
   Legend,
-  Line,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -63,29 +61,7 @@ export default function ForeignTrendComposedChart({ data = [], isLoading, error 
             width={40}
           />
           <Tooltip
-            content={
-              <TrendChartTooltip
-                titleKey="academicYear"
-                rows={[
-                  {
-                    key: 'totalCount',
-                    label: 'Total Mahasiswa',
-                    colorClass: 'bg-digital-blue-300 opacity-75',
-                  },
-                  {
-                    key: 'foreignCount',
-                    label: 'Mahasiswa Asing',
-                    colorClass: 'bg-digital-blue-700',
-                    indicatorClassName: 'w-3 h-1.5 rounded-full',
-                  },
-                ]}
-                footer={{
-                  key: 'percentage',
-                  label: 'Persentase (Rasio)',
-                  format: formatPercentage,
-                }}
-              />
-            }
+            content={<ForeignChartTooltipContent />}
             cursor={{ fill: 'rgba(219,234,254,0.3)' }}
           />
           <Legend
@@ -94,25 +70,7 @@ export default function ForeignTrendComposedChart({ data = [], isLoading, error 
             iconType="square"
             wrapperStyle={{ fontSize: '11px', color: '#6b7280', paddingBottom: '50px' }}
           />
-          <Bar
-            yAxisId="left"
-            dataKey="totalCount"
-            name="Total Mahasiswa (Orang)"
-            fill={DIGITAL_BLUE[300]}
-            opacity={0.75}
-            radius={[4, 4, 0, 0]}
-            maxBarSize={38}
-          />
-          <Line
-            yAxisId="right"
-            type="monotone"
-            dataKey="percentage"
-            name="Rasio Mhs Asing (%)"
-            stroke={DIGITAL_BLUE[600]}
-            strokeWidth={2.4}
-            dot={{ r: 4, fill: 'white', stroke: DIGITAL_BLUE[600], strokeWidth: 2 }}
-            activeDot={{ r: 6, fill: DIGITAL_BLUE[600], stroke: 'white', strokeWidth: 2 }}
-          />
+          <ForeignChartSeries />
         </ComposedChart>
       </ResponsiveContainer>
     </div>

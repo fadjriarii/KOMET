@@ -10,14 +10,19 @@
  *
  * Kondisi snapshot tahun akademik ada di `snapshotConditions`.
  */
-const { toArray, addInFilter, addSearchFilter } = require('../shared/filterUtils');
-const { getCurrentAcademicYearStart } = require('../../utils/academicUtils');
+const { addSearchFilter } = require('@komet/shared/filterUtils');
+const { buildAcademicYearFilter } = require('./snapshotConditions');
+const { buildMultiSelectFilters } = require('./filterBuilder/multiSelect');
+const {
+  getAcademicYear,
+  getSelectedAcademicYear,
+  buildPeriodeFilter,
+} = require('./filterBuilder/academicYear');
 const {
   ALL_STATUSES,
-  DEFAULT_STATUS,
-  parseStatusSelection,
-  buildAcademicYearFilter,
-} = require('./snapshotConditions');
+  buildStatusFilter,
+  ensurePopulationFilter,
+} = require('./filterBuilder/statusScope');
 
 const FILTER_SCOPES = {
   /** Populasi terpilih: status berjalan ATAU proyeksi status pada snapshot tahun. */
@@ -27,115 +32,6 @@ const FILTER_SCOPES = {
   /** Lintas tahun: tahun akademik terpilih diabaikan, tren membangun perahunya sendiri. */
   ALL_YEARS: 'allYears',
 };
-
-function addOrCondition(where, condition) {
-  where.AND = where.AND || [];
-  where.AND.push({ OR: condition });
-}
-
-function getAcademicYear(targetAcademicYear) {
-  if (!targetAcademicYear) return null;
-  const value = String(targetAcademicYear);
-  const match = value.match(/^(\d{4})\/(\d{4})$/);
-  const startYear = match ? match[1] : value.length === 4 ? value : null;
-  return startYear
-    ? {
-        startYear,
-        endYear: match ? match[2] : String(Number(startYear) + 1),
-        isCurrent: Number(startYear) === getCurrentAcademicYearStart(),
-      }
-    : null;
-}
-
-/**
- * Tahun akademik terpilih dari query — satu aturan untuk snapshot kartu,
- * jendela tren, dan proyeksi status tabel.
- * `selectedPeriode` tetap diterima untuk kompatibilitas link lama.
- */
-function getSelectedAcademicYear(query = {}) {
-  const candidate = query.tahunAjaran || query.selectedPeriode;
-  return typeof candidate === 'string' && /^\d{4}\/\d{4}$/.test(candidate) ? candidate : null;
-}
-
-function buildPeriodeFilter(value) {
-  if (value === 'Ganjil') return { endsWith: '1' };
-  if (value === 'Genap') return { endsWith: '2' };
-  return value;
-}
-
-function buildMultiSelectFilters(query, where, { skipCohortFilters = false } = {}) {
-  const mappings = [
-    ['fakultas', 'fakultas'],
-    ['programStudi', 'programStudi'],
-    ['jenjang', 'jenjang'],
-    ['angkatan', 'angkatan'],
-  ];
-  mappings.forEach(([queryKey, field]) => addInFilter(where, field, query[queryKey]));
-
-  // Intake/decline (scope COHORT) menghitung semua mahasiswa yang masuk per
-  // tahun ajaran — filter angkatan dan semester dari kontrol UI tidak boleh
-  // mempersempit populasi itu karena:
-  // - angkatanTahun = label ajaran sama dengan tahun intake, sudah di-resolve
-  //   lewat periodeMasuk snapshot;
-  // - semester = posisi saat ini, bukan saat masuk (intake = selalu semester 1).
-  if (!skipCohortFilters) {
-    const cohortYears = toArray(query.angkatanTahun);
-    if (cohortYears) {
-      // Kolom `angkatan` menyimpan label ajaran penuh, jadi filter kohort adalah
-      // pencocokan persis — bukan `startsWith` atas tahun mentah.
-      addInFilter(where, 'angkatan', cohortYears);
-    }
-
-    const semesterValues = toArray(query.semester) || [];
-    // Grup "9+" = semester 9 ke atas (molor); selebihnya angka biasa.
-    const hasExtendedSemester = semesterValues.includes('9+');
-    const semesters = semesterValues
-      .map(Number)
-      .filter((value) => Number.isInteger(value) && value > 0);
-    if (hasExtendedSemester && semesters.length) {
-      addOrCondition(where, [{ semester: { in: semesters } }, { semester: { gte: 9 } }]);
-    } else if (hasExtendedSemester) {
-      where.semester = { gte: 9 };
-    } else if (semesters.length) {
-      where.semester = { in: semesters };
-    }
-  }
-}
-
-function buildStatusFilter(statusValues) {
-  const { isAll, statuses } = parseStatusSelection(statusValues);
-  // "Semua status" dikirim sebagai predikat eksplisit, bukan ketiadaan key,
-  // supaya ensurePopulationFilter tidak mengumpulkannya kembali ke default.
-  if (isAll) return { not: '' };
-  return statuses.length === 1 ? statuses[0] : { in: statuses };
-}
-
-/**
- * True bila filter memuat batas snapshot tahun akademik. Satu-satunya produsen
- * `periodeMasuk: { lte }` adalah `buildAcademicYearFilter()`, jadi cukup
- * ditanya begitu — tanpa mencocokkan serialisasi kondisi.
- */
-function isAcademicSnapshot(where = {}) {
-  const conditions = Array.isArray(where.AND) ? where.AND : [];
-  return conditions.some((condition) => Boolean(condition?.periodeMasuk?.lte));
-}
-
-/**
- * Ensure consistent population filter across all student services.
- * If statusKeaktifan is not explicitly set and we're not in academic snapshot mode,
- * default to 'Aktif' status.
- *
- * This eliminates duplicate logic in activeStudents.js and internationalTrend.js.
- *
- * @param {object} baseFilter - The base filter from buildStudentFilter()
- * @returns {object} Filter with guaranteed statusKeaktifan handling
- */
-function ensurePopulationFilter(baseFilter = {}) {
-  if (baseFilter.statusKeaktifan || isAcademicSnapshot(baseFilter)) {
-    return baseFilter;
-  }
-  return { ...baseFilter, statusKeaktifan: DEFAULT_STATUS };
-}
 
 /**
  * buildStudentFilter — translates all filter query params to a Prisma where clause.

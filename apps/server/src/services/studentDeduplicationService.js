@@ -4,22 +4,65 @@ const logger = require('../utils/logger');
 /**
  * Service Deduplikasi Terpadu (Students, Graduates, & MBKM)
  *
- * Aturan Deduplikasi:
- * 1. Menghilangkan "X" / "x" dari NIM (nimBersih = nim.toLowerCase().trim().replace(/x/g, '')).
- * 2. Mengelompokkan data berdasarkan (nama, nimBersih).
- * 3. Jika kelompok HANYA berisi 1 data (TIDAK DUPLIKAT):
- *    -> Data TETAP ADA, tidak disentuh atau dihapus sama sekali.
- * 4. Jika kelompok berisi > 1 data (DUPLIKAT):
- *    -> Selamatkan SATU data utama (utamakan NIM yang bersih dari "X", lalu timestamp terbaru).
- *    -> Re-link data relasi (Graduate & MBKM Activity) dari data sisa ke data utama agar tidak ada histori yang hilang.
- *    -> Hapus data duplikat sisa secara masal (bulk delete).
+ * Tiga tahap, berurutan:
+ * P. Prune: NIM di DB yang tidak ada di payload API terakhir berarti basi
+ *    (mis. mahasiswa dinomor-ulang SEVIMA). Relink relasi ke kembarannya bila
+ *    ketemu, selain itu hapus (FK cascade ikut membersihkan anaknya).
+ * A. Akun lama `x`/`XX`: grup by NIM-bersih SAJA (tanpa nama — nama legacy
+ *    vs baru sering beda ejaan). Bila ada kembaran tanpa-x, yang ber-x dibuang.
+ *    Bila tidak ada kembarannya, satu record dipakai dengan NIM hasil hapus-x.
+ * B. Orang yang sama, NIM berbeda: dikenali lewat NIK valid ATAU nama +
+ *    tanggal lahir yang dinormalisasi, untuk SEMUA jenjang. Yang dibuang hanya
+ *    record bertanda akun-lama yang punya kembaran se-jenjang berstatus studi
+ *    nyata (bukan Transfer/Mutasi) — dua enrollment paralel yang sah (mis. S1 +
+ *    Profesi) tidak pernah digabung.
  */
-async function deduplicateStudents() {
+function normNama(value) {
+  return (value || '').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function nimBersih(value) {
+  return (value || '').toLowerCase().trim().replace(/x/g, '');
+}
+
+function validNik(value) {
+  const nik = (value || '').trim();
+  return nik.length === 16 && /^\d+$/.test(nik) && new Set(nik).size > 2 ? nik : '';
+}
+
+/** Status akhir yang BUKAN riwayat studi di sini — kembaran berstatus ini tidak
+ *  boleh menggusur record lama (menyelamatkan lulusan asli). */
+function isStatusPindah(status) {
+  return /^(transfer|mutasi)$/i.test((status || '').trim());
+}
+
+function personKeys(student) {
+  const keys = [];
+  const nik = validNik(student.nik);
+  if (nik) keys.push(`NIK:${nik}`);
+  const nama = normNama(student.nama);
+  const lahir = (student.tanggalLahir || '').trim();
+  if (nama && lahir) keys.push(`Lahir:${nama}|${lahir}`);
+  return keys;
+}
+
+/** Survivor utama dulu: NIM bersih dari x, lalu bukan akun-lama, lalu updatedAt
+ * terbaru. Urutan dua pertama tidak boleh tertukar: baris ber-x adalah shell
+ * lama (aturan A) — ia kalah dari data baru tanpa-x MESKIPUN data baru itu
+ * berlabel "(Akun Lama)" (kasus 16010010: Lulus vs shell Transfer). */
+function survivorFirst(a, b) {
+  const aHasX = /x/i.test(a.nim || '');
+  const bHasX = /x/i.test(b.nim || '');
+  if (aHasX !== bHasX) return aHasX ? 1 : -1;
+  if (!!a.isAkunLama !== !!b.isAkunLama) return a.isAkunLama ? 1 : -1;
+  return new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime();
+}
+
+async function deduplicateStudents({ pruneNims = null } = {}) {
   logger.info('🧹 Memulai proses deduplikasi terpadu (Students, Graduates, MBKM) di memori...');
 
   // 1. Ambil seluruh data mahasiswa secara bertahap (batch chunking 500 per iterasi) untuk skalabilitas
-  const groupMap = new Map();
-  let totalStudentsCount = 0;
+  const allStudents = [];
   let cursor = null;
   const CHUNK_SIZE = 500;
   let hasMore = true;
@@ -38,197 +81,191 @@ async function deduplicateStudents() {
     const chunk = await prisma.student.findMany(queryOptions);
     if (chunk.length === 0) break;
 
-    totalStudentsCount += chunk.length;
+    allStudents.push(...chunk);
     cursor = chunk[chunk.length - 1].nim;
-
-    for (const student of chunk) {
-      const namaBersih = (student.nama || '').toLowerCase().trim();
-      const nimBersih = (student.nim || '').toLowerCase().trim().replace(/x/g, '');
-      const key = `${namaBersih}_${nimBersih}`;
-
-      if (!groupMap.has(key)) {
-        groupMap.set(key, []);
-      }
-      groupMap.get(key).push(student);
-    }
 
     if (chunk.length < CHUNK_SIZE) {
       hasMore = false;
     }
   }
+  const totalStudentsCount = allStudents.length;
   logger.info(`📦 Berhasil memproses ${totalStudentsCount} data mahasiswa dari database.`);
 
-  const studentIdsToDelete = [];
+  const byNim = new Map(allStudents.map((s) => [s.nim, s]));
+  const studentNimsToDelete = new Set();
+  const relinkPlan = []; // { fromNim, toNim }
   let relinkedGraduatesCount = 0;
   let relinkedMbkmCount = 0;
 
-  // 2. Grouping & Deduplikasi berdasarkan:
-  // (a) Nama + NIM bersih
-  // (b) NIK + Tanggal Lahir (khusus S2 Akun Lama vs S2 Resmi tanpa Akun Lama)
-  const personGroupMap = new Map();
+  const markDeleted = (fromNim, toNim) => {
+    if (fromNim === toNim || studentNimsToDelete.has(fromNim)) return;
+    studentNimsToDelete.add(fromNim);
+    if (toNim && byNim.has(toNim)) relinkPlan.push({ fromNim, toNim });
+  };
 
-  for (const [, group] of groupMap) {
-    for (const student of group) {
-      const jenjang = (student.jenjang || '').toUpperCase().trim();
-      const cleanNik = (student.nik || '').trim();
-      const cleanTglLahir = (student.tanggalLahir || '').trim();
-      const cleanNama = (student.nama || '').toLowerCase().trim();
-
-      // Jika S2 dan mempunyai identitas (NIK / tanggalLahir), buat personKey gabungan
-      const personKey =
-        jenjang === 'S2' && (cleanNik || cleanTglLahir)
-          ? `S2_${cleanNama}_${cleanNik}_${cleanTglLahir}`
-          : `${cleanNama}_${(student.nim || '').toLowerCase().trim().replace(/x/g, '')}`;
-
-      if (!personGroupMap.has(personKey)) {
-        personGroupMap.set(personKey, []);
+  // ---- Tahap P: prune NIM basi (tidak dikembalikan API terakhir) ----
+  let prunedStudentsCount = 0;
+  if (pruneNims) {
+    const fresh = new Set([...pruneNims].map((nim) => String(nim)));
+    const stale = allStudents.filter((s) => !fresh.has(s.nim));
+    // Kelompokkan sesama basi + yang segar lewat kunci orang yang sama.
+    const personIndex = new Map();
+    for (const s of allStudents) {
+      for (const key of personKeys(s)) {
+        if (!personIndex.has(key)) personIndex.set(key, []);
+        personIndex.get(key).push(s);
       }
-      personGroupMap.get(personKey).push(student);
+    }
+    for (const s of stale) {
+      const twins = new Set();
+      for (const key of personKeys(s)) {
+        for (const cand of personIndex.get(key) || []) {
+          if (cand.nim !== s.nim && fresh.has(cand.nim)) twins.add(cand);
+        }
+      }
+      const ordered = [...twins].sort(survivorFirst);
+      markDeleted(s.nim, ordered.length ? ordered[0].nim : null);
+      prunedStudentsCount++;
+    }
+    if (prunedStudentsCount > 0) {
+      logger.info(`🧹 Prune: ${prunedStudentsCount} NIM basi tidak ada di API terakhir.`);
     }
   }
 
-  // 3. Evaluasi setiap kelompok orang
-  for (const [, group] of personGroupMap) {
-    // Pemilahan: Urutkan data agar data tanpa 'Akun Lama', tanpa 'x', dan updatedAt terbaru menjadi survivor utama
-    group.sort((a, b) => {
-      const aProdi = (a.programStudi || '').toLowerCase();
-      const bProdi = (b.programStudi || '').toLowerCase();
-      const aIsAkunLama = aProdi.includes('akun lama');
-      const bIsAkunLama = bProdi.includes('akun lama');
-
-      // UTAMAKAN data resmi yang TIDAK mengandung 'Akun Lama'
-      if (!aIsAkunLama && bIsAkunLama) return -1; // a resmi -> utamakan a
-      if (aIsAkunLama && !bIsAkunLama) return 1; // b resmi -> utamakan b
-
-      // Jika status Akun Lama sama, utamakan NIM bersih dari X
-      const aHasX = /x/i.test(a.nim);
-      const bHasX = /x/i.test(b.nim);
-
-      if (!aHasX && bHasX) return -1; // a bersih dari X -> utamakan a
-      if (aHasX && !bHasX) return 1; // b bersih dari X -> utamakan b
-
-      // Jika status X sama, utamakan yang memiliki updatedAt terbaru
-      const timeA = new Date(a.updatedAt || 0).getTime();
-      const timeB = new Date(b.updatedAt || 0).getTime();
-
-      return timeB - timeA;
+  // ---- Tahap A: akun lama x/XX — grup by NIM-bersih saja ----
+  const cleanGroups = new Map();
+  for (const s of allStudents) {
+    if (studentNimsToDelete.has(s.nim)) continue;
+    const key = nimBersih(s.nim);
+    if (!cleanGroups.has(key)) cleanGroups.set(key, []);
+    cleanGroups.get(key).push(s);
+  }
+  for (const group of cleanGroups.values()) {
+    if (group.length < 2) continue;
+    const ordered = [...group].sort(survivorFirst);
+    const survivor = ordered[0];
+    for (const dup of ordered.slice(1)) markDeleted(dup.nim, survivor.nim);
+  }
+  // Akun-x tanpa kembaran di API: dipakai dengan NIM hasil hapus-x (salin ke
+  // NIM bersih, pindahkan relasi, hapus yang ber-x).
+  for (const group of cleanGroups.values()) {
+    if (group.length !== 1) continue;
+    const [sole] = group;
+    const clean = sole.nim.replace(/x/gi, '');
+    if (!clean || clean === sole.nim || byNim.has(clean)) continue;
+    await prisma.$transaction(async (tx) => {
+      await tx.student.create({
+        data: {
+          nim: clean,
+          nama: sole.nama,
+          jenjang: sole.jenjang,
+          periodeMasuk: sole.periodeMasuk,
+          periodeTerakhir: sole.periodeTerakhir,
+          angkatan: sole.angkatan,
+          periode: sole.periode,
+          programStudi: sole.programStudi,
+          fakultas: sole.fakultas,
+          statusKeaktifan: sole.statusKeaktifan,
+          semester: sole.semester,
+          kewarganegaraan: sole.kewarganegaraan,
+          nik: sole.nik,
+          tanggalLahir: sole.tanggalLahir,
+          isAkunLama: false,
+        },
+      });
+      await tx.graduate.updateMany({ where: { nim: sole.nim }, data: { nim: clean } });
+      const mbkmRes = await tx.mbkmActivity.updateMany({
+        where: { nim: sole.nim },
+        data: { nim: clean },
+      });
+      relinkedMbkmCount += mbkmRes.count;
     });
+    studentNimsToDelete.add(sole.nim);
+  }
 
-    const survivor = group[0]; // 1 Data Utama yang diselamatkan
-    const eliminated = group.slice(1); // Data sisa yang tereliminasi jika ada duplikat
-
-    // Jika ada duplikat, pindahkan relasi anak ke survivor NIM dan tandai duplikat untuk dihapus
-    if (eliminated.length > 0) {
-      await prisma.$transaction(async (tx) => {
-        for (const duplicateStudent of eliminated) {
-          // Re-link / pindahkan relasi Graduate jika survivor belum memiliki Graduate
-          const duplicateGraduate = await tx.graduate.findUnique({
-            where: { nim: duplicateStudent.nim },
-          });
-
-          if (duplicateGraduate) {
-            const survivorGraduate = await tx.graduate.findUnique({
-              where: { nim: survivor.nim },
-            });
-
-            if (!survivorGraduate) {
-              // Pindahkan kelulusan ke survivor NIM
-              await tx.graduate.update({
-                where: { id: duplicateGraduate.id },
-                data: { nim: survivor.nim },
-              });
-              relinkedGraduatesCount++;
-            } else {
-              // Jika survivor sudah punya kelulusan, hapus kelulusan duplikat
-              await tx.graduate.delete({
-                where: { id: duplicateGraduate.id },
-              });
-            }
-          }
-
-          // Re-link relasi MBKM Activity ke survivor NIM
-          const mbkmRes = await tx.mbkmActivity.updateMany({
-            where: { nim: duplicateStudent.nim },
-            data: { nim: survivor.nim },
-          });
-          relinkedMbkmCount += mbkmRes.count;
-
-          studentIdsToDelete.push(duplicateStudent.nim);
-        }
-      });
+  // ---- Tahap B: orang yang sama lintas NIM (semua jenjang) ----
+  // Union-find lewat kunci orang, lalu dalam tiap cluster hanya record
+  // bertanda akun-lama yang dibuang — dan hanya bila ada kembaran se-jenjang
+  // yang statusnya studi nyata (bukan Transfer/Mutasi).
+  const parent = new Map();
+  const find = (x) => {
+    let r = x;
+    while (parent.get(r) !== r) r = parent.get(r);
+    parent.set(x, parent.get(r));
+    return r;
+  };
+  const alive = allStudents.filter((s) => !studentNimsToDelete.has(s.nim));
+  for (const s of alive) parent.set(s.nim, s.nim);
+  const keyIndex = new Map();
+  for (const s of alive) {
+    for (const key of personKeys(s)) {
+      if (!keyIndex.has(key)) keyIndex.set(key, []);
+      keyIndex.get(key).push(s.nim);
     }
-
-    // Jika survivor masih memiliki karakter 'x' (misal hanya ada 1 data dan mengandung x),
-    // bersihkan 'x' dari NIM dan perbarui relasi ke clean NIM
-    const cleanNim = survivor.nim.replace(/x/gi, '');
-    if (cleanNim && cleanNim !== survivor.nim && !studentIdsToDelete.includes(survivor.nim)) {
-      await prisma.$transaction(async (tx) => {
-        // Periksa apakah target cleanNim sudah ada di DB
-        const existingClean = await tx.student.findUnique({ where: { nim: cleanNim } });
-        if (!existingClean) {
-          // Buat record baru dengan clean NIM menyalin data survivor
-          await tx.student.create({
-            data: {
-              nim: cleanNim,
-              nama: survivor.nama,
-              jenjang: survivor.jenjang,
-              periodeMasuk: survivor.periodeMasuk,
-              angkatan: survivor.angkatan,
-              periode: survivor.periode,
-              programStudi: survivor.programStudi,
-              fakultas: survivor.fakultas,
-              statusKeaktifan: survivor.statusKeaktifan,
-              semester: survivor.semester,
-              kewarganegaraan: survivor.kewarganegaraan,
-            },
-          });
-
-          // Pindahkan relasi Graduate & MBKM
-          await tx.graduate.updateMany({
-            where: { nim: survivor.nim },
-            data: { nim: cleanNim },
-          });
-          await tx.mbkmActivity.updateMany({
-            where: { nim: survivor.nim },
-            data: { nim: cleanNim },
-          });
-
-          // Hapus record lama yang ber-x
-          studentIdsToDelete.push(survivor.nim);
-        }
-      });
+  }
+  for (const nims of keyIndex.values()) {
+    const uniq = [...new Set(nims)];
+    for (const other of uniq.slice(1)) {
+      const ra = find(uniq[0]);
+      const rb = find(other);
+      if (ra !== rb) parent.set(rb, ra);
+    }
+  }
+  const clusters = new Map();
+  for (const s of alive) {
+    const root = find(s.nim);
+    if (!clusters.has(root)) clusters.set(root, []);
+    clusters.get(root).push(s);
+  }
+  for (const group of clusters.values()) {
+    if (group.length < 2) continue;
+    for (const legacy of group.filter((s) => s.isAkunLama)) {
+      const twin = group
+        .filter(
+          (s) =>
+            s.nim !== legacy.nim &&
+            !s.isAkunLama &&
+            (s.jenjang || '').toLowerCase().trim() ===
+              (legacy.jenjang || '').toLowerCase().trim() &&
+            !isStatusPindah(s.statusKeaktifan),
+        )
+        .sort(survivorFirst)[0];
+      // Tanpa kembaran studi-nyata (atau kembarannya justru pindahan), record
+      // lama dipakai — data lulus aslinya tidak boleh ikut terbuang.
+      if (twin) markDeleted(legacy.nim, twin.nim);
     }
   }
 
-  // 4. Bulk Delete Mahasiswa Duplikat
+  // ---- Eksekusi: relink anak ke survivor, lalu hapus duplikat ----
+  for (const { fromNim, toNim } of relinkPlan) {
+    await prisma.$transaction(async (tx) => {
+      const duplicateGraduate = await tx.graduate.findUnique({ where: { nim: fromNim } });
+      if (duplicateGraduate) {
+        const survivorGraduate = await tx.graduate.findUnique({ where: { nim: toNim } });
+        if (!survivorGraduate) {
+          await tx.graduate.update({ where: { id: duplicateGraduate.id }, data: { nim: toNim } });
+          relinkedGraduatesCount++;
+        } else {
+          await tx.graduate.delete({ where: { id: duplicateGraduate.id } });
+        }
+      }
+      const mbkmRes = await tx.mbkmActivity.updateMany({
+        where: { nim: fromNim },
+        data: { nim: toNim },
+      });
+      relinkedMbkmCount += mbkmRes.count;
+    });
+  }
+
   let deletedStudentsCount = 0;
-  if (studentIdsToDelete.length > 0) {
+  if (studentNimsToDelete.size > 0) {
     const deleteRes = await prisma.student.deleteMany({
-      where: { nim: { in: studentIdsToDelete } },
+      where: { nim: { in: [...studentNimsToDelete] } },
     });
     deletedStudentsCount = deleteRes.count;
-    logger.success(
-      `🗑️ Berhasil menghapus ${deletedStudentsCount} record mahasiswa duplikat/ber-X secara masal.`,
-    );
+    logger.success(`🗑️ Berhasil menghapus ${deletedStudentsCount} record mahasiswa duplikat/basi.`);
   } else {
     logger.info('✨ Tidak ada data mahasiswa duplikat yang perlu dihapus.');
-  }
-
-  // 4b. Pembersihan Data Akun Lama & NIM tidak valid yang tersisa di database
-  const deleteAkunLamaRes = await prisma.student.deleteMany({
-    where: {
-      OR: [
-        { programStudi: { contains: 'Akun Lama' } },
-        { fakultas: { contains: 'Akun Lama' } },
-        { programStudi: { contains: 'keterangan akun lama' } },
-        { fakultas: { contains: 'keterangan akun lama' } },
-      ],
-    },
-  });
-  if (deleteAkunLamaRes.count > 0) {
-    logger.success(
-      `🗑️ Berhasil membersihkan ${deleteAkunLamaRes.count} record mahasiswa berstatus Akun Lama dari database.`,
-    );
   }
 
   // 5. Pembersihan Duplikat pada Aktivitas MBKM
@@ -236,10 +273,7 @@ async function deduplicateStudents() {
   const mbkmGroupMap = new Map();
 
   for (const act of mbkmActivities) {
-    const nimBersih = (act.nim || '').toLowerCase().trim().replace(/x/g, '');
-    const jenisBersih = (act.jenisAktivitas || '').toLowerCase().trim();
-    const judulBersih = (act.judulAktivitas || '').toLowerCase().trim();
-    const key = `${nimBersih}_${act.periode}_${jenisBersih}_${judulBersih}`;
+    const key = `${nimBersih(act.nim)}_${act.periode}_${(act.jenisAktivitas || '').toLowerCase().trim()}_${(act.judulAktivitas || '').toLowerCase().trim()}`;
 
     if (!mbkmGroupMap.has(key)) {
       mbkmGroupMap.set(key, []);
@@ -268,21 +302,25 @@ async function deduplicateStudents() {
   return {
     totalEvaluatedStudents: totalStudentsCount,
     deletedStudentsCount,
+    prunedStudentsCount,
     relinkedGraduatesCount,
     relinkedMbkmCount,
     deletedMbkmCount,
   };
 }
 
+/** Dua baris satu orang: NIK valid sama, atau nama (normalisasi) + tgl lahir sama. */
 function isSamePerson(studentA, studentB) {
   if (!studentA || !studentB) return false;
-  const nikA = (studentA.nik || '').trim();
-  const nikB = (studentB.nik || '').trim();
-  if (nikA && nikB && nikA === nikB) return true;
+  const nikA = validNik(studentA.nik);
+  const nikB = validNik(studentB.nik);
+  if (nikA && nikB) return nikA === nikB;
 
+  const namaA = normNama(studentA.nama);
+  const namaB = normNama(studentB.nama);
   const tglA = (studentA.tanggalLahir || '').trim();
   const tglB = (studentB.tanggalLahir || '').trim();
-  if (tglA && tglB && tglA === tglB) return true;
+  if (namaA && tglA && namaA === namaB && tglA === tglB) return true;
 
   return false;
 }
@@ -290,4 +328,5 @@ function isSamePerson(studentA, studentB) {
 module.exports = {
   deduplicateStudents,
   isSamePerson,
+  survivorFirst,
 };

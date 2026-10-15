@@ -16,7 +16,7 @@
  */
 
 const prisma = require('../../config/prisma');
-const { addInFilter, addSearchFilter, hasFilters, toArray } = require('../shared/filterUtils');
+const { addInFilter, addSearchFilter, hasFilters, toArray } = require('@komet/shared/filterUtils');
 const { PREDIKAT, UNCLASSIFIED_PREDIKAT } = require('@komet/shared/constants');
 const {
   IPK_THRESHOLD_CUM_LAUDE,

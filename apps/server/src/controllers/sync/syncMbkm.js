@@ -3,14 +3,9 @@ const logger = require('../../utils/logger');
 const syncJobTracker = require('../../utils/syncJobTracker');
 const createSyncHandler = require('./createSyncHandler');
 const { deduplicateStudents } = require('../../services/studentDeduplicationService');
-const { sanitizeProdiName, normalizeOptionalText, normalizeJenjang } = require('./text');
-const {
-  resolveTargetNimBatch,
-  getProdiFakultasMap,
-  resolveFakultas,
-  paginateSevimaPages,
-} = require('./sevimaLookup');
-const { bulkCreateMbkmActivities } = require('./bulkWrite');
+const { mapMbkmRow } = require('./mapMbkmRow');
+const { writeMbkmPage } = require('./writeMbkmPage');
+const { getProdiFakultasMap, paginateSevimaPages } = require('./sevimaLookup');
 
 // 3. ETL Sinkronisasi MBKM (MbkmActivity)
 const executeSyncMbkm = async ({ runDedup = true } = {}) => {
@@ -29,66 +24,16 @@ const executeSyncMbkm = async ({ runDedup = true } = {}) => {
     onPage: async (listData, { page, totalPages }) => {
       const validItems = [];
       for (const item of listData) {
-        const attr = item.attributes;
-        // Aktivitas tanpa jenis bukan aktivitas MBKM — dibuang di ETL, bukan disaring saat baca.
-        const jenisAktivitas = normalizeOptionalText(attr.jenis_kegiatan);
-        if (!attr.nim || !jenisAktivitas) {
+        const row = mapMbkmRow(item.attributes, prodiFakultasMap);
+        if (!row) {
           totalSkipped++;
           continue;
         }
-
-        const prodiName = sanitizeProdiName(attr.program_studi || '');
-
-        validItems.push({
-          nim: attr.nim,
-          nama_mahasiswa: attr.nama_mahasiswa || '',
-          jenjang: normalizeJenjang(attr.id_jenjang_program_studi || 'S1'),
-          periode: attr.id_periode || '',
-          programStudi: prodiName,
-          fakultas: resolveFakultas(attr, prodiName, prodiFakultasMap),
-          jenisAktivitas,
-          judulAktivitas: normalizeOptionalText(attr.judul_aktivitas),
-          mitra: normalizeOptionalText(attr.nama_mitra),
-          statusAktivitas: attr.status_aktivitas || '',
-        });
+        validItems.push(row);
       }
 
       if (validItems.length > 0) {
-        // Bulk pre-fetch NIM Resolution (Menghilangkan N+1 Query)
-        const nimMap = await resolveTargetNimBatch(
-          validItems,
-          (item) => item.nim,
-          (item) => item.nama_mahasiswa,
-          (item) => item,
-        );
-
-        const targetNims = [...new Set(validItems.map((item) => nimMap.get(item) || item.nim))];
-        // statusKeaktifan denormalisasi diambil dari baris mahasiswa terkait, bukan dari
-        // judul aktivitas (value lama membuat kolom ini tidak pernah cocok dengan status apa pun).
-        const studentRows = await prisma.student.findMany({
-          where: { nim: { in: targetNims } },
-          select: { nim: true, statusKeaktifan: true },
-        });
-        const statusByNim = new Map(studentRows.map((row) => [row.nim, row.statusKeaktifan]));
-
-        await bulkCreateMbkmActivities(
-          validItems.map((item) => {
-            const nim = nimMap.get(item) || item.nim;
-            return {
-              nim,
-              periode: item.periode,
-              programStudi: item.programStudi,
-              fakultas: item.fakultas,
-              jenjang: item.jenjang,
-              statusKeaktifan: statusByNim.get(nim) || '',
-              jenisAktivitas: item.jenisAktivitas,
-              judulAktivitas: item.judulAktivitas,
-              mitra: item.mitra,
-              statusAktivitas: item.statusAktivitas,
-            };
-          }),
-        );
-        totalSynced += validItems.length;
+        totalSynced += await writeMbkmPage(validItems);
       }
 
       syncJobTracker.updateProgress('mbkm', {

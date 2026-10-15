@@ -8,7 +8,8 @@
     "./constants": "./src/constants.js",
     "./formatters": "./src/formatters.js",
     "./academicYear": "./src/academicYear.js",
-    "./contracts": "./src/contracts.js"
+    "./contracts": "./src/contracts.js",
+    "./filterUtils": "./src/filterUtils.js"
   },
   "scripts": {
     "lint": "eslint .",

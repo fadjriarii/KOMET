@@ -56,6 +56,13 @@ export function getTrendStyle(isPositive) {
   return isPositive ? TREND_STYLES.positive : TREND_STYLES.negative;
 }
 
+/** Fallback saat data belum cukup — dipakai kartu dan modal yang sama-sama
+ *  menampilkan status "belum cukup data" agar tidak ada salinan objek. */
+export const INSUFFICIENT_DATA_TREND_STYLE = {
+  textClass: 'text-gray-500',
+  label: 'Data belum cukup',
+};
+
 export default {
   DIGITAL_BLUE,
   CHART_PALETTE,

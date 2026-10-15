@@ -1,7 +1,6 @@
-import { AlertCircle, Globe, TrendingDown, TrendingUp, UserPlus, Users } from 'lucide-react';
+import { buildStudentCards } from './buildStudentCards';
 import { getRollingAcademicYears } from '@komet/shared/academicYear';
 import DashboardPage from '../../../components/common/layout/DashboardPage';
-import { formatKpiDisplay } from '../../../utils/uiHelpers';
 import StudentDataTable from '../components/StudentDataTable';
 import StudentDetailModal from '../components/StudentDetailModal';
 import AcademicYearFilter from '../../../components/common/filters/AcademicYearFilter';
@@ -9,67 +8,6 @@ import { studentFilterForm, useStudentFilters } from '../hooks/useStudentFilters
 import { useStudentKpiDisplay } from '../hooks/useStudentKpiDisplay';
 import { useStudentFilterOptions } from '../hooks/useStudentFilterOptions';
 import { useSummary, useList } from '../studentQueries';
-
-function buildCards({
-  kpis,
-  activeStudentPresentation,
-  displaySubtitles,
-  displayTitles,
-  displayBadges,
-  declineTrendStyle,
-  kpiScope,
-  isReady,
-  openModal,
-}) {
-  return [
-    {
-      key: 'active',
-      title: activeStudentPresentation.cardTitle,
-      value: formatKpiDisplay(kpis.formattedActiveCount),
-      subtitle: displaySubtitles.activeSubtitle,
-      icon: Users,
-      badge: activeStudentPresentation.cardBadge,
-      onViewDetails: (event) => openModal('active', event),
-      isFiltered: kpiScope.active && isReady,
-    },
-    {
-      key: 'foreign',
-      title: 'Persentase Mahasiswa Internasional',
-      value: formatKpiDisplay(kpis.foreignRate),
-      subtitle: displaySubtitles.foreignSubtitle,
-      icon: Globe,
-      badge: `Non-WNI ${activeStudentPresentation.statusLabel}`,
-      onViewDetails: (event) => openModal('foreign', event),
-      isFiltered: kpiScope.foreign && isReady,
-    },
-    {
-      key: 'intake',
-      title: 'Intake Mahasiswa Baru',
-      value: formatKpiDisplay(kpis.formattedIntakeCount),
-      subtitle: displaySubtitles.intakeSubtitle,
-      icon: UserPlus,
-      badge: 'Mhs Semester 1',
-      onViewDetails: (event) => openModal('intake', event),
-      isFiltered: kpiScope.intake && isReady,
-    },
-    {
-      key: 'decline',
-      title: displayTitles.declineTitle,
-      value: kpis.declineAvg,
-      subtitle: displaySubtitles.declineSubtitle,
-      icon:
-        kpis.hasEnoughDeclineData === false
-          ? AlertCircle
-          : kpis.isFluctuationPositive
-            ? TrendingUp
-            : TrendingDown,
-      valueClassName: declineTrendStyle.textClass,
-      badge: displayBadges.declineBadge,
-      onViewDetails: (event) => openModal('decline', event),
-      isFiltered: kpiScope.decline && isReady,
-    },
-  ];
-}
 
 /** Filter tahun ajaran hidup di header, bukan di grid filter. */
 function AcademicYearHeaderFilter({ filters, setters, summaryQuery, options }) {
@@ -96,7 +34,7 @@ export default function StudentsPage() {
       useSummary={useSummary}
       useList={useList}
       useKpiDisplay={useStudentKpiDisplay}
-      buildCards={buildCards}
+      buildCards={buildStudentCards}
       Table={StudentDataTable}
       DetailModal={StudentDetailModal}
       filterOptions={filterOptions}

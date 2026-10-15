@@ -15,7 +15,7 @@
 
 const prisma = require('../../config/prisma');
 const { getLabelYearRange, getReferenceLabelStart } = require('../../utils/academicUtils');
-const { toArray } = require('../shared/filterUtils');
+const { toArray } = require('@komet/shared/filterUtils');
 const { formatAcademicYearLabel } = require('@komet/shared/academicYear');
 const { getTahunAjaran, tahunAjaranStart } = require('./tahunAjaran');
 

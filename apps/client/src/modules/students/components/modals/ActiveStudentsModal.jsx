@@ -8,11 +8,11 @@ import {
   getStudentActiveDescription,
   getStudentStatusPresentation,
 } from '../../../../utils/uiHelpers';
+import { activeDistributions } from './activeDistributions';
 import { formatNumber } from '@komet/shared/formatters';
 import { getCurrentAcademicYear } from '@komet/shared/academicYear';
 import { useDetail } from '../../studentQueries';
-import { Building2, BookOpen, Layers } from 'lucide-react';
-import { STUDENT_DISTRIBUTION_TABS } from './studentTrendConfig';
+import { STUDENT_DISTRIBUTION_TABS } from '../../../../components/common/modals/modalTabs';
 
 export default function ActiveStudentsModal({ isOpen, onClose, originRect, data, filters }) {
   const { activeTab, handleTabChange, slideClass } = useTabTransition(
@@ -39,47 +39,24 @@ export default function ActiveStudentsModal({ isOpen, onClose, originRect, data,
   const prodiList = activeDetailData?.byProdi || [];
   const jenjangList = activeDetailData?.byJenjang || [];
 
-  const content = {
-    fakultas: (
+  const distributions = activeDistributions({ facultyList, prodiList, jenjangList });
+
+  const content = Object.fromEntries(
+    distributions.map(({ key, items, emptyIcon, emptyTitle, yAxisWidth }) => [
+      key,
       <div className="pt-1">
         <DistributionChart
-          items={facultyList}
+          items={items}
           countLabel="Jumlah Mahasiswa"
           isLoading={isLoadingDetail}
           error={detailError}
-          emptyIcon={Building2}
-          emptyTitle="Tidak Ada Data Fakultas"
-          yAxisWidth={190}
+          emptyIcon={emptyIcon}
+          emptyTitle={emptyTitle}
+          yAxisWidth={yAxisWidth}
         />
-      </div>
-    ),
-    prodi: (
-      <div className="pt-1">
-        <DistributionChart
-          items={prodiList}
-          countLabel="Jumlah Mahasiswa"
-          isLoading={isLoadingDetail}
-          error={detailError}
-          emptyIcon={BookOpen}
-          emptyTitle="Tidak Ada Data Program Studi"
-          yAxisWidth={210}
-        />
-      </div>
-    ),
-    jenjang: (
-      <div className="pt-1">
-        <DistributionChart
-          items={jenjangList}
-          countLabel="Jumlah Mahasiswa"
-          isLoading={isLoadingDetail}
-          error={detailError}
-          emptyIcon={Layers}
-          emptyTitle="Tidak Ada Data Jenjang"
-          yAxisWidth={140}
-        />
-      </div>
-    ),
-  };
+      </div>,
+    ]),
+  );
 
   return (
     <Modal

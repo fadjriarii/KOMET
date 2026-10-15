@@ -1,7 +1,14 @@
 const fs = require('fs');
 const path = require('path');
 const logger = require('./logger');
-const { SYNC_MODULE_KEYS, SYNC_ACTOR } = require('@komet/shared/constants');
+const { SYNC_MODULE_KEYS } = require('@komet/shared/constants');
+const {
+  blankEntry,
+  resolveScope,
+  sameScope,
+  withDerivedProgress,
+} = require('./syncJob/jobProgress');
+const { deadRunReason, markDeadRun } = require('./syncJob/jobDeath');
 
 const stateFilePath = path.join(__dirname, '../../logs/sync-state.json');
 
@@ -19,17 +26,6 @@ const MODULES = SYNC_MODULE_KEYS;
  * sering dari ini akan ikut dianggap mati. Naikkan angkanya bila itu terjadi.
  */
 const STALE_AFTER_MS = 10 * 60 * 1000;
-
-const DEAD_BY_RESTART = 'Proses terhenti karena server terputus/di-restart';
-const DEAD_BY_STALL = 'Sinkronisasi berhenti: tidak ada progres dalam 10 menit';
-
-const blankEntry = (status) => ({
-  status,
-  current_page: 0,
-  total_pages: 0,
-  total_synced: 0,
-  skipped: 0,
-});
 
 const defaultState = {
   status: 'idle', // 'idle' | 'running' | 'completed' | 'failed'
@@ -62,58 +58,14 @@ function readStateFile() {
 }
 
 /**
- * Proses pemilik state 'running' masih hidup? ESRCH berarti prosesnya tidak ada,
- * EPERM berarti ada tapi bukan milik user ini — yang terakhir tetap dihitung hidup.
- */
-function processAlive(pid) {
-  if (!Number.isInteger(pid) || pid <= 0) return false;
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (error) {
-    return error.code === 'EPERM';
-  }
-}
-
-/** Alasan kematian untuk 'running' yang tidak akan pernah selesai, atau null. */
-function deadRunReason(state, now = Date.now()) {
-  if (state.status !== 'running') return null;
-  if (!processAlive(state.pid)) return DEAD_BY_RESTART;
-  const lastBeat = Date.parse(state.lastActivityAt || state.startedAt || '');
-  return Number.isFinite(lastBeat) && now - lastBeat > STALE_AFTER_MS ? DEAD_BY_STALL : null;
-}
-
-/**
- * Matikan job yang tidak akan pernah lewat `endJob`: prosesnya hilang, atau ia berhenti
- * menulis progres. Snapshot-nya dititipkan di `unloggedDeath` supaya baris riwayatnya
- * tetap tercatat — tidak ada tempat lain yang bisa mencatatnya, karena job seperti ini
- * tidak pernah menutup dirinya sendiri.
- */
-function markDeadRun(state, reason) {
-  const finishedAt = state.finishedAt || new Date().toISOString();
-  const dead = { ...state, finishedAt };
-  return {
-    ...dead,
-    status: 'failed',
-    lastError: reason,
-    unloggedDeath: {
-      reason,
-      actor: state.actor || SYNC_ACTOR.DASHBOARD,
-      finishedAt,
-      state: withDerivedProgress(dead),
-    },
-  };
-}
-
-/**
  * Tanda mati dipakai bersama oleh startup dan setiap pembacaan status. Hasilnya ditulis
  * langsung, tanpa debounce, supaya worker lain tidak ikut membaca 'running' yang sudah
  * seharusnya mati.
  */
 function settleDeadRun() {
-  const reason = deadRunReason(currentState);
+  const reason = deadRunReason(currentState, STALE_AFTER_MS);
   if (!reason) return currentState;
-  currentState = markDeadRun(currentState, reason);
+  currentState = markDeadRun(MODULES, currentState, reason);
   saveState(true);
   return currentState;
 }
@@ -174,72 +126,8 @@ function saveState(immediate = false) {
 // Load state on startup
 loadState();
 
-/**
- * Cakupan job dari permintaan klien: daftar modul yang dipilih, atau modul tunggal
- * untuk POST tanpa body scope.
- */
-function resolveScope(moduleName, scope) {
-  const requested = Array.isArray(scope) ? scope.filter((key) => MODULES.includes(key)) : [];
-  if (requested.length) return requested;
-  return MODULES.includes(moduleName) ? [moduleName] : MODULES;
-}
-
-const sameScope = (previous, next) =>
-  Array.isArray(previous) &&
-  previous.length === next.length &&
-  previous.every((key, index) => key === next[index]);
-
-/**
- * Persentase satu modul dari progres mentah. Modul yang sedang berjalan tapi belum
- * tahu berapa halamannya ditampilkan sebagai 8% — bilangan kecil yang menandai
- * "bukan nol, hanya belum ada angka", bukan hasil pengukuran.
- */
-function modulePercent(entry) {
-  if (!entry || entry.status === 'idle' || entry.status === 'pending') return 0;
-  if (entry.status === 'completed') return 100;
-  if (entry.total_pages > 0) {
-    return Math.min(100, Math.round((entry.current_page / entry.total_pages) * 100));
-  }
-  return entry.status === 'running' ? 8 : 0;
-}
-
-/**
- * Angka yang dibaca UI, diturunkan saat dibaca: progres per modul sudah berisi
- * `percent`, lalu `overallPercent` dan `totals` menjumlahkan modul yang benar-benar
- * dicakup job ini. Klien tidak lagi menghitung ulang apa pun.
- */
-function withDerivedProgress(state) {
-  const scope = Array.isArray(state.scope) && state.scope.length ? state.scope : MODULES;
-  const progress = {};
-  for (const key of MODULES) {
-    const entry = state.progress?.[key];
-    progress[key] = { ...entry, percent: modulePercent(entry) };
-  }
-  let percentSum = 0;
-  let synced = 0;
-  let skipped = 0;
-  for (const key of scope) {
-    percentSum += progress[key].percent;
-    synced += state.progress?.[key]?.total_synced || 0;
-    skipped += state.progress?.[key]?.skipped || 0;
-  }
-  return {
-    // Daftar eksplisit: bookkeeping internal (`pid`, `actor`, `lastActivityAt`,
-    // `unloggedDeath`) tidak ikut terkirim ke klien lewat /api/sync/status.
-    status: state.status,
-    currentModule: state.currentModule,
-    startedAt: state.startedAt,
-    finishedAt: state.finishedAt,
-    lastError: state.lastError,
-    scope,
-    progress,
-    overallPercent: Math.round(percentSum / scope.length),
-    totals: { synced, skipped },
-  };
-}
-
 const syncJobTracker = {
-  getState: () => withDerivedProgress(refreshState()),
+  getState: () => withDerivedProgress(MODULES, refreshState()),
   /**
    * @param {string} moduleName kunci progress ('students'|'graduates'|'mbkm'|'all')
    * @param {string[]|null} scope modul yang dicakup job yang sama
@@ -248,7 +136,7 @@ const syncJobTracker = {
    *   tidak boleh menebak actor).
    */
   startJob: (moduleName = 'all', scope = null, meta = {}) => {
-    const jobScope = resolveScope(moduleName, scope);
+    const jobScope = resolveScope(MODULES, moduleName, scope);
     const now = new Date().toISOString();
     // Klien menjalankan satu job sebagai beberapa POST berurutan: hanya job baru
     // (status belum berjalan, atau cakupannya berubah) yang menghapus angka lama.
@@ -296,7 +184,7 @@ const syncJobTracker = {
    * balik akan MENGEMBALIKAN angka lama. Yang menutup joblah pemilik angka terakhir,
    * dan riwayat ditulis dari angka itu.
    */
-  peekState: () => withDerivedProgress(currentState),
+  peekState: () => withDerivedProgress(MODULES, currentState),
   isRunning: () => refreshState().status === 'running',
   /**
    * Ambil kematian job yang belum tercatat di riwayat, satu kali saja: mengambil
