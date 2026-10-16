@@ -63,6 +63,9 @@ function stubGroupBy(dataset, jenjangs = JENJANGS) {
     if (args.by.length === 1 && args.by[0] === 'jenjang') {
       return jenjangs.map((jenjang) => ({ jenjang }));
     }
+    // Bukti tutup kohort (angkatan × status): dataset sintetis tak punya
+    // kolom angkatan/statusKeaktifan, jadi tak ada yang tutup → lag murni.
+    if (args.by.includes('statusKeaktifan')) return [];
     const { jenjang, fakultas, periodeMasuk, NOT } = args.where;
     let matched = dataset.filter(
       (row) =>
@@ -116,8 +119,8 @@ describe('keberhasilan studi agregasi cohort', () => {
 
     const result = await getKeberhasilanStudiByAngkatan({});
 
-    // 1 query jenjang dinamis + 6 agregat kohort (3 jenjang × penyebut+pembilang).
-    expect(calls).toHaveLength(7);
+    // 1 query jenjang dinamis + 1 bukti tutup + 6 agregat kohort (3 jenjang × penyebut+pembilang).
+    expect(calls).toHaveLength(8);
     expect(calls[0].by).toEqual(['jenjang']);
     expect(result.s1.map((row) => row.cohortLabel)).toEqual(
       windowYears('S1').map((label) => `Angkatan ${label}`),
@@ -159,8 +162,8 @@ describe('keberhasilan studi agregasi cohort', () => {
 
     const cards = await getKeberhasilanStudi({});
 
-    // 1 query jenjang dinamis + 6 agregat kohort (3 jenjang × penyebut+pembilang).
-    expect(calls).toHaveLength(7);
+    // 1 query jenjang dinamis + 1 bukti tutup + 6 agregat kohort (3 jenjang × penyebut+pembilang).
+    expect(calls).toHaveLength(8);
     expect(cards.s1).toBe(
       expectedCohort(dataset, 'S1', String(getAngkatanEvaluasiStart('S1', REF_START))).rate,
     );
@@ -188,9 +191,9 @@ describe('keberhasilan studi agregasi cohort', () => {
     // Jenjang yang tidak diminta → null (bukan undefined/0%).
     expect(cards.s1).toBeNull();
     expect(cards.s2).not.toBeNull();
-    // Kartu S2 + series S2: 2 agregat kohort (penyebut + pembilang) masing-masing —
-    // tanpa query jenjang, karena `jenjang` diminta eksplisit.
-    expect(calls).toHaveLength(4);
+    // Kartu S2 + series S2: 2 agregat kohort (penyebut + pembilang) masing-masing +
+    // 1 bukti tutup masing-masing — tanpa query jenjang, karena `jenjang` diminta eksplisit.
+    expect(calls).toHaveLength(6);
     expect(series.s1).toBeNull();
     expect(series.s2.map((row) => row.cohortLabel)).toEqual(
       windowYears('S2').map((label) => `Angkatan ${label}`),
@@ -206,8 +209,8 @@ describe('keberhasilan studi agregasi cohort', () => {
 
     expect(cards.s1).toBeNull();
     expect(cards.s2).not.toBeNull();
-    // 2 agregat kohort (penyebut + pembilang) untuk S2, tanpa query jenjang.
-    expect(calls).toHaveLength(2);
+    // 2 agregat kohort (penyebut + pembilang) untuk S2 + 1 bukti tutup, tanpa query jenjang.
+    expect(calls).toHaveLength(3);
   });
 
   it('atribut peristiwa kelulusan tidak ikut menyaring penyebut kohort', async () => {

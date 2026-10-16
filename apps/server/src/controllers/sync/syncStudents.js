@@ -18,8 +18,10 @@ const executeSyncStudents = async ({ runDedup = true } = {}) => {
   logger.info(
     '🔄 Memulai proses ETL: Mahasiswa dari SEVIMA API (dengan Data Cleansing & Transformation)...',
   );
-  const prodiFakultasMap = await getProdiFakultasMap();
-  const prodiCodeMap = await getProdiCodeMap();
+  // Sync = baca peta terbaru (paksa refresh): prodi/fakultas baru dari API
+  // harus ter-resolve resmi saat sync ini juga, bukan setelah cache 1 jam basi.
+  const prodiFakultasMap = await getProdiFakultasMap(true);
+  const prodiCodeMap = await getProdiCodeMap(true);
   // Nilai tak dikenal tetap tampil (passthrough), tapi dicatat detector supaya
   // manusia dikabari — tidak perlu mengetik tabel mapping.
   const issues = createIssueCollector();

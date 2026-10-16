@@ -2,6 +2,7 @@ import {
   ResponsiveContainer,
   BarChart,
   Bar,
+  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -83,15 +84,35 @@ export default function TrendBarChart({
             dataKey={bar.dataKey}
             name={bar.name}
             fill={bar.color || DIGITAL_BLUE[600]}
-            radius={[4, 4, 0, 0]}
+            radius={bar.stackId ? [0, 0, 0, 0] : [4, 4, 0, 0]}
             maxBarSize={bar.maxBarSize || 44}
             animationDuration={800}
+            {...(bar.stackId ? { stackId: bar.stackId } : null)}
           >
+            {bar.stackId
+              ? data.map((entry, index) => {
+                  // Segmen teratas tiap baris (nilai > 0 terakhir dalam tumpukan
+                  // yang sama) menjaga sudut rounded luar; sambungan antar
+                  // warna tetap menyatu tanpa radius.
+                  const topKey = [...bars]
+                    .reverse()
+                    .find(
+                      (stacked) =>
+                        stacked.stackId === bar.stackId && Number(entry?.[stacked.dataKey]) > 0,
+                    )?.dataKey;
+                  return (
+                    <Cell
+                      key={`cell-${index}`}
+                      radius={bar.dataKey === topKey ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                    />
+                  );
+                })
+              : null}
             {bar.labelKey && (
               <LabelList
                 dataKey={bar.labelKey}
                 formatter={bar.labelFormatter}
-                position="top"
+                position={bar.labelPosition || 'top'}
                 style={{ fill: DIGITAL_BLUE[800], fontSize: 10, fontWeight: 700 }}
               />
             )}

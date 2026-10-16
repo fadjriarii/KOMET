@@ -7,20 +7,13 @@ import ModalTable from '../../../../components/common/modals/ModalTable';
 import ModalTabContent from '../../../../components/common/modals/ModalTabContent';
 import { useTabTransition } from '../../../../hooks/useTabTransition';
 import { formatNumber } from '@komet/shared/formatters';
-import { DIGITAL_BLUE } from '../../../../utils/theme';
 import { describeScope, searchSentence } from '../../utils/filterScope';
 import { useDetail } from '../../graduateQueries';
+import { jenjangName, trendBars } from './totalTrendBars';
 import TrendBarChart from '../../../../components/common/charts/TrendBarChart';
 import DistributionChart from '../../../../components/common/charts/DistributionChart';
 import TrendChartTooltip from '../../../../components/common/charts/TrendChartTooltip';
 import { TOTAL_GRADUATE_TABS } from './graduateTrendConfig';
-
-// Warna bar per jenjang — S1/S2 tetap seperti semula, jenjang tambahan (Profesi)
-// memakai warna berikutnya dari palet yang sama.
-const JENJANG_COLORS = [DIGITAL_BLUE[600], DIGITAL_BLUE[400], '#10B981', '#F59E0B', '#8B5CF6'];
-
-const JENJANG_LABEL = { s1: 'S1', s2: 'S2' };
-const jenjangName = (key) => JENJANG_LABEL[key] ?? key.toUpperCase();
 
 const EMPTY_ITEMS = [];
 
@@ -61,18 +54,6 @@ function totalTableColumns(rows) {
       render: (row) => `${formatNumber(row.total)} lulusan`,
     },
   ];
-}
-
-function trendBars(rows) {
-  const jenjangKeys = Object.keys(rows[0] ?? {})
-    .filter((key) => key !== 'tahun' && key !== 'total' && key.endsWith('Count'))
-    .sort((a, b) => (a === 's1Count' ? -1 : b === 's1Count' ? 1 : a.localeCompare(b)));
-  return jenjangKeys.map((key, index) => ({
-    dataKey: key,
-    name: `Lulusan ${jenjangName(key.replace(/Count$/, ''))}`,
-    color: JENJANG_COLORS[index % JENJANG_COLORS.length],
-    labelKey: key,
-  }));
 }
 
 export default function TotalGraduatesModal({ isOpen, onClose, originRect, data, filters }) {

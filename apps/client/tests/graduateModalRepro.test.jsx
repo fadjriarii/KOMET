@@ -120,3 +120,22 @@ it('banner studySuccess menyebut filter non-kohort yang aktif', async () => {
     ),
   );
 });
+
+describe('trendBars Total Lulusan (stacked)', () => {
+  it('satu segmen per jenjang, S1 dulu, warna beda, tanpa kunci statis', async () => {
+    const { trendBars } = await import('../src/modules/graduates/components/modals/totalTrendBars');
+    const bars = trendBars([
+      { tahun: '2025/2026', s1Count: 40, s2Count: 20, profesiCount: 5, total: 65 },
+    ]);
+    expect(bars.map((bar) => bar.dataKey)).toEqual(['s1Count', 'profesiCount', 's2Count']);
+    expect(new Set(bars.map((bar) => bar.color)).size).toBe(3);
+    for (const bar of bars) expect(bar.stackId).toBe('total-per-tahun');
+  });
+
+  it('jenjang baru (S3) otomatis jadi segmen keempat', async () => {
+    const { trendBars } = await import('../src/modules/graduates/components/modals/totalTrendBars');
+    const bars = trendBars([{ tahun: '2026/2027', s1Count: 1, s3Count: 2, total: 3 }]);
+    expect(bars.map((bar) => bar.dataKey)).toEqual(['s1Count', 's3Count']);
+    expect(bars.at(-1).name).toContain('S3');
+  });
+});

@@ -77,8 +77,14 @@ async function getTotalLulusanByYear(whereFilter) {
     missing: 0,
   });
 
+  // Chart tren = 5 tahun ke belakang dari jangkar (tahun ajaran terpilih,
+  // atau label terbaru bila tanpa jangkar — deretnya sudah terpotong di
+  // sana). Pilihan tahun lulus eksplisit selalu menang apa adanya.
+  const explicitTahun = whereFilter.graduate?.tahunLulus ?? whereFilter.tahunLulus;
+  const windowed = explicitTahun ? series : series.slice(-5);
+
   return {
-    byYear: series.map(({ tahun, ...counts }) => {
+    byYear: windowed.map(({ tahun, ...counts }) => {
       const entry = { tahun };
       let total = 0;
       for (const [key, value] of Object.entries(counts)) {

@@ -8,7 +8,8 @@ const { getProdiFakultasMap } = require('./prodiMap');
 async function resolveTargetNimBatch(items, extractNimFn, extractNamaFn, extraDataFn = () => ({})) {
   if (!items || items.length === 0) return new Map();
 
-  const prodiFakultasMap = await getProdiFakultasMap();
+  // Resolver batch saat sync: peta terbaru (paksa refresh) seperti pemanggil sync lain.
+  const prodiFakultasMap = await getProdiFakultasMap(true);
 
   const nimsToLookup = new Set();
   items.forEach((item) => {

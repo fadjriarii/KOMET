@@ -10,7 +10,8 @@ const { getProdiFakultasMap, paginateSevimaPages } = require('./sevimaLookup');
 // 3. ETL Sinkronisasi MBKM (MbkmActivity)
 const executeSyncMbkm = async ({ runDedup = true } = {}) => {
   logger.info('🔄 Memulai proses ETL: Data Aktivitas MBKM dari SEVIMA API...');
-  const prodiFakultasMap = await getProdiFakultasMap();
+  // Sync = baca peta terbaru (paksa refresh) seperti jalur mahasiswa.
+  const prodiFakultasMap = await getProdiFakultasMap(true);
 
   let totalSynced = 0;
   let totalSkipped = 0;
