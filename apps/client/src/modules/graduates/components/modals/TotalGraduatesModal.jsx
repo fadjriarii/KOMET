@@ -8,6 +8,7 @@ import ModalTabContent from '../../../../components/common/modals/ModalTabConten
 import { useTabTransition } from '../../../../hooks/useTabTransition';
 import { formatNumber } from '@komet/shared/formatters';
 import { DIGITAL_BLUE } from '../../../../utils/theme';
+import { describeScope, searchSentence } from '../../utils/filterScope';
 import { useDetail } from '../../graduateQueries';
 import TrendBarChart from '../../../../components/common/charts/TrendBarChart';
 import DistributionChart from '../../../../components/common/charts/DistributionChart';
@@ -102,6 +103,15 @@ export default function TotalGraduatesModal({ isOpen, onClose, originRect, data,
   });
 
   const kpis = data?.kpis || {};
+  const { suffix: scopeSuffix } = describeScope({
+    faculty: filters?.faculty,
+    prodi: filters?.prodi,
+    angkatan: filters?.selectedAngkatan,
+    status: filters?.predikat,
+    periode: filters?.periodeWisuda,
+  });
+  const searchTail = searchSentence(filters?.search);
+  const searchSuffix = searchTail ? ` ${searchTail}` : '';
 
   const combinedTrend = totalData?.byYear || EMPTY_ITEMS;
   const bars = useMemo(() => trendBars(combinedTrend), [combinedTrend]);
@@ -115,10 +125,16 @@ export default function TotalGraduatesModal({ isOpen, onClose, originRect, data,
       })),
     [bars],
   );
-  const byJenjang = kpis.totalGraduatesByJenjang || {};
+  // Identitas stabil untuk dep useMemo di bawah: `|| {}` inline membuat
+  // objek baru tiap render dan membatalkan memo.
+  const byJenjang = useMemo(
+    () => kpis.totalGraduatesByJenjang || {},
+    [kpis.totalGraduatesByJenjang],
+  );
   const composition = useMemo(
     () =>
       Object.entries(byJenjang)
+        .filter(([, value]) => value)
         .sort(([a], [b]) => (a === 's1' ? -1 : b === 's1' ? 1 : a.localeCompare(b)))
         .map(([key, value]) => `${formatNumber(value)} lulusan ${jenjangName(key)}`)
         .join(', '),
@@ -178,7 +194,17 @@ export default function TotalGraduatesModal({ isOpen, onClose, originRect, data,
         </div>
       ),
     }),
-    [combinedTrend, distError, isLoadingDist, isLoadingTotal, predikatList, totalError],
+    [
+      bars,
+      columns,
+      combinedTrend,
+      distError,
+      isLoadingDist,
+      isLoadingTotal,
+      predikatList,
+      tooltipRows,
+      totalError,
+    ],
   );
 
   return (
@@ -196,19 +222,20 @@ export default function TotalGraduatesModal({ isOpen, onClose, originRect, data,
           description={
             <div className="space-y-1.5 text-justify">
               <p>
-                Total lulusan mencatat sebanyak{' '}
+                Menampilkan{' '}
                 <strong className="text-digital-blue-900 font-bold">
-                  {kpis.totalGraduates || 0} lulusan
+                  {kpis.totalGraduates || 0} lulusan{scopeSuffix}
                 </strong>{' '}
                 yang menyelesaikan studi{' '}
                 {kpis.totalScopePhrase || 'di seluruh tahun akademik tercatat'}. Terdiri dari{' '}
-                <strong>{composition || '-'}</strong>.
+                <strong>{composition || '0 lulusan'}</strong>. Angka ini mengikuti filter yang
+                sedang aktif dan mencakup seluruh jenjang pada cakupan tersebut.{searchSuffix}
               </p>
             </div>
           }
           label="Total Lulusan"
-          value={formatNumber(kpis.totalGraduates)}
-          sublabel={`Per jenjang: ${composition || '-'}`}
+          value={formatNumber(kpis.totalGraduates ?? 0)}
+          sublabel={`Per jenjang: ${composition || '0 lulusan'}`}
         />
 
         <div className="flex-1 flex flex-col min-h-0">

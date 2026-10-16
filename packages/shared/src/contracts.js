@@ -111,6 +111,7 @@ const GRADUATE_SUMMARY_KPIS = [
   'totalScopePhrase',
   'onTimeGraduationRateS1',
   'onTimeGraduationRateS2',
+  'onTimeGraduationRateOverall',
   'onTimeByJenjang',
   'studySuccessRateS1',
   'averageGpaS1',

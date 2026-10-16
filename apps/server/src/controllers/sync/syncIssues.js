@@ -5,7 +5,9 @@
  * sync dan log.
  */
 const KNOWN_STATUS = new Set(['A', 'D', 'K', 'L', 'LL', 'M', 'PS', 'T', 'C']);
-const KNOWN_JENJANG = new Set(['S1', 'S2', 'PROF']);
+// Kode jenjang mentah dari API (sebelum normalisasi Prof→Profesi).
+// S3 disiapkan supaya tidak membanjiri log saat pertama masuk.
+const KNOWN_JENJANG = new Set(['S1', 'S2', 'S3', 'PROF']);
 
 function createIssueCollector() {
   return {

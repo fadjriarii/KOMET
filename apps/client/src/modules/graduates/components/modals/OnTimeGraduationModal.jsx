@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { Fragment, useMemo } from 'react';
 import { Calendar, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 import Modal from '../../../../components/common/modals/Modal';
 import ModalSummaryBanner from '../../../../components/common/modals/ModalSummaryBanner';
@@ -12,6 +12,7 @@ import { useDetail } from '../../graduateQueries';
 import TrendBarChart from '../../../../components/common/charts/TrendBarChart';
 import TrendChartTooltip from '../../../../components/common/charts/TrendChartTooltip';
 import { onTimeTabs, withBatas } from './graduateTrendConfig';
+import { describeScope, searchSentence } from '../../utils/filterScope';
 
 const ON_TIME_TABLE_COLUMNS = [
   {
@@ -132,26 +133,72 @@ export default function OnTimeGraduationModal({ isOpen, onClose, originRect, dat
     errorMessage: 'Gagal memuat data kelulusan tepat waktu',
   });
 
-  const batasS1 = detailData?.batasS1;
-  const batasS2 = detailData?.batasS2;
-  const batasProfesi = detailData?.batasProfesi;
+  // Batas per jenjang dibaca generik dari payload (batasS1/batasS2/
+  // batasProfesi, dan batas jenjang baru bila server mengirimnya) supaya
+  // tab jenjang baru muncul tanpa ubah client.
+  const batasByJenjang = useMemo(() => {
+    const entries = Object.entries(detailData ?? {}).filter(
+      ([key, value]) => /^batas[A-Z]/.test(key) && typeof value === 'number',
+    );
+    return Object.fromEntries(
+      entries.map(([key, value]) => [key.replace(/^batas/, '').toLowerCase(), value]),
+    );
+  }, [detailData]);
+  const batasS1 = batasByJenjang.s1;
+  const batasS2 = batasByJenjang.s2;
+
+  const cohortsByJenjang = useMemo(() => {
+    const entries = Object.entries(detailData ?? {}).filter(
+      ([key, value]) => !/^batas[A-Z]/.test(key) && Array.isArray(value),
+    );
+    return Object.fromEntries(entries);
+  }, [detailData]);
+  // Tab hanya untuk jenjang yang datanya benar ada (batas hanya melabeli
+  // angka) — kunci batas yatim tidak bisa membentuk tab S3 hantu.
   const tabs = useMemo(
-    () => onTimeTabs({ s1: batasS1, s2: batasS2, profesi: batasProfesi }),
-    [batasS1, batasS2, batasProfesi],
+    () =>
+      onTimeTabs(
+        Object.fromEntries(Object.keys(cohortsByJenjang).map((key) => [key, batasByJenjang[key]])),
+      ),
+    [batasByJenjang, cohortsByJenjang],
   );
   const { activeTab, handleTabChange, slideClass } = useTabTransition(tabs, 's1');
 
   const kpis = data?.kpis || {};
+  const { suffix: scopeSuffix } = describeScope({
+    faculty: filters?.faculty,
+    prodi: filters?.prodi,
+    angkatan: filters?.selectedAngkatan,
+    status: filters?.predikat,
+    periode: filters?.periodeWisuda,
+  });
+  const searchTail = searchSentence(filters?.search);
+  const searchSuffix = searchTail ? ` ${searchTail}` : '';
+  const onTimeScopePhrase =
+    data?.summary?.tepatWaktu?.tahunScope?.phrase || 'di seluruh tahun akademik tercatat';
+  const s1BatasPhrase = batasS1 ? ` (≤ ${batasS1} tahun)` : ' tepat waktu';
+  const s2BatasPhrase = batasS2 ? ` (≤ ${batasS2} tahun)` : ' tepat waktu';
   const onTimeS1 = formatPercentage(kpis.onTimeGraduationRateS1, 1, '0.0%');
   const onTimeS2 = formatPercentage(kpis.onTimeGraduationRateS2, 1, '0.0%');
-
-  const cohortsByJenjang = useMemo(() => {
-    const entries = Object.entries(detailData ?? {}).filter(
-      ([key, value]) =>
-        key !== 'batasS1' && key !== 'batasS2' && key !== 'batasProfesi' && Array.isArray(value),
-    );
-    return Object.fromEntries(entries);
-  }, [detailData]);
+  const onTimeOverall = formatPercentage(kpis.onTimeGraduationRateOverall, 1, '0.0%');
+  // Segmen jenjang bernilai 0 disembunyikan, hanya yang ada nilainya.
+  const onTimeSegments = [
+    ...(kpis.onTimeGraduationRateS1
+      ? [{ key: 's1', jenjang: 'S1', value: onTimeS1, batas: s1BatasPhrase }]
+      : []),
+    ...(kpis.onTimeGraduationRateS2
+      ? [{ key: 's2', jenjang: 'S2', value: onTimeS2, batas: s2BatasPhrase }]
+      : []),
+    ...Object.entries(kpis.onTimeByJenjang || {})
+      .filter(([key, value]) => key !== 's1' && key !== 's2' && value)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, value]) => ({
+        key,
+        jenjang: key.toUpperCase(),
+        value: formatPercentage(value, 1),
+        batas: batasByJenjang[key] ? ` (≤ ${batasByJenjang[key]} tahun)` : ' tepat waktu',
+      })),
+  ];
   const s1Cohorts = useMemo(() => cohortsByJenjang.s1 || [], [cohortsByJenjang]);
   const s2Cohorts = useMemo(() => cohortsByJenjang.s2 || [], [cohortsByJenjang]);
   const extraCohorts = useMemo(
@@ -172,7 +219,7 @@ export default function OnTimeGraduationModal({ isOpen, onClose, originRect, dat
       entries[key] = (
         <CohortTrendChart
           cohorts={cohorts}
-          batas={key === 'profesi' ? batasProfesi : undefined}
+          batas={batasByJenjang[key]}
           isLoading={isLoading}
           error={error}
         />
@@ -188,13 +235,13 @@ export default function OnTimeGraduationModal({ isOpen, onClose, originRect, dat
             ...extraCohorts.map(([key, cohorts]) => [
               key.toUpperCase(),
               cohorts,
-              key === 'profesi' ? batasProfesi : undefined,
+              batasByJenjang[key],
             ]),
           ].map(([jenjang, cohorts, batas]) => (
             <div key={jenjang} className="space-y-1.5">
               <h4 className="text-xs font-bold text-gray-700">
                 Kohort {jenjang}
-                {batas ? ` — tepat waktu ≤ ${batas} tahun` : ''}
+                {batas ? ` (tepat waktu ≤ ${batas} tahun)` : ''}
               </h4>
               <ModalTable
                 columns={ON_TIME_TABLE_COLUMNS}
@@ -209,7 +256,7 @@ export default function OnTimeGraduationModal({ isOpen, onClose, originRect, dat
         </div>
       ),
     };
-  }, [batasProfesi, batasS1, batasS2, error, extraCohorts, isLoading, s1Cohorts, s2Cohorts]);
+  }, [batasByJenjang, batasS1, batasS2, error, extraCohorts, isLoading, s1Cohorts, s2Cohorts]);
 
   return (
     <Modal
@@ -230,18 +277,45 @@ export default function OnTimeGraduationModal({ isOpen, onClose, originRect, dat
           description={
             <div className="space-y-1.5 text-justify">
               <p>
-                Tingkat kelulusan tepat waktu mencapai{' '}
-                <strong className="text-digital-blue-900 font-bold">{onTimeS1} (Jenjang S1)</strong>{' '}
-                dan{' '}
-                <strong className="text-digital-blue-900 font-bold">{onTimeS2} (Jenjang S2)</strong>{' '}
-                dihitung berdasarkan rasio mahasiswa yang lulus dalam kurun waktu masa studi
-                standar.
+                Secara keseluruhan{scopeSuffix},{' '}
+                <strong className="text-digital-blue-900 font-bold">{onTimeOverall}</strong> lulusan
+                lulus tepat waktu, dihitung dari lulusan {onTimeScopePhrase}. Tepat waktu berarti
+                lulus dalam masa studi standar jenjangnya masing-masing, dihitung dari tahun masuk
+                hingga tahun lulus. Rincian:{' '}
+                {onTimeSegments.length ? (
+                  onTimeSegments.map((segment, index) => (
+                    <Fragment key={segment.key}>
+                      {index > 0 ? ' dan ' : null}
+                      {segment.jenjang}{' '}
+                      <strong className="text-digital-blue-900 font-bold">
+                        {segment.value}
+                        {segment.batas}
+                      </strong>{' '}
+                      lulus
+                    </Fragment>
+                  ))
+                ) : (
+                  <>
+                    S1{' '}
+                    <strong className="text-digital-blue-900 font-bold">
+                      {onTimeS1}
+                      {s1BatasPhrase}
+                    </strong>{' '}
+                    lulus dan S2{' '}
+                    <strong className="text-digital-blue-900 font-bold">
+                      {onTimeS2}
+                      {s2BatasPhrase}
+                    </strong>{' '}
+                    lulus
+                  </>
+                )}
+                , dihitung dari lulusan {onTimeScopePhrase}.{searchSuffix}
               </p>
             </div>
           }
-          label="Tepat Waktu (S1)"
-          value={onTimeS1}
-          sublabel={`S2: ${onTimeS2}`}
+          label="Tepat Waktu"
+          value={onTimeOverall}
+          sublabel={`S1: ${onTimeS1}, S2: ${onTimeS2}`}
         />
 
         <div className="flex-1 flex flex-col min-h-0">

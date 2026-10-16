@@ -19,9 +19,11 @@ const { getTahunAjaranLabel, tahunAjaranStart } = require('./tahunAjaran');
  * dan bernama berbeda.
  *
  * `Profesi` = pendidikan profesi 1 tahun: lag evaluasi 2 (masuk → lulus 1 tahun,
- * +1 tahun tenggang hasil akhir).
+ * +1 tahun tenggang hasil akhir). `S3` disiapkan dulu (lag 6 = standar 3 tahun
+ * + 3 tenggang mengikuti pola S1, konfirmasi BAAK) supaya saat datanya masuk
+ * dari sync, rate dan tab-nya langsung terhitung tanpa ubah kode.
  */
-const COHORT_EVALUATION_LAG = { S1: 7, S2: 4, PROFESI: 2 };
+const COHORT_EVALUATION_LAG = { S1: 7, S2: 4, PROFESI: 2, S3: 6 };
 const EVALUATION_WINDOW_YEARS = 5;
 
 /** Referensi = MAX(tahunLulus) DB; fallback kalender bila tabel kosong. */
@@ -163,8 +165,14 @@ async function getKeberhasilanStudi(whereFilter) {
   // Kunci lama untuk kompatibilitas kartu S1/S2 yang sudah ada.
   result.s1 = result.s1 ?? null;
   result.s2 = result.s2 ?? null;
-  result.angkatanS1 = angkatanLabel('S1', refStart);
-  result.angkatanS2 = angkatanLabel('S2', refStart);
+  result.angkatanS1 = result.angkatanS1 ?? angkatanLabel('S1', refStart);
+  result.angkatanS2 = result.angkatanS2 ?? angkatanLabel('S2', refStart);
+  // Label angkatan per jenjang dalam scope (S2/Profesi/S3, ...) supaya kartu
+  // bisa menceritakan jenjang terpilih, bukan selalu S1.
+  for (const jenjang of jenjangs) {
+    const canon = `angkatan${jenjang.charAt(0).toUpperCase()}${jenjang.slice(1)}`;
+    if (!(canon in result)) result[canon] = angkatanLabel(jenjang, refStart);
+  }
   return result;
 }
 
@@ -195,18 +203,20 @@ async function getKeberhasilanStudiByAngkatan(whereFilter) {
 
   const values = await forJenjangs(jenjangs, calcSeries);
 
+  // Kunci batas/angkatan hanya untuk jenjang dalam scope yang lag-nya
+  // dikenal — tanpa baris S3 di DB, tidak ada kunci s3/batasStudiS3 yang
+  // keluar dari sini, jadi teks S3 tidak bisa bocor ke UI.
   const result = {};
   jenjangs.forEach((jenjang, index) => {
     result[jenjang.toLowerCase()] = values[index];
+    const lag = COHORT_EVALUATION_LAG[jenjang] ?? COHORT_EVALUATION_LAG[jenjang?.toUpperCase()];
+    if (lag === undefined) return;
+    const canon = `${jenjang.charAt(0).toUpperCase()}${jenjang.slice(1)}`;
+    result[`batasStudi${canon}`] = lag;
+    result[`angkatanEvaluasi${canon}`] = angkatanLabel(jenjang, refStart);
   });
   result.s1 = result.s1 ?? null;
   result.s2 = result.s2 ?? null;
-  result.batasStudiS1 = COHORT_EVALUATION_LAG.S1;
-  result.batasStudiS2 = COHORT_EVALUATION_LAG.S2;
-  result.batasStudiProfesi = COHORT_EVALUATION_LAG.PROFESI;
-  result.angkatanEvaluasiS1 = angkatanLabel('S1', refStart);
-  result.angkatanEvaluasiS2 = angkatanLabel('S2', refStart);
-  result.angkatanEvaluasiProfesi = angkatanLabel('Profesi', refStart);
   return result;
 }
 

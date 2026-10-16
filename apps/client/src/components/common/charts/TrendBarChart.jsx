@@ -14,6 +14,7 @@ import { DIGITAL_BLUE } from '../../../utils/theme';
 import { formatCompactNumber } from '@komet/shared/formatters';
 import Skeleton from '../feedback/Skeleton';
 import EmptyState from '../feedback/EmptyState';
+import { humanizeErrorMessage } from '../../../modules/errors/errorStates';
 
 /** Configurable shared bar chart for dashboard trend visualizations. */
 export default function TrendBarChart({
@@ -37,7 +38,14 @@ export default function TrendBarChart({
         ))}
       </div>
     );
-  if (error) return <EmptyState title="Gagal Memuat Data" description={error} icon={AlertCircle} />;
+  if (error)
+    return (
+      <EmptyState
+        title="Gagal Memuat Data"
+        description={humanizeErrorMessage(error)}
+        icon={AlertCircle}
+      />
+    );
 
   return (
     <ResponsiveContainer width="100%" height={height}>

@@ -1,5 +1,6 @@
 import Skeleton from '../../feedback/Skeleton';
 import EmptyState from '../../feedback/EmptyState';
+import { humanizeErrorMessage } from '../../../../modules/errors/errorStates';
 import { Table as TableIcon } from 'lucide-react';
 import { ModalTableHead } from './ModalTableHead';
 import { ModalTableBody } from './ModalTableBody';
@@ -39,7 +40,13 @@ export default function ModalTable({
   }
 
   if (error && (!data || data.length === 0)) {
-    return <EmptyState title="Gagal Memuat Data" description={error} icon={emptyIcon} />;
+    return (
+      <EmptyState
+        title="Gagal Memuat Data"
+        description={humanizeErrorMessage(error)}
+        icon={emptyIcon}
+      />
+    );
   }
 
   if (!data || data.length === 0) {
@@ -52,7 +59,7 @@ export default function ModalTable({
     >
       {error && (
         <p className="px-4 pt-2.5 text-xs text-amber-700">
-          Data mungkin basi: {typeof error === 'string' ? error : 'gagal memuat ulang.'}
+          Data mungkin basi: {humanizeErrorMessage(error) || 'gagal memuat ulang.'}
         </p>
       )}
       <div className="max-h-[235px] overflow-auto custom-scrollbar">

@@ -14,11 +14,5 @@ const MODAL_MAP = {
  * DetailModalOrchestrator; kunci MODAL_MAP adalah nilai `modalType` yang sah.
  */
 export default function GraduateDetailModal(props) {
-  return (
-    <DetailModalOrchestrator
-      {...props}
-      modalMap={MODAL_MAP}
-      fallbackMessage="Gagal memuat rincian kelulusan. Silakan tutup lalu coba lagi."
-    />
-  );
+  return <DetailModalOrchestrator {...props} modalMap={MODAL_MAP} />;
 }

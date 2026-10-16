@@ -15,9 +15,25 @@ const graduateQueries = {
   angkatan: { model: 'student', field: 'angkatan', where: hasGraduate, desc: true },
   fakultas: { model: 'student', field: 'fakultas', where: hasGraduate, byCount: true },
   jenjang: { model: 'student', field: 'jenjang', where: hasGraduate },
+  // Label predikat tersimpan apa adanya dari SK yudisium — label baru dari
+  // API harus muncul sebagai checkbox tanpa ubah konstanta.
+  predikat: { model: 'graduate', field: 'predikatLulus' },
 };
 
-function deriveGraduateOptions({ tahunLulus, angkatan }) {
+/**
+ * Opsi Status Kelulusan: label baku dulu urutannya, lalu label baru yang
+ * masuk dari API (belum dikenal konstanta) supaya langsung bisa dipilih
+ * tanpa rilis kode. Nilai kosong (baris lama) bukan pilihan.
+ */
+function unionPredikatOptions(stored = []) {
+  const known = [...Object.values(PREDIKAT), UNCLASSIFIED_PREDIKAT];
+  const extra = (stored || [])
+    .filter((label) => label && !known.includes(label))
+    .sort((a, b) => a.localeCompare(b));
+  return [...known, ...extra].map((value) => ({ value, label: value }));
+}
+
+function deriveGraduateOptions({ tahunLulus, angkatan, predikat }) {
   // Tahun Lulus & Angkatan memakai gaya rolling 5 label ajaran + input kustom
   // format penuh yang sama dengan tab Student; builder-nya hidup satu kali di sana.
   const rollingYears = getRollingYears(tahunLulus);
@@ -36,10 +52,7 @@ function deriveGraduateOptions({ tahunLulus, angkatan }) {
       { value: 'Ganjil', label: 'Ganjil' },
       { value: 'Genap', label: 'Genap' },
     ],
-    predikatOptions: [...Object.values(PREDIKAT), UNCLASSIFIED_PREDIKAT].map((value) => ({
-      value,
-      label: value,
-    })),
+    predikatOptions: unionPredikatOptions(predikat),
   };
 }
 

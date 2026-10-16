@@ -1,6 +1,7 @@
 import { TABLE_LIMIT } from '@komet/shared/constants';
 import Skeleton from '../../feedback/Skeleton';
 import EmptyState from '../../feedback/EmptyState';
+import { humanizeErrorMessage } from '../../../../modules/errors/errorStates';
 
 /** Isi tbody: skeleton saat loading, empty state, atau baris data. */
 export function TableBody({
@@ -42,7 +43,9 @@ export function TableBody({
           <td colSpan={visibleColumns.length} className="px-5 py-14">
             <EmptyState
               title="Gagal Memuat Data"
-              description={typeof error === 'string' ? error : 'Terjadi kesalahan.'}
+              description={humanizeErrorMessage(
+                typeof error === 'string' ? error : 'Terjadi kesalahan.',
+              )}
               icon={emptyIcon}
             />
           </td>

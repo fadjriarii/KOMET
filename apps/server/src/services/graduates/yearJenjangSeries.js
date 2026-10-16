@@ -64,8 +64,8 @@ function describeTahunScope(scope, isDefault) {
   return {
     labels,
     isDefault,
-    label: `${labels[0]} – ${labels[labels.length - 1]}`,
-    phrase: `pada rentang ${labels[0]} – ${labels[labels.length - 1]}`,
+    label: `${labels[0]} sampai ${labels[labels.length - 1]}`,
+    phrase: `pada rentang ${labels[0]} sampai ${labels[labels.length - 1]}`,
   };
 }
 

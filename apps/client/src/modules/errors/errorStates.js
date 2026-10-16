@@ -89,6 +89,25 @@ export function resolveErrorState(status) {
   return byStatus[status] ?? (status >= 500 ? ERROR_STATES.server : ERROR_STATES.unknown);
 }
 
+/**
+ * Pesan mentah browser/jaringan ("Failed to fetch", "Backend tidak
+ * terjangkau", …) diterjemahkan ke bahasa desain ini; pesan Indonesia yang
+ * sudah manusiawi diteruskan apa adanya. Dipakai tampilan inline kecil
+ * (tabel/chart dalam modal) yang tidak muat layar error penuh.
+ */
+const RAW_TECHNICAL_MESSAGE =
+  /failed to fetch|networkerror|load failed|err_connection|tidak terjangkau/i;
+
+export function humanizeErrorMessage(message) {
+  const text = typeof message === 'string' ? message : message?.message || '';
+  if (!text) return '';
+  if (RAW_TECHNICAL_MESSAGE.test(text)) {
+    const { title, sorry } = ERROR_STATES.offline;
+    return `${title} — ${sorry}`;
+  }
+  return text;
+}
+
 /** Tautan surel ke tim IT, sudah memuat kode + judul supaya mudah dilacak. */
 export function buildReportHref(state, message) {
   const subject = `[Komet] Web Komet bermasalah - ${state.code ?? '-'} ${state.title}`;

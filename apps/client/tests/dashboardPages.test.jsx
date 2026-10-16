@@ -325,7 +325,7 @@ describe.each(Object.keys(ROUTES))('halaman %s', (name) => {
 });
 
 describe('kartu KPI Graduates', () => {
-  it('membedakan "tidak ada data" (-) dari nol (0)', async () => {
+  it('data kosong tampil sebagai 0, bukan strip', async () => {
     respondWith((url) => {
       if (url.startsWith('/graduates/summary')) {
         return summary({
@@ -346,11 +346,11 @@ describe('kartu KPI Graduates', () => {
     renderPage(GraduatesPage);
 
     await cardsReady(ROUTES.graduates);
-    // `null` dari server = "-", bukan 0; `0` asli tetap terbaca 0.
-    expect(cardOf('Total Lulusan').textContent).toContain('-');
+    // Keputusan tampilan tab ini: `null` maupun 0 asli sama-sama terbaca 0.
+    expect(cardOf('Total Lulusan').textContent).toContain('0');
+    expect(cardOf('Total Lulusan').textContent).not.toContain('-');
     expect(cardOf('Rata-rata IPK Lulusan').textContent).toContain('0.00');
-    expect(cardOf('Rata-rata IPK Lulusan').textContent).toContain('S2: -');
-    expect(cardOf('Kelulusan Tepat Waktu').textContent).toContain('-');
+    expect(cardOf('Kelulusan Tepat Waktu').textContent).toContain('0.0%');
   });
 
   it('memilih tahun ajaran terbaru = default: badge "Terfilter" tidak tertinggal', async () => {

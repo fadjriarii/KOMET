@@ -372,14 +372,19 @@ describe('useGraduateKpiDisplay', () => {
     const { result } = renderHook(() => useGraduateKpiDisplay(mockGraduateSummary, false, {}));
     const { displaySubtitles } = result.current;
 
-    expect(displaySubtitles.total).toBe('S1: 300 • S2: 150 Lulusan');
-    expect(displaySubtitles.gpa).toBe('S1: 3.65 • S2: 3.80');
-    expect(displaySubtitles.onTime).toBe('S1: 85.5% • S2: 90.0%');
-    expect(displaySubtitles.studySuccess).toBe('Evaluasi Angkatan 2019/2020 (S1)');
-    expect(displaySubtitles.total).not.toContain(',');
+    expect(displaySubtitles.total).toBe(
+      'Menampilkan 450 lulusan pada tahun ajaran 2023/2024. Terdiri dari 300 lulusan S1 dan 150 lulusan S2.',
+    );
+    expect(displaySubtitles.gpa).toBe(
+      'IPK rata-rata lulusan 3.65 (S1) dan 3.80 (S2) dari skala 4.00.',
+    );
+    expect(displaySubtitles.onTime).toBe('S1: 85.5% dan S2: 90.0%');
+    expect(displaySubtitles.studySuccess).toBe(
+      '92.0% mahasiswa Angkatan 2019/2020 (S1) akhirnya lulus. Dinilai dari kohort terbaru yang hasil akhirnya sudah pasti.',
+    );
   });
 
-  it('menyisipkan konteks demografis saat filter aktif', () => {
+  it('menaruh cakupan fakultas di depan saat satu fakultas dipilih', () => {
     const filters = {
       selectedFaculty: ['FST'],
       selectedProdi: ['Sistem Informasi'],
@@ -388,11 +393,477 @@ describe('useGraduateKpiDisplay', () => {
     const { result } = renderHook(() => useGraduateKpiDisplay(mockGraduateSummary, false, filters));
     const { displaySubtitles } = result.current;
 
-    expect(displaySubtitles.total).toBe('S1: 300 • S2: 150 Lulusan — FST, Sistem Informasi');
-    expect(displaySubtitles.gpa).toBe('S1: 3.65 • S2: 3.80 — FST, Sistem Informasi');
-    expect(displaySubtitles.onTime).toBe('S1: 85.5% • S2: 90.0% — FST, Sistem Informasi');
-    expect(displaySubtitles.studySuccess).toBe(
-      'Evaluasi Angkatan 2019/2020 (S1) (FST, Sistem Informasi)',
+    expect(displaySubtitles.total).toBe(
+      'Menampilkan 450 lulusan Fakultas FST Prodi Sistem Informasi pada tahun ajaran 2023/2024. Terdiri dari 300 lulusan S1 dan 150 lulusan S2.',
     );
+    expect(displaySubtitles.gpa).toBe(
+      'IPK rata-rata lulusan Fakultas FST Prodi Sistem Informasi 3.65 (S1) dan 3.80 (S2) dari skala 4.00.',
+    );
+    expect(displaySubtitles.onTime).toBe('S1: 85.5% dan S2: 90.0%');
+    expect(displaySubtitles.studySuccess).toBe(
+      'Fakultas FST, Prodi Sistem Informasi, 92.0% mahasiswa Angkatan 2019/2020 (S1) akhirnya lulus. Dinilai dari kohort terbaru yang hasil akhirnya sudah pasti.',
+    );
+  });
+
+  it('menulis "pada prodi terpilih" saat lebih dari satu prodi dipilih', () => {
+    const filters = { selectedFaculty: [], selectedProdi: ['SI', 'TI'], selectedJenjang: [] };
+    const { result } = renderHook(() => useGraduateKpiDisplay(mockGraduateSummary, false, filters));
+    const { displaySubtitles } = result.current;
+
+    expect(displaySubtitles.total).toBe(
+      'Menampilkan 450 lulusan pada prodi terpilih pada tahun ajaran 2023/2024. Terdiri dari 300 lulusan S1 dan 150 lulusan S2.',
+    );
+    expect(displaySubtitles.gpa).toBe(
+      'IPK rata-rata lulusan pada prodi terpilih 3.65 (S1) dan 3.80 (S2) dari skala 4.00.',
+    );
+    expect(displaySubtitles.total).not.toContain('SI');
+  });
+
+  it('menggabung multi-fakultas dan multi-prodi tanpa daftar nama', () => {
+    const filters = {
+      selectedFaculty: ['FST', 'FEB'],
+      selectedProdi: ['SI', 'TI'],
+      selectedJenjang: [],
+    };
+    const { result } = renderHook(() => useGraduateKpiDisplay(mockGraduateSummary, false, filters));
+    const { displaySubtitles } = result.current;
+
+    expect(displaySubtitles.total).toBe(
+      'Menampilkan 450 lulusan pada fakultas dan prodi terpilih pada tahun ajaran 2023/2024. Terdiri dari 300 lulusan S1 dan 150 lulusan S2.',
+    );
+  });
+
+  it('kartu menceritakan jenjang tunggal yang dipilih (S2)', () => {
+    const s2Scope = {
+      success: true,
+      kpis: {},
+      summary: {
+        keberhasilanStudi: { s1: 92.0, s2: 75.5, angkatanS1: '2019/2020', angkatanS2: '2021/2022' },
+      },
+    };
+    const filters = { selectedFaculty: [], selectedProdi: [], selectedJenjang: ['S2'] };
+    const { result } = renderHook(() => useGraduateKpiDisplay(s2Scope, false, filters));
+    const { kpis, displaySubtitles } = result.current;
+
+    expect(kpis.studySuccessDisplay).toBe('75.5%');
+    expect(displaySubtitles.studySuccess).toBe(
+      '75.5% mahasiswa Angkatan 2021/2022 (S2) akhirnya lulus. Dinilai dari kohort terbaru yang hasil akhirnya sudah pasti.',
+    );
+  });
+
+  it('kartu menceritakan jenjang Profesi bila itu satu-satunya filter', () => {
+    const profesiScope = {
+      success: true,
+      kpis: {},
+      summary: {
+        keberhasilanStudi: {
+          s1: null,
+          profesi: 90.0,
+          angkatanS1: '2019/2020',
+          angkatanProfesi: '2023/2024',
+        },
+      },
+    };
+    const filters = { selectedFaculty: [], selectedProdi: [], selectedJenjang: ['Profesi'] };
+    const { result } = renderHook(() => useGraduateKpiDisplay(profesiScope, false, filters));
+    const { kpis, displaySubtitles } = result.current;
+
+    expect(kpis.studySuccessDisplay).toBe('90.0%');
+    expect(displaySubtitles.studySuccess).toBe(
+      '90.0% mahasiswa Angkatan 2023/2024 (Profesi) akhirnya lulus. Dinilai dari kohort terbaru yang hasil akhirnya sudah pasti.',
+    );
+  });
+
+  it('multi-jenjang tetap menceritakan S1', () => {
+    const multiScope = {
+      success: true,
+      kpis: {},
+      summary: {
+        keberhasilanStudi: { s1: 92.0, s2: 75.5, angkatanS1: '2019/2020', angkatanS2: '2021/2022' },
+      },
+    };
+    const filters = { selectedFaculty: [], selectedProdi: [], selectedJenjang: ['S1', 'S2'] };
+    const { result } = renderHook(() => useGraduateKpiDisplay(multiScope, false, filters));
+    const { kpis, displaySubtitles } = result.current;
+
+    expect(kpis.studySuccessDisplay).toBe('92.0%');
+    expect(displaySubtitles.studySuccess).toBe(
+      'Yang akhirnya lulus: S1 92.0% (Angkatan 2019/2020) dan S2 75.5% (Angkatan 2021/2022). Dinilai dari kohort terbaru yang hasil akhirnya sudah pasti.',
+    );
+  });
+
+  it('rincian ikut memuat jenjang tambahan yang angkanya ada', () => {
+    const scope = {
+      success: true,
+      kpis: {},
+      summary: {
+        keberhasilanStudi: {
+          s1: 92.0,
+          s2: null,
+          profesi: 90.0,
+          angkatanS1: '2019/2020',
+          angkatanProfesi: '2023/2024',
+        },
+      },
+    };
+    const { result } = renderHook(() => useGraduateKpiDisplay(scope, false, {}));
+    expect(result.current.displaySubtitles.studySuccess).toBe(
+      'Yang akhirnya lulus: S1 92.0% (Angkatan 2019/2020) dan PROFESI 90.0% (Angkatan 2023/2024). Dinilai dari kohort terbaru yang hasil akhirnya sudah pasti.',
+    );
+  });
+
+  it('menyebut angkatan tunggal di keempat kartu', () => {
+    const filters = {
+      selectedFaculty: [],
+      selectedProdi: [],
+      selectedJenjang: [],
+      selectedAngkatan: ['2020/2021'],
+    };
+    const { result } = renderHook(() => useGraduateKpiDisplay(mockGraduateSummary, false, filters));
+    const { displaySubtitles } = result.current;
+
+    expect(displaySubtitles.total).toBe(
+      'Menampilkan 450 lulusan Angkatan 2020/2021 pada tahun ajaran 2023/2024. Terdiri dari 300 lulusan S1 dan 150 lulusan S2.',
+    );
+    expect(displaySubtitles.gpa).toBe(
+      'IPK rata-rata lulusan Angkatan 2020/2021 3.65 (S1) dan 3.80 (S2) dari skala 4.00.',
+    );
+    expect(displaySubtitles.studySuccess).toBe(
+      'Angkatan 2020/2021, 92.0% mahasiswa Angkatan 2019/2020 (S1) akhirnya lulus. Dinilai dari kohort terbaru yang hasil akhirnya sudah pasti.',
+    );
+  });
+
+  it('menulis "pada angkatan terpilih" saat lebih dari satu angkatan dipilih', () => {
+    const filters = {
+      selectedFaculty: [],
+      selectedProdi: [],
+      selectedJenjang: [],
+      selectedAngkatan: ['2019/2020', '2020/2021'],
+    };
+    const { result } = renderHook(() => useGraduateKpiDisplay(mockGraduateSummary, false, filters));
+    const { displaySubtitles } = result.current;
+
+    expect(displaySubtitles.total).toBe(
+      'Menampilkan 450 lulusan pada angkatan terpilih pada tahun ajaran 2023/2024. Terdiri dari 300 lulusan S1 dan 150 lulusan S2.',
+    );
+    expect(displaySubtitles.total).not.toContain('2019/2020');
+  });
+
+  it('menyebut tahun lulus eksplisit di klausa jujur Keberhasilan Studi', () => {
+    const summary = {
+      ...mockGraduateSummary,
+      filterOptions: { rollingYears: ['2025/2026', '2024/2025'] },
+    };
+    const filters = {
+      selectedFaculty: [],
+      selectedProdi: [],
+      selectedJenjang: [],
+      selectedTahunLulus: ['2022/2023'],
+      selectedPeriodeWisuda: '',
+      selectedStatusKelulusan: [],
+    };
+    const { result } = renderHook(() => useGraduateKpiDisplay(summary, false, filters));
+    expect(result.current.displaySubtitles.studySuccess).toBe(
+      '92.0% mahasiswa Angkatan 2019/2020 (S1) akhirnya lulus. Dinilai dari kohort terbaru yang hasil akhirnya sudah pasti. Filter tahun lulus tidak mengubah angka ini.',
+    );
+  });
+
+  it('tahun lulus default tidak memicu klausa jujur', () => {
+    const summary = {
+      ...mockGraduateSummary,
+      filterOptions: { rollingYears: ['2025/2026', '2024/2025'] },
+    };
+    const filters = {
+      selectedFaculty: [],
+      selectedProdi: [],
+      selectedJenjang: [],
+      selectedTahunLulus: ['2025/2026'],
+      selectedPeriodeWisuda: '',
+      selectedStatusKelulusan: [],
+    };
+    const { result } = renderHook(() => useGraduateKpiDisplay(summary, false, filters));
+    expect(result.current.displaySubtitles.studySuccess).toBe(
+      '92.0% mahasiswa Angkatan 2019/2020 (S1) akhirnya lulus. Dinilai dari kohort terbaru yang hasil akhirnya sudah pasti.',
+    );
+  });
+
+  it('menggabung tiga filter non-kohort dalam satu klausa', () => {
+    const summary = {
+      ...mockGraduateSummary,
+      filterOptions: { rollingYears: ['2025/2026', '2024/2025'] },
+    };
+    const filters = {
+      selectedFaculty: [],
+      selectedProdi: [],
+      selectedJenjang: [],
+      selectedTahunLulus: ['2022/2023', '2023/2024'],
+      selectedPeriodeWisuda: 'Ganjil',
+      selectedStatusKelulusan: ['Cum Laude'],
+    };
+    const { result } = renderHook(() => useGraduateKpiDisplay(summary, false, filters));
+    expect(result.current.displaySubtitles.studySuccess).toBe(
+      'Status Cum Laude, periode Ganjil, 92.0% mahasiswa Angkatan 2019/2020 (S1) akhirnya lulus. Dinilai dari kohort terbaru yang hasil akhirnya sudah pasti. Filter tahun lulus, periode lulus, dan status kelulusan tidak mengubah angka ini.',
+    );
+  });
+
+  it('menyebut status kelulusan tunggal dan gabungannya', () => {
+    const single = {
+      selectedFaculty: [],
+      selectedProdi: [],
+      selectedJenjang: [],
+      selectedStatusKelulusan: ['Cum Laude'],
+    };
+    const { result: r1 } = renderHook(() =>
+      useGraduateKpiDisplay(mockGraduateSummary, false, single),
+    );
+    expect(r1.current.displaySubtitles.total).toBe(
+      'Menampilkan 450 lulusan Status Cum Laude pada tahun ajaran 2023/2024. Terdiri dari 300 lulusan S1 dan 150 lulusan S2.',
+    );
+    const multi = {
+      selectedFaculty: [],
+      selectedProdi: [],
+      selectedJenjang: [],
+      selectedStatusKelulusan: ['A', 'B'],
+    };
+    const { result: r2 } = renderHook(() =>
+      useGraduateKpiDisplay(mockGraduateSummary, false, multi),
+    );
+    expect(r2.current.displaySubtitles.total).toBe(
+      'Menampilkan 450 lulusan pada status kelulusan terpilih pada tahun ajaran 2023/2024. Terdiri dari 300 lulusan S1 dan 150 lulusan S2.',
+    );
+  });
+
+  it('menyebut periode lulus di keempat kartu', () => {
+    const filters = {
+      selectedFaculty: [],
+      selectedProdi: [],
+      selectedJenjang: [],
+      selectedPeriodeWisuda: 'Ganjil',
+    };
+    const { result } = renderHook(() => useGraduateKpiDisplay(mockGraduateSummary, false, filters));
+    const { displaySubtitles } = result.current;
+    expect(displaySubtitles.total).toContain('lulusan periode Ganjil pada tahun ajaran');
+    expect(displaySubtitles.gpa).toContain('lulusan periode Ganjil');
+    expect(displaySubtitles.studySuccess).toContain(
+      'Filter periode lulus tidak mengubah angka ini.',
+    );
+  });
+
+  it('menutup subtitle dengan hasil pencarian dan memotong ketikan panjang', () => {
+    const filters = {
+      selectedFaculty: [],
+      selectedProdi: [],
+      selectedJenjang: [],
+      searchQuery: 'budi',
+    };
+    const { result } = renderHook(() => useGraduateKpiDisplay(mockGraduateSummary, false, filters));
+    expect(result.current.displaySubtitles.total).toContain('Hasil pencarian "budi".');
+    const long = {
+      selectedFaculty: [],
+      selectedProdi: [],
+      selectedJenjang: [],
+      searchQuery: 'x'.repeat(40),
+    };
+    const { result: r2 } = renderHook(() =>
+      useGraduateKpiDisplay(mockGraduateSummary, false, long),
+    );
+    expect(r2.current.displaySubtitles.total).toContain(`Hasil pencarian "${'x'.repeat(30)}...".`);
+    expect(r2.current.displaySubtitles.total).not.toContain('x'.repeat(31));
+  });
+
+  it('menggabung seluruh filter dalam satu kalimat berurutan', () => {
+    const filters = {
+      selectedFaculty: ['FST'],
+      selectedProdi: ['SI'],
+      selectedJenjang: [],
+      selectedAngkatan: ['2020/2021'],
+      selectedStatusKelulusan: ['Cum Laude'],
+      selectedPeriodeWisuda: 'Ganjil',
+      searchQuery: 'budi',
+    };
+    const { result } = renderHook(() => useGraduateKpiDisplay(mockGraduateSummary, false, filters));
+    expect(result.current.displaySubtitles.total).toBe(
+      'Menampilkan 450 lulusan Fakultas FST Prodi SI Angkatan 2020/2021 Status Cum Laude periode Ganjil pada tahun ajaran 2023/2024. Terdiri dari 300 lulusan S1 dan 150 lulusan S2. Hasil pencarian "budi".',
+    );
+  });
+
+  it('menampilkan nilai Profesi saat S1 dan S2 kosong (filter Profesi)', () => {
+    const profesiScope = {
+      success: true,
+      kpis: {
+        totalGraduates: 37,
+        totalGraduatesS1: null,
+        totalGraduatesS2: null,
+        totalGraduatesByJenjang: { profesi: 37 },
+        averageGpaS1: null,
+        averageGpaS2: null,
+        averageGpaByJenjang: { profesi: 3.7 },
+        onTimeGraduationRateS1: null,
+        onTimeGraduationRateS2: null,
+        onTimeGraduationRateOverall: 95.0,
+        onTimeByJenjang: { profesi: 95.0 },
+        studySuccessRateS1: null,
+        totalScopeLabel: '2025/2026',
+      },
+      summary: {},
+    };
+    const filters = { selectedFaculty: [], selectedProdi: [], selectedJenjang: ['Profesi'] };
+    const { result } = renderHook(() => useGraduateKpiDisplay(profesiScope, false, filters));
+    const { kpis, displaySubtitles } = result.current;
+
+    expect(kpis.gpaDisplay).toBe('3.70');
+    expect(kpis.onTimeDisplay).toBe('95.0%');
+    expect(displaySubtitles.total).toBe(
+      'Menampilkan 37 lulusan pada tahun ajaran 2025/2026. Terdiri dari 37 lulusan PROFESI.',
+    );
+    expect(displaySubtitles.gpa).toBe('IPK rata-rata lulusan 3.70 (PROFESI) dari skala 4.00.');
+    expect(displaySubtitles.onTime).toBe('95.0% lulusan lulus tepat waktu (dari jenjang PROFESI).');
+  });
+
+  it('menjelaskan satu prodi S1 saja dengan kalimat penuh (kasus Bio Teknologi)', () => {
+    const oneProdi = {
+      success: true,
+      kpis: {
+        totalGraduates: 45,
+        totalGraduatesS1: 45,
+        totalGraduatesS2: null,
+        averageGpaS1: 3.53,
+        averageGpaS2: null,
+        onTimeGraduationRateS1: 100,
+        onTimeGraduationRateS2: null,
+        onTimeGraduationRateOverall: 100,
+        studySuccessRateS1: 88.2,
+        totalScopeLabel: '2025/2026',
+      },
+      summary: { keberhasilanStudi: { angkatanS1: '2018/2019' } },
+    };
+    const filters = { selectedFaculty: [], selectedProdi: ['Bio Teknologi'], selectedJenjang: [] };
+    const { result } = renderHook(() => useGraduateKpiDisplay(oneProdi, false, filters));
+    const { kpis, displaySubtitles } = result.current;
+
+    expect(kpis.onTimeDisplay).toBe('100.0%');
+    expect(displaySubtitles.onTime).toBe(
+      '100.0% lulusan Prodi Bio Teknologi lulus tepat waktu (dari jenjang S1).',
+    );
+    expect(displaySubtitles.total).toBe(
+      'Menampilkan 45 lulusan Prodi Bio Teknologi pada tahun ajaran 2025/2026. Terdiri dari 45 lulusan S1.',
+    );
+    expect(displaySubtitles.gpa).toBe(
+      'IPK rata-rata lulusan Prodi Bio Teknologi 3.53 (S1) dari skala 4.00.',
+    );
+    expect(displaySubtitles.studySuccess).toBe(
+      'Prodi Bio Teknologi, 88.2% mahasiswa Angkatan 2018/2019 (S1) akhirnya lulus. Dinilai dari kohort terbaru yang hasil akhirnya sudah pasti.',
+    );
+  });
+
+  it('headline memakai gabungan keseluruhan bila ada', () => {
+    const withOverall = {
+      ...mockGraduateSummary,
+      kpis: { ...mockGraduateSummary.kpis, onTimeGraduationRateOverall: 82.0 },
+    };
+    const { result } = renderHook(() => useGraduateKpiDisplay(withOverall, false, {}));
+    const { kpis, displaySubtitles } = result.current;
+
+    expect(kpis.onTimeDisplay).toBe('82.0%');
+    expect(displaySubtitles.onTime).toBe(
+      '82.0% lulusan lulus tepat waktu. Rincian: S1 85.5% dan S2 90.0%.',
+    );
+  });
+
+  it('menyembunyikan rincian jenjang yang bernilai 0', () => {
+    const s2Empty = {
+      ...mockGraduateSummary,
+      kpis: {
+        ...mockGraduateSummary.kpis,
+        totalGraduatesS2: 0,
+        averageGpaS2: null,
+        onTimeGraduationRateS2: 0,
+      },
+    };
+    const { result } = renderHook(() => useGraduateKpiDisplay(s2Empty, false, {}));
+    const { displaySubtitles } = result.current;
+
+    expect(displaySubtitles.total).toBe(
+      'Menampilkan 450 lulusan pada tahun ajaran 2023/2024. Terdiri dari 300 lulusan S1.',
+    );
+    expect(displaySubtitles.gpa).toBe('IPK rata-rata lulusan 3.65 (S1) dari skala 4.00.');
+    expect(displaySubtitles.onTime).toBe('S1: 85.5%');
+  });
+
+  it('menampilkan satu fallback 0 saat semua jenjang bernilai 0', () => {
+    const allEmpty = {
+      ...mockGraduateSummary,
+      kpis: {
+        ...mockGraduateSummary.kpis,
+        totalGraduates: 0,
+        totalGraduatesS1: 0,
+        totalGraduatesS2: null,
+        averageGpaS1: null,
+        averageGpaS2: 0,
+        onTimeGraduationRateS1: 0,
+        onTimeGraduationRateS2: null,
+      },
+    };
+    const { result } = renderHook(() => useGraduateKpiDisplay(allEmpty, false, {}));
+    const { displaySubtitles } = result.current;
+
+    expect(displaySubtitles.total).toBe('Menampilkan 0 lulusan pada tahun ajaran 2023/2024.');
+    expect(displaySubtitles.gpa).toBe(
+      'IPK rata-rata lulusan 0.00 (S1) dan 0.00 (S2) dari skala 4.00.',
+    );
+    expect(displaySubtitles.onTime).toBe('S1: 0.0% dan S2: 0.0%');
+  });
+
+  it('menampilkan 0 saat datanya kosong, bukan strip', () => {
+    const emptySummary = {
+      success: true,
+      kpis: {
+        totalGraduates: null,
+        totalGraduatesS1: null,
+        totalGraduatesS2: null,
+        averageGpaS1: null,
+        averageGpaS2: null,
+        onTimeGraduationRateS1: null,
+        onTimeGraduationRateS2: null,
+        studySuccessRateS1: null,
+        totalScopeLabel: '2023/2024',
+      },
+      summary: {},
+    };
+    const { result } = renderHook(() => useGraduateKpiDisplay(emptySummary, false, {}));
+    const { kpis, displaySubtitles } = result.current;
+
+    expect(kpis.totalGraduates).toBe('0');
+    expect(kpis.averageGpaS1).toBe('0.00');
+    expect(kpis.onTimeGraduationRateS1).toBe('0.0%');
+    expect(kpis.studySuccessRateS1).toBe('0.0%');
+    expect(displaySubtitles.total).toBe('Menampilkan 0 lulusan pada tahun ajaran 2023/2024.');
+    expect(displaySubtitles.gpa).toBe(
+      'IPK rata-rata lulusan 0.00 (S1) dan 0.00 (S2) dari skala 4.00.',
+    );
+    expect(displaySubtitles.onTime).toBe('S1: 0.0% dan S2: 0.0%');
+    for (const text of [...Object.values(kpis), ...Object.values(displaySubtitles)]) {
+      // Tidak ada lagi placeholder strip untuk data kosong ...
+      expect(text).not.toMatch(/(^|\s)-(\s|$)/);
+      // ... dan tidak ada sisa format label lama (bullet/em-dash).
+      expect(text).not.toContain('•');
+      expect(text).not.toContain('—');
+    }
+  });
+
+  it('menulis "pada fakultas terpilih" saat lebih dari satu fakultas dipilih', () => {
+    const filters = {
+      selectedFaculty: ['FST', 'FEB'],
+      selectedProdi: [],
+      selectedJenjang: [],
+    };
+    const { result } = renderHook(() => useGraduateKpiDisplay(mockGraduateSummary, false, filters));
+    const { displaySubtitles } = result.current;
+
+    expect(displaySubtitles.total).toBe(
+      'Menampilkan 450 lulusan pada fakultas terpilih pada tahun ajaran 2023/2024. Terdiri dari 300 lulusan S1 dan 150 lulusan S2.',
+    );
+    expect(displaySubtitles.total).not.toContain('FST');
+    expect(displaySubtitles.total).not.toContain('FEB');
   });
 });

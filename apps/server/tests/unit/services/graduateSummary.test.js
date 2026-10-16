@@ -75,6 +75,7 @@ describe('getGraduateSummary', () => {
       totalScopePhrase: 'pada tahun ajaran 2023/2024',
       onTimeGraduationRateS1: 80,
       onTimeGraduationRateS2: 70,
+      onTimeGraduationRateOverall: null,
       onTimeByJenjang: { s1: 80, s2: 70, profesi: 100 },
       studySuccessRateS1: 90,
       averageGpaS1: 3.4,
@@ -115,6 +116,21 @@ describe('getGraduateSummary', () => {
     // membuat kartu tampak tidak terfilter padahal angkanya berubah.
     expect(Object.keys(kpiFilterScope).sort()).toEqual(['gpa', 'onTime', 'studySuccess', 'total']);
     expect(kpiFilterScope.studySuccess).not.toContain('tahunLulus');
+  });
+
+  it('matriks filter tiap kartu: kohort kebal atribut peristiwa lulus', async () => {
+    AGG = WITH_S2;
+
+    const { kpiFilterScope } = await getGraduateSummary({});
+
+    const eventParams = ['tahunLulus', 'periodeWisuda', 'predikat'];
+    for (const card of ['total', 'gpa', 'onTime']) {
+      for (const param of eventParams) expect(kpiFilterScope[card]).toContain(param);
+    }
+    for (const param of eventParams) expect(kpiFilterScope.studySuccess).not.toContain(param);
+    expect([...kpiFilterScope.studySuccess].sort()).toEqual(
+      ['angkatanTahun', 'fakultas', 'jenjang', 'programStudi', 'search', 'tahunAjaran'].sort(),
+    );
   });
 
   it('bentuknya memenuhi kontrak yang dibaca client', async () => {

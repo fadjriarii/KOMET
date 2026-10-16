@@ -12,6 +12,7 @@ import { useDetail } from '../../graduateQueries';
 import TrendBarChart from '../../../../components/common/charts/TrendBarChart';
 import TrendChartTooltip from '../../../../components/common/charts/TrendChartTooltip';
 import { studySuccessTabs, withBatas } from './graduateTrendConfig';
+import { describeScope, searchSentence, studySuccessClause } from '../../utils/filterScope';
 
 const SUCCESS_TABLE_COLUMNS = [
   {
@@ -113,20 +114,19 @@ export default function StudySuccessModal({ isOpen, onClose, originRect, data, f
     errorMessage: 'Gagal memuat data keberhasilan studi',
   });
 
-  const batasS1 = detailData?.batasStudiS1;
-  const batasS2 = detailData?.batasStudiS2;
-  const batasProfesi = detailData?.batasStudiProfesi;
-  const tabs = useMemo(
-    () => studySuccessTabs({ s1: batasS1, s2: batasS2, profesi: batasProfesi }),
-    [batasS1, batasS2, batasProfesi],
-  );
-  const { activeTab, handleTabChange, slideClass } = useTabTransition(tabs, 's1');
-
-  const kpis = data?.kpis || {};
-  const studySuccessRate = formatPercentage(kpis.studySuccessRateS1, 1, '0.0%');
-  // Angkatan evaluasi dibaca dari payload chart yang sama, bukan dari cache
-  // summary — dialog tidak boleh mencampur dua sumber untuk satu fakta.
-  const angkatanEvaluasiS1 = detailData?.angkatanEvaluasiS1;
+  // Batas studi per jenjang dibaca generik dari payload
+  // (batasStudiS1/batasStudiS2/batasStudiProfesi, dan batas jenjang baru
+  // bila server mengirimnya) supaya tab jenjang baru muncul tanpa ubah client.
+  const batasByJenjang = useMemo(() => {
+    const entries = Object.entries(detailData ?? {}).filter(
+      ([key, value]) => /^batasStudi[A-Z]/.test(key) && typeof value === 'number',
+    );
+    return Object.fromEntries(
+      entries.map(([key, value]) => [key.replace(/^batasStudi/, '').toLowerCase(), value]),
+    );
+  }, [detailData]);
+  const batasS1 = batasByJenjang.s1;
+  const batasS2 = batasByJenjang.s2;
 
   const s1Cohorts = useMemo(() => detailData?.s1 || [], [detailData]);
   const s2Cohorts = useMemo(() => detailData?.s2 || [], [detailData]);
@@ -136,12 +136,64 @@ export default function StudySuccessModal({ isOpen, onClose, originRect, data, f
         ([key, value]) =>
           key !== 's1' &&
           key !== 's2' &&
-          !key.startsWith('batasStudi') &&
-          !key.startsWith('angkatanEvaluasi') &&
+          !/^batasStudi[A-Z]/.test(key) &&
+          !/^angkatanEvaluasi[A-Z]/.test(key) &&
           Array.isArray(value),
       ),
     [detailData],
   );
+  const cohortKeys = useMemo(
+    () => ['s1', 's2', ...extraCohorts.map(([key]) => key)],
+    [extraCohorts],
+  );
+  // Tab hanya untuk jenjang yang datanya benar ada (batas hanya melabeli
+  // angka) — kunci batas yatim tidak bisa membentuk tab S3 hantu.
+  const tabs = useMemo(
+    () => studySuccessTabs(Object.fromEntries(cohortKeys.map((key) => [key, batasByJenjang[key]]))),
+    [batasByJenjang, cohortKeys],
+  );
+  const { activeTab, handleTabChange, slideClass } = useTabTransition(tabs, 's1');
+
+  const kpis = data?.kpis || {};
+  // Satu jenjang terpilih = banner menceritakan jenjang itu; selain itu S1.
+  const selectedJenjang = Array.isArray(filters?.jenjang) ? filters.jenjang.filter(Boolean) : [];
+  const bannerKey = selectedJenjang.length === 1 ? selectedJenjang[0].toLowerCase() : 's1';
+  const bannerCanon = bannerKey.charAt(0).toUpperCase() + bannerKey.slice(1);
+  const bannerRate =
+    bannerKey === 's1'
+      ? kpis.studySuccessRateS1
+      : (data?.summary?.keberhasilanStudi?.[bannerKey] ?? null);
+  const studySuccessRate = formatPercentage(bannerRate, 1, '0.0%');
+  const bannerLabel = bannerKey.toUpperCase();
+  // Angkatan evaluasi dibaca dari payload chart yang sama, bukan dari cache
+  // summary — dialog tidak boleh mencampur dua sumber untuk satu fakta.
+  const angkatanEvaluasi =
+    detailData?.[`angkatanEvaluasi${bannerCanon}`] ?? detailData?.angkatanEvaluasiS1;
+  const { suffix: scopeSuffix } = describeScope({
+    faculty: filters?.faculty,
+    prodi: filters?.prodi,
+    angkatan: filters?.selectedAngkatan,
+    status: filters?.predikat,
+    periode: filters?.periodeWisuda,
+  });
+  const searchTail = searchSentence(filters?.search);
+  const searchSuffix = searchTail ? ` ${searchTail}` : '';
+  // Filter yang tidak mempersempit kohort disebut eksplisit supaya tidak dikira bug.
+  const successClause = studySuccessClause({
+    tahunLulus: filters?.selectedTahunLulus,
+    periodeWisuda: filters?.periodeWisuda,
+    predikat: filters?.predikat,
+    defaultTahunLulus: data?.filterOptions?.rollingYears?.[0] ?? '',
+  });
+  const clauseSuffix = successClause ? ` ${successClause}` : '';
+  // Penyebut kalimat: intake kohort yang dievaluasi, dari deret yang sama.
+  const evaluatedCohort = (detailData?.[bannerKey] || []).find(
+    (row) => row.cohortLabel === `Angkatan ${angkatanEvaluasi}`,
+  );
+  const evaluatedIntake =
+    typeof evaluatedCohort?.intake === 'number' ? evaluatedCohort.intake : null;
+  const lagPhrase =
+    batasByJenjang[bannerKey] != null ? ` setelah ${batasByJenjang[bannerKey]} tahun` : '';
 
   const content = useMemo(() => {
     const entries = {
@@ -156,7 +208,7 @@ export default function StudySuccessModal({ isOpen, onClose, originRect, data, f
       entries[key] = (
         <CohortTrendChart
           cohorts={cohorts}
-          batas={key === 'profesi' ? batasProfesi : undefined}
+          batas={batasByJenjang[key]}
           isLoading={isLoading}
           error={error}
         />
@@ -172,13 +224,13 @@ export default function StudySuccessModal({ isOpen, onClose, originRect, data, f
             ...extraCohorts.map(([key, cohorts]) => [
               key.toUpperCase(),
               cohorts,
-              key === 'profesi' ? batasProfesi : undefined,
+              batasByJenjang[key],
             ]),
           ].map(([jenjang, cohorts, batas]) => (
             <div key={jenjang} className="space-y-1.5">
               <h4 className="text-xs font-bold text-gray-700">
                 Kohort {jenjang}
-                {batas ? ` — dievaluasi sampai ${batas} tahun` : ''}
+                {batas ? ` (dievaluasi sampai ${batas} tahun)` : ''}
               </h4>
               <ModalTable
                 columns={SUCCESS_TABLE_COLUMNS}
@@ -193,7 +245,7 @@ export default function StudySuccessModal({ isOpen, onClose, originRect, data, f
         </div>
       ),
     };
-  }, [batasProfesi, batasS1, batasS2, error, extraCohorts, isLoading, s1Cohorts, s2Cohorts]);
+  }, [batasByJenjang, batasS1, batasS2, error, extraCohorts, isLoading, s1Cohorts, s2Cohorts]);
 
   return (
     <Modal
@@ -213,11 +265,28 @@ export default function StudySuccessModal({ isOpen, onClose, originRect, data, f
         <ModalSummaryBanner
           description={
             <div className="space-y-1.5 text-justify">
-              <p>
-                Tingkat keberhasilan studi jenjang S1 tercatat sebesar{' '}
-                <strong className="text-digital-blue-900 font-bold">{studySuccessRate}</strong>{' '}
-                untuk angkatan evaluasi {angkatanEvaluasiS1 || '-'}.
-              </p>
+              {evaluatedIntake !== null ? (
+                <p>
+                  Dari {formatNumber(evaluatedIntake)} mahasiswa masuk Angkatan{' '}
+                  {angkatanEvaluasi || '-'}
+                  {scopeSuffix},{' '}
+                  <strong className="text-digital-blue-900 font-bold">{studySuccessRate}</strong>{' '}
+                  akhirnya lulus ({bannerLabel}). Penilaian dilakukan{lagPhrase} sejak masuk,
+                  sehingga mahasiswa yang belum lulus sampai batas itu tidak dihitung berhasil.
+                  {clauseSuffix}
+                  {searchSuffix}
+                </p>
+              ) : (
+                <p>
+                  Tingkat keberhasilan studi jenjang {bannerLabel} tercatat sebesar{' '}
+                  <strong className="text-digital-blue-900 font-bold">{studySuccessRate}</strong>{' '}
+                  untuk angkatan evaluasi {angkatanEvaluasi || '-'}
+                  {scopeSuffix}. Penilaian dilakukan{lagPhrase} sejak masuk, sehingga mahasiswa yang
+                  belum lulus sampai batas itu tidak dihitung berhasil.
+                  {clauseSuffix}
+                  {searchSuffix}
+                </p>
+              )}
             </div>
           }
           label="Keberhasilan Studi"

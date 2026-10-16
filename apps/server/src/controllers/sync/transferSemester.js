@@ -103,7 +103,6 @@ async function applyTransferSemester(db = prisma) {
     },
   });
   const awalMap = buildAwalMap(rows);
-  const byNim = new Map(rows.map((r) => [r.nim, r]));
   let updated = 0;
   let awalFilled = 0;
   const details = [];

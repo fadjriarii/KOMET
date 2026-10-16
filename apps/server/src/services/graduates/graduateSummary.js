@@ -73,11 +73,13 @@ async function getGraduateSummary(whereFilter) {
       totalGraduatesByJenjang: Object.fromEntries(jenjangCounts),
       onTimeGraduationRateS1: tepatWaktu.s1 ?? null,
       onTimeGraduationRateS2: tepatWaktu.s2 ?? null,
+      onTimeGraduationRateOverall: tepatWaktu.overall ?? null,
       onTimeByJenjang: Object.fromEntries(
         Object.entries(tepatWaktu).filter(
           ([key, value]) =>
             key !== 'referenceLabel' &&
             key !== 'tahunScope' &&
+            key !== 'overall' &&
             (typeof value === 'number' || value === null),
         ),
       ),

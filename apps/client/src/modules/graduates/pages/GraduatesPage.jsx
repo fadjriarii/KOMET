@@ -23,7 +23,7 @@ function buildCards({ kpis, displaySubtitles, kpiScope, isReady, openModal }) {
     {
       key: 'gpa',
       title: 'Rata-rata IPK Lulusan',
-      value: formatKpiDisplay(kpis.averageGpaS1),
+      value: formatKpiDisplay(kpis.gpaDisplay),
       subtitle: displaySubtitles.gpa,
       icon: Award,
       badge: 'Skala 4.00',
@@ -33,7 +33,7 @@ function buildCards({ kpis, displaySubtitles, kpiScope, isReady, openModal }) {
     {
       key: 'onTime',
       title: 'Kelulusan Tepat Waktu',
-      value: formatKpiDisplay(kpis.onTimeGraduationRateS1),
+      value: formatKpiDisplay(kpis.onTimeDisplay),
       subtitle: displaySubtitles.onTime,
       icon: Clock,
       badge: 'Masa Studi Standar',
@@ -43,7 +43,7 @@ function buildCards({ kpis, displaySubtitles, kpiScope, isReady, openModal }) {
     {
       key: 'studySuccess',
       title: 'Keberhasilan Studi',
-      value: formatKpiDisplay(kpis.studySuccessRateS1),
+      value: formatKpiDisplay(kpis.studySuccessDisplay),
       subtitle: displaySubtitles.studySuccess,
       icon: BookOpenCheck,
       badge: 'Evaluasi Akhir Studi',

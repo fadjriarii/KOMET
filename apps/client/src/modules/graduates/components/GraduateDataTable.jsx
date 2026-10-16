@@ -82,7 +82,7 @@ const COLUMNS = [
     cellClassName: 'text-center',
     render: (row) => (
       <Badge size="sm" variant={badgeVariantForPredikat(row.predikatLulus)} className="font-bold">
-        {typeof row.ipk === 'number' ? row.ipk.toFixed(2) : (row.ipk ?? '-')}
+        {typeof row.ipk === 'number' ? row.ipk.toFixed(2) : (row.ipk ?? '0.00')}
       </Badge>
     ),
   },
@@ -91,7 +91,7 @@ const COLUMNS = [
     label: 'SKS',
     headerClassName: 'w-[5%] text-center',
     cellClassName: 'text-center font-medium text-gray-700 text-xs',
-    render: (row) => `${row.sksLulus ?? '-'}`,
+    render: (row) => `${row.sksLulus ?? '0'}`,
   },
   {
     key: 'predikatLulus',

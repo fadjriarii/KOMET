@@ -1,5 +1,6 @@
 import EmptyState from '../../feedback/EmptyState';
 import Skeleton from '../../feedback/Skeleton';
+import { humanizeErrorMessage } from '../../../../modules/errors/errorStates';
 
 /** Loading / error / empty untuk chart distribusi. Null = data siap digambar. */
 export function DistributionStates({
@@ -23,7 +24,14 @@ export function DistributionStates({
       </div>
     );
   }
-  if (error) return <EmptyState title="Gagal Memuat Data" description={error} icon={emptyIcon} />;
+  if (error)
+    return (
+      <EmptyState
+        title="Gagal Memuat Data"
+        description={humanizeErrorMessage(error)}
+        icon={emptyIcon}
+      />
+    );
   if (isEmpty)
     return <EmptyState title={emptyTitle} description={emptyDescription} icon={emptyIcon} />;
   return null;

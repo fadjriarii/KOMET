@@ -1,13 +1,14 @@
-import { useMemo } from 'react';
+import { Fragment, useMemo } from 'react';
 import { BookOpen, Building2, PieChart } from 'lucide-react';
 import Modal from '../../../../components/common/modals/Modal';
 import ModalSummaryBanner from '../../../../components/common/modals/ModalSummaryBanner';
 import ModalTabNav from '../../../../components/common/modals/ModalTabNav';
 import ModalTabContent from '../../../../components/common/modals/ModalTabContent';
 import { useTabTransition } from '../../../../hooks/useTabTransition';
-import { formatDecimal } from '@komet/shared/formatters';
+import { formatDecimal, formatNumber } from '@komet/shared/formatters';
 import { DIGITAL_BLUE } from '../../../../utils/theme';
 import { useDetail } from '../../graduateQueries';
+import { describeScope, searchSentence } from '../../utils/filterScope';
 import TrendBarChart from '../../../../components/common/charts/TrendBarChart';
 import DistributionChart from '../../../../components/common/charts/DistributionChart';
 import TrendChartTooltip from '../../../../components/common/charts/TrendChartTooltip';
@@ -33,17 +34,42 @@ export default function GpaOverviewModal({ isOpen, onClose, originRect, data, fi
   });
 
   const kpis = data?.kpis || {};
+  const { suffix: scopeSuffix } = describeScope({
+    faculty: filters?.faculty,
+    prodi: filters?.prodi,
+    angkatan: filters?.selectedAngkatan,
+    status: filters?.predikat,
+    periode: filters?.periodeWisuda,
+  });
+  const searchTail = searchSentence(filters?.search);
+  const searchSuffix = searchTail ? ` ${searchTail}` : '';
+  // Penyebut rata-rata: lulusan ber-IPK sah per jenjang, sumber yang sama
+  // dengan angkanya (summary), bukan payload chart.
+  const ipkCounts = data?.summary?.avgIpk || {};
+  const ipkCount = Object.values(ipkCounts)
+    .map((entry) => entry?.count)
+    .filter((count) => typeof count === 'number')
+    .reduce((acc, count) => acc + count, 0);
+  const ipkScopePhrase = ipkCounts.tahunScope?.phrase || 'di seluruh tahun akademik tercatat';
   const gpaS1 = formatDecimal(kpis.averageGpaS1, 2, '0.00');
   const gpaS2 = formatDecimal(kpis.averageGpaS2, 2, '0.00');
-  const gpaByJenjang = kpis.averageGpaByJenjang || {};
-  const extraGpa = useMemo(
-    () =>
-      Object.entries(gpaByJenjang)
-        .filter(([key]) => key !== 's1' && key !== 's2')
+  // Identitas stabil untuk dep useMemo di bawah: `|| {}` inline membuat
+  // objek baru tiap render dan membatalkan memo.
+  const gpaByJenjang = useMemo(() => kpis.averageGpaByJenjang || {}, [kpis.averageGpaByJenjang]);
+  // Segmen jenjang bernilai 0 disembunyikan, hanya yang ada nilainya.
+  const gpaSegments = useMemo(
+    () => [
+      ...(kpis.averageGpaS1 ? [{ key: 's1', text: `${gpaS1} (Jenjang S1)` }] : []),
+      ...(kpis.averageGpaS2 ? [{ key: 's2', text: `${gpaS2} (Jenjang S2)` }] : []),
+      ...Object.entries(gpaByJenjang)
+        .filter(([key, value]) => key !== 's1' && key !== 's2' && value)
         .sort(([a], [b]) => a.localeCompare(b))
-        .map(([key, value]) => `${formatDecimal(value, 2, '0.00')} (Jenjang ${key.toUpperCase()})`)
-        .join(', '),
-    [gpaByJenjang],
+        .map(([key, value]) => ({
+          key,
+          text: `${formatDecimal(value, 2, '0.00')} (Jenjang ${key.toUpperCase()})`,
+        })),
+    ],
+    [gpaByJenjang, gpaS1, gpaS2, kpis.averageGpaS1, kpis.averageGpaS2],
   );
   const ipkDetail = ipkData || {};
 
@@ -149,7 +175,16 @@ export default function GpaOverviewModal({ isOpen, onClose, originRect, data, fi
         </div>
       ),
     }),
-    [combinedTrend, error, facultyList, gpaBandsList, isLoading, prodiList],
+    [
+      avgBars,
+      avgTooltipRows,
+      combinedTrend,
+      error,
+      facultyList,
+      gpaBandsList,
+      isLoading,
+      prodiList,
+    ],
   );
 
   return (
@@ -167,17 +202,20 @@ export default function GpaOverviewModal({ isOpen, onClose, originRect, data, fi
           description={
             <div className="space-y-1.5 text-justify">
               <p>
-                Rata-rata Indeks Prestasi Kumulatif (IPK) lulusan adalah{' '}
-                <strong className="text-digital-blue-900 font-bold">{gpaS1} (Jenjang S1)</strong>{' '}
-                dan{' '}
-                <strong className="text-digital-blue-900 font-bold">{gpaS2} (Jenjang S2)</strong>
-                {extraGpa ? (
-                  <>
-                    {' '}
-                    dan <strong className="text-digital-blue-900 font-bold">{extraGpa}</strong>
-                  </>
-                ) : null}{' '}
-                dari skala maksimal 4.00.
+                Rata-rata IPK lulusan{scopeSuffix} adalah{' '}
+                {gpaSegments.length ? (
+                  gpaSegments.map((segment, index) => (
+                    <Fragment key={segment.key}>
+                      {index > 0 ? ' dan ' : null}
+                      <strong className="text-digital-blue-900 font-bold">{segment.text}</strong>
+                    </Fragment>
+                  ))
+                ) : (
+                  <strong className="text-digital-blue-900 font-bold">0.00</strong>
+                )}{' '}
+                dari skala maksimal 4.00, dihitung dari {formatNumber(ipkCount)} lulusan{' '}
+                {ipkScopePhrase}. Lulusan yang IPK-nya kosong atau nol tidak ikut dihitung supaya
+                tidak menyeret rata-rata ke bawah.{searchSuffix}
               </p>
             </div>
           }

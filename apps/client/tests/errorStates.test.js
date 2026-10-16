@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { buildReportHref, resolveErrorState } from '../src/modules/errors/errorStates';
+import {
+  buildReportHref,
+  humanizeErrorMessage,
+  resolveErrorState,
+} from '../src/modules/errors/errorStates';
 
 describe('pemetaan status → teks layar error', () => {
   it('memetakan tiap status yang ditangani ke keadaan sendiri', () => {
@@ -36,5 +40,33 @@ describe('pemetaan status → teks layar error', () => {
     const href = buildReportHref(resolveErrorState(500), 'boom');
     expect(href.startsWith('mailto:')).toBe(true);
     expect(decodeURIComponent(href)).toContain('500 internal server error');
+  });
+
+  it('crash render di modal memakai keadaan tak terduga (bukan offline)', () => {
+    const state = resolveErrorState('client');
+    expect(state.code).toBeNull();
+    expect(state.title).toBe('unexpected error');
+  });
+});
+
+describe('humanizeErrorMessage untuk tampilan inline kecil', () => {
+  it('pesan mentah browser/jaringan menjadi bahasa desain offline', () => {
+    expect(humanizeErrorMessage('Failed to fetch')).toBe(
+      'backend not connected — nothing is answering right now',
+    );
+    expect(humanizeErrorMessage('Backend tidak terjangkau. Pastikan server berjalan.')).toBe(
+      'backend not connected — nothing is answering right now',
+    );
+    expect(humanizeErrorMessage(new Error('NetworkError when attempting to fetch resource'))).toBe(
+      'backend not connected — nothing is answering right now',
+    );
+  });
+
+  it('pesan Indonesia yang sudah manusiawi diteruskan apa adanya', () => {
+    expect(humanizeErrorMessage('Gagal memuat rincian tren IPK lulusan')).toBe(
+      'Gagal memuat rincian tren IPK lulusan',
+    );
+    expect(humanizeErrorMessage('')).toBe('');
+    expect(humanizeErrorMessage(null)).toBe('');
   });
 });

@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
-import { X } from 'lucide-react';
 import Skeleton from '../feedback/Skeleton';
 import ErrorBoundary from '../feedback/ErrorBoundary';
+import ErrorPage from '../../../modules/errors/ErrorPage';
 
 /**
  * Common lazy-modal boundary used by Student, Graduate, and MBKM detail dialogs.
@@ -11,7 +11,6 @@ import ErrorBoundary from '../feedback/ErrorBoundary';
  */
 export default function DetailModalOrchestrator({
   modalMap,
-  fallbackMessage,
   isOpen,
   onClose,
   modalType,
@@ -26,27 +25,21 @@ export default function DetailModalOrchestrator({
   return (
     <ErrorBoundary
       resetKey={modalType}
-      fallback={() => (
+      fallback={(caught) => (
         <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/35 p-4">
-          <div
-            role="alert"
-            className="w-full max-w-sm rounded-2xl bg-white p-5 text-sm text-gray-700 shadow-2xl"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <p>{fallbackMessage}</p>
-              <button
-                type="button"
-                onClick={onClose}
-                aria-label="Tutup popup"
-                className="rounded-lg p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-900"
-              >
-                <X size={16} />
-              </button>
-            </div>
+          <div className="flex flex-col items-center gap-3 max-w-full">
+            {/* Crash render di dalam modal = kesalahan tak terduga milik client.
+                status "client" sengaja bukan angka HTTP: resolveErrorState
+                memetakannya ke keadaan `unknown` (terkunci test). */}
+            <ErrorPage
+              status="client"
+              message={caught?.message ? String(caught.message) : undefined}
+            />
             <button
               type="button"
               onClick={onClose}
-              className="mt-4 rounded-lg bg-digital-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-digital-blue-700"
+              aria-label="Tutup popup"
+              className="rounded-lg bg-white/95 px-3 py-2 text-xs font-semibold text-gray-700 shadow hover:bg-white"
             >
               Tutup
             </button>

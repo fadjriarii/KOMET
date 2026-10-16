@@ -174,6 +174,7 @@ describe('keberhasilan studi agregasi cohort', () => {
     expect(cards).toMatchObject({
       angkatanS1: windowYears('S1').at(-1),
       angkatanS2: windowYears('S2').at(-1),
+      angkatanProfesi: windowYears('Profesi').at(-1),
     });
   });
 

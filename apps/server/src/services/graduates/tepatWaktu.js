@@ -21,12 +21,14 @@ const { rate, roundedRate } = require('../../utils/percentageUtils');
 
 /**
  * Batas masa studi agar sebuah kelulusan dihitung "tepat waktu", dalam tahun.
- * `Profesi` = pendidikan profesi 1 tahun pasca-S1 (Apoteker). Beda makna dengan
- * `COHORT_EVALUATION_LAG` pada keberhasilanStudi.js (tahun mundur kohort yang
- * hasil akhirnya sudah diketahui), jadi keduanya sengaja memakai nama dan
- * nilai yang berbeda.
+ * `Profesi` = pendidikan profesi 1 tahun pasca-S1 (Apoteker). `S3` disiapkan
+ * dulu (aturan umum doktor 3 tahun, konfirmasi BAAK) supaya saat datanya
+ * masuk dari sync, rate dan tab-nya langsung terhitung tanpa ubah kode.
+ * Beda makna dengan `COHORT_EVALUATION_LAG` pada keberhasilanStudi.js
+ * (tahun mundur kohort yang hasil akhirnya sudah diketahui), jadi keduanya
+ * sengaja memakai nama dan nilai yang berbeda.
  */
-const BATAS_STUDI_TEPAT_WAKTU = { S1: 4, S2: 2, PROFESI: 1 };
+const BATAS_STUDI_TEPAT_WAKTU = { S1: 4, S2: 2, PROFESI: 1, S3: 3 };
 
 const lamaStudi = (student, tahunLulusLabel) => {
   const tahunMasuk = getStudyStartYear(student);
@@ -91,9 +93,28 @@ async function getTepatWaktu(whereFilter) {
     return roundedRate(tepatWaktu, durations.length);
   };
 
+  // Headline gabungan: tiap lulusan dinilai dengan batas jenjangnya
+  // sendiri (S1 ≤ 4, S2 ≤ 2, Profesi ≤ 1, S3 ≤ 3 — dan jenjang baru yang
+  // aturannya ditambahkan nanti), lalu digabung. Bukan rata-rata dari rate
+  // per jenjang — jenjang kecil tidak boleh berbobot sama dengan S1.
+  // Tanpa nama jenjang yang disebut eksplisit: jenjang baru otomatis ikut
+  // selama batasnya dikenal; yang belum ada aturannya dilewati.
+  const calcOverall = () => {
+    const durations = students
+      .map((s) => ({
+        batas: batasFor(s.jenjang),
+        duration: lamaStudi(s, s.graduate?.tahunLulus),
+      }))
+      .filter(({ batas, duration }) => batas !== null && duration !== null);
+    if (durations.length === 0) return null;
+    const tepatWaktu = durations.filter(({ batas, duration }) => duration <= batas).length;
+    return roundedRate(tepatWaktu, durations.length);
+  };
+
   const result = {
     referenceLabel: refLabel,
     tahunScope: describeTahunScope(scope, isDefault),
+    overall: calcOverall(),
   };
   for (const jenjang of jenjangs) result[jenjang.toLowerCase()] = calcPct(jenjang);
   // Kunci lama untuk kompatibilitas kartu S1/S2 yang sudah ada.
@@ -170,12 +191,18 @@ async function getTepatWaktuByYear(whereFilter) {
     });
   };
 
-  const result = {
-    batasS1: BATAS_STUDI_TEPAT_WAKTU.S1,
-    batasS2: BATAS_STUDI_TEPAT_WAKTU.S2,
-    batasProfesi: BATAS_STUDI_TEPAT_WAKTU.PROFESI,
-  };
-  for (const jenjang of jenjangs) result[jenjang.toLowerCase()] = buildCohortData(jenjang);
+  // Kunci batas hanya untuk jenjang dalam scope yang aturannya dikenal —
+  // tanpa baris S3 di DB, tidak ada kunci s3/batasS3 yang keluar dari sini,
+  // jadi teks S3 tidak bisa bocor ke UI.
+  const result = {};
+  for (const jenjang of jenjangs) {
+    result[jenjang.toLowerCase()] = buildCohortData(jenjang);
+    const batas = batasFor(jenjang);
+    // Kapitalisasi sekali supaya filter URL huruf kecil (`?jenjang=s1`)
+    // tetap menghasilkan kunci kanonis `batasS1` seperti sebelumnya.
+    if (batas !== null)
+      result[`batas${jenjang.charAt(0).toUpperCase()}${jenjang.slice(1)}`] = batas;
+  }
   result.s1 = result.s1 ?? [];
   result.s2 = result.s2 ?? [];
   return result;
