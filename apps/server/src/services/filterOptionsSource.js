@@ -20,12 +20,20 @@ async function fetchDistinctValues(spec) {
     ...(spec.orderBy ? { orderBy: spec.orderBy } : {}),
     _count: { [spec.field]: true },
   });
-  return rows.map((row) => row[spec.field]);
+  return rows.map((row) => [row[spec.field], row._count[spec.field]]);
 }
 
-function shapeValues(spec, rawValues) {
+function shapeValues(spec, rawValues, rawCounts) {
   const filtered = rawValues.filter(Boolean);
   if (spec.rawOrder) return filtered;
+  // byCount: urut-align dengan jumlah mahasiswa per nilai (terbanyak dulu,
+  // seri → alfabet agar deterministik). Dipakai dropdown fakultas/prodi.
+  if (spec.byCount && rawCounts) {
+    const countByValue = new Map(rawCounts);
+    return filtered.sort(
+      (a, b) => countByValue.get(b) - countByValue.get(a) || String(a).localeCompare(String(b)),
+    );
+  }
   const sorted = [...filtered].sort(spec.comparator || undefined);
   return spec.desc ? sorted.reverse() : sorted;
 }
@@ -50,7 +58,12 @@ function createFilterOptionsSource({ queries, derive }) {
 
     const values = {};
     keys.forEach((key, index) => {
-      values[key] = shapeValues(queries[key], fetched[index]);
+      const pairs = fetched[index];
+      values[key] = shapeValues(
+        queries[key],
+        pairs.map(([value]) => value),
+        pairs,
+      );
     });
 
     cache = values;

@@ -1,4 +1,6 @@
+const prisma = require('../../config/prisma');
 const { createFilterOptionsSource, numericAsc } = require('../filterOptionsSource');
+const { buildStudentFilter } = require('./filterBuilder');
 const {
   toAcademicYear,
   get5YearRollingAcademicYears,
@@ -7,8 +9,8 @@ const {
 const { formatAcademicYearLabel } = require('@komet/shared/academicYear');
 
 const studentQueries = {
-  fakultas: { model: 'student', field: 'fakultas' },
-  programStudi: { model: 'student', field: 'programStudi' },
+  fakultas: { model: 'student', field: 'fakultas', byCount: true },
+  programStudi: { model: 'student', field: 'programStudi', byCount: true },
   angkatan: { model: 'student', field: 'angkatan', desc: true },
   semester: { model: 'student', field: 'semester', comparator: numericAsc },
   periodeMasuk: { model: 'student', field: 'periodeMasuk', desc: true },
@@ -93,13 +95,62 @@ const studentFilterOptions = createFilterOptionsSource({
   derive: deriveStudentOptions,
 });
 
+/**
+ * Urutkan daftar nilai mengikuti hitungan populasi aktif tahun terpilih
+ * (terbanyak dulu; yang tak punya hitungan tetap ada di belakang, alfabetis
+ * — opsi tidak boleh hilang hanya karena tahun itu sepi).
+ */
+function applyCountOrder(values, countedNames) {
+  const ranked = countedNames.filter((name) => values.includes(name));
+  const rest = values.filter((name) => !countedNames.includes(name)).sort();
+  return [...ranked, ...rest];
+}
+
+/** Tahun ajaran efektif: yang diminta bila valid, kalau tidak yang terbaru di data. */
+async function resolveEffectiveYear(selectedYear) {
+  const start = typeof selectedYear === 'string' ? getAcademicYearStart(selectedYear) : null;
+  if (start !== null) return selectedYear;
+  const latest = await prisma.student.aggregate({ _max: { periodeMasuk: true } });
+  return toAcademicYear(latest._max.periodeMasuk);
+}
+
+/**
+ * Nama fakultas/prodi terurut menurut populasi AKTIF tahun terpilih (definisi
+ * sama dengan kartu KPI aktif) — bukan total sepanjang masa semua status.
+ */
+async function getActiveCountsOrder(tahunAjaran) {
+  const where = buildStudentFilter({ statusKeaktifan: 'Aktif', tahunAjaran });
+  const [byFaculty, byProdi] = await Promise.all([
+    prisma.student.groupBy({ by: ['fakultas'], where, _count: { fakultas: true } }),
+    prisma.student.groupBy({ by: ['programStudi'], where, _count: { programStudi: true } }),
+  ]);
+  const rank = (rows, field) =>
+    rows
+      .sort(
+        (a, b) =>
+          b._count[field] - a._count[field] || String(a[field]).localeCompare(String(b[field])),
+      )
+      .map((row) => row[field])
+      .filter(Boolean);
+  return { fakultas: rank(byFaculty, 'fakultas'), programStudi: rank(byProdi, 'programStudi') };
+}
+
 module.exports = {
-  getFilterOptions: (selectedYear) => {
+  getFilterOptions: async (selectedYear) => {
     const start = typeof selectedYear === 'string' ? getAcademicYearStart(selectedYear) : null;
-    return studentFilterOptions.getFilterOptions(false, { selectedStart: start });
+    const base = await studentFilterOptions.getFilterOptions(false, { selectedStart: start });
+    const effectiveYear = start !== null ? selectedYear : await resolveEffectiveYear(null);
+    if (!effectiveYear) return base;
+    const order = await getActiveCountsOrder(effectiveYear);
+    return {
+      ...base,
+      fakultas: applyCountOrder(base.fakultas, order.fakultas),
+      programStudi: applyCountOrder(base.programStudi, order.programStudi),
+    };
   },
   clearFilterCache: studentFilterOptions.clearFilterCache,
   // Dipakai ulang tab Graduate untuk rolling tahun/angkatan — satu implementasi.
   getRollingYears,
   getCustomYearMeta,
+  applyCountOrder,
 };

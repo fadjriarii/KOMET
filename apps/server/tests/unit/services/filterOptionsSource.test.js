@@ -57,6 +57,26 @@ describe('sumber opsi filter', () => {
     expect(options.raw).toEqual(['Zeta', 'Alpha', 'Mid']);
   });
 
+  it('mengurutkan menurun berdasarkan jumlah bila byCount', async () => {
+    const rows = [
+      { prodi: 'Kecil', _count: { prodi: 2 } },
+      { prodi: 'Besar', _count: { prodi: 9 } },
+      { prodi: 'Sedang', _count: { prodi: 5 } },
+      { prodi: '', _count: { prodi: 99 } },
+    ];
+    prisma.student.groupBy = vi.fn(async () => rows);
+
+    const source = createFilterOptionsSource({
+      queries: {
+        prodi: { model: 'student', field: 'prodi', byCount: true },
+      },
+    });
+
+    const options = await source.getFilterOptions();
+    // Nilai kosong tetap disaring; seri diurut alfabet agar deterministik.
+    expect(options.prodi).toEqual(['Besar', 'Sedang', 'Kecil']);
+  });
+
   it('memakai cache sampai cache dibersihkan, lalu mengirim ulang queries', async () => {
     const groupBy = vi.fn(async () => [{ fakultas: 'FT', _count: { fakultas: 1 } }]);
     prisma.student.groupBy = groupBy;

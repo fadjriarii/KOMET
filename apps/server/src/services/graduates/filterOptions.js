@@ -10,10 +10,10 @@ const { getTahunAjaranLabel, tahunAjaranStart } = require('./tahunAjaran');
 const hasGraduate = { NOT: { graduate: null } };
 
 const graduateQueries = {
-  programStudi: { model: 'student', field: 'programStudi', where: hasGraduate },
+  programStudi: { model: 'student', field: 'programStudi', where: hasGraduate, byCount: true },
   tahunLulus: { model: 'graduate', field: 'tahunLulus', desc: true },
   angkatan: { model: 'student', field: 'angkatan', where: hasGraduate, desc: true },
-  fakultas: { model: 'student', field: 'fakultas', where: hasGraduate },
+  fakultas: { model: 'student', field: 'fakultas', where: hasGraduate, byCount: true },
   jenjang: { model: 'student', field: 'jenjang', where: hasGraduate },
 };
 
