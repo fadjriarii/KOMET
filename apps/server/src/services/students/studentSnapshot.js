@@ -45,8 +45,7 @@ function projectSnapshotStudent(student, academicYear, statusValues) {
  */
 function snapshotSemester(student, academicYear) {
   if (!academicYear) return student.semester;
-  const year =
-    academicYear && typeof academicYear === 'object' ? academicYear.startYear : academicYear;
+  const year = typeof academicYear === 'object' ? academicYear.startYear : academicYear;
   const y = Number(year);
   const startCode = (student.periodeMasukAwal || student.periodeMasuk || '').trim();
   const start = /^(\d{4})([12])$/.exec(startCode);

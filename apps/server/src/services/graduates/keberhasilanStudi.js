@@ -53,8 +53,15 @@ async function resolveRefStart(whereFilter = {}) {
 }
 
 function getAngkatanEvaluasiStart(jenjang, refStart) {
-  const lag = COHORT_EVALUATION_LAG[jenjang] ?? COHORT_EVALUATION_LAG[jenjang?.toUpperCase()];
+  const lag = cohortLagFor(jenjang);
   return lag === undefined ? null : refStart - lag;
+}
+
+// Satu titik baca lag per jenjang: normalisasi sekali (null-safe),
+// bukan pola ganda `peta[x] ?? peta[x?.toUpperCase()]` yang memicu
+// peringatan null-check analyzer di tiap pemakaian.
+function cohortLagFor(jenjang) {
+  return COHORT_EVALUATION_LAG[String(jenjang ?? '').toUpperCase()];
 }
 
 /** Angkatan yang dievaluasi + 4 tahun sebelumnya, sebagai label ajaran urut naik. */
@@ -289,7 +296,7 @@ async function getKeberhasilanStudiByAngkatan(whereFilter) {
   const result = {};
   jenjangs.forEach((jenjang, index) => {
     result[jenjang.toLowerCase()] = values[index];
-    const lag = COHORT_EVALUATION_LAG[jenjang] ?? COHORT_EVALUATION_LAG[jenjang?.toUpperCase()];
+    const lag = cohortLagFor(jenjang);
     if (lag === undefined) return;
     const canon = `${jenjang.charAt(0).toUpperCase()}${jenjang.slice(1)}`;
     result[`batasStudi${canon}`] = lag;

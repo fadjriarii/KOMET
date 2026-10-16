@@ -36,8 +36,7 @@ const lamaStudi = (student, tahunLulusLabel) => {
   return tahunMasuk === null || tahunLulusStart === null ? null : tahunLulusStart - tahunMasuk;
 };
 
-const batasFor = (jenjang) =>
-  BATAS_STUDI_TEPAT_WAKTU[jenjang] ?? BATAS_STUDI_TEPAT_WAKTU[jenjang?.toUpperCase()] ?? null;
+const batasFor = (jenjang) => BATAS_STUDI_TEPAT_WAKTU[String(jenjang ?? '').toUpperCase()] ?? null;
 
 /**
  * Jangkar kohort Opsi A — satu titik override referensi tahun kedua fungsi:

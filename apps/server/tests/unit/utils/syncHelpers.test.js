@@ -15,7 +15,6 @@ const {
   cleanText,
   normalizeOptionalText,
   normalizeProdiCode,
-  sanitizeProdiName,
 } = require('../../../src/controllers/sync/text');
 
 describe('sync helpers — Data Cleansing & Transformation', () => {
