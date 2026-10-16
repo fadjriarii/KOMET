@@ -11,6 +11,8 @@ const STUDENT_COLUMNS = [
   'periode',
   'programStudi',
   'fakultas',
+  'kodeProgramStudi',
+  'idNegara',
   'statusKeaktifan',
   'semester',
   'kewarganegaraan',
@@ -34,7 +36,8 @@ async function bulkUpsertStudents(rows) {
     valuesOf: (row) => Prisma.sql`(
       ${toStr(row.nim)}, ${toStr(row.nama)}, ${toStr(row.jenjang)}, ${toStr(row.periodeMasuk)},
       ${toStr(row.periodeTerakhir)}, ${toStr(row.angkatan)}, ${toStr(row.periode)},
-      ${toStr(row.programStudi)}, ${toStr(row.fakultas)}, ${toStr(row.statusKeaktifan)},
+      ${toStr(row.programStudi)}, ${toStr(row.fakultas)}, ${toStr(row.kodeProgramStudi)},
+      ${toStr(row.idNegara)}, ${toStr(row.statusKeaktifan)},
       ${toNum(row.semester)}, ${toStr(row.kewarganegaraan)}, ${toStr(row.nik)},
       ${toStr(row.tanggalLahir)}, ${row.isAkunLama ? 1 : 0}, CURRENT_TIMESTAMP(3)
     )`,

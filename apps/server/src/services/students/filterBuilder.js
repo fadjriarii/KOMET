@@ -22,6 +22,7 @@ const {
   ALL_STATUSES,
   buildStatusFilter,
   ensurePopulationFilter,
+  foreignCondition,
 } = require('./filterBuilder/statusScope');
 
 const FILTER_SCOPES = {
@@ -82,8 +83,11 @@ function buildStudentFilter(query = {}, options = {}) {
   // seluruh histori s.d. tahun ajaran yang dipilih.
 
   if (query.kewarganegaraan === 'WNI') where.kewarganegaraan = 'Indonesia';
-  else if (query.kewarganegaraan === 'WNA') where.NOT = { kewarganegaraan: 'Indonesia' };
-  else if (query.kewarganegaraan) where.kewarganegaraan = query.kewarganegaraan;
+  else if (query.kewarganegaraan === 'WNA') {
+    // Aturan asing satu sumber (per kode negara); baris tanpa kewarganegaraan
+    // tidak ikut terhitung WNA.
+    where.AND = [...(where.AND || []), foreignCondition()];
+  } else if (query.kewarganegaraan) where.kewarganegaraan = query.kewarganegaraan;
 
   // Outside a snapshot, current status is the correct predicate. Within a
   // snapshot it has already been represented in the time-aware OR branches.

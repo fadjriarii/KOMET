@@ -23,6 +23,13 @@ model Student {
   periode         String           @default("")
   programStudi    String
   fakultas        String
+  /// Kode program studi SEVIMA ternormalisasi (huruf X dibuang: `XX61101` dan
+  /// `61101` satu identitas). Identitas prodi untuk resolve nama/fakultas —
+  /// nama bisa berganti, kode tidak.
+  kodeProgramStudi String         @default("")
+  /// Kode negara ISO-3 SEVIMA apa adanya ('' bila API tidak mengirim).
+  /// Agregat asing dikelompokkan per kode agar ejaan nama tak memecah hitungan.
+  idNegara        String          @default("")
   statusKeaktifan String
   semester        Int
   kewarganegaraan String

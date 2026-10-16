@@ -52,10 +52,18 @@ async function getInternationalStudentsTrend(query = {}) {
   // adalah jumlah baris pemetaaan negara — tidak perlu `count` terpisah.
   const wnaCountryRows = await countByNationality(getInternationalWhere(populationFilter));
 
-  const countryMap = wnaCountryRows.map((row) => ({
-    kewarganegaraan: row.kewarganegaraan || 'WNA',
-    count: row._count.kewarganegaraan,
-  }));
+  const countryMap = [];
+  const countryIndex = new Map();
+  for (const row of wnaCountryRows) {
+    // Satu negara bisa punya dua ejaan nama (mis. kiriman API vs fallback):
+    // gabung per nama tampilan agar daftar tidak ganda.
+    const key = row.kewarganegaraan || 'WNA';
+    if (!countryIndex.has(key)) {
+      countryIndex.set(key, countryMap.length);
+      countryMap.push({ kewarganegaraan: key, count: 0 });
+    }
+    countryMap[countryIndex.get(key)].count += row._count.kewarganegaraan;
+  }
 
   // Baris yang mewakili tahun terpilih di banner kartu: tahun ajaran yang diminta
   // bila ada di jendela tren, kalau tidak tahun terakhir. Aturan pilih dinyatakan

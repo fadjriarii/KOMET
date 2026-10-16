@@ -9,6 +9,22 @@ function buildStatusFilter(statusValues) {
 }
 
 /**
+ * Syarat baris terhitung mahasiswa internasional. Kunci utamanya KODE negara
+ * (`idNegara` terisi dan bukan IDN) agar ejaan nama tak memecah hitungan;
+ * baris tanpa kode jatuh ke nama tampilan (bukan ''/Indonesia). Aturan yang
+ * sama dipakai filter WNA dan agregat tren — satu sumber.
+ */
+function foreignCondition() {
+  return {
+    OR: [
+      { idNegara: { notIn: ['', 'IDN'] } },
+      {
+        AND: [{ idNegara: '' }, { kewarganegaraan: { notIn: ['', 'Indonesia'] } }],
+      },
+    ],
+  };
+}
+/**
  * True bila filter memuat batas snapshot tahun akademik. Satu-satunya produsen
  * `periodeMasuk: { lte }` adalah `buildAcademicYearFilter()`, jadi cukup
  * ditanya begitu — tanpa mencocokkan serialisasi kondisi.
@@ -35,4 +51,4 @@ function ensurePopulationFilter(baseFilter = {}) {
   return { ...baseFilter, statusKeaktifan: DEFAULT_STATUS };
 }
 
-module.exports = { ALL_STATUSES, buildStatusFilter, ensurePopulationFilter };
+module.exports = { ALL_STATUSES, buildStatusFilter, ensurePopulationFilter, foreignCondition };

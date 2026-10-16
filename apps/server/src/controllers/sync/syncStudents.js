@@ -4,7 +4,13 @@ const createSyncHandler = require('./createSyncHandler');
 const { deduplicateStudents } = require('../../services/studentDeduplicationService');
 const { mapStudentRow } = require('./mapStudentRow');
 const { applyTransferSemester } = require('./transferSemester');
-const { getProdiFakultasMap, resolveFakultas, paginateSevimaPages } = require('./sevimaLookup');
+const { createIssueCollector, summarizeIssues } = require('./syncIssues');
+const {
+  getProdiFakultasMap,
+  getProdiCodeMap,
+  resolveFakultas,
+  paginateSevimaPages,
+} = require('./sevimaLookup');
 const { bulkUpsertStudents } = require('./bulkWrite');
 
 // 1. ETL Sinkronisasi Mahasiswa dengan Data Cleansing & Transformation
@@ -13,6 +19,10 @@ const executeSyncStudents = async ({ runDedup = true } = {}) => {
     '🔄 Memulai proses ETL: Mahasiswa dari SEVIMA API (dengan Data Cleansing & Transformation)...',
   );
   const prodiFakultasMap = await getProdiFakultasMap();
+  const prodiCodeMap = await getProdiCodeMap();
+  // Nilai tak dikenal tetap tampil (passthrough), tapi dicatat detector supaya
+  // manusia dikabari — tidak perlu mengetik tabel mapping.
+  const issues = createIssueCollector();
 
   let totalSynced = 0;
   let totalSkipped = 0;
@@ -28,7 +38,10 @@ const executeSyncStudents = async ({ runDedup = true } = {}) => {
     onPage: async (listData, { page, totalPages }) => {
       const validItems = [];
       for (const item of listData) {
-        const row = mapStudentRow(item.attributes, prodiFakultasMap, resolveFakultas);
+        const row = mapStudentRow(item.attributes, prodiFakultasMap, resolveFakultas, {
+          prodiCodeMap,
+          issues,
+        });
         if (!row) {
           totalSkipped++;
           continue;
@@ -61,6 +74,13 @@ const executeSyncStudents = async ({ runDedup = true } = {}) => {
   // dari periode pasca-transfer (aturan: studi kontinu se-jenjang).
   const transferFix = await applyTransferSemester();
 
+  const newValues = summarizeIssues(issues);
+  if (Object.keys(newValues).length) {
+    logger.warn(
+      `🆕 Nilai baru dari SEVIMA (tampil otomatis, perlu ditinjau): ${JSON.stringify(newValues)}`,
+    );
+  }
+
   syncJobTracker.updateProgress('students', {
     status: 'completed',
     synced: totalSynced,
@@ -74,6 +94,7 @@ const executeSyncStudents = async ({ runDedup = true } = {}) => {
     totalSkipped,
     fetchedNims: [...fetchedNims],
     deduplication: deduplicationResult,
+    newValues,
   };
 };
 

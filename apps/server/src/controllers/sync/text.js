@@ -25,31 +25,28 @@ function normalizeOptionalText(value) {
   return text === '-' || text === '–' ? '' : text;
 }
 
-const PRODI_RENAME_MAP = {
-  biomanajemen: 'Magister Bio Manajemen',
-  'magister biomanajemen': 'Magister Bio Manajemen',
-  'magister bio manajemen': 'Magister Bio Manajemen',
-  apoteker: 'Pendidikan Profesi Apoteker',
-  'pendidikan profesi apoteker': 'Pendidikan Profesi Apoteker',
-};
-
 /**
  * Helper untuk menormalisasi nama Program Studi dari Sevima API.
- * Menghapus label seperti "(Akun Lama)" atau "(keterangan akun lama)"
- * dan memetakan nama lama ke nama program studi resmi terbaru (misal Biomanajemen -> Magister Bio Manajemen).
+ * Menghapus label seperti "(Akun Lama)" atau "(keterangan akun lama)".
+ * Identitas prodi BUKAN nama, melainkan kode ternormalisasi
+ * (`normalizeProdiCode`) — rename tidak lagi butuh tabel pemetaan.
  */
 function sanitizeProdiName(str) {
   if (!str) return '';
-  const cleaned = str
+  return str
     .replace(/&amp;/g, '&')
     .replace(/\s*\((?:keterangan\s+)?akun\s+lama\)/gi, '')
     .trim();
+}
 
-  const lowerKey = cleaned.toLowerCase();
-  if (PRODI_RENAME_MAP[lowerKey]) {
-    return PRODI_RENAME_MAP[lowerKey];
-  }
-  return cleaned;
+/**
+ * Kode program studi ternormalisasi: huruf X dibuang (`XX61101` dan `61101`
+ * satu identitas — konvensi yang sama dengan NIM). Kode stabil melewati
+ * rename dan migrasi institut→universitas, jadi resolve nama/fakultas selalu
+ * lewat kode ini, bukan lewat pencocokan nama.
+ */
+function normalizeProdiCode(code) {
+  return (code || '').toString().replace(/x/gi, '').trim();
 }
 
 /**
@@ -79,6 +76,7 @@ module.exports = {
   sanitizeText,
   normalizeOptionalText,
   sanitizeProdiName,
+  normalizeProdiCode,
   isAkunLama,
   normalizeJenjang,
 };

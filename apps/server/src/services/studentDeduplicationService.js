@@ -165,6 +165,8 @@ async function deduplicateStudents({ pruneNims = null } = {}) {
           periode: sole.periode,
           programStudi: sole.programStudi,
           fakultas: sole.fakultas,
+          kodeProgramStudi: sole.kodeProgramStudi,
+          idNegara: sole.idNegara,
           statusKeaktifan: sole.statusKeaktifan,
           semester: sole.semester,
           kewarganegaraan: sole.kewarganegaraan,

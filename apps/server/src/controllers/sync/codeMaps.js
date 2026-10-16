@@ -17,53 +17,18 @@ function isStatusKeluar(idStatus) {
   return statusKeluar.includes(idStatus.toUpperCase());
 }
 
-/** Nama negara Bahasa Indonesia untuk kode ISO-3, dipakai hanya bila Sevima
- *  tidak mengirim `nama_negara` sama sekali. */
-const ISO3_NEGARA = {
-  IDN: 'Indonesia',
-  USA: 'Amerika Serikat',
-  MYS: 'Malaysia',
-  SGP: 'Singapura',
-  AUS: 'Australia',
-  GBR: 'Inggris',
-  DEU: 'Jerman',
-  FRA: 'Prancis',
-  JPN: 'Jepang',
-  KOR: 'Korea Selatan',
-  CHN: 'Tiongkok',
-  IND: 'India',
-  THA: 'Thailand',
-  PHL: 'Filipina',
-  VNM: 'Vietnam',
-  NLD: 'Belanda',
-  CAN: 'Kanada',
-  NZL: 'Selandia Baru',
-  SAU: 'Arab Saudi',
-  ARE: 'Uni Emirat Arab',
-  PAK: 'Pakistan',
-  BGD: 'Bangladesh',
-  NPL: 'Nepal',
-  LKA: 'Sri Lanka',
-  MMR: 'Myanmar',
-  KHM: 'Kamboja',
-  LAO: 'Laos',
-  BRN: 'Brunei Darussalam',
-  TLS: 'Timor-Leste',
-};
-
 /**
  * Mapping kewarganegaraan: konversi kode negara / nama bahasa Inggris dari Sevima
  * ke nama negara spesifik dalam Bahasa Indonesia.
  *
  * Strategi (berurutan, yang pertama cocok menang):
  *   1. Gunakan nama_negara dari Sevima jika tersedia dan bukan kosong.
- *   2. Fallback ke lookup tabel ISO-3 → nama Bahasa Indonesia.
- *   3. NIK valid (16 digit) = pasti WNI → 'Indonesia'.
- *   4. Fallback SEMENTARA ke tempat_lahir bila tidak ada sinyal di atas.
- *      Berlaku untuk seluruh mahasiswa tanpa id_negara/NIK.
- *      Begitu SEVIMA mengisi id_negara, sync berikutnya otomatis memakai
- *      langkah 1/2 lagi (kolom ditulis ulang tiap sync).
- *   5. Tidak ada sinyal sama sekali → '' (tidak diketahui; JANGAN default
+ *   2. id_negara IDN = pasti Indonesia (kode eksplisit menang atas tebakan).
+ *   3. id_negara lain tanpa nama = tidak diketahui (detector mencatat kodenya;
+ *      tidak ditebak dari NIK/tempat lahir).
+ *   4. Tanpa kode: NIK valid (16 digit) = pasti WNI → 'Indonesia'.
+ *   5. Tanpa kode dan NIK: fallback SEMENTARA ke tempat_lahir.
+ *   6. Tidak ada sinyal sama sekali → '' (tidak diketahui; JANGAN default
  *      'Indonesia' agar tidak menyembunyikan data yang belum dilengkapi).
  *
  * @param {string} idNegara   kode ISO-3 negara (misal "IDN", "USA", "MYS")
@@ -78,11 +43,11 @@ function mapKewarganegaraan(idNegara, namaNegara, tempatLahir = '', nik = '') {
     return namaNegara.trim();
   }
 
-  // Fallback: lookup berdasarkan kode ISO-3
-  if (idNegara) {
-    const nama = ISO3_NEGARA[idNegara.toUpperCase().trim()];
-    if (nama) return nama;
-  }
+  // Kode eksplisit menang atas tebakan: IDN pasti Indonesia; kode lain tanpa
+  // nama tidak ditebak dari NIK/tempat lahir (detector mencatat kodenya).
+  const code = (idNegara || '').trim().toUpperCase();
+  if (code === 'IDN') return 'Indonesia';
+  if (code) return '';
 
   // NIK valid = WNI
   if (validNik(nik)) return 'Indonesia';
@@ -136,4 +101,9 @@ function mapTempatLahirKeNegara(tempatLahir) {
   return key.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-module.exports = { isStatusKeluar, mapKewarganegaraan, mapTempatLahirKeNegara };
+module.exports = {
+  isStatusKeluar,
+  mapKewarganegaraan,
+  mapTempatLahirKeNegara,
+  TEMPAT_LAHIR_DIKENAL: new Set(Object.keys(TEMPAT_LAHIR_NEGARA)),
+};

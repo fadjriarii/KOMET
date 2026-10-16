@@ -1,28 +1,16 @@
 const prisma = require('../../../config/prisma');
 const { roundedRate } = require('../../../utils/percentageUtils');
 const { ensurePopulationFilter } = require('../filterBuilder');
-
-function appendNot(where, condition) {
-  const { NOT: existingNot, AND: existingAnd, ...rest } = where;
-  return {
-    ...rest,
-    AND: [
-      ...(existingAnd || []),
-      ...(existingNot ? [{ NOT: existingNot }] : []),
-      { NOT: condition },
-    ],
-  };
-}
+const { foreignCondition } = require('../filterBuilder/statusScope');
 
 function getInternationalWhere(baseFilter = {}) {
-  const where = appendNot(ensurePopulationFilter(baseFilter), {
-    kewarganegaraan: 'Indonesia',
-  });
-  // Preserve the pre-groupBy business rule: a missing nationality is
-  // unknown, not an international student.
+  const where = ensurePopulationFilter(baseFilter);
+  // Aturan asing satu sumber (lihat foreignCondition): kunci kode negara,
+  // nama hanya untuk baris tanpa kode. Baris tanpa kewarganegaraan tetap
+  // bukan mahasiswa internasional.
   return {
     ...where,
-    AND: [...(where.AND || []), { kewarganegaraan: { not: '' } }],
+    AND: [...(where.AND || []), foreignCondition()],
   };
 }
 
@@ -30,8 +18,8 @@ const WNI_NATIONALITY = 'indonesia';
 
 /**
  * Satu agregat `groupBy` menghasilkan pembilang dan penyebut sekaligus, jadi
- * tren per tahun butuh 1 query, bukan 2 `count`. Perbandingan nama negara
- * di-normalisasi seperti collation MySQL (case-insensitive).
+ * tren per tahun butuh 1 query, bukan 2 `count`. Asing ditentukan per kode
+ * negara (`idNegara` terisi dan bukan IDN); baris tanpa kode jatuh ke nama.
  */
 function sumNationalityRows(rows) {
   let total = 0;
@@ -39,6 +27,13 @@ function sumNationalityRows(rows) {
   for (const row of rows) {
     const count = row._count.kewarganegaraan;
     total += count;
+    const code = String(row.idNegara || '')
+      .trim()
+      .toUpperCase();
+    if (code) {
+      if (code !== 'IDN') foreign += count;
+      continue;
+    }
     const nationality = String(row.kewarganegaraan || '')
       .trim()
       .toLowerCase();
@@ -50,7 +45,7 @@ function sumNationalityRows(rows) {
 
 function countByNationality(where) {
   return prisma.student.groupBy({
-    by: ['kewarganegaraan'],
+    by: ['idNegara', 'kewarganegaraan'],
     where,
     _count: { kewarganegaraan: true },
   });

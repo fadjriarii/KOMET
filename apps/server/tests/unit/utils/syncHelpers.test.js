@@ -8,10 +8,14 @@ const {
   getCurrentAcademicPeriode,
 } = require('../../../src/controllers/sync/academicPeriod');
 const { isStatusKeluar, mapKewarganegaraan } = require('../../../src/controllers/sync/codeMaps');
+const { mapStudentRow } = require('../../../src/controllers/sync/mapStudentRow');
+const { createIssueCollector } = require('../../../src/controllers/sync/syncIssues');
 const {
   isAkunLama,
   cleanText,
   normalizeOptionalText,
+  normalizeProdiCode,
+  sanitizeProdiName,
 } = require('../../../src/controllers/sync/text');
 
 describe('sync helpers — Data Cleansing & Transformation', () => {
@@ -207,8 +211,9 @@ describe('sync helpers — Data Cleansing & Transformation', () => {
       expect(mapKewarganegaraan('IDN', 'Indonesia')).toBe('Indonesia');
     });
 
-    it('id_negara "MYS" tanpa nama_negara → "Malaysia" dari fallback ISO-3', () => {
-      expect(mapKewarganegaraan('MYS', '')).toBe('Malaysia');
+    it('id_negara tanpa nama_negara: IDN → Indonesia, kode lain → tak diketahui', () => {
+      expect(mapKewarganegaraan('IDN', '')).toBe('Indonesia');
+      expect(mapKewarganegaraan('MYS', '')).toBe('');
     });
 
     it('nama_negara tersedia → gunakan nama langsung', () => {
@@ -277,6 +282,59 @@ describe('sync helpers — Data Cleansing & Transformation', () => {
 
     it('nilai asli dipangkas dan entity HTML-nya dibersihkan', () => {
       expect(normalizeOptionalText('  PT XYZ &amp; Co ')).toBe('PT XYZ & Co');
+    });
+  });
+
+  describe('normalizeProdiCode', () => {
+    it('XX61101 dan 61101 satu identitas', () => {
+      expect(normalizeProdiCode('XX61101')).toBe('61101');
+      expect(normalizeProdiCode('61101')).toBe('61101');
+      expect(normalizeProdiCode('')).toBe('');
+    });
+  });
+
+  describe('mapStudentRow lewat kode prodi', () => {
+    const nameMap = new Map();
+    const resolveFakultas = () => 'Fakultas X';
+    const codeMap = new Map([
+      ['61101', { nama: 'Magister Bio Manajemen', fakultas: 'Bisnis dan Manajemen' }],
+    ]);
+    const attr = (overrides) => ({
+      nim: '1',
+      nama: 'A',
+      id_jenjang: 'S1',
+      id_periode: '20261',
+      id_status_mahasiswa: 'A',
+      status_mahasiswa: 'Aktif',
+      program_studi: 'Biomanajemen (Akun Lama)',
+      id_program_studi: 'XX61101',
+      id_negara: 'IDN',
+      nama_negara: 'Indonesia',
+      ...overrides,
+    });
+
+    it('kode dikenal: nama resmi + fakultas dari endpoint', () => {
+      const row = mapStudentRow(attr(), nameMap, resolveFakultas, {
+        prodiCodeMap: codeMap,
+        issues: createIssueCollector(),
+      });
+      expect(row.programStudi).toBe('Magister Bio Manajemen');
+      expect(row.fakultas).toBe('Bisnis dan Manajemen');
+      expect(row.kodeProgramStudi).toBe('61101');
+      expect(row.idNegara).toBe('IDN');
+    });
+
+    it('kode tak dikenal: nama mentah tetap tampil + detector mencatat', () => {
+      const issues = createIssueCollector();
+      const row = mapStudentRow(
+        attr({ id_program_studi: '99999', program_studi: 'Prodi Baru X' }),
+        nameMap,
+        resolveFakultas,
+        { prodiCodeMap: codeMap, issues },
+      );
+      expect(row.programStudi).toBe('Prodi Baru X');
+      expect(row.kodeProgramStudi).toBe('99999');
+      expect([...issues.prodiCodes]).toEqual(['99999']);
     });
   });
 });
