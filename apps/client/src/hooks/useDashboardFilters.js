@@ -52,6 +52,9 @@ function writeValue(fields, previous, key, config, nextValue) {
   const params = new URLSearchParams(previous);
   const param = config.param || key;
   params.delete(param);
+  // Pemilih header yang mengganti dimensi lain (mis. tahun ajaran → periode)
+  // harus membuang pilihan lama agar dua parameter tidak saling bertentangan.
+  for (const clearedParam of config.clears || []) params.delete(clearedParam);
   if (sameAsInitial(config, value)) return params;
 
   if (isListInitial(config)) {

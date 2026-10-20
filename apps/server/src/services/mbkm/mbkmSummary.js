@@ -29,9 +29,17 @@ const ACTIVITY_PARAMS = [
   'statusAktivitas',
   'jenjang',
   'periode',
+  'tahunAjaran',
 ];
 /** Eligible hanya mengikuti filter populasi mahasiswa, bukan search/status aktivitas. */
-const ELIGIBLE_PARAMS = ['fakultas', 'programStudi', 'angkatan', 'jenjang', 'periode'];
+const ELIGIBLE_PARAMS = [
+  'fakultas',
+  'programStudi',
+  'angkatan',
+  'jenjang',
+  'periode',
+  'tahunAjaran',
+];
 async function getMbkmSummary(query = {}) {
   const { selectedPeriode, whereFilter } = await resolveMbkmQuery(query);
   const previousPeriode = getPreviousPeriode(selectedPeriode);
@@ -74,7 +82,7 @@ async function getMbkmSummary(query = {}) {
       // Penyebut tidak ikut search/status aktivitas.
       eligible: ELIGIBLE_PARAMS,
       // Distribusi mitra mengikuti periode (basisnya periode sebelumnya).
-      mitra: ['periode'],
+      mitra: ['periode', 'tahunAjaran'],
     },
     filterOptions,
   };

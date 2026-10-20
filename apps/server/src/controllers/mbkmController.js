@@ -6,8 +6,8 @@
  * hidup di `services/mbkm/`.
  */
 const {
-  buildMbkmFilter,
   buildStudentFilterFromMbkmQuery,
+  resolveMbkmListFilter,
   resolveMbkmQuery,
   resolveMitraPeriode,
 } = require('../services/mbkm/filterBuilder');
@@ -37,7 +37,7 @@ const getSummary = async (req, res) => {
 const getMbkmData = async (req, res) => {
   try {
     const { page, limit } = getPaginationParams(req.query);
-    const result = await getMbkmList(buildMbkmFilter(req.query), page, limit);
+    const result = await getMbkmList(await resolveMbkmListFilter(req.query), page, limit);
     return res.json({ success: true, ...result });
   } catch (error) {
     return sendServerError(res, 'DATA_READ_FAILED', error, 'mbkm/getMbkmData');

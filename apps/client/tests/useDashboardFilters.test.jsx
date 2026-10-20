@@ -23,7 +23,12 @@ const fields = {
   },
   // Pemilih di header halaman: ikut mempersemp data tapi bukan bagian form filter,
   // jadi ia tidak dihitung sebagai "filter aktif".
-  tahunAjaran: { initial: '2025/2026', param: 'tahunAjaran', setter: 'setTahunAjaran' },
+  tahunAjaran: {
+    initial: '2025/2026',
+    param: 'tahunAjaran',
+    setter: 'setTahunAjaran',
+    clears: ['periode'],
+  },
 };
 
 /** Hook yang sama + lokasi live, supaya URL bisa diperiksa setelah tiap aksi. */
@@ -73,6 +78,13 @@ describe('useDashboardFilters (keadaan di URL)', () => {
 
     act(() => result.current.filters.setters.setSelectedStatus(['Aktif']));
     expect(searchOf(result).has('status')).toBe(false);
+  });
+
+  it('membuang parameter yang bergantung pada nilai lama saat field berubah', () => {
+    const { result } = renderFilters('/?tahunAjaran=2025/2026&periode=20251');
+    act(() => result.current.filters.setters.setTahunAjaran('2024/2025'));
+    expect(searchOf(result).get('tahunAjaran')).toBe('2024/2025');
+    expect(searchOf(result).has('periode')).toBe(false);
   });
 
   it('mendaftar param API yang menyimpang dari default, dengan nama server', () => {

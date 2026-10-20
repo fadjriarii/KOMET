@@ -112,6 +112,7 @@ const ACTIVITY_PARAMS = [
   'statusAktivitas',
   'jenjang',
   'periode',
+  'tahunAjaran',
 ];
 
 const ROUTES = {
@@ -216,12 +217,13 @@ const ROUTES = {
     scope: {
       rate: ACTIVITY_PARAMS,
       totalParticipants: ACTIVITY_PARAMS,
-      eligible: ['fakultas', 'programStudi', 'angkatan', 'jenjang', 'periode'],
-      mitra: ['periode'],
+      eligible: ['fakultas', 'programStudi', 'angkatan', 'jenjang', 'periode', 'tahunAjaran'],
+      mitra: ['periode', 'tahunAjaran'],
     },
     filterCases: [
       { url: '/mbkm?faculty=FST', api: 'fakultas', value: 'FST' },
       { url: '/mbkm?periode=20251', api: 'periode', value: '20251' },
+      { url: '/mbkm?tahunAjaran=2020/2021', api: 'tahunAjaran', value: '2020/2021' },
     ],
     rowLabel: '20201003',
   },
@@ -336,6 +338,20 @@ describe('kartu MBKM', () => {
     expect(within(cardOf('Mitra')).getByText('42')).toBeTruthy();
     expect(screen.queryByText(/Target IKU-2/)).toBeNull();
     expect(screen.queryByText('Mitra MBKM & Industri')).toBeNull();
+  });
+
+  it('meneruskan tahun ajaran header ke summary dan membatalkan periode spesifik', async () => {
+    const route = mockModule('mbkm');
+    renderPage(MbkmPage, ['/mbkm?periode=20251']);
+
+    await cardsReady(route);
+    fireEvent.click(screen.getByRole('button', { name: /Tahun Ajaran/i }));
+    const option = screen.getAllByRole('option')[1];
+    const year = option.textContent.match(/\d{4}\/\d{4}/)[0];
+    fireEvent.click(option);
+
+    await waitFor(() => expect(lastQuery(route.summaryPath).get('tahunAjaran')).toBe(year));
+    expect(lastQuery(route.summaryPath).get('periode')).toBeNull();
   });
 });
 

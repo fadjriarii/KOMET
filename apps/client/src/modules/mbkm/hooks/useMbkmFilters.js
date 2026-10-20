@@ -1,6 +1,15 @@
+import { useMemo } from 'react';
 import { Award, BookOpen, Building2, CalendarDays, UserCheck } from 'lucide-react';
+import { getCurrentAcademicYear, isValidAcademicYear } from '@komet/shared/academicYear';
 import { useDashboardFilters } from '../../../hooks/useDashboardFilters';
 import { sanitizeSearch } from '../../../utils/querySanitizer';
+
+/** Tahun berjalan dan tahun default data sama dengan "tanpa filter" (periode terbaru). */
+const sanitizeAcademicYear = (value, defaultAcademicYear = '') => {
+  if (!isValidAcademicYear(value)) return '';
+  if (value === defaultAcademicYear || value === getCurrentAcademicYear()) return '';
+  return value;
+};
 
 /**
  * Field filter MBKM: state ↔ URL ↔ param server ↔ kontrol tampilan.
@@ -15,6 +24,14 @@ export const mbkmFilterFields = {
     row: 1,
     label: 'Cari Aktivitas MBKM',
     placeholder: 'Cari berdasarkan NIM, Nama, atau Instansi...',
+  },
+  // Tahun ajaran dipilih di header halaman, bukan di grid filter.
+  tahunAjaran: {
+    initial: '',
+    param: 'tahunAjaran',
+    setter: 'setTahunAjaran',
+    sanitize: sanitizeAcademicYear,
+    clears: ['periode'],
   },
   selectedFaculty: {
     initial: [],
@@ -90,8 +107,16 @@ export const mbkmFilterForm = {
   fields: mbkmFilterFields,
 };
 
-export function useMbkmFilters() {
-  return useDashboardFilters({
-    fields: mbkmFilterFields,
-  });
+export function useMbkmFilters(defaultAcademicYear = '') {
+  const fields = useMemo(
+    () => ({
+      ...mbkmFilterFields,
+      tahunAjaran: {
+        ...mbkmFilterFields.tahunAjaran,
+        sanitize: (value) => sanitizeAcademicYear(value, defaultAcademicYear),
+      },
+    }),
+    [defaultAcademicYear],
+  );
+  return useDashboardFilters({ fields });
 }

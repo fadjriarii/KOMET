@@ -3,7 +3,7 @@ import { createQueryParams } from '../../../services/queryParams';
 import { createQuerySanitizer } from '../../../utils/querySanitizer';
 
 const sanitizeMbkmQuery = createQuerySanitizer({
-  single: ['periode', 'topN'],
+  single: ['periode', 'tahunAjaran', 'topN'],
   multi: ['faculty', 'prodi', 'jenjang', 'angkatan', 'statusAktivitas'],
 });
 
@@ -17,6 +17,7 @@ function toQueryParams(filters = {}, pagination = {}) {
   appendMany('angkatan', sanitized.angkatan);
   appendMany('statusAktivitas', sanitized.statusAktivitas);
   append('periode', sanitized.periode);
+  append('tahunAjaran', sanitized.tahunAjaran);
   append('topN', sanitized.topN);
   append('search', sanitized.search);
   append('page', pagination.page);

@@ -4,7 +4,11 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const prisma = require('../../../src/config/prisma');
 const { contractFor, contractProblems } = require('@komet/shared/contracts');
-const { buildActivityWhere } = require('../../../src/services/mbkm/filterBuilder');
+const {
+  buildActivityWhere,
+  resolveMbkmListFilter,
+  resolveMitraPeriode,
+} = require('../../../src/services/mbkm/filterBuilder');
 const {
   distributionBy,
   getStatusDistribution,
@@ -35,8 +39,13 @@ function stubDelegates(fixtures) {
     calls.push({ model: 'mbkmActivity', ...args });
     return fixtures[JSON.stringify(args.by)] ?? [];
   });
-  prisma.mbkmActivity.findFirst = vi.fn(async () => {
-    calls.push({ model: 'mbkmActivity', kind: 'findFirst' });
+  prisma.mbkmActivity.findFirst = vi.fn(async (args) => {
+    calls.push({ model: 'mbkmActivity', kind: 'findFirst', ...args });
+    const prefix = args?.where?.periode?.startsWith;
+    if (prefix && fixtures.periods) {
+      const periode = fixtures.periods.find((value) => value.startsWith(prefix));
+      return periode ? { periode } : null;
+    }
     return fixtures.latestPeriode ?? null;
   });
   prisma.mbkmActivity.findMany = vi.fn(async (args) => {
@@ -265,6 +274,13 @@ describe('getMbkmSummary', () => {
         { _count: { mitra: 4 }, mitra: 'Mitra C' },
         { _count: { mitra: 3 }, mitra: 'Mitra D' },
       ],
+      '["periode"]': [
+        { _count: { periode: 1 }, periode: '20241' },
+        { _count: { periode: 1 }, periode: '20242' },
+        { _count: { periode: 1 }, periode: '20251' },
+        { _count: { periode: 1 }, periode: '20261' },
+      ],
+      periods: ['20241', '20242', '20251', '20252', '20261'],
       latestPeriode: { periode: '20251' },
     }),
   );
@@ -297,8 +313,27 @@ describe('getMbkmSummary', () => {
     expect(result.kpiFilterScope.eligible).toContain('fakultas');
     expect(result.kpiFilterScope.eligible).not.toContain('search');
     expect(result.kpiFilterScope.eligible).not.toContain('statusAktivitas');
-    expect(result.kpiFilterScope.mitra).toEqual(['periode']);
+    expect(result.kpiFilterScope.mitra).toEqual(['periode', 'tahunAjaran']);
+    expect(result.filterOptions.academicYearOptions[0]).toBe('2026/2027');
     expect(JSON.stringify(result)).not.toContain('Target IKU-2');
+  });
+
+  it('tahun ajaran memilih periode terakhir yang tersedia di data', async () => {
+    const result = await getMbkmSummary({ tahunAjaran: '2024/2025' });
+
+    const lookup = calls.find((call) => call.kind === 'findFirst');
+    expect(lookup.where).toEqual({ periode: { startsWith: '2024' } });
+    expect(lookup.orderBy).toEqual({ periode: 'asc' });
+    expect(result.selectedPeriode).toBe('20241');
+    expect(result.kpiFilterScope.rate).toContain('tahunAjaran');
+    expect(result.kpiFilterScope.eligible).toContain('tahunAjaran');
+    expect(result.kpiFilterScope.mitra).toContain('tahunAjaran');
+  });
+
+  it('daftar memakai periode Ganjil tahun ajaran tanpa mengubah default semua periode', async () => {
+    expect((await resolveMbkmListFilter({ tahunAjaran: '2024/2025' })).periode).toBe('20241');
+    expect((await resolveMbkmListFilter({})).periode).toBeUndefined();
+    expect(await resolveMitraPeriode({ tahunAjaran: '2024/2025' })).toBe('20232');
   });
 
   it('bentuknya memenuhi kontrak yang dibaca client', async () => {

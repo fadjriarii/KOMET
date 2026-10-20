@@ -4,7 +4,7 @@
  */
 
 const prisma = require('../../config/prisma');
-const { parsePeriode } = require('../../utils/academicUtils');
+const { getAcademicYearStart, parsePeriode } = require('../../utils/academicUtils');
 const { addInFilter, addSearchFilter, hasFilters } = require('@komet/shared/filterUtils');
 
 function buildMbkmFilter(query) {
@@ -89,9 +89,33 @@ async function getDefaultPeriode() {
   return latest?.periode || null;
 }
 
-/** Periode efektif: hanya query ke DB bila client tidak mengirim periode. */
+/**
+ * Periode efektif: periode eksplisit menang. Tahun ajaran dipetakan ke periode
+ * Ganjil-nya karena kohort eligible MBKM adalah semester 7; bila Ganjil belum
+ * ada, pakai periode pertama yang tersedia di tahun itu.
+ */
 async function resolvePeriode(query = {}) {
-  return query.periode || (await getDefaultPeriode());
+  if (query.periode) return query.periode;
+
+  const academicYearStart = getAcademicYearStart(query.tahunAjaran);
+  if (academicYearStart !== null) {
+    const earliest = await prisma.mbkmActivity.findFirst({
+      where: { periode: { startsWith: String(academicYearStart) } },
+      orderBy: { periode: 'asc' },
+      select: { periode: true },
+    });
+    return earliest?.periode || `${academicYearStart}1`;
+  }
+
+  return getDefaultPeriode();
+}
+
+/** Daftar tabel: tanpa tahun ajaran tetap menampilkan semua periode seperti sebelumnya. */
+async function resolveMbkmListFilter(query = {}) {
+  if (query.periode || getAcademicYearStart(query.tahunAjaran) === null) {
+    return buildMbkmFilter(query);
+  }
+  return buildMbkmFilter({ ...query, periode: await resolvePeriode(query) });
 }
 
 /**
@@ -109,6 +133,9 @@ async function resolveMbkmQuery(query = {}) {
 /** Card mitra memakai periode sebelumnya sebagai basis perbandingan. */
 async function resolveMitraPeriode(query = {}) {
   if (query.periode) return query.periode;
+  if (getAcademicYearStart(query.tahunAjaran) !== null) {
+    return getPreviousPeriode(await resolvePeriode(query));
+  }
   return getPreviousPeriode(await getDefaultPeriode());
 }
 
@@ -139,6 +166,7 @@ module.exports = {
   getPreviousPeriode,
   resolvePeriode,
   resolveMbkmQuery,
+  resolveMbkmListFilter,
   resolveMitraPeriode,
   buildStudentFilterFromMbkmQuery,
   MBKM_STATUS,
