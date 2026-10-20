@@ -9,7 +9,6 @@ import {
   SYNC_MODULE_KEYS,
   SYNC_TRIGGER,
   TABLE_LIMIT,
-  TARGET_IKU2_PERCENT,
 } from '../src/constants.js';
 
 describe('konstanta bersama', () => {
@@ -39,11 +38,6 @@ describe('konstanta bersama', () => {
   it('bulan rollover tahun akademik berada dalam rentang 1..12', () => {
     expect(ACADEMIC_YEAR_ROLLOVER_MONTH).toBeGreaterThanOrEqual(1);
     expect(ACADEMIC_YEAR_ROLLOVER_MONTH).toBeLessThanOrEqual(12);
-  });
-
-  it('target IKU-2 adalah angka, bukan label', () => {
-    expect(typeof TARGET_IKU2_PERCENT).toBe('number');
-    expect(Number.isFinite(TARGET_IKU2_PERCENT)).toBe(true);
   });
 
   it('kunci modul sync unik dan tiap kunci punya label — server dan client baca daftar yang sama', () => {

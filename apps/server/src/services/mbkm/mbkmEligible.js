@@ -1,34 +1,28 @@
-const prisma = require('../../config/prisma');
-const { buildEligibleStudentWhere } = require('./filterBuilder');
+const { getEligibleStudentsAtPeriode } = require('./mbkmEligibility');
 const { rate } = require('../../utils/percentageUtils');
 
 /**
- * Mendapatkan data mahasiswa eligible semester 7 dan sebarannya per prodi (Card 3 detail).
- * Populasi eligible diambil dari `buildEligibleStudentWhere`, definisi yang sama
- * dengan `eligibleCount` pada Card 1.
- *
- * @param {Object} studentFilter Filter Prisma untuk Student
+ * Mahasiswa eligible pada periode terpilih dan sebarannya per prodi.
+ * Definisi yang sama dengan penyebut `getMbkmRate`.
  */
-async function getEligibleStudents(studentFilter = {}) {
-  const where = buildEligibleStudentWhere(studentFilter);
+async function getEligibleStudents(studentFilter = {}, selectedPeriode) {
+  const students = await getEligibleStudentsAtPeriode(studentFilter, selectedPeriode);
 
-  const [eligibleCount, prodiGroups] = await Promise.all([
-    prisma.student.count({ where }),
-    prisma.student.groupBy({
-      by: ['programStudi'],
-      _count: { programStudi: true },
-      where,
-      orderBy: [{ _count: { programStudi: 'desc' } }, { programStudi: 'asc' }],
-    }),
-  ]);
+  const counts = new Map();
+  for (const student of students) {
+    const name = student.programStudi || 'Tidak diketahui';
+    counts.set(name, (counts.get(name) || 0) + 1);
+  }
 
-  const prodiData = prodiGroups.map((group) => ({
-    name: group.programStudi,
-    count: group._count.programStudi,
-    percentage: rate(group._count.programStudi, eligibleCount),
-  }));
+  const prodiData = [...counts]
+    .map(([name, count]) => ({
+      name,
+      count,
+      percentage: rate(count, students.length),
+    }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 
-  return { eligibleCount, prodiData };
+  return { eligibleCount: students.length, prodiData };
 }
 
 module.exports = { getEligibleStudents };

@@ -125,8 +125,6 @@ const MBKM_SUMMARY_KPIS = [
   'evaluasiCount',
   'berjalanCount',
   'participationRate',
-  'meetsIkuTarget',
-  'targetIku2',
   'eligibleCount',
   'totalMitra',
 ];

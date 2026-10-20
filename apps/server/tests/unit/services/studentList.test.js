@@ -66,6 +66,17 @@ describe('student list pagination query', () => {
     });
   });
 
+  it('cuti tampil sejak periode cuti, bukan sebagai Aktif di tahun sebelumnya', () => {
+    const student = { statusKeaktifan: 'Cuti', periodeMasuk: '20231', periodeTerakhir: '20261' };
+    expect(getSnapshotStatus(student, { startYear: '2025' })).toBe('Aktif');
+    expect(getSnapshotStatus(student, { startYear: '2026' })).toBe('Cuti');
+  });
+
+  it('cuti yang berlanjut sampai Genap tetap Cuti di tahun ajaran itu', () => {
+    const student = { statusKeaktifan: 'Cuti', periodeMasuk: '20231', periodeTerakhir: '20262' };
+    expect(getSnapshotStatus(student, { startYear: '2026' })).toBe('Cuti');
+  });
+
   it('keluar setelah Genap ditunda ke tahun ajaran berikut (bukan terminal di tahun itu)', () => {
     const student = {
       statusKeaktifan: 'Keluar',

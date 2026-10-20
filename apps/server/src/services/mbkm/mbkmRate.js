@@ -1,64 +1,71 @@
 const prisma = require('../../config/prisma');
-const { TARGET_IKU2_PERCENT } = require('@komet/shared/constants');
 const { roundedRate } = require('../../utils/percentageUtils');
-const {
-  buildActivityWhere,
-  buildEligibleStudentWhere,
-  MBKM_ACTIVE_STATUSES,
-  MBKM_EVALUATION_STATUSES,
-  MBKM_STATUS,
-} = require('./filterBuilder');
-const { distributionBy } = require('./mbkmActivities');
+const { buildActivityWhere, MBKM_ACTIVE_STATUSES, MBKM_STATUS } = require('./filterBuilder');
+const { getEligibleStudentsAtPeriode } = require('./mbkmEligibility');
 
 /**
- * Mendapatkan analisis partisipasi MBKM vs Mahasiswa Eligible (Card 1 detail).
+ * Analisis partisipasi MBKM vs mahasiswa eligible pada satu periode.
  *
- * Satu `groupBy` status menggantikan tiga `count()` terpisah di atas where yang
- * sama, dan memberi angka evaluasi yang nyata (bukan konstanta 0).
- *
- * @param {Object} whereFilter Filter Prisma untuk MbkmActivity
- * @param {string} selectedPeriode Periode yang dipilih
- * @param {Object} studentFilter Filter Prisma untuk Student
+ * Pembilang = mahasiswa unik di kohort eligible yang punya aktivitas pada
+ * periode itu. Membatasi ke kohort yang sama membuat persentase tidak pernah
+ * melebihi 100% dan tidak mencampur mahasiswa semester lain.
  */
 async function getMbkmRate(whereFilter = {}, selectedPeriode, studentFilter = {}) {
-  const [statusGroups, eligibleCount, facultyData] = await Promise.all([
-    prisma.mbkmActivity.groupBy({
-      by: ['statusAktivitas'],
-      _count: { statusAktivitas: true },
-      where: buildActivityWhere(whereFilter, selectedPeriode, null),
-    }),
-    prisma.student.count({ where: buildEligibleStudentWhere(studentFilter) }),
-    distributionBy('fakultas', whereFilter, selectedPeriode).then((result) => result.items),
-  ]);
+  const eligibleStudents = await getEligibleStudentsAtPeriode(studentFilter, selectedPeriode);
+  const eligibleCount = eligibleStudents.length;
+  const eligibleNims = eligibleStudents.map((student) => student.nim);
 
-  const byStatus = Object.fromEntries(
-    statusGroups.map((group) => [group.statusAktivitas, group._count.statusAktivitas]),
-  );
-  const countOf = (statuses) => statuses.reduce((sum, status) => sum + (byStatus[status] || 0), 0);
+  let activities = [];
+  if (eligibleNims.length) {
+    const where = buildActivityWhere(whereFilter, selectedPeriode);
+    // Syarat requirement: jenis aktivitas tidak boleh kosong.
+    where.jenisAktivitas = { not: '' };
+    where.nim = { in: eligibleNims };
+    activities = await prisma.mbkmActivity.findMany({
+      where,
+      select: { nim: true, statusAktivitas: true, fakultas: true },
+    });
+  }
 
-  const disetujuiCount = byStatus[MBKM_STATUS.DISSETUJUI] || 0;
-  const selesaiCount = byStatus[MBKM_STATUS.SELESAI] || 0;
-  const evaluasiCount = countOf(MBKM_EVALUATION_STATUSES);
-  const mbkmCount = countOf(MBKM_ACTIVE_STATUSES);
+  const eligibleNimSet = new Set(eligibleNims);
+  const activeStatuses = new Set(MBKM_ACTIVE_STATUSES);
+  const participants = new Set();
+  const facultyParticipants = new Map();
+  const byStatus = new Map();
 
-  const numPercentage = roundedRate(mbkmCount, eligibleCount);
-  const meetsTarget = numPercentage >= TARGET_IKU2_PERCENT;
+  for (const activity of activities) {
+    // Penjaga yang sama dengan where: DB boleh mengembalikan baris lama, angka
+    // tidak boleh ikut naik hanya karena query berubah.
+    if (!eligibleNimSet.has(activity.nim) || !activeStatuses.has(activity.statusAktivitas)) {
+      continue;
+    }
+    participants.add(activity.nim);
+    byStatus.set(activity.statusAktivitas, (byStatus.get(activity.statusAktivitas) || 0) + 1);
+    const faculty = activity.fakultas || 'Tidak diketahui';
+    if (!facultyParticipants.has(faculty)) facultyParticipants.set(faculty, new Set());
+    facultyParticipants.get(faculty).add(activity.nim);
+  }
+
+  const count = participants.size;
+  const countStatus = (status) => byStatus.get(status) || 0;
+  const facultyData = [...facultyParticipants]
+    .map(([name, nims]) => ({
+      name,
+      count: nims.size,
+      percentage: roundedRate(nims.size, count, 0),
+    }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 
   return {
     participantStats: {
-      count: mbkmCount,
-      disetujuiCount,
-      selesaiCount,
-      evaluasiCount,
+      count,
+      disetujuiCount: countStatus(MBKM_STATUS.DISSETUJUI),
+      selesaiCount: countStatus(MBKM_STATUS.SELESAI),
+      evaluasiCount: countStatus(MBKM_STATUS.DIAJUKAN),
     },
     eligibleCount,
-    // Label "Tercapai/Belum" milik presentasi; yang dikirim hanya boolean dan
-    // `eligibleCount` (0 = tidak ada data, bukan 0% tercapai).
-    eligibleRate: {
-      numPercentage,
-      meetsTarget,
-      targetIku2: TARGET_IKU2_PERCENT,
-    },
+    // null = tidak ada penyebut; client menampilkannya sebagai "-", bukan 0%.
+    eligibleRate: { numPercentage: roundedRate(count, eligibleCount, null) },
     facultyData,
   };
 }

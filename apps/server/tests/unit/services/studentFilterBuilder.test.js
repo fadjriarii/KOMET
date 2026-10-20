@@ -87,13 +87,19 @@ describe('student filter builder', () => {
         {
           OR: [
             { statusKeaktifan: 'Aktif' },
-            { periodeTerakhir: '' },
+            { AND: [{ periodeTerakhir: '' }, { statusKeaktifan: { not: 'Cuti' } }] },
             { periodeTerakhir: { gt: '20232' } },
-            { AND: [{ periodeTerakhir: '20232' }, { periodeMasuk: { endsWith: '2' } }] },
             {
               AND: [
                 { periodeTerakhir: '20232' },
-                { statusKeaktifan: { notIn: ['Aktif', 'Lulus'] } },
+                { periodeMasuk: { endsWith: '2' } },
+                { statusKeaktifan: { not: 'Cuti' } },
+              ],
+            },
+            {
+              AND: [
+                { periodeTerakhir: '20232' },
+                { statusKeaktifan: { notIn: ['Aktif', 'Lulus', 'Cuti'] } },
               ],
             },
           ],
@@ -111,13 +117,19 @@ describe('student filter builder', () => {
         {
           OR: [
             { statusKeaktifan: 'Aktif' },
-            { periodeTerakhir: '' },
+            { AND: [{ periodeTerakhir: '' }, { statusKeaktifan: { not: 'Cuti' } }] },
             { periodeTerakhir: { gt: '20202' } },
-            { AND: [{ periodeTerakhir: '20202' }, { periodeMasuk: { endsWith: '2' } }] },
             {
               AND: [
                 { periodeTerakhir: '20202' },
-                { statusKeaktifan: { notIn: ['Aktif', 'Lulus'] } },
+                { periodeMasuk: { endsWith: '2' } },
+                { statusKeaktifan: { not: 'Cuti' } },
+              ],
+            },
+            {
+              AND: [
+                { periodeTerakhir: '20202' },
+                { statusKeaktifan: { notIn: ['Aktif', 'Lulus', 'Cuti'] } },
               ],
             },
           ],
@@ -150,13 +162,19 @@ describe('student filter builder', () => {
         {
           OR: [
             { statusKeaktifan: 'Aktif' },
-            { periodeTerakhir: '' },
+            { AND: [{ periodeTerakhir: '' }, { statusKeaktifan: { not: 'Cuti' } }] },
             { periodeTerakhir: { gt: '20252' } },
-            { AND: [{ periodeTerakhir: '20252' }, { periodeMasuk: { endsWith: '2' } }] },
             {
               AND: [
                 { periodeTerakhir: '20252' },
-                { statusKeaktifan: { notIn: ['Aktif', 'Lulus'] } },
+                { periodeMasuk: { endsWith: '2' } },
+                { statusKeaktifan: { not: 'Cuti' } },
+              ],
+            },
+            {
+              AND: [
+                { periodeTerakhir: '20252' },
+                { statusKeaktifan: { notIn: ['Aktif', 'Lulus', 'Cuti'] } },
               ],
             },
           ],
@@ -167,6 +185,26 @@ describe('student filter builder', () => {
   });
 
   // ── Tahun Ajaran + Status spesifik (Lulus / Transfer / dll.) ───────────────
+
+  it('TA + Cuti: memakai periode cuti sampai akhir TA, bukan aturan keluar', () => {
+    const filter = buildStudentFilter({ tahunAjaran: '2026/2027', statusKeaktifan: 'Cuti' });
+    expect(filter.AND).toContainEqual({
+      OR: [
+        {
+          AND: [
+            { statusKeaktifan: 'Cuti' },
+            {
+              OR: [
+                { periodeTerakhir: { not: '', lt: '20261' } },
+                { periodeTerakhir: '20261' },
+                { periodeTerakhir: { not: '', lte: '20262' } },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
 
   it('TA + Lulus: hanya kelulusan sebelum awal TA yang dipilih', () => {
     const filter = buildStudentFilter({ tahunAjaran: '2026/2027', statusKeaktifan: 'Lulus' });
@@ -264,13 +302,19 @@ describe('student filter builder', () => {
         {
           OR: [
             { statusKeaktifan: 'Aktif' },
-            { periodeTerakhir: '' },
+            { AND: [{ periodeTerakhir: '' }, { statusKeaktifan: { not: 'Cuti' } }] },
             { periodeTerakhir: { gt: '20252' } },
-            { AND: [{ periodeTerakhir: '20252' }, { periodeMasuk: { endsWith: '2' } }] },
             {
               AND: [
                 { periodeTerakhir: '20252' },
-                { statusKeaktifan: { notIn: ['Aktif', 'Lulus'] } },
+                { periodeMasuk: { endsWith: '2' } },
+                { statusKeaktifan: { not: 'Cuti' } },
+              ],
+            },
+            {
+              AND: [
+                { periodeTerakhir: '20252' },
+                { statusKeaktifan: { notIn: ['Aktif', 'Lulus', 'Cuti'] } },
               ],
             },
           ],

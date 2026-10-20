@@ -10,6 +10,7 @@ process.env.SEVIMA_FETCH_WINDOW = '3';
 const sevimaApi = require('../../../src/config/sevimaApi');
 const prisma = require('../../../src/config/prisma');
 const { paginateSevimaPages } = require('../../../src/controllers/sync/sevimaLookup');
+const { fetchCutiNims } = require('../../../src/controllers/sync/studentCuti');
 const { bulkUpsertStudents } = require('../../../src/controllers/sync/bulkWrite');
 const { chunkBy } = require('../../../src/controllers/sync/config');
 
@@ -95,6 +96,49 @@ describe('paginateSevimaPages', () => {
         },
       }),
     ).rejects.toThrow('DB down');
+  });
+
+  it('meneruskan filter sebagai params, bukan menempel di URL', async () => {
+    const calls = [];
+    sevimaApi.get = async (url, config) => {
+      calls.push({ url, config });
+      return { data: { data: [], meta: { last_page: 1 } } };
+    };
+
+    await paginateSevimaPages({
+      endpoint: '/siakadcloud/v1/perwalian',
+      params: { 'f-id_periode': '20261' },
+      onPage: () => {},
+    });
+
+    expect(calls[0]).toEqual({
+      url: '/siakadcloud/v1/perwalian',
+      config: { params: { 'f-id_periode': '20261', page: 1 } },
+    });
+  });
+});
+
+describe('fetchCutiNims', () => {
+  const originalGet = sevimaApi.get;
+
+  afterAll(() => {
+    sevimaApi.get = originalGet;
+  });
+
+  it('mengambil NIM berstatus C saja dan membuang baris ganda', async () => {
+    sevimaApi.get = async () => ({
+      data: {
+        data: [
+          { attributes: { nim: '23010099', id_status_mahasiswa: 'C' } },
+          { attributes: { nim: '23010099', id_status_mahasiswa: 'C' } },
+          { attributes: { nim: '25010108', id_status_mahasiswa: 'KM' } },
+          { attributes: { nim: '', id_status_mahasiswa: 'C' } },
+        ],
+        meta: { last_page: 1 },
+      },
+    });
+
+    await expect(fetchCutiNims('20261')).resolves.toEqual(new Set(['23010099']));
   });
 });
 

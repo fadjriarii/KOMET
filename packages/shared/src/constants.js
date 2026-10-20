@@ -39,9 +39,6 @@ export const STUDENT_STATUS = {
   DROP_OUT: 'Drop Out / Dikeluarkan',
 };
 
-/** Target IKU-2: persentase minimal mahasiswa eligible yang mengikuti MBKM. */
-export const TARGET_IKU2_PERCENT = 20.0;
-
 /**
  * Label predikat kelulusan. Server yang menghitung (graduateUtils.calculatePredikat),
  * client hanya memeta label ke gaya badge — ambang angka tidak boleh hidup dua kali.

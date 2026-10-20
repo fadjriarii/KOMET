@@ -4,7 +4,9 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const {
   isSamePerson,
+  isLegacyGraduatedTwin,
   survivorFirst,
+  mbkmSurvivorFirst,
 } = require('../../../src/services/studentDeduplicationService');
 
 describe('student deduplication identity matching', () => {
@@ -67,6 +69,53 @@ describe('student deduplication identity matching', () => {
   });
 });
 
+describe('legacy twin yang sudah lulus', () => {
+  const legacy = {
+    nim: '23020008',
+    nama: 'Jasmine Angelica Syahirah Simanjuntak',
+    jenjang: 'S2',
+    programStudi: 'Magister Bio Manajemen',
+    kodeProgramStudi: 'XX61101',
+    statusKeaktifan: 'Aktif',
+    periodeTerakhir: '20252',
+    isAkunLama: true,
+  };
+  const twin = {
+    nim: '24020003',
+    nama: '  Jasmine  Angelica Syahirah Simanjuntak ',
+    jenjang: 's2',
+    programStudi: 'Magister Bio Manajemen',
+    kodeProgramStudi: '61101',
+    statusKeaktifan: 'Lulus',
+    periodeTerakhir: '20252',
+    isAkunLama: false,
+  };
+  const graduate = { nim: '24020003', periodeWisuda: '20252' };
+
+  it('mencocokkan NIM lama aktif dengan NIM baru yang lulus pada periode yang sama', () => {
+    expect(isLegacyGraduatedTwin(legacy, twin, graduate)).toBe(true);
+  });
+
+  it('menolak nama, jenjang, prodi, atau periode wisuda yang berbeda', () => {
+    expect(isLegacyGraduatedTwin(legacy, { ...twin, nama: 'Orang Lain' }, graduate)).toBe(false);
+    expect(isLegacyGraduatedTwin(legacy, { ...twin, jenjang: 'S1' }, graduate)).toBe(false);
+    expect(isLegacyGraduatedTwin(legacy, { ...twin, kodeProgramStudi: '61201' }, graduate)).toBe(
+      false,
+    );
+    expect(isLegacyGraduatedTwin(legacy, twin, { ...graduate, periodeWisuda: '20251' })).toBe(
+      false,
+    );
+  });
+
+  it('hanya berlaku untuk NIM lama yang masih aktif dan bukan sesama akun lama', () => {
+    expect(isLegacyGraduatedTwin({ ...legacy, statusKeaktifan: 'Lulus' }, twin, graduate)).toBe(
+      false,
+    );
+    expect(isLegacyGraduatedTwin(legacy, { ...twin, isAkunLama: true }, graduate)).toBe(false);
+    expect(isLegacyGraduatedTwin(legacy, twin, null)).toBe(false);
+  });
+});
+
 describe('survivor ordering (aturan A)', () => {
   const row = (nim, isAkunLama) => ({ nim, isAkunLama, updatedAt: new Date().toISOString() });
 
@@ -79,5 +128,20 @@ describe('survivor ordering (aturan A)', () => {
   it('tanpa-x yang sama-sama bersih mendahulukan bukan akun-lama', () => {
     const ordered = [row('23020019', true), row('23020018', false)].sort(survivorFirst);
     expect(ordered[0].nim).toBe('23020018');
+  });
+});
+
+describe('MBKM duplicate ordering', () => {
+  it('menyimpan status terkuat, bukan baris pertama yang kebetulan batal', () => {
+    const ordered = [
+      { id: 1, statusAktivitas: 'Dibatalkan' },
+      { id: 2, statusAktivitas: 'Selesai' },
+      { id: 3, statusAktivitas: 'Disetujui' },
+    ].sort(mbkmSurvivorFirst);
+    expect(ordered.map((row) => row.statusAktivitas)).toEqual([
+      'Selesai',
+      'Disetujui',
+      'Dibatalkan',
+    ]);
   });
 });

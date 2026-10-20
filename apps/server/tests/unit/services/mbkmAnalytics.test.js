@@ -4,10 +4,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const prisma = require('../../../src/config/prisma');
 const { contractFor, contractProblems } = require('@komet/shared/contracts');
-const {
-  buildActivityWhere,
-  buildEligibleStudentWhere,
-} = require('../../../src/services/mbkm/filterBuilder');
+const { buildActivityWhere } = require('../../../src/services/mbkm/filterBuilder');
 const {
   distributionBy,
   getStatusDistribution,
@@ -15,12 +12,19 @@ const {
 const { getMbkmRate } = require('../../../src/services/mbkm/mbkmRate');
 const { getMbkmSummary } = require('../../../src/services/mbkm/mbkmSummary');
 const { getEligibleStudents } = require('../../../src/services/mbkm/mbkmEligible');
+const {
+  getEligibleStudentsAtPeriode,
+  semesterAtPeriode,
+  isActiveAtPeriode,
+} = require('../../../src/services/mbkm/mbkmEligibility');
 const { getMitraDistribution } = require('../../../src/services/mbkm/mbkmMitra');
 
 const calls = [];
 const original = [
   [prisma.mbkmActivity, 'groupBy', prisma.mbkmActivity.groupBy],
   [prisma.mbkmActivity, 'findFirst', prisma.mbkmActivity.findFirst],
+  [prisma.mbkmActivity, 'findMany', prisma.mbkmActivity.findMany],
+  [prisma.student, 'findMany', prisma.student.findMany],
   [prisma.student, 'groupBy', prisma.student.groupBy],
   [prisma.student, 'count', prisma.student.count],
 ];
@@ -35,6 +39,14 @@ function stubDelegates(fixtures) {
     calls.push({ model: 'mbkmActivity', kind: 'findFirst' });
     return fixtures.latestPeriode ?? null;
   });
+  prisma.mbkmActivity.findMany = vi.fn(async (args) => {
+    calls.push({ model: 'mbkmActivity', kind: 'findMany', ...args });
+    return fixtures.activities ?? [];
+  });
+  prisma.student.findMany = vi.fn(async (args) => {
+    calls.push({ model: 'student', kind: 'findMany', ...args });
+    return fixtures.students ?? [];
+  });
   prisma.student.count = vi.fn(async (args) => {
     calls.push({ model: 'student', kind: 'count', ...args });
     return fixtures.eligibleCount ?? 0;
@@ -44,6 +56,16 @@ function stubDelegates(fixtures) {
     return fixtures.studentGroups ?? [];
   });
 }
+
+const studentRow = (nim, start, exit = '', fakultas = 'FST', statusKeaktifan = 'Aktif') => ({
+  nim,
+  periodeMasuk: start,
+  periodeMasukAwal: '',
+  periodeTerakhir: exit,
+  statusKeaktifan,
+  programStudi: 'Ilmu Komputer',
+  fakultas,
+});
 
 beforeEach(() => calls.splice(0, calls.length));
 afterAll(() => {
@@ -60,6 +82,24 @@ const STATUS_GROUPS = [
 const FAKULTAS_GROUPS = [
   { _count: { fakultas: 30 }, fakultas: 'Fakultas Teknik' },
   { _count: { fakultas: 12 }, fakultas: 'Fakultas Ekonomi' },
+];
+
+const ELIGIBLE_STUDENTS = Array.from({ length: 200 }, (_, index) =>
+  studentRow(`A${index}`, '20221'),
+);
+const mbkmRow = (nim, statusAktivitas, fakultas = 'FST') => ({
+  nim,
+  statusAktivitas,
+  fakultas,
+});
+const RATE_ACTIVITIES = [
+  ...Array.from({ length: 30 }, (_, index) => mbkmRow(`A${index}`, 'Selesai')),
+  ...Array.from({ length: 12 }, (_, index) => mbkmRow(`A${30 + index}`, 'Disetujui', 'FEB')),
+  ...Array.from({ length: 5 }, (_, index) => mbkmRow(`A${42 + index}`, 'Diajukan')),
+  ...Array.from({ length: 3 }, (_, index) => mbkmRow(`A${47 + index}`, 'Ditolak')),
+  // Duplikat NIM dan peserta di luar kohort eligible tidak boleh menambah angka.
+  mbkmRow('A0', 'Selesai'),
+  mbkmRow('B0', 'Selesai'),
 ];
 
 describe('scope status agregasi MBKM', () => {
@@ -81,16 +121,56 @@ describe('scope status agregasi MBKM', () => {
     expect(where.statusAktivitas).toEqual({ in: ['Ditolak'] });
   });
 
-  it('tanpa filter status client, scope partisipan dipakai', () => {
+  it('tanpa filter status client, partisipan mencakup Evaluasi/Diajukan', () => {
     const where = buildActivityWhere({}, '20251');
-    expect(where.statusAktivitas.in).toEqual(['Disetujui', 'Selesai']);
+    expect(where.statusAktivitas.in).toEqual(['Disetujui', 'Selesai', 'Diajukan']);
+  });
+});
+
+describe('eligible per periode', () => {
+  it('memproyeksikan semester dari awal studi, bukan semester tersimpan', () => {
+    expect(semesterAtPeriode('20221', '20251')).toBe(7);
+    expect(semesterAtPeriode('20231', '20251')).toBe(5);
+    expect(semesterAtPeriode('20222', '20251')).toBe(6);
+    expect(semesterAtPeriode('invalid', '20251')).toBeNull();
   });
 
-  it('definisi eligible satu sumber untuk rate dan sebaran prodi', () => {
-    const where = buildEligibleStudentWhere({ angkatan: { in: ['2023'] } });
-    expect(where).toEqual({ angkatan: { in: ['2023'] }, semester: 7, statusKeaktifan: 'Aktif' });
-    // Kriteria eligible tidak bisa ditimpa filter caller.
-    expect(buildEligibleStudentWhere({ semester: 3 }).semester).toBe(7);
+  it('aktif hanya jika sudah masuk dan belum keluar sebelum periode', () => {
+    expect(isActiveAtPeriode(studentRow('A', '20221'), '20251')).toBe(true);
+    expect(isActiveAtPeriode(studentRow('B', '20261'), '20251')).toBe(false);
+    expect(isActiveAtPeriode(studentRow('C', '20221', '20242'), '20251')).toBe(false);
+    expect(isActiveAtPeriode(studentRow('D', '20221', '20252'), '20251')).toBe(true);
+  });
+
+  it('cuti baru tidak aktif sejak periode cutinya, tetapi aktif di periode sebelumnya', () => {
+    const cuti = studentRow('E', '20221', '20261', 'FST', 'Cuti');
+    expect(isActiveAtPeriode(cuti, '20252')).toBe(true);
+    expect(isActiveAtPeriode(cuti, '20261')).toBe(false);
+    expect(isActiveAtPeriode(studentRow('F', '20221', '', 'FST', 'Cuti'), '20252')).toBe(false);
+  });
+
+  it('hanya mengambil semester 7 yang aktif pada periode terpilih', async () => {
+    const rows = [
+      studentRow('A', '20221'),
+      studentRow('B', '20231'),
+      studentRow('C', '20221', '20242'),
+      studentRow('D', '20221', '20252'),
+      studentRow('E', '20222'),
+    ];
+    const db = { student: { findMany: vi.fn(async () => rows) } };
+    const eligible = await getEligibleStudentsAtPeriode({}, '20251', db);
+    expect(eligible.map((student) => student.nim)).toEqual(['A', 'D']);
+  });
+
+  it('mahasiswa cuti semester 7 tidak masuk eligible pada periode cuti', async () => {
+    const rows = [
+      studentRow('A', '20231'),
+      studentRow('B', '20231', '20261', 'FST', 'Cuti'),
+      studentRow('C', '20231', '20252', 'FST', 'Cuti'),
+    ];
+    const db = { student: { findMany: vi.fn(async () => rows) } };
+    const eligible = await getEligibleStudentsAtPeriode({}, '20261', db);
+    expect(eligible.map((student) => student.nim)).toEqual(['A']);
   });
 });
 
@@ -125,79 +205,66 @@ describe('distribusi MBKM', () => {
 describe('getMbkmRate', () => {
   beforeAll(() =>
     stubDelegates({
-      '["statusAktivitas"]': STATUS_GROUPS,
-      '["fakultas"]': FAKULTAS_GROUPS,
-      eligibleCount: 200,
+      students: ELIGIBLE_STUDENTS,
+      activities: RATE_ACTIVITIES,
       latestPeriode: { periode: '20251' },
     }),
   );
 
-  it('satu groupBy status menggantikan tiga count()', async () => {
+  it('menghitung mahasiswa unik yang benar-benar eligible pada periode', async () => {
     const data = await getMbkmRate({}, '20251', {});
-    const countCalls = calls.filter(
-      (call) => call.kind === 'count' && call.model === 'mbkmActivity',
-    );
-    expect(countCalls).toHaveLength(0);
-    expect(calls.filter((call) => call.model === 'mbkmActivity')).toHaveLength(2);
+    expect(data.eligibleCount).toBe(200);
     expect(data.participantStats).toEqual({
-      count: 42,
+      count: 47,
       disetujuiCount: 12,
-      selesaiCount: 30,
+      selesaiCount: 31,
       evaluasiCount: 5,
     });
-  });
-
-  it('evaluasi dihitung dari data, bukan konstanta 0', async () => {
-    const data = await getMbkmRate({}, '20251', {});
-    expect(data.participantStats.evaluasiCount).toBe(5);
-  });
-
-  it('eligibleCount identik dengan sumber Card 3', async () => {
-    const rate = await getMbkmRate({}, '20251', { fakultas: { in: ['Ekonomi'] } });
-    const eligible = await getEligibleStudents({ fakultas: { in: ['Ekonomi'] } });
-    expect(rate.eligibleCount).toBe(eligible.eligibleCount);
-    const where = calls.filter((call) => call.kind === 'count').map((call) => call.where);
-    expect(new Set(where.map((item) => JSON.stringify(item))).size).toBe(1);
-  });
-
-  it('menurunkan target IKU-2 dari angka nyata', async () => {
-    stubDelegates({
-      '["statusAktivitas"]': [{ _count: { statusAktivitas: 50 }, statusAktivitas: 'Selesai' }],
-      '["fakultas"]': [],
-      eligibleCount: 200,
-    });
-    const data = await getMbkmRate({}, '20251', {});
-    expect(data.eligibleRate.numPercentage).toBe(25);
-    expect(data.eligibleRate.meetsTarget).toBe(true);
-  });
-
-  it('mengirim boolean, bukan label capaian', async () => {
-    stubDelegates({
-      '["statusAktivitas"]': STATUS_GROUPS,
-      '["fakultas"]': [],
-      eligibleCount: 200,
-    });
-    const data = await getMbkmRate({}, '20251', {});
-    expect(Object.keys(data.eligibleRate).sort()).toEqual([
-      'meetsTarget',
-      'numPercentage',
-      'targetIku2',
+    expect(data.eligibleRate).toEqual({ numPercentage: 23.5 });
+    expect(data.facultyData.map((item) => [item.name, item.count])).toEqual([
+      ['FST', 35],
+      ['FEB', 12],
     ]);
+  });
+
+  it('membatasi query ke kohort eligible, status partisipan, dan jenis terisi', async () => {
+    await getMbkmRate({}, '20251', {});
+    const query = calls.find((call) => call.kind === 'findMany' && call.model === 'mbkmActivity');
+    expect(query.where.nim.in).toHaveLength(200);
+    expect(query.where.statusAktivitas.in).toEqual(['Disetujui', 'Selesai', 'Diajukan']);
+    expect(query.where.jenisAktivitas).toEqual({ not: '' });
+  });
+
+  it('penyebut nol menghasilkan null, bukan 0%', async () => {
+    stubDelegates({ students: [], activities: [] });
+    const data = await getMbkmRate({}, '20251', {});
+    expect(data.eligibleCount).toBe(0);
+    expect(data.eligibleRate.numPercentage).toBeNull();
+    expect(data.facultyData).toEqual([]);
+    expect(calls.some((call) => call.kind === 'findMany' && call.model === 'mbkmActivity')).toBe(
+      false,
+    );
+  });
+
+  it('eligibleCount identik dengan service daftar eligible', async () => {
+    stubDelegates({ students: ELIGIBLE_STUDENTS, activities: RATE_ACTIVITIES });
+    const rate = await getMbkmRate({}, '20251', { fakultas: { in: ['FST'] } });
+    const eligible = await getEligibleStudents({ fakultas: { in: ['FST'] } }, '20251');
+    expect(rate.eligibleCount).toBe(eligible.eligibleCount);
   });
 });
 
 describe('getMbkmSummary', () => {
   beforeAll(() =>
     stubDelegates({
-      '["statusAktivitas"]': STATUS_GROUPS,
-      '["fakultas"]': FAKULTAS_GROUPS,
+      students: ELIGIBLE_STUDENTS,
+      activities: RATE_ACTIVITIES,
       '["mitra"]': [
         { _count: { mitra: 10 }, mitra: 'Mitra A' },
         { _count: { mitra: 8 }, mitra: 'Mitra B' },
         { _count: { mitra: 4 }, mitra: 'Mitra C' },
         { _count: { mitra: 3 }, mitra: 'Mitra D' },
       ],
-      eligibleCount: 300,
       latestPeriode: { periode: '20251' },
     }),
   );
@@ -205,28 +272,31 @@ describe('getMbkmSummary', () => {
   it('menyusun payload kartu di service, eligible dihitung sekali', async () => {
     const result = await getMbkmSummary({ periode: '20251', topN: 2 });
 
-    expect(calls.filter((call) => call.kind === 'count' && call.model === 'student')).toHaveLength(
-      1,
-    );
+    expect(
+      calls.filter((call) => call.kind === 'findMany' && call.model === 'student'),
+    ).toHaveLength(1);
     // Client sudah mengirim periode → tidak ada `findFirst` untuk default periode.
     expect(calls.some((call) => call.kind === 'findFirst')).toBe(false);
     expect(result.previousPeriode).toBe('20242');
     expect(result.summary.persentaseMbkm).toEqual({
-      mbkmCount: 42,
-      eligibleCount: 300,
-      percentage: 14,
+      mbkmCount: 47,
+      eligibleCount: 200,
+      percentage: 23.5,
     });
-    expect(result.kpis).toMatchObject({
-      totalParticipants: 42,
-      berjalanCount: 12,
-      selesaiCount: 30,
+    expect(result.kpis).toEqual({
+      totalParticipants: 47,
+      selesaiCount: 31,
       evaluasiCount: 5,
-      participationRate: 14,
-      meetsIkuTarget: false,
-      targetIku2: 20,
-      eligibleCount: 300,
+      berjalanCount: 12,
+      participationRate: 23.5,
+      eligibleCount: 200,
       totalMitra: 4,
     });
+    expect(result.kpiFilterScope.totalParticipants).toContain('search');
+    expect(result.kpiFilterScope.rate).toContain('statusAktivitas');
+    expect(result.kpiFilterScope.eligible).toContain('fakultas');
+    expect(result.kpiFilterScope.eligible).not.toContain('search');
+    expect(result.kpiFilterScope.eligible).not.toContain('statusAktivitas');
     expect(JSON.stringify(result)).not.toContain('Target IKU-2');
   });
 

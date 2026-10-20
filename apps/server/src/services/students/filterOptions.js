@@ -7,6 +7,7 @@ const {
   getAcademicYearStart,
 } = require('../../utils/academicUtils');
 const { formatAcademicYearLabel } = require('@komet/shared/academicYear');
+const { STUDENT_STATUS } = require('@komet/shared/constants');
 
 const studentQueries = {
   fakultas: { model: 'student', field: 'fakultas', byCount: true },
@@ -139,11 +140,20 @@ module.exports = {
   getFilterOptions: async (selectedYear) => {
     const start = typeof selectedYear === 'string' ? getAcademicYearStart(selectedYear) : null;
     const base = await studentFilterOptions.getFilterOptions(false, { selectedStart: start });
+    // Cuti tidak selalu ada di DB (mis. sebelum sync pertama), tetapi opsinya
+    // harus tetap tersedia. Urutan tetap: Aktif, Cuti, lalu status lain.
+    const otherStatuses = base.statusKeaktifan
+      .filter((status) => status !== STUDENT_STATUS.AKTIF && status !== STUDENT_STATUS.CUTI)
+      .sort();
+    const withCuti = {
+      ...base,
+      statusKeaktifan: [STUDENT_STATUS.AKTIF, STUDENT_STATUS.CUTI, ...otherStatuses],
+    };
     const effectiveYear = start !== null ? selectedYear : await resolveEffectiveYear(null);
-    if (!effectiveYear) return base;
+    if (!effectiveYear) return withCuti;
     const order = await getActiveCountsOrder(effectiveYear);
     return {
-      ...base,
+      ...withCuti,
       fakultas: applyCountOrder(base.fakultas, order.fakultas),
       programStudi: applyCountOrder(base.programStudi, order.programStudi),
     };

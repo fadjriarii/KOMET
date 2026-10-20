@@ -3,8 +3,10 @@ const syncJobTracker = require('../../utils/syncJobTracker');
 const createSyncHandler = require('./createSyncHandler');
 const { deduplicateStudents } = require('../../services/studentDeduplicationService');
 const { mapStudentRow } = require('./mapStudentRow');
+const { fetchCutiNims } = require('./studentCuti');
 const { applyTransferSemester } = require('./transferSemester');
 const { createIssueCollector, summarizeIssues } = require('./syncIssues');
+const { STUDENT_STATUS } = require('@komet/shared/constants');
 const {
   getProdiFakultasMap,
   getProdiCodeMap,
@@ -20,8 +22,17 @@ const executeSyncStudents = async ({ runDedup = true } = {}) => {
   );
   // Sync = baca peta terbaru (paksa refresh): prodi/fakultas baru dari API
   // harus ter-resolve resmi saat sync ini juga, bukan setelah cache 1 jam basi.
-  const prodiFakultasMap = await getProdiFakultasMap(true);
-  const prodiCodeMap = await getProdiCodeMap(true);
+  // Cuti diambil paralel karena statusnya hanya ada di `/perwalian`, bukan `/mahasiswa`.
+  // Kegagalan endpoint sekunder ini tidak boleh menggagalkan sync mahasiswa.
+  const cutiPromise = fetchCutiNims().catch((error) => {
+    logger.warn(`[Mahasiswa] Gagal mengambil status cuti dari /perwalian: ${error.message}`);
+    return new Set();
+  });
+  const [prodiFakultasMap, prodiCodeMap, cutiNims] = await Promise.all([
+    getProdiFakultasMap(true),
+    getProdiCodeMap(true),
+    cutiPromise,
+  ]);
   // Nilai tak dikenal tetap tampil (passthrough), tapi dicatat detector supaya
   // manusia dikabari — tidak perlu mengetik tabel mapping.
   const issues = createIssueCollector();
@@ -48,6 +59,12 @@ const executeSyncStudents = async ({ runDedup = true } = {}) => {
           totalSkipped++;
           continue;
         }
+        // Master `/mahasiswa` tetap `A / Aktif` untuk mahasiswa cuti; status
+        // periode berjalan dari `/perwalian` yang menang saat sync.
+        // shortcut: hanya cuti periode berjalan; riwayat cuti setelah mahasiswa
+        // kembali aktif butuh tabel status per periode. Upgrade saat snapshot
+        // cuti historis diminta.
+        if (cutiNims.has(row.nim)) row.statusKeaktifan = STUDENT_STATUS.CUTI;
         validItems.push(row);
         fetchedNims.add(row.nim);
       }
@@ -89,11 +106,12 @@ const executeSyncStudents = async ({ runDedup = true } = {}) => {
     skipped: totalSkipped,
   });
   logger.success(
-    `[Mahasiswa] Selesai! ${totalSynced} data disinkronkan, ${totalSkipped} dilewati, ${deduplicationResult?.deletedStudentsCount || 0} duplikat dibersihkan, ${transferFix.updated} semester transfer dikoreksi.`,
+    `[Mahasiswa] Selesai! ${totalSynced} data disinkronkan, ${totalSkipped} dilewati, ${cutiNims.size} mahasiswa cuti, ${deduplicationResult?.deletedStudentsCount || 0} duplikat dibersihkan, ${transferFix.updated} semester transfer dikoreksi.`,
   );
   return {
     totalSynced,
     totalSkipped,
+    cutiCount: cutiNims.size,
     fetchedNims: [...fetchedNims],
     deduplication: deduplicationResult,
     newValues,

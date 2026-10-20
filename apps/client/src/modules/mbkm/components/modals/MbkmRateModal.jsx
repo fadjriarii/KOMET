@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Building2, Award, Users, TrendingUp } from 'lucide-react';
+import { Building2, Award, Users } from 'lucide-react';
 import Modal from '../../../../components/common/modals/Modal';
 import ModalSummaryBanner from '../../../../components/common/modals/ModalSummaryBanner';
 import ModalTabNav from '../../../../components/common/modals/ModalTabNav';
@@ -71,10 +71,6 @@ export default function MbkmRateModal({ isOpen, onClose, originRect, data, filte
     kpis.participationRate ?? eligibleRate.numPercentage,
     1,
   );
-  const targetIku2 = formatPercentage(eligibleRate.targetIku2, 1);
-  // Tanpa mahasiswa eligible tidak ada yang bisa dibandingkan: bukan "tercapai",
-  // juga bukan "belum tercapai".
-  const meetsTarget = eligibleCount > 0 && eligibleRate.meetsTarget === true;
 
   const content = useMemo(
     () => ({
@@ -117,7 +113,7 @@ export default function MbkmRateModal({ isOpen, onClose, originRect, data, filte
       isOpen={isOpen}
       onClose={onClose}
       title="Rincian Partisipasi MBKM"
-      subtitle="Analisis rasio partisipasi MBKM terhadap mahasiswa eligible semester 7 dan pencapaian target IKU-2 Dikti"
+      subtitle="Analisis rasio partisipasi MBKM terhadap mahasiswa eligible semester 7 pada periode terpilih"
       maxWidth="max-w-4xl"
       originRect={originRect}
       showCloseButton
@@ -132,25 +128,11 @@ export default function MbkmRateModal({ isOpen, onClose, originRect, data, filte
                 dari total <strong>{formatNumber(eligibleCount)} mahasiswa eligible</strong>{' '}
                 semester 7.
               </p>
-              <div className="flex items-center gap-2 pt-1 text-xs">
-                <span
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-bold border ${
-                    meetsTarget
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                      : 'bg-amber-50 text-amber-700 border-amber-200'
-                  }`}
-                >
-                  <TrendingUp size={13} />
-                  <span>
-                    Target IKU-2: ≥ {targetIku2} ({meetsTarget ? 'Terlampaui' : 'Belum Terpenuhi'})
-                  </span>
-                </span>
-              </div>
             </div>
           }
-          label="Tingkat Partisipasi"
+          label="Persentase Partisipasi"
           value={participationRate}
-          sublabel="IKU-2 Dikti"
+          sublabel="Partisipasi MBKM"
         />
 
         <div className="flex-1 flex flex-col min-h-0">

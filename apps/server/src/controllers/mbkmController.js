@@ -24,7 +24,7 @@ const { getMbkmRate } = require('../services/mbkm/mbkmRate');
 const { getMbkmSummary } = require('../services/mbkm/mbkmSummary');
 const { sendServerError } = require('../utils/errorHandler');
 
-// GET /api/mbkm/summary — Data 4 card + filter options untuk tab MBKM
+// GET /api/mbkm/summary — data card MBKM + filter options
 const getSummary = async (req, res) => {
   try {
     return res.json({ success: true, ...(await getMbkmSummary(req.query)) });
@@ -44,7 +44,7 @@ const getMbkmData = async (req, res) => {
   }
 };
 
-// GET /api/mbkm/analytics/rate — Detail Card 1: % MBKM vs Eligible
+// GET /api/mbkm/analytics/rate — detail Persentase MBKM vs Eligible
 const getRate = async (req, res) => {
   try {
     const { selectedPeriode, whereFilter } = await resolveMbkmQuery(req.query);
@@ -92,11 +92,15 @@ const getStatusDistributionHandler = periodeDistributionHandler(
   'mbkm/getStatusDistribution',
 );
 
-// GET /api/mbkm/analytics/eligible-students — Detail Card 3
+// GET /api/mbkm/analytics/eligible-students — detail mahasiswa eligible
 const getEligibleStudentsHandler = async (req, res) => {
   try {
-    const data = await getEligibleStudents(buildStudentFilterFromMbkmQuery(req.query));
-    return res.json({ success: true, data });
+    const { selectedPeriode } = await resolveMbkmQuery(req.query);
+    const data = await getEligibleStudents(
+      buildStudentFilterFromMbkmQuery(req.query),
+      selectedPeriode,
+    );
+    return res.json({ success: true, selectedPeriode, data });
   } catch (error) {
     return sendServerError(res, 'DATA_READ_FAILED', error, 'mbkm/getEligibleStudents');
   }

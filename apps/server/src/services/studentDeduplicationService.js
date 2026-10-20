@@ -1,10 +1,12 @@
 const prisma = require('../config/prisma');
 const logger = require('../utils/logger');
+const { MBKM_STATUS } = require('./mbkm/filterBuilder');
+const { STUDENT_STATUS } = require('@komet/shared/constants');
 
 /**
  * Service Deduplikasi Terpadu (Students, Graduates, & MBKM)
  *
- * Tiga tahap, berurutan:
+ * Empat tahap, berurutan:
  * P. Prune: NIM di DB yang tidak ada di payload API terakhir berarti basi
  *    (mis. mahasiswa dinomor-ulang SEVIMA). Relink relasi ke kembarannya bila
  *    ketemu, selain itu hapus (FK cascade ikut membersihkan anaknya).
@@ -16,7 +18,27 @@ const logger = require('../utils/logger');
  *    record bertanda akun-lama yang punya kembaran se-jenjang berstatus studi
  *    nyata (bukan Transfer/Mutasi) — dua enrollment paralel yang sah (mis. S1 +
  *    Profesi) tidak pernah digabung.
+ * C. NIM lama yang masih Aktif padahal NIM barunya sudah Lulus: dicocokkan
+ *    lewat nama + jenjang + kode prodi dan periode wisuda yang sama. NIK/tanggal
+ *    lahir lama sering berbeda, jadi tidak bisa mengandalkan tahap B.
  */
+/** Urutan status MBKM: baris final/aktif tidak boleh kalah oleh baris batal. */
+const MBKM_STATUS_RANK = new Map([
+  [MBKM_STATUS.SELESAI, 5],
+  [MBKM_STATUS.DISSETUJUI, 4],
+  [MBKM_STATUS.DIAJUKAN, 3],
+  [MBKM_STATUS.DITOLAK, 2],
+  [MBKM_STATUS.DIBATALKAN, 1],
+]);
+
+/** Survivor duplikat MBKM: status terkuat dulu, lalu id terlama. */
+function mbkmSurvivorFirst(a, b) {
+  const rankA = MBKM_STATUS_RANK.get((a.statusAktivitas || '').trim()) ?? 0;
+  const rankB = MBKM_STATUS_RANK.get((b.statusAktivitas || '').trim()) ?? 0;
+  if (rankA !== rankB) return rankB - rankA;
+  return (a.id ?? 0) - (b.id ?? 0);
+}
+
 function normNama(value) {
   return (value || '').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim().toLowerCase();
 }
@@ -34,6 +56,27 @@ function validNik(value) {
  *  boleh menggusur record lama (menyelamatkan lulusan asli). */
 function isStatusPindah(status) {
   return /^(transfer|mutasi)$/i.test((status || '').trim());
+}
+
+/** Identitas studi untuk mencocokkan NIM lama dengan NIM hasil re-numbering. */
+function studiKey(student) {
+  const prodi =
+    (student.kodeProgramStudi || '').replace(/x/gi, '').trim() || normNama(student.programStudi);
+  return [normNama(student.nama), (student.jenjang || '').trim().toLowerCase(), prodi].join('|');
+}
+
+/**
+ * NIM lama yang sudah digantikan NIM baru yang lulus. NIK/tanggal lahir bisa
+ * berbeda karena data lama, jadi kuncinya nama + jenjang + prodi, dan harus
+ * dikonfirmasi periode wisuda kembarannya sama dengan periode terakhir NIM lama.
+ */
+function isLegacyGraduatedTwin(legacy, twin, graduate) {
+  if (!legacy || !twin || !graduate) return false;
+  if (!legacy.isAkunLama || legacy.statusKeaktifan !== STUDENT_STATUS.AKTIF) return false;
+  if (twin.nim === legacy.nim || twin.isAkunLama) return false;
+  if (studiKey(legacy) !== studiKey(twin)) return false;
+  const lastPeriod = (legacy.periodeTerakhir || '').trim();
+  return Boolean(lastPeriod) && lastPeriod === (graduate.periodeWisuda || '').trim();
 }
 
 function personKeys(student) {
@@ -238,6 +281,39 @@ async function deduplicateStudents({ pruneNims = null } = {}) {
     }
   }
 
+  // ---- Tahap C: NIM lama yang sudah digantikan NIM baru yang lulus ----
+  // Re-numbering bisa meninggalkan NIM lama tetap "Aktif" di SEVIMA. NIK dan
+  // tanggal lahir lama sering berbeda, jadi konfirmasi lewat nama + jenjang +
+  // prodi + periode wisuda, bukan menebak dari nama saja.
+  const graduates = await prisma.graduate.findMany({
+    select: { nim: true, periodeWisuda: true },
+  });
+  const graduateByNim = new Map(graduates.map((g) => [g.nim, g]));
+  const aliveAfterB = allStudents.filter((s) => !studentNimsToDelete.has(s.nim));
+  const graduatedTwinsByKey = new Map();
+  for (const s of aliveAfterB) {
+    if (s.isAkunLama || !graduateByNim.has(s.nim)) continue;
+    const key = studiKey(s);
+    if (!graduatedTwinsByKey.has(key)) graduatedTwinsByKey.set(key, []);
+    graduatedTwinsByKey.get(key).push(s);
+  }
+
+  let reconciledLegacyCount = 0;
+  for (const legacy of aliveAfterB) {
+    if (!legacy.isAkunLama || legacy.statusKeaktifan !== STUDENT_STATUS.AKTIF) continue;
+    const twin = (graduatedTwinsByKey.get(studiKey(legacy)) || [])
+      .filter((candidate) =>
+        isLegacyGraduatedTwin(legacy, candidate, graduateByNim.get(candidate.nim)),
+      )
+      .sort(survivorFirst)[0];
+    if (!twin) continue;
+    markDeleted(legacy.nim, twin.nim);
+    reconciledLegacyCount++;
+  }
+  if (reconciledLegacyCount > 0) {
+    logger.info(`🎓 ${reconciledLegacyCount} NIM lama digabung ke NIM lulusannya.`);
+  }
+
   // ---- Eksekusi: relink anak ke survivor, lalu hapus duplikat ----
   for (const { fromNim, toNim } of relinkPlan) {
     await prisma.$transaction(async (tx) => {
@@ -285,11 +361,9 @@ async function deduplicateStudents({ pruneNims = null } = {}) {
 
   const mbkmIdsToDelete = [];
   for (const [, group] of mbkmGroupMap) {
-    if (group.length > 1) {
-      for (let i = 1; i < group.length; i++) {
-        mbkmIdsToDelete.push(group[i].id);
-      }
-    }
+    if (group.length < 2) continue;
+    const ordered = [...group].sort(mbkmSurvivorFirst);
+    for (const duplicate of ordered.slice(1)) mbkmIdsToDelete.push(duplicate.id);
   }
 
   let deletedMbkmCount = 0;
@@ -305,6 +379,7 @@ async function deduplicateStudents({ pruneNims = null } = {}) {
     totalEvaluatedStudents: totalStudentsCount,
     deletedStudentsCount,
     prunedStudentsCount,
+    reconciledLegacyCount,
     relinkedGraduatesCount,
     relinkedMbkmCount,
     deletedMbkmCount,
@@ -331,7 +406,9 @@ module.exports = {
   deduplicateStudents,
   isSamePerson,
   survivorFirst,
+  mbkmSurvivorFirst,
   personKeys,
   isStatusPindah,
+  isLegacyGraduatedTwin,
   validNik,
 };

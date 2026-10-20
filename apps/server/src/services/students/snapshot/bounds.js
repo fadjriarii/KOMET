@@ -23,6 +23,11 @@ function buildTerminalPeriodCondition(academicStart, academicEnd, statuses = [])
   if (statuses.includes(STUDENT_STATUS.LULUS)) {
     branches.push({ periodeTerakhir: academicEnd });
   }
+  if (statuses.includes(STUDENT_STATUS.CUTI)) {
+    // Cuti bukan status keluar: berlaku sejak periode terakhirnya, termasuk
+    // bila cuti berlanjut sampai Genap pada tahun ajaran yang sama.
+    branches.push({ periodeTerakhir: { not: '', lte: academicEnd } });
+  }
   // Status lain yang keluar tepat di akhir tahun (Genap) belum terminal di
   // tahun itu — tampil mulai tahun ajaran berikutnya (kasus Eliza: masuk
   // Ganjil, keluar Genap → Aktif di tahun itu).
@@ -33,16 +38,26 @@ function buildActiveSnapshotCondition(academicEnd) {
   return {
     OR: [
       { statusKeaktifan: DEFAULT_STATUS },
-      { periodeTerakhir: '' },
+      { AND: [{ periodeTerakhir: '' }, { statusKeaktifan: { not: STUDENT_STATUS.CUTI } }] },
       { periodeTerakhir: { gt: academicEnd } },
-      { AND: [{ periodeTerakhir: academicEnd }, { periodeMasuk: { endsWith: '2' } }] },
+      {
+        AND: [
+          { periodeTerakhir: academicEnd },
+          { periodeMasuk: { endsWith: '2' } },
+          { statusKeaktifan: { not: STUDENT_STATUS.CUTI } },
+        ],
+      },
       // Keluar tepat di akhir tahun ajaran setelah studi penuh (masuk Ganjil):
       // tetap terhitung aktif di tahun itu (kasus Eliza). Lulus dikecualikan
       // — wisudawan Genap tetap milik pelaporan kelulusan, angkanya tidak boleh bergeser.
       {
         AND: [
           { periodeTerakhir: academicEnd },
-          { statusKeaktifan: { notIn: [STUDENT_STATUS.AKTIF, STUDENT_STATUS.LULUS] } },
+          {
+            statusKeaktifan: {
+              notIn: [STUDENT_STATUS.AKTIF, STUDENT_STATUS.LULUS, STUDENT_STATUS.CUTI],
+            },
+          },
         ],
       },
     ],

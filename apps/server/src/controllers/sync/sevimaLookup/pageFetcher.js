@@ -6,13 +6,17 @@ const { SYNC_FETCH_WINDOW, SYNC_PAGE_DELAY_MS, sleep } = require('../config');
  * Halaman ke-N+1 diminta sebelum halaman ke-N ditulis ke DB, sehingga waktu jaring
  * dan waktu tulis saling menimpa (bukan berantai).
  */
-async function paginateSevimaPages({ endpoint, startPage = 1, onPage }) {
+async function paginateSevimaPages({ endpoint, startPage = 1, onPage, params }) {
   const inflight = new Map();
   const swallowRemaining = () => {
     for (const promise of inflight.values()) promise.catch(() => {});
     inflight.clear();
   };
-  const fetchPage = (page) => sevimaApi.get(`${endpoint}?page=${page}`).then((r) => r.data);
+  const fetchPage = (page) =>
+    (params
+      ? sevimaApi.get(endpoint, { params: { ...params, page } })
+      : sevimaApi.get(`${endpoint}?page=${page}`)
+    ).then((r) => r.data);
 
   let lastPage = Number.POSITIVE_INFINITY;
   let nextPage = startPage;

@@ -4,9 +4,8 @@
  * Menyusun seluruh isi `GET /api/mbkm/summary`: periode efektif, angka kartu,
  * dan opsi filter. Controller tidak menghitung maupun merakit apa pun.
  *
- * `eligibleCount` hanya dihitung satu kali — lewat `getMbkmRate()` — karena
- * kartu "% MBKM", "Total Eligible", dan tabel eligible memakai definisi yang
- * sama (`buildEligibleStudentWhere`).
+ * `eligibleCount` hanya dihitung satu kali — lewat `getMbkmRate()` — memakai
+ * proyeksi periode yang sama dengan pembilangnya (`getEligibleStudentsAtPeriode`).
  */
 const {
   buildStudentFilterFromMbkmQuery,
@@ -18,10 +17,9 @@ const { getMbkmRate } = require('./mbkmRate');
 const { getMitraDistribution } = require('./mbkmMitra');
 
 /**
- * Param query yang benar-benar dibaca tiap agregasi — dasar badge "Terfilter" di
- * client. Dulu client menebak sendiri dan menandai semua kartu sama rata, padahal
- * kartu mitra hanya mengikuti periode dan kartu eligible tidak membaca search
- * maupun status aktivitas (lihat `buildStudentFilterFromMbkmQuery`).
+ * Param query yang dibaca agregasi kartu Persentase MBKM — dasar badge
+ * "Terfilter" di client. Penyebut hanya mengikuti filter populasi; pembilang
+ * juga mengikuti search dan status aktivitas.
  */
 const ACTIVITY_PARAMS = [
   'search',
@@ -32,8 +30,8 @@ const ACTIVITY_PARAMS = [
   'jenjang',
   'periode',
 ];
-const ELIGIBLE_PARAMS = ['fakultas', 'programStudi', 'angkatan', 'jenjang'];
-
+/** Eligible hanya mengikuti filter populasi mahasiswa, bukan search/status aktivitas. */
+const ELIGIBLE_PARAMS = ['fakultas', 'programStudi', 'angkatan', 'jenjang', 'periode'];
 async function getMbkmSummary(query = {}) {
   const { selectedPeriode, whereFilter } = await resolveMbkmQuery(query);
   const previousPeriode = getPreviousPeriode(selectedPeriode);
@@ -46,7 +44,7 @@ async function getMbkmSummary(query = {}) {
   ]);
 
   const { count, disetujuiCount, selesaiCount, evaluasiCount } = rateData.participantStats;
-  const { numPercentage, meetsTarget, targetIku2 } = rateData.eligibleRate;
+  const { numPercentage } = rateData.eligibleRate;
   const eligibleCount = rateData.eligibleCount;
   const totalMitra = mitra.totalPartners;
 
@@ -66,18 +64,15 @@ async function getMbkmSummary(query = {}) {
       evaluasiCount,
       berjalanCount: disetujuiCount,
       participationRate: numPercentage,
-      meetsIkuTarget: meetsTarget,
-      targetIku2,
       eligibleCount,
       totalMitra,
     },
     kpiFilterScope: {
-      // Rasio = partisipan ∩ eligible; penyebutnya subset param pembilang.
+      // Pembilang dan rasio ikut berubah oleh filter aktivitas.
+      totalParticipants: ACTIVITY_PARAMS,
       rate: ACTIVITY_PARAMS,
-      participants: ACTIVITY_PARAMS,
+      // Penyebut tidak ikut search/status aktivitas.
       eligible: ELIGIBLE_PARAMS,
-      // Distribusi mitra dibangun dari periode tetangga, bukan dari filter populasi.
-      mitra: ['periode'],
     },
     filterOptions,
   };

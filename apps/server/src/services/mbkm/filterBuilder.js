@@ -6,7 +6,6 @@
 const prisma = require('../../config/prisma');
 const { parsePeriode } = require('../../utils/academicUtils');
 const { addInFilter, addSearchFilter, hasFilters } = require('@komet/shared/filterUtils');
-const { STUDENT_STATUS } = require('@komet/shared/constants');
 
 function buildMbkmFilter(query) {
   const { search, fakultas, programStudi, angkatan, statusAktivitas, jenjang, periode } = query;
@@ -39,10 +38,15 @@ const MBKM_STATUS = {
   DISSETUJUI: 'Disetujui',
   SELESAI: 'Selesai',
   DIAJUKAN: 'Diajukan',
+  DITOLAK: 'Ditolak',
+  DIBATALKAN: 'Dibatalkan',
 };
-/** Status yang dihitung sebagai "partisipan MBKM" pada seluruh card & chart. */
-const MBKM_ACTIVE_STATUSES = [MBKM_STATUS.DISSETUJUI, MBKM_STATUS.SELESAI];
-/** Status yang sedang menunggu verifikasi/evaluasi akademik. */
+/**
+ * Status yang dihitung sebagai "partisipan MBKM": `Disetujui` = kegiatan
+ * berjalan, `Selesai` = selesai, `Diajukan` = padanan "Evaluasi" di requirement.
+ */
+const MBKM_ACTIVE_STATUSES = [MBKM_STATUS.DISSETUJUI, MBKM_STATUS.SELESAI, MBKM_STATUS.DIAJUKAN];
+/** Status yang masih menunggu verifikasi/evaluasi akademik. */
 const MBKM_EVALUATION_STATUSES = [MBKM_STATUS.DIAJUKAN];
 
 /**
@@ -74,11 +78,6 @@ function buildActivityWhere(
   }
 
   return where;
-}
-
-/** Definisi tunggal mahasiswa eligible MBKM: semester 7 dan aktif. */
-function buildEligibleStudentWhere(studentFilter = {}) {
-  return { ...studentFilter, semester: 7, statusKeaktifan: STUDENT_STATUS.AKTIF };
 }
 
 // Helper untuk mendapatkan periode terbaru dari database
@@ -136,7 +135,6 @@ function buildStudentFilterFromMbkmQuery(query) {
 module.exports = {
   buildMbkmFilter,
   buildActivityWhere,
-  buildEligibleStudentWhere,
   getDefaultPeriode,
   getPreviousPeriode,
   resolvePeriode,

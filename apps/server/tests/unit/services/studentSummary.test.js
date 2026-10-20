@@ -10,7 +10,7 @@ describe('student summary service (real database)', () => {
     const result = await getStudentSummary({});
 
     expect(result.kpis).toMatchObject({
-      activeStudentsCount: 616,
+      activeStudentsCount: 612,
       foreignStudentsCount: 14,
       intakeCohortCount: 169,
       intakePeriod: '2026/2027',
