@@ -208,14 +208,16 @@ const ROUTES = {
     listPayload: listPayload([MBKM_ROW]),
     extraPaths: {},
     cards: [
-      { key: 'rate', title: 'Persentase MBKM' },
       { key: 'totalParticipants', title: 'Total Partisipan' },
       { key: 'eligible', title: 'Eligible' },
+      { key: 'rate', title: 'Persentase MBKM' },
+      { key: 'mitra', title: 'Mitra' },
     ],
     scope: {
       rate: ACTIVITY_PARAMS,
       totalParticipants: ACTIVITY_PARAMS,
       eligible: ['fakultas', 'programStudi', 'angkatan', 'jenjang', 'periode'],
+      mitra: ['periode'],
     },
     filterCases: [
       { url: '/mbkm?faculty=FST', api: 'fakultas', value: 'FST' },
@@ -323,14 +325,15 @@ describe.each(Object.keys(ROUTES))('halaman %s', (name) => {
 });
 
 describe('kartu MBKM', () => {
-  it('menampilkan tiga kartu MBKM tanpa target template dan mitra', async () => {
+  it('menampilkan empat kartu MBKM dalam urutan partisipan, eligible, persentase, mitra', async () => {
     const route = mockModule('mbkm');
     renderPage(MbkmPage);
 
     await cardsReady(route);
-    expect(screen.getByText('Persentase MBKM')).toBeTruthy();
-    expect(screen.getByText('Total Partisipan')).toBeTruthy();
-    expect(screen.getByText('Eligible')).toBeTruthy();
+    const titles = ['Total Partisipan', 'Eligible', 'Persentase MBKM', 'Mitra'];
+    const grid = cardOf(titles[0]).parentElement;
+    expect([...grid.children].map((card) => card.querySelector('p').textContent)).toEqual(titles);
+    expect(within(cardOf('Mitra')).getByText('42')).toBeTruthy();
     expect(screen.queryByText(/Target IKU-2/)).toBeNull();
     expect(screen.queryByText('Mitra MBKM & Industri')).toBeNull();
   });

@@ -73,6 +73,8 @@ async function getMbkmSummary(query = {}) {
       rate: ACTIVITY_PARAMS,
       // Penyebut tidak ikut search/status aktivitas.
       eligible: ELIGIBLE_PARAMS,
+      // Distribusi mitra mengikuti periode (basisnya periode sebelumnya).
+      mitra: ['periode'],
     },
     filterOptions,
   };

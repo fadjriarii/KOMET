@@ -5,6 +5,7 @@ export function useMbkmKpiDisplay(summaryData, isLoading) {
   return useMemo(() => {
     const kpis = summaryData?.kpis || {};
     const periode = summaryData?.selectedPeriode;
+    const previousPeriode = summaryData?.previousPeriode;
 
     // `null` dari server = tidak ada penyebut; biarkan formatter menampilkan "-".
     const participationRate = formatPercentage(kpis.participationRate, 1);
@@ -14,6 +15,7 @@ export function useMbkmKpiDisplay(summaryData, isLoading) {
         participationRate,
         totalParticipants: formatNumber(kpis.totalParticipants),
         eligibleCount: formatNumber(kpis.eligibleCount),
+        totalMitra: formatNumber(kpis.totalMitra),
       },
       displaySubtitles: {
         rate: `${formatNumber(kpis.totalParticipants)} dari ${formatNumber(
@@ -23,6 +25,7 @@ export function useMbkmKpiDisplay(summaryData, isLoading) {
           kpis.berjalanCount,
         )}`,
         eligible: 'Semester 7 Status Aktif',
+        mitra: previousPeriode ? `Mitra unik periode ${previousPeriode}` : 'Mitra unik terdata',
       },
       isReady: Boolean(summaryData?.success) && !isLoading,
     };

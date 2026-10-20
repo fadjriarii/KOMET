@@ -297,6 +297,7 @@ describe('getMbkmSummary', () => {
     expect(result.kpiFilterScope.eligible).toContain('fakultas');
     expect(result.kpiFilterScope.eligible).not.toContain('search');
     expect(result.kpiFilterScope.eligible).not.toContain('statusAktivitas');
+    expect(result.kpiFilterScope.mitra).toEqual(['periode']);
     expect(JSON.stringify(result)).not.toContain('Target IKU-2');
   });
 
