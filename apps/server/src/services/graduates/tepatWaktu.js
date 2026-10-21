@@ -14,7 +14,12 @@
 const prisma = require('../../config/prisma');
 const { getStudyStartYear, getAcademicYearStart } = require('../../utils/academicUtils');
 const { formatAcademicYearLabel } = require('@komet/shared/academicYear');
-const { resolveTahunScope, describeTahunScope, withTahunScope } = require('./yearJenjangSeries');
+const {
+  resolveTahunScope,
+  describeTahunScope,
+  describeTahunAnchor,
+  withTahunScope,
+} = require('./yearJenjangSeries');
 const { getTahunAjaranLabel } = require('./tahunAjaran');
 const { getRequestedJenjang, getScopeJenjangs } = require('./filterBuilder');
 const { rate, roundedRate } = require('../../utils/percentageUtils');
@@ -47,9 +52,9 @@ const batasFor = (jenjang) => BATAS_STUDI_TEPAT_WAKTU[String(jenjang ?? '').toUp
 /**
  * Jangkar kohort Opsi A — satu titik override referensi tahun kedua fungsi:
  * meta `tahunAjaran` (ditempel filterBuilder, bukan kolom Prisma) = "lulus
- * sampai tahun ajaran ini" (`tahunLulus lte` label jangkar). Filter
- * `tahunLulus` eksplisit user tetap menang; meta dibuang sebelum query.
- * Tanpa jangkar (absen/invalid) perilaku lama persis.
+ * sampai tahun ajaran ini" (`tahunLulus lte` label jangkar) bila tidak ada
+ * pilihan `tahunLulus`. Pilihan itu — termasuk default UI tahun terbaru —
+ * sengaja menang; meta dibuang sebelum query. Tanpa jangkar perilaku lama persis.
  */
 async function resolveTahunAjaranScope(whereFilter = {}) {
   const { tahunAjaran, ...cleanFilter } = whereFilter;
@@ -118,7 +123,7 @@ async function getTepatWaktu(whereFilter) {
 
   const result = {
     referenceLabel: refLabel,
-    tahunScope: describeTahunScope(scope, isDefault),
+    tahunScope: anchor ? describeTahunAnchor(anchor) : describeTahunScope(scope, isDefault),
     overall: calcOverall(),
   };
   for (const jenjang of jenjangs) result[jenjang.toLowerCase()] = calcPct(jenjang);

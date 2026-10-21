@@ -147,9 +147,10 @@ export function useGraduateKpiDisplay(summaryData, isLoading, filterValues = {})
     const totalFormatted = formatNumber(kpis.totalGraduates ?? 0);
     const totalScopeLabel = kpis.totalScopeLabel || 'Semua Tahun';
     const totalTahun =
-      totalScopeLabel === 'Semua Tahun'
+      kpis.totalScopePhrase ||
+      (totalScopeLabel === 'Semua Tahun'
         ? 'di seluruh tahun akademik tercatat'
-        : `pada tahun ajaran ${totalScopeLabel}`;
+        : `pada tahun ajaran ${totalScopeLabel}`);
     const totalParts = [
       kpis.totalGraduatesS1 ? `${formatNumber(kpis.totalGraduatesS1)} lulusan S1` : null,
       kpis.totalGraduatesS2 ? `${formatNumber(kpis.totalGraduatesS2)} lulusan S2` : null,
@@ -169,6 +170,8 @@ export function useGraduateKpiDisplay(summaryData, isLoading, filterValues = {})
       withFallback(gpaSegmen, `${s1Gpa} (S1) dan ${s2Gpa} (S2)`),
     )} dari skala 4.00.`;
     const onTimeOverallFmt = formatPercentage(kpis.onTimeGraduationRateOverall, 1, '0.0%');
+    const onTimeScopePhrase = summary.tepatWaktu?.tahunScope?.phrase || '';
+    const onTimeScopeTail = onTimeScopePhrase ? ` ${onTimeScopePhrase}` : '';
     const onTimeBreakdown = [
       kpis.onTimeGraduationRateS1 ? { key: 'S1', text: `S1 ${s1OnTime}` } : null,
       kpis.onTimeGraduationRateS2 ? { key: 'S2', text: `S2 ${s2OnTime}` } : null,
@@ -192,14 +195,14 @@ export function useGraduateKpiDisplay(summaryData, isLoading, filterValues = {})
       );
     } else if (onTimeBreakdown.length === 1) {
       baseOnTime =
-        `${onTimeOverallFmt} lulusan${scope.suffix} lulus tepat waktu ` +
+        `${onTimeOverallFmt} lulusan${scope.suffix} lulus tepat waktu${onTimeScopeTail} ` +
         `(dari jenjang ${onTimeBreakdown[0].key}).`;
     } else if (onTimeBreakdown.length > 1) {
       baseOnTime =
-        `${onTimeOverallFmt} lulusan${scope.suffix} lulus tepat waktu. ` +
+        `${onTimeOverallFmt} lulusan${scope.suffix} lulus tepat waktu${onTimeScopeTail}. ` +
         `Rincian: ${joinParts(onTimeBreakdown.map((part) => part.text))}.`;
     } else {
-      baseOnTime = `${onTimeOverallFmt} lulusan${scope.suffix} lulus tepat waktu.`;
+      baseOnTime = `${onTimeOverallFmt} lulusan${scope.suffix} lulus tepat waktu${onTimeScopeTail}.`;
     }
     const successItems = buildSuccessItems(
       summary.keberhasilanStudi,

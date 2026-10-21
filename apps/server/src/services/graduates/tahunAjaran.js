@@ -2,9 +2,10 @@
  * tahunAjaran.js
  *
  * Jangkar kohort tab Lulusan (Opsi A): satu parameter `tahunAjaran`
- * (`YYYY/YYYY`) yang memilih "lulus sampai tahun ajaran ini" untuk kartu,
- * deret, dan tabel, serta menggeser referensi evaluasi kohort
- * (keberhasilan studi) dari MAX DB ke tahun ajaran yang dipilih.
+ * (`YYYY/YYYY`) yang memilih batas "lulus sampai tahun ajaran ini" untuk
+ * kartu, deret, dan tabel bila tidak ada pilihan `tahunLulus`, serta menggeser
+ * referensi evaluasi kohort (keberhasilan studi) dari MAX DB ke tahun ajaran
+ * yang dipilih. Pilihan `tahunLulus` — termasuk default UI — tetap menang.
  *
  * Disimpan sebagai meta di `whereFilter` (bukan where Prisma) — tiap service
  * membacanya lewat sini lalu membuangnya sebelum query.

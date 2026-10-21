@@ -1,9 +1,8 @@
 import { useMemo } from 'react';
-import { Calendar, BookOpenCheck, Users, CheckCircle2 } from 'lucide-react';
+import { BookOpenCheck } from 'lucide-react';
 import Modal from '../../../../components/common/modals/Modal';
 import ModalSummaryBanner from '../../../../components/common/modals/ModalSummaryBanner';
 import ModalTabNav from '../../../../components/common/modals/ModalTabNav';
-import ModalTable from '../../../../components/common/modals/ModalTable';
 import ModalTabContent from '../../../../components/common/modals/ModalTabContent';
 import { useTabTransition } from '../../../../hooks/useTabTransition';
 import { formatNumber, formatPercentage } from '@komet/shared/formatters';
@@ -14,52 +13,6 @@ import TrendChartTooltip from '../../../../components/common/charts/TrendChartTo
 import { hasStudySuccessData, studySuccessTabs, withBatas } from './graduateTrendConfig';
 import { JENJANG_COLORS } from './totalTrendBars';
 import { describeScope, searchSentence, studySuccessClause } from '../../utils/filterScope';
-
-const SUCCESS_TABLE_COLUMNS = [
-  {
-    key: 'cohortLabel',
-    label: 'Cohort Evaluasi',
-    icon: Calendar,
-    render: (row) => (
-      <div className="flex items-center gap-2">
-        <span className="w-1.5 h-1.5 rounded-full bg-digital-blue-500" />
-        <span className="font-semibold text-gray-900">{row.cohortLabel}</span>
-      </div>
-    ),
-  },
-  {
-    key: 'intake',
-    label: 'Total Mahasiswa Masuk (Intake)',
-    icon: Users,
-    headerClassName: 'text-right',
-    cellClassName: 'text-right font-medium text-gray-800',
-    render: (row) => `${formatNumber(row.intake)} mhs`,
-  },
-  {
-    key: 'successCount',
-    label: 'Mahasiswa Lulus',
-    icon: CheckCircle2,
-    headerClassName: 'text-right',
-    cellClassName: 'text-right font-medium text-digital-blue-900',
-    render: (row) => (
-      <span className="bg-digital-blue-50/80 text-digital-blue-800 px-2.5 py-0.5 rounded-md border border-digital-blue-100 font-semibold">
-        {formatNumber(row.successCount)} mhs
-      </span>
-    ),
-  },
-  {
-    key: 'rate',
-    label: 'Tingkat Keberhasilan',
-    icon: BookOpenCheck,
-    headerClassName: 'text-right',
-    cellClassName: 'text-right font-bold text-digital-blue-700',
-    render: (row) => (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-digital-blue-50 text-digital-blue-800 border border-digital-blue-200">
-        {formatPercentage(row.rate, 1, '0.0%')}
-      </span>
-    ),
-  },
-];
 
 // Satu builder dipakai tab S1 dan S2; hanya kohortnya yang berbeda.
 function CohortTrendChart({ cohorts, batas, isLoading, error }) {
@@ -232,37 +185,7 @@ export default function StudySuccessModal({ isOpen, onClose, originRect, data, f
         />
       );
     }
-    return {
-      ...entries,
-      tabel: (
-        <div className="h-full flex flex-col gap-4 pt-0.5 pb-1 overflow-y-auto custom-scrollbar">
-          {[
-            ['S1', s1Cohorts, batasS1],
-            ['S2', s2Cohorts, batasS2],
-            ...extraCohorts.map(([key, cohorts]) => [
-              key.toUpperCase(),
-              cohorts,
-              batasByJenjang[key],
-            ]),
-          ].map(([jenjang, cohorts, batas]) => (
-            <div key={jenjang} className="space-y-1.5">
-              <h4 className="text-xs font-bold text-gray-700">
-                Kohort {jenjang}
-                {batas ? ` (dievaluasi sampai ${batas} tahun)` : ''}
-              </h4>
-              <ModalTable
-                columns={SUCCESS_TABLE_COLUMNS}
-                data={cohorts}
-                isLoading={isLoading}
-                error={error}
-                emptyTitle="Tidak Ada Data Cohort"
-                emptyDescription="Belum ada data riwayat keberhasilan studi dari backend."
-              />
-            </div>
-          ))}
-        </div>
-      ),
-    };
+    return entries;
   }, [batasByJenjang, batasS1, batasS2, error, extraCohorts, isLoading, s1Cohorts, s2Cohorts]);
 
   return (

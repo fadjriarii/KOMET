@@ -384,6 +384,30 @@ describe('useGraduateKpiDisplay', () => {
     );
   });
 
+  it('menyebut scope tahun pada subtitle total dan onTime', () => {
+    const summary = {
+      ...mockGraduateSummary,
+      kpis: {
+        ...mockGraduateSummary.kpis,
+        totalScopePhrase: 'sampai tahun ajaran 2023/2024',
+        onTimeGraduationRateOverall: 88,
+      },
+      summary: {
+        ...mockGraduateSummary.summary,
+        tepatWaktu: { tahunScope: { phrase: 'sampai tahun ajaran 2023/2024' } },
+      },
+    };
+    const { result } = renderHook(() => useGraduateKpiDisplay(summary, false, {}));
+    const { displaySubtitles } = result.current;
+
+    expect(displaySubtitles.total).toBe(
+      'Menampilkan 450 lulusan sampai tahun ajaran 2023/2024. Terdiri dari 300 lulusan S1 dan 150 lulusan S2.',
+    );
+    expect(displaySubtitles.onTime).toBe(
+      '88.0% lulusan lulus tepat waktu sampai tahun ajaran 2023/2024. Rincian: S1 85.5% dan S2 90.0%.',
+    );
+  });
+
   it('menaruh cakupan fakultas di depan saat satu fakultas dipilih', () => {
     const filters = {
       selectedFaculty: ['FST'],

@@ -13,15 +13,16 @@ const {
   windowGraduateTrend,
   resolveTahunScope,
   describeTahunScope,
+  describeTahunAnchor,
   withTahunScope,
 } = require('./yearJenjangSeries');
 
 /**
  * Kartu KPI = populasi baris graduate (asal `/kelulusan`). Filter `tahunLulus`
- * dari user selalu menang; tanpa pilihan = seluruh populasi. Jangkar
- * `tahunAjaran` (Opsi A, meta dari filterBuilder — bukan where Prisma) tanpa
- * `tahunLulus` = kumulatif alltime `lte` label jangkar; label kartu = label
- * jangkar.
+ * dari user — termasuk default UI tahun terbaru — selalu menang; tanpa
+ * pilihan = seluruh populasi. Jangkar `tahunAjaran` (Opsi A, meta dari
+ * filterBuilder — bukan where Prisma) hanya berlaku tanpa `tahunLulus` dan
+ * membuat scope kumulatif `lte` sampai label jangkar.
  */
 const AJARAN_PATTERN = /^(\d{4})\/(\d{4})$/;
 // ponytail: validasi label ditulis ulang di sini, bukan import shared, supaya
@@ -47,7 +48,7 @@ async function getTotalLulusan(whereFilter = {}) {
   let tahunScope = describeTahunScope(scope, isDefault);
   if (anchor && !hasTahunLulus) {
     where.graduate = { ...(where.graduate || {}), tahunLulus: { lte: anchor } };
-    tahunScope = describeTahunScope({ in: [anchor] }, false);
+    tahunScope = describeTahunAnchor(anchor);
   }
 
   const rows = await prisma.student.groupBy({

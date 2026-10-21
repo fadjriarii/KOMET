@@ -83,7 +83,6 @@ export default function MbkmPartnersModal({ isOpen, onClose, originRect, data, f
             emptyTitle="Tidak Ada Data Mitra"
             emptyDescription="Belum ada data sebaran mitra MBKM dari backend."
             yAxisWidth={240}
-            useMultiColor={true}
           />
         </div>
       ),

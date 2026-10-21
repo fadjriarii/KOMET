@@ -3,7 +3,10 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const prisma = require('../../../src/config/prisma');
-const { getTepatWaktuByYear } = require('../../../src/services/graduates/tepatWaktu');
+const {
+  getTepatWaktu,
+  getTepatWaktuByYear,
+} = require('../../../src/services/graduates/tepatWaktu');
 
 const originalFindMany = prisma.student.findMany;
 
@@ -107,6 +110,31 @@ describe('cohort tepat waktu per jenjang', () => {
       2018, 2019, 2020, 2021, 2022, 2023,
     ]);
     expect(detail.profesi).toBeUndefined();
+  });
+
+  it('kartu menyebut jangkar tahun ajaran sebagai batas kumulatif', async () => {
+    stub(defaultRows());
+    const card = await getTepatWaktu({
+      tahunAjaran: '2023/2024',
+      jenjang: { in: ['S1'] },
+    });
+
+    expect(card.s1).toBe(100);
+    expect(card.tahunScope).toMatchObject({
+      label: '2023/2024',
+      phrase: 'sampai tahun ajaran 2023/2024',
+    });
+  });
+
+  it('pilihan tahun eksplisit tetap menang atas jangkar', async () => {
+    stub(defaultRows());
+    const card = await getTepatWaktu({
+      tahunAjaran: '2023/2024',
+      jenjang: { in: ['S1'] },
+      graduate: { tahunLulus: { in: ['2025/2026'] } },
+    });
+
+    expect(card.tahunScope.phrase).toBe('pada tahun ajaran 2025/2026');
   });
 
   it('pilihan tahun eksplisit tidak dipotong', async () => {

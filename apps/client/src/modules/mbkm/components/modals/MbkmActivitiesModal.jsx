@@ -110,7 +110,6 @@ export default function MbkmActivitiesModal({ isOpen, onClose, originRect, data,
             emptyTitle="Tidak Ada Data Aktivitas"
             emptyDescription="Belum ada data sebaran aktivitas MBKM dari backend."
             yAxisWidth={220}
-            useMultiColor={true}
           />
         </div>
       ),
@@ -128,7 +127,6 @@ export default function MbkmActivitiesModal({ isOpen, onClose, originRect, data,
             emptyTitle="Tidak Ada Data Program Studi"
             emptyDescription="Belum ada data sebaran program studi dari backend."
             yAxisWidth={210}
-            useMultiColor={true}
           />
         </div>
       ),
@@ -146,7 +144,6 @@ export default function MbkmActivitiesModal({ isOpen, onClose, originRect, data,
             emptyTitle="Tidak Ada Data Status"
             emptyDescription="Belum ada data status aktivitas dari backend."
             yAxisWidth={160}
-            useMultiColor={true}
           />
         </div>
       ),

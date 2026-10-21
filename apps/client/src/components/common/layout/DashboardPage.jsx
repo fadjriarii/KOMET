@@ -101,7 +101,6 @@ export default function DashboardPage({
     activeFilterParams,
     openModal,
     filters,
-    activeFilterCount,
     isKpiLoading,
   });
 

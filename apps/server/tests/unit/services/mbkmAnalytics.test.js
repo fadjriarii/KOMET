@@ -332,7 +332,13 @@ describe('getMbkmSummary', () => {
     expect(result.kpiFilterScope.eligible).not.toContain('search');
     expect(result.kpiFilterScope.eligible).not.toContain('statusAktivitas');
     expect(result.kpiFilterScope.mitra).toEqual(['periode', 'tahunAjaran']);
-    expect(result.filterOptions.academicYearOptions[0]).toBe('2026/2027');
+    expect(result.filterOptions.academicYearOptions).toEqual([
+      '2026/2027',
+      '2025/2026',
+      '2024/2025',
+      '2023/2024',
+      '2022/2023',
+    ]);
     expect(result.filterOptions.periodeOptions).toEqual([
       { value: '20251', label: 'Ganjil' },
       { value: '20252', label: 'Genap' },

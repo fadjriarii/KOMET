@@ -81,7 +81,6 @@ export default function MbkmEligibleModal({ isOpen, onClose, originRect, data, f
             emptyTitle="Tidak Ada Data Program Studi"
             emptyDescription="Belum ada data sebaran mahasiswa eligible per prodi."
             yAxisWidth={210}
-            useMultiColor={true}
           />
         </div>
       ),

@@ -19,8 +19,6 @@ export const GPA_OVERVIEW_TABS = [
 export const withBatas = (label, batas, operator) =>
   batas ? `${label} (${operator} ${batas} Thn)` : label;
 
-const cohortTableTab = { key: 'tabel', label: 'Tabel Riwayat Cohort', icon: Table };
-
 export const onTimeTabs = (batas = {}) => {
   const jenjangTabs = Object.entries(batas)
     .filter(([key]) => key !== 's1' && key !== 's2')
@@ -48,7 +46,6 @@ export const studySuccessTabs = (batas = {}) => {
     { key: 's1', label: withBatas('Jenjang S1', batas.s1, 'Maks'), icon: BarChart3 },
     { key: 's2', label: withBatas('Jenjang S2', batas.s2, 'Maks'), icon: BarChart3 },
     ...jenjangTabs,
-    cohortTableTab,
   ];
 };
 

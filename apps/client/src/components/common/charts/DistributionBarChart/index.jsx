@@ -18,7 +18,6 @@ export default function DistributionBarChart({
   emptyIcon,
   yAxisWidth = 180,
   barColor = DIGITAL_BLUE[600],
-  useMultiColor = false,
   tooltipContent,
   labelFormatter,
 }) {
@@ -76,7 +75,6 @@ export default function DistributionBarChart({
               chartItems={chartItems}
               dataKey={dataKey}
               labelKey={labelKey}
-              useMultiColor={useMultiColor}
               barColor={barColor}
               labelFormatter={labelFormatter}
             />

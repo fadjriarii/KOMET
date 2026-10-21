@@ -91,7 +91,7 @@ describe('getTotalLulusan', () => {
       labels: ['2023/2024'],
       isDefault: false,
       label: '2023/2024',
-      phrase: 'pada tahun ajaran 2023/2024',
+      phrase: 'sampai tahun ajaran 2023/2024',
     });
   });
 

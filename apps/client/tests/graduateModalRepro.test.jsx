@@ -8,6 +8,7 @@ import {
   hasStudySuccessData,
   onTimeTabs,
   selectChartCohorts,
+  studySuccessTabs,
 } from '../src/modules/graduates/components/modals/graduateTrendConfig';
 import StudySuccessModal from '../src/modules/graduates/components/modals/StudySuccessModal';
 import { compactBarLayout } from '../src/components/common/charts/compactBarLayout';
@@ -196,6 +197,12 @@ describe('trendBars Total Lulusan (grouped)', () => {
 });
 
 describe('chart StudySuccess', () => {
+  it('tidak punya tab tabel riwayat', () => {
+    expect(studySuccessTabs({ s1: 7, s2: 4, profesi: 2 }).map((tab) => tab.key)).not.toContain(
+      'tabel',
+    );
+  });
+
   it('membedakan kohort kosong dari kohort yang sudah punya data', () => {
     expect(hasStudySuccessData([{ intake: 0, successCount: 0 }])).toBe(false);
     expect(hasStudySuccessData([{ intake: 80, successCount: 37 }])).toBe(true);

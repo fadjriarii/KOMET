@@ -9,7 +9,6 @@ export function useDashboardCards({
   activeFilterParams,
   openModal,
   filters,
-  activeFilterCount,
   isKpiLoading,
 }) {
   const kpiScope = useMemo(
@@ -17,13 +16,16 @@ export function useDashboardCards({
     [kpiFilterScope, activeFilterParams],
   );
 
-  const actionLabel = activeFilterCount ? 'Lihat Data Terfilter' : 'Lihat Rincian';
-  const cardProps = useMemo(
-    () => ({ actionLabel, isLoading: isKpiLoading }),
-    [actionLabel, isKpiLoading],
-  );
+  const cardProps = useMemo(() => ({ isLoading: isKpiLoading }), [isKpiLoading]);
   const cards = useMemo(
-    () => buildCards({ ...display, kpiScope, openModal, filterValues: filters }),
+    () =>
+      buildCards({ ...display, kpiScope, openModal, filterValues: filters }).map((card) => ({
+        ...card,
+        // Card yang metriknya tidak terpengaruh filter tetap menawarkan rincian,
+        // bukan "data terfilter"; label panjang juga tidak memenuhi footer.
+        actionLabel:
+          card.actionLabel ?? (card.isFiltered ? 'Lihat Data Terfilter' : 'Lihat Rincian'),
+      })),
     [buildCards, display, kpiScope, openModal, filters],
   );
   return { cards, cardProps };

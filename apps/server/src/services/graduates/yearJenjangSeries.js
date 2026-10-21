@@ -73,6 +73,16 @@ function describeTahunScope(scope, isDefault) {
   };
 }
 
+/** Label untuk jangkar kumulatif `tahunAjaran` tanpa pilihan tahun lulus. */
+function describeTahunAnchor(anchor) {
+  return {
+    labels: [anchor],
+    isDefault: false,
+    label: anchor,
+    phrase: `sampai tahun ajaran ${anchor}`,
+  };
+}
+
 /**
  * Terapkan scope tahun ke relasi `graduate` — Student tak punya kolom
  * `tahunLulus`, jadi scope flat lama dipindah ke nesting (tak pernah dikirim
@@ -158,5 +168,6 @@ module.exports = {
   getGraduateLabelWindow,
   resolveTahunScope,
   describeTahunScope,
+  describeTahunAnchor,
   withTahunScope,
 };

@@ -88,7 +88,6 @@ export default function MbkmRateModal({ isOpen, onClose, originRect, data, filte
             emptyTitle="Tidak Ada Data Fakultas"
             emptyDescription="Belum ada data distribusi fakultas MBKM dari backend."
             yAxisWidth={210}
-            useMultiColor={true}
           />
         </div>
       ),
