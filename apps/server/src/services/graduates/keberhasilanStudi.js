@@ -7,6 +7,7 @@
 const prisma = require('../../config/prisma');
 const { getAcademicYearStart, getReferenceLabelStart } = require('../../utils/academicUtils');
 const { formatAcademicYearLabel } = require('@komet/shared/academicYear');
+const { toArray } = require('@komet/shared/filterUtils');
 const { roundedRate } = require('../../utils/percentageUtils');
 const { getRequestedJenjang } = require('./filterBuilder');
 const { getTahunAjaranLabel, tahunAjaranStart } = require('./tahunAjaran');
@@ -30,6 +31,7 @@ const { getTahunAjaranLabel, tahunAjaranStart } = require('./tahunAjaran');
  */
 const COHORT_EVALUATION_LAG = { S1: 7, S2: 4, PROFESI: 2, S3: 6 };
 const EVALUATION_WINDOW_YEARS = 5;
+const CORE_JENJANG = new Set(['S1', 'S2']);
 
 // Status yang berarti masih kuliah: kohort yang masih punya satu pun ini
 // belum boleh dinilai final.
@@ -127,6 +129,33 @@ function evaluatedStartFor(jenjang, { refStart, closedStart }) {
   return candidates.length ? Math.max(...candidates) : null;
 }
 
+/** Angkatan yang dipilih user, sudah dinormalisasi menjadi tahun mulai. */
+function getSelectedAngkatanStarts(whereFilter = {}) {
+  const angkatanFilter = whereFilter.angkatan ?? whereFilter.student?.angkatan;
+  const values = toArray(angkatanFilter?.in ?? angkatanFilter) || [];
+  return [
+    ...new Set(
+      values
+        .map((value) => getAcademicYearStart(String(value ?? '').trim()))
+        .filter((value) => value !== null),
+    ),
+  ].sort((a, b) => a - b);
+}
+
+/**
+ * Filter angkatan eksplisit menggeser kohort evaluasi ke angkatan terpilih,
+ * bukan tetap memakai kohort global. Kalau beberapa angkatan dipilih, pakai
+ * yang terbaru yang sudah evaluable; angkatan muda yang masih berjalan null.
+ */
+function resolveEvaluatedStart(jenjang, { refStart, closedStart, selectedStarts = [] }) {
+  if (!selectedStarts.length) return evaluatedStartFor(jenjang, { refStart, closedStart });
+  const lagStart = getAngkatanEvaluasiStart(jenjang, refStart);
+  const eligible = selectedStarts.filter(
+    (start) => (lagStart !== null && start <= lagStart) || start === closedStart,
+  );
+  return eligible.length ? eligible[eligible.length - 1] : null;
+}
+
 /**
  * Satu agregat menutupi seluruh angkatan yang diminta: dua `groupBy` —
  * penyebut (semua status) dan pembilang (punya baris graduate, asal
@@ -221,10 +250,12 @@ async function getKeberhasilanStudi(whereFilter) {
   // Dengan jangkar tahunAjaran: murni lag (tampilan "sampai tahun X").
   const anchor = getTahunAjaranLabel(whereFilter?.tahunAjaran);
   const closedStarts = anchor ? new Map() : await getClosedCohortStarts(studentWhere);
+  const selectedStarts = getSelectedAngkatanStarts(whereFilter);
   const evalStart = (jenjang) =>
-    evaluatedStartFor(jenjang, {
+    resolveEvaluatedStart(jenjang, {
       refStart,
       closedStart: closedStarts.get(jenjang.toLowerCase()) ?? null,
+      selectedStarts,
     });
 
   const calcPercentage = async (jenjang) => {
@@ -260,10 +291,12 @@ async function getKeberhasilanStudiByAngkatan(whereFilter) {
   const refStart = await resolveRefStart(whereFilter);
   const anchor = getTahunAjaranLabel(whereFilter?.tahunAjaran);
   const closedStarts = anchor ? new Map() : await getClosedCohortStarts(studentWhere);
+  const selectedStarts = getSelectedAngkatanStarts(whereFilter);
   const evalStart = (jenjang) =>
-    evaluatedStartFor(jenjang, {
+    resolveEvaluatedStart(jenjang, {
       refStart,
       closedStart: closedStarts.get(jenjang.toLowerCase()) ?? null,
+      selectedStarts,
     });
 
   const calcSeries = async (jenjang) => {
@@ -272,7 +305,7 @@ async function getKeberhasilanStudiByAngkatan(whereFilter) {
     if (!angkatanList.length) return null;
     const cohorts = await countCohorts(jenjang, studentWhere, angkatanList);
 
-    return angkatanList.map((angkatanLabel) => {
+    const rows = angkatanList.map((angkatanLabel) => {
       const { total, lulus } = cohorts.get(angkatanLabel);
       const start = getAcademicYearStart(angkatanLabel);
       // Satu nama per metrik: `intake`/`successCount` adalah field kontrak, nilai
@@ -286,6 +319,10 @@ async function getKeberhasilanStudiByAngkatan(whereFilter) {
         intake: total,
       };
     });
+    // S1/S2 tetap menampilkan konteks lima tahun; jenjang baru (Profesi/S3)
+    // tumbuh dari cohort pertama yang punya data sampai maksimal lima cohort.
+    if (CORE_JENJANG.has(String(jenjang).toUpperCase())) return rows;
+    return rows.filter((row) => row.intake > 0 || row.successCount > 0);
   };
 
   const values = await forJenjangs(jenjangs, calcSeries);
