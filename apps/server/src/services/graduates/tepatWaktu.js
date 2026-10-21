@@ -16,7 +16,7 @@ const { getStudyStartYear, getAcademicYearStart } = require('../../utils/academi
 const { formatAcademicYearLabel } = require('@komet/shared/academicYear');
 const { resolveTahunScope, describeTahunScope, withTahunScope } = require('./yearJenjangSeries');
 const { getTahunAjaranLabel } = require('./tahunAjaran');
-const { getScopeJenjangs } = require('./filterBuilder');
+const { getRequestedJenjang, getScopeJenjangs } = require('./filterBuilder');
 const { rate, roundedRate } = require('../../utils/percentageUtils');
 
 /**
@@ -136,10 +136,9 @@ async function getTepatWaktu(whereFilter) {
  * sebagai "tepat waktu" secara diam-diam.
  */
 async function getTepatWaktuByYear(whereFilter) {
-  const { scope } = await resolveTahunScope(whereFilter);
-  const jenjangs = await getScopeJenjangs(whereFilter);
+  const { cleanFilter, where } = await resolveTahunAjaranScope(whereFilter);
   const students = await prisma.student.findMany({
-    where: withTahunScope(whereFilter, scope),
+    where,
     select: {
       jenjang: true,
       periodeMasuk: true,
@@ -147,11 +146,24 @@ async function getTepatWaktuByYear(whereFilter) {
       graduate: { select: { tahunLulus: true } },
     },
   });
+  // Tanpa pilihan jenjang, tab hanya untuk jenjang yang punya baris dalam
+  // scope (termasuk jangkar tahun ajaran) — bukan seluruh distinct DB.
+  const requestedJenjang = getRequestedJenjang(cleanFilter);
+  const jenjangs = requestedJenjang ?? [...new Set(students.map((s) => s.jenjang))].sort();
 
   const buildCohortData = (jenjang) => {
     const batas = batasFor(jenjang);
     if (batas === null) return [];
-    const labels = [...new Set(students.map((s) => s.graduate?.tahunLulus).filter(Boolean))].sort();
+    // Label cohort dibaca per jenjang: Profesi tidak mewarisi tahun S1/S2
+    // yang belum punya lulusan Profesi (dulu menjadi baris nol).
+    const labels = [
+      ...new Set(
+        students
+          .filter((s) => s.jenjang === jenjang)
+          .map((s) => s.graduate?.tahunLulus)
+          .filter(Boolean),
+      ),
+    ].sort();
 
     return labels.map((label) => {
       const tahunLulusStart = getAcademicYearStart(label);

@@ -11,7 +11,7 @@ import { DIGITAL_BLUE } from '../../../../utils/theme';
 import { useDetail } from '../../graduateQueries';
 import TrendBarChart from '../../../../components/common/charts/TrendBarChart';
 import TrendChartTooltip from '../../../../components/common/charts/TrendChartTooltip';
-import { onTimeTabs, withBatas } from './graduateTrendConfig';
+import { onTimeTabs, selectChartCohorts, withBatas } from './graduateTrendConfig';
 import { describeScope, searchSentence } from '../../utils/filterScope';
 
 const ON_TIME_TABLE_COLUMNS = [
@@ -78,40 +78,19 @@ function CohortTrendChart({ cohorts, batas, isLoading, error }) {
           xDataKey="cohortLabel"
           isLoading={isLoading}
           error={error}
+          compactZeroBars
           bars={[
             {
               dataKey: 'onTimeCount',
               name: withBatas('Tepat Waktu', batas, '≤'),
               color: DIGITAL_BLUE[600],
-              labelKey: 'rate',
-              labelFormatter: (value) => formatPercentage(value),
-            },
-            {
-              dataKey: 'fastCount',
-              name: withBatas('Lebih Cepat', batas, '<'),
-              color: '#10B981',
-              labelKey: 'fastCount',
-            },
-            {
-              dataKey: 'lateCount',
-              name: withBatas('Lewat Waktu', batas, '>'),
-              color: '#F59E0B',
-              labelKey: 'lateCount',
+              labelKey: 'onTimeCount',
             },
           ]}
           tooltipContent={
             <TrendChartTooltip
               titleKey="cohortLabel"
-              rows={[
-                { key: 'onTimeCount', label: 'Tepat Waktu', colorClass: 'bg-digital-blue-600' },
-                { key: 'fastCount', label: 'Lebih Cepat', colorClass: 'bg-emerald-500' },
-                { key: 'lateCount', label: 'Lewat Batas', colorClass: 'bg-amber-500' },
-              ]}
-              footer={{
-                key: 'rate',
-                label: 'Persentase Tepat Waktu',
-                format: formatPercentage,
-              }}
+              rows={[{ key: 'onTimeCount', label: 'Lulus Tepat Waktu' }]}
             />
           }
         />
@@ -121,6 +100,18 @@ function CohortTrendChart({ cohorts, batas, isLoading, error }) {
 }
 
 export default function OnTimeGraduationModal({ isOpen, onClose, originRect, data, filters }) {
+  // Tahun Lulus default = tahun terbaru; untuk chart itu jangkar jendela,
+  // bukan filter satu tahun. Pilihan manual user tetap diteruskan.
+  const defaultTahunLulus = data?.filterOptions?.rollingYears?.[0];
+  const detailFilters = useMemo(() => {
+    const selected = filters?.selectedTahunLulus;
+    if (!defaultTahunLulus || !Array.isArray(selected)) return filters;
+    if (selected.length !== 1 || selected[0] !== defaultTahunLulus) return filters;
+    const { selectedTahunLulus, ...rest } = filters;
+    void selectedTahunLulus;
+    return rest;
+  }, [filters, defaultTahunLulus]);
+
   const {
     data: detailData,
     isLoading,
@@ -128,7 +119,7 @@ export default function OnTimeGraduationModal({ isOpen, onClose, originRect, dat
   } = useDetail({
     isOpen,
     resourceKey: 'tepat-waktu',
-    filters,
+    filters: detailFilters,
     method: 'getTepatWaktuDetail',
     errorMessage: 'Gagal memuat data kelulusan tepat waktu',
   });
@@ -205,20 +196,31 @@ export default function OnTimeGraduationModal({ isOpen, onClose, originRect, dat
     () => Object.entries(cohortsByJenjang).filter(([key]) => key !== 's1' && key !== 's2'),
     [cohortsByJenjang],
   );
+  const explicitYear = Boolean(detailFilters?.selectedTahunLulus?.length);
 
   const content = useMemo(() => {
     const entries = {
       s1: (
-        <CohortTrendChart cohorts={s1Cohorts} batas={batasS1} isLoading={isLoading} error={error} />
+        <CohortTrendChart
+          cohorts={selectChartCohorts(s1Cohorts, explicitYear)}
+          batas={batasS1}
+          isLoading={isLoading}
+          error={error}
+        />
       ),
       s2: (
-        <CohortTrendChart cohorts={s2Cohorts} batas={batasS2} isLoading={isLoading} error={error} />
+        <CohortTrendChart
+          cohorts={selectChartCohorts(s2Cohorts, explicitYear)}
+          batas={batasS2}
+          isLoading={isLoading}
+          error={error}
+        />
       ),
     };
     for (const [key, cohorts] of extraCohorts) {
       entries[key] = (
         <CohortTrendChart
-          cohorts={cohorts}
+          cohorts={selectChartCohorts(cohorts, explicitYear)}
           batas={batasByJenjang[key]}
           isLoading={isLoading}
           error={error}
@@ -256,7 +258,17 @@ export default function OnTimeGraduationModal({ isOpen, onClose, originRect, dat
         </div>
       ),
     };
-  }, [batasByJenjang, batasS1, batasS2, error, extraCohorts, isLoading, s1Cohorts, s2Cohorts]);
+  }, [
+    batasByJenjang,
+    batasS1,
+    batasS2,
+    error,
+    explicitYear,
+    extraCohorts,
+    isLoading,
+    s1Cohorts,
+    s2Cohorts,
+  ]);
 
   return (
     <Modal

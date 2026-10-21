@@ -52,3 +52,7 @@ export const studySuccessTabs = (batas = {}) => {
     cohortTableTab,
   ];
 };
+
+// Chart tren cohort cukup 5 data terakhir; filter tahun eksplisit user tidak dipotong.
+export const selectChartCohorts = (cohorts, explicitYear) =>
+  explicitYear ? cohorts : cohorts.slice(-5);

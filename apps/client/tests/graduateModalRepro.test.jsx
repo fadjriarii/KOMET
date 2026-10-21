@@ -4,6 +4,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import TotalGraduatesModal from '../src/modules/graduates/components/modals/TotalGraduatesModal';
 import GpaOverviewModal from '../src/modules/graduates/components/modals/GpaOverviewModal';
 import OnTimeGraduationModal from '../src/modules/graduates/components/modals/OnTimeGraduationModal';
+import { selectChartCohorts } from '../src/modules/graduates/components/modals/graduateTrendConfig';
 import StudySuccessModal from '../src/modules/graduates/components/modals/StudySuccessModal';
 import { compactBarLayout } from '../src/components/common/charts/compactBarLayout';
 import { useDetail } from '../src/modules/graduates/graduateQueries';
@@ -33,6 +34,9 @@ const SUMMARY = {
     avgIpk: { tahunScope: { phrase: 'pada tahun ajaran 2025/2026' } },
     tepatWaktu: { tahunScope: { phrase: 'pada tahun ajaran 2025/2026' } },
     keberhasilanStudi: { angkatanS1: '2018/2019' },
+  },
+  filterOptions: {
+    rollingYears: ['2025/2026', '2024/2025'],
   },
 };
 
@@ -82,6 +86,7 @@ const DETAILS = {
 };
 
 beforeEach(() => {
+  vi.mocked(useDetail).mockClear();
   vi.mocked(useDetail).mockImplementation(({ resourceKey }) => ({
     data: DETAILS[resourceKey] ?? null,
     isLoading: false,
@@ -107,6 +112,34 @@ describe.each([
   it('render tanpa throw dan menjelaskan metodologi', async () => {
     renderModal(Modal);
     await waitFor(() => expect(document.body.textContent).toContain(phrase));
+  });
+});
+
+describe('chart OnTime 5 cohort terakhir', () => {
+  it('memotong ke 5 data terakhir saat tanpa filter tahun eksplisit', () => {
+    const cohorts = Array.from({ length: 8 }, (_, index) => ({
+      cohortLabel: `Angkatan ${2018 + index}`,
+    }));
+
+    expect(selectChartCohorts(cohorts, false)).toHaveLength(5);
+    expect(selectChartCohorts(cohorts, false)[0].cohortLabel).toBe('Angkatan 2021');
+    expect(selectChartCohorts(cohorts, true)).toBe(cohorts);
+  });
+
+  it('tahun lulus default tidak dikirim sebagai filter detail', async () => {
+    renderModal(OnTimeGraduationModal, { selectedTahunLulus: ['2025/2026'] });
+    await waitFor(() => expect(useDetail).toHaveBeenCalled());
+
+    const { filters } = vi.mocked(useDetail).mock.calls.at(-1)[0];
+    expect(filters.selectedTahunLulus).toBeUndefined();
+  });
+
+  it('pilihan tahun manual tetap dikirim apa adanya', async () => {
+    renderModal(OnTimeGraduationModal, { selectedTahunLulus: ['2022/2023'] });
+    await waitFor(() => expect(useDetail).toHaveBeenCalled());
+
+    const { filters } = vi.mocked(useDetail).mock.calls.at(-1)[0];
+    expect(filters.selectedTahunLulus).toEqual(['2022/2023']);
   });
 });
 
