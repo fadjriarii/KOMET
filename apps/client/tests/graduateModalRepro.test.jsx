@@ -5,7 +5,7 @@ import TotalGraduatesModal from '../src/modules/graduates/components/modals/Tota
 import GpaOverviewModal from '../src/modules/graduates/components/modals/GpaOverviewModal';
 import OnTimeGraduationModal from '../src/modules/graduates/components/modals/OnTimeGraduationModal';
 import StudySuccessModal from '../src/modules/graduates/components/modals/StudySuccessModal';
-import { compactBarLayout } from '../src/modules/graduates/components/modals/compactBarLayout';
+import { compactBarLayout } from '../src/components/common/charts/compactBarLayout';
 import { useDetail } from '../src/modules/graduates/graduateQueries';
 
 vi.mock('../src/modules/graduates/graduateQueries', () => ({

@@ -1,11 +1,11 @@
 import DistributionBarChart from './DistributionBarChart';
 import { getTooltipPayloadItem } from '../../../utils/uiHelpers';
-import { formatNumber, formatPercentage } from '@komet/shared/formatters';
+import { formatDecimal, formatNumber, formatPercentage } from '@komet/shared/formatters';
 import { DIGITAL_BLUE } from '../../../utils/theme';
 
 /** Baris tambahan yang hanya tampil bila nilainya memang ada pada baris data. */
 const OPTIONAL_ROWS = [
-  { key: 'gpaValue', label: 'Rata-rata IPK' },
+  { key: 'gpaValue', label: 'Rata-rata IPK', format: (value) => formatDecimal(value, 2) },
   { key: 'percentage', label: 'Persentase', format: formatPercentage },
 ];
 

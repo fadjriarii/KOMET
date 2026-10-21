@@ -14,7 +14,11 @@
  */
 
 const prisma = require('../../config/prisma');
-const { getLabelYearRange, getReferenceLabelStart } = require('../../utils/academicUtils');
+const {
+  TREND_WINDOW_YEARS,
+  getLabelYearRange,
+  getReferenceLabelStart,
+} = require('../../utils/academicUtils');
 const { toArray } = require('@komet/shared/filterUtils');
 const { formatAcademicYearLabel } = require('@komet/shared/academicYear');
 const { getTahunAjaran, tahunAjaranStart } = require('./tahunAjaran');
@@ -85,6 +89,16 @@ function withTahunScope(whereFilter = {}, scope) {
 }
 
 /**
+ * Jendela chart tren lulusan: 5 tahun terbaru dari data yang benar-benar ada.
+ * Sync tahun baru otomatis menggeser jendela; pilihan tahun eksplisit user
+ * tidak dipotong agar filter tetap menang apa adanya.
+ */
+function windowGraduateTrend(series, whereFilter = {}) {
+  const explicitTahun = whereFilter.graduate?.tahunLulus ?? whereFilter.tahunLulus;
+  return explicitTahun ? series : series.slice(-TREND_WINDOW_YEARS);
+}
+
+/**
  * @param {object} whereFilter  Filter student-base (flat + nesting `graduate`)
  * @param {function({tahun, jenjang, items}): number|null} options.valueOf  angka dari satu bucket tahun×jenjang
  * @param {number|null} options.missing  nilai tahun/jenjang tanpa baris
@@ -140,6 +154,7 @@ async function valuesByYearAndJenjang(whereFilter, { valueOf, missing }) {
 
 module.exports = {
   valuesByYearAndJenjang,
+  windowGraduateTrend,
   getGraduateLabelWindow,
   resolveTahunScope,
   describeTahunScope,

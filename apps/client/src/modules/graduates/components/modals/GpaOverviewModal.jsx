@@ -6,17 +6,15 @@ import ModalTabNav from '../../../../components/common/modals/ModalTabNav';
 import ModalTabContent from '../../../../components/common/modals/ModalTabContent';
 import { useTabTransition } from '../../../../hooks/useTabTransition';
 import { formatDecimal, formatNumber } from '@komet/shared/formatters';
-import { DIGITAL_BLUE } from '../../../../utils/theme';
 import { useDetail } from '../../graduateQueries';
 import { describeScope, searchSentence } from '../../utils/filterScope';
 import TrendBarChart from '../../../../components/common/charts/TrendBarChart';
 import DistributionChart from '../../../../components/common/charts/DistributionChart';
 import TrendChartTooltip from '../../../../components/common/charts/TrendChartTooltip';
 import { GPA_OVERVIEW_TABS } from './graduateTrendConfig';
+import { JENJANG_COLORS } from './totalTrendBars';
 
 const EMPTY_ITEMS = [];
-
-const JENJANG_IPK_COLORS = [DIGITAL_BLUE[600], DIGITAL_BLUE[400], '#10B981', '#F59E0B', '#8B5CF6'];
 
 export default function GpaOverviewModal({ isOpen, onClose, originRect, data, filters }) {
   const { activeTab, handleTabChange, slideClass } = useTabTransition(GPA_OVERVIEW_TABS, 'tren');
@@ -79,11 +77,12 @@ export default function GpaOverviewModal({ isOpen, onClose, originRect, data, fi
   const avgBars = useMemo(() => {
     const keys = Object.keys(combinedTrend[0] ?? {})
       .filter((key) => key !== 'tahun' && key.endsWith('AvgIpk'))
+      .filter((key) => combinedTrend.some((row) => Number(row?.[key]) > 0))
       .sort((a, b) => (a === 's1AvgIpk' ? -1 : b === 's1AvgIpk' ? 1 : a.localeCompare(b)));
     return keys.map((key, index) => ({
       dataKey: key,
       name: `IPK ${key.replace(/AvgIpk$/, '').toUpperCase()}`,
-      color: JENJANG_IPK_COLORS[index % JENJANG_IPK_COLORS.length],
+      color: JENJANG_COLORS[index % JENJANG_COLORS.length],
       labelKey: key,
       labelFormatter: (value) => formatDecimal(value, 2),
     }));
@@ -117,13 +116,14 @@ export default function GpaOverviewModal({ isOpen, onClose, originRect, data, fi
               data={combinedTrend}
               xDataKey="tahun"
               bars={avgBars}
+              compactZeroBars
               tooltipContent={<TrendChartTooltip titleKey="tahun" rows={avgTooltipRows} />}
             />
           </div>
         </div>
       ),
       rentang: (
-        <div className="h-full flex flex-col pt-0.5 px-1">
+        <div className="pt-1">
           <DistributionChart
             items={gpaBandsList}
             countUnit="lulusan"
@@ -140,13 +140,14 @@ export default function GpaOverviewModal({ isOpen, onClose, originRect, data, fi
         </div>
       ),
       prodi: (
-        <div className="h-full flex flex-col pt-0.5 px-1">
+        <div className="pt-1">
           <DistributionChart
             items={prodiList}
             countUnit="lulusan"
             dataKey="gpaValue"
             nameKey="name"
             labelKey="gpaValue"
+            labelFormatter={(value) => formatDecimal(value, 2)}
             isLoading={isLoading}
             error={error}
             emptyIcon={BookOpen}
@@ -157,13 +158,14 @@ export default function GpaOverviewModal({ isOpen, onClose, originRect, data, fi
         </div>
       ),
       fakultas: (
-        <div className="h-full flex flex-col pt-0.5 px-1">
+        <div className="pt-1">
           <DistributionChart
             items={facultyList}
             countUnit="lulusan"
             dataKey="gpaValue"
             nameKey="name"
             labelKey="gpaValue"
+            labelFormatter={(value) => formatDecimal(value, 2)}
             isLoading={isLoading}
             error={error}
             emptyIcon={Building2}
@@ -229,9 +231,11 @@ export default function GpaOverviewModal({ isOpen, onClose, originRect, data, fi
             activeTab={activeTab}
             onTabChange={handleTabChange}
           />
-          <div className="flex-1 min-h-0 overflow-x-hidden w-full">
-            <div key={activeTab} className={`h-full ${slideClass}`}>
-              <ModalTabContent activeTab={activeTab} content={content} />
+          <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar scroll-smooth pr-1">
+            <div className="overflow-x-hidden w-full">
+              <div key={activeTab} className={`w-full ${slideClass}`}>
+                <ModalTabContent activeTab={activeTab} content={content} />
+              </div>
             </div>
           </div>
         </div>

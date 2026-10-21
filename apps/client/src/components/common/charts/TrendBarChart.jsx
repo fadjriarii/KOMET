@@ -16,6 +16,38 @@ import { formatCompactNumber } from '@komet/shared/formatters';
 import Skeleton from '../feedback/Skeleton';
 import EmptyState from '../feedback/EmptyState';
 import { humanizeErrorMessage } from '../../../modules/errors/errorStates';
+import { compactBarLayout } from './compactBarLayout';
+
+function CompactBarShape({
+  x,
+  y,
+  width,
+  height,
+  payload,
+  dataKey,
+  labelKey,
+  labelFormatter,
+  color,
+  bars,
+}) {
+  const layout = compactBarLayout({ bars, payload, dataKey, x, width });
+  if (!layout || !(height > 0)) return null;
+
+  const label = payload[labelKey ?? dataKey];
+  return (
+    <g>
+      <rect x={layout.x} y={y} width={layout.width} height={height} rx={4} fill={color} />
+      <text
+        x={layout.x + layout.width / 2}
+        y={y - 4}
+        textAnchor="middle"
+        style={{ fill: DIGITAL_BLUE[800], fontSize: 10, fontWeight: 700 }}
+      >
+        {labelFormatter ? labelFormatter(label) : label}
+      </text>
+    </g>
+  );
+}
 
 /** Configurable shared bar chart for dashboard trend visualizations. */
 export default function TrendBarChart({
@@ -27,6 +59,7 @@ export default function TrendBarChart({
   tooltipContent,
   legendHeight = 36,
   barGap = 4,
+  compactZeroBars = false,
   isLoading = false,
   error = null,
 }) {
@@ -51,7 +84,11 @@ export default function TrendBarChart({
 
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data} barGap={barGap} margin={{ top: 12, right: 24, left: 4, bottom: 44 }}>
+      <BarChart
+        data={data}
+        barGap={compactZeroBars ? 0 : barGap}
+        margin={{ top: 12, right: 24, left: 4, bottom: 44 }}
+      >
         <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
         <XAxis
           dataKey={xDataKey}
@@ -88,7 +125,20 @@ export default function TrendBarChart({
             radius={bar.stackId ? [0, 0, 0, 0] : [4, 4, 0, 0]}
             maxBarSize={bar.maxBarSize || 44}
             animationDuration={800}
-            shape={bar.shape}
+            shape={
+              compactZeroBars && !bar.stackId
+                ? (props) => (
+                    <CompactBarShape
+                      {...props}
+                      bars={bars}
+                      dataKey={bar.dataKey}
+                      labelKey={bar.labelKey || bar.dataKey}
+                      labelFormatter={bar.labelFormatter}
+                      color={bar.color || DIGITAL_BLUE[600]}
+                    />
+                  )
+                : bar.shape
+            }
             {...(bar.stackId ? { stackId: bar.stackId } : null)}
           >
             {bar.stackId
@@ -110,7 +160,7 @@ export default function TrendBarChart({
                   );
                 })
               : null}
-            {bar.labelKey && (
+            {bar.labelKey && !compactZeroBars && (
               <LabelList
                 dataKey={bar.labelKey}
                 formatter={bar.labelFormatter}

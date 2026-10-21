@@ -10,6 +10,7 @@ const prisma = require('../../config/prisma');
 const { getRequestedJenjang } = require('./filterBuilder');
 const {
   valuesByYearAndJenjang,
+  windowGraduateTrend,
   resolveTahunScope,
   describeTahunScope,
   withTahunScope,
@@ -77,14 +78,10 @@ async function getTotalLulusanByYear(whereFilter) {
     missing: 0,
   });
 
-  // Chart tren = 5 tahun ke belakang dari jangkar (tahun ajaran terpilih,
-  // atau label terbaru bila tanpa jangkar — deretnya sudah terpotong di
-  // sana). Pilihan tahun lulus eksplisit selalu menang apa adanya.
-  const explicitTahun = whereFilter.graduate?.tahunLulus ?? whereFilter.tahunLulus;
-  const windowed = explicitTahun ? series : series.slice(-5);
-
+  // Chart tren = 5 tahun terbaru dari data; jangkar tahun ajaran sudah
+  // memotong deretnya, pilihan tahun lulus eksplisit tetap menang apa adanya.
   return {
-    byYear: windowed.map(({ tahun, ...counts }) => {
+    byYear: windowGraduateTrend(series, whereFilter).map(({ tahun, ...counts }) => {
       const entry = { tahun };
       let total = 0;
       for (const [key, value] of Object.entries(counts)) {

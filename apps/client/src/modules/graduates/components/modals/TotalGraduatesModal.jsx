@@ -7,10 +7,8 @@ import ModalTable from '../../../../components/common/modals/ModalTable';
 import ModalTabContent from '../../../../components/common/modals/ModalTabContent';
 import { useTabTransition } from '../../../../hooks/useTabTransition';
 import { formatNumber } from '@komet/shared/formatters';
-import { DIGITAL_BLUE } from '../../../../utils/theme';
 import { describeScope, searchSentence } from '../../utils/filterScope';
 import { useDetail } from '../../graduateQueries';
-import { compactBarLayout } from './compactBarLayout';
 import { jenjangName, trendBars } from './totalTrendBars';
 import TrendBarChart from '../../../../components/common/charts/TrendBarChart';
 import DistributionChart from '../../../../components/common/charts/DistributionChart';
@@ -20,25 +18,6 @@ import { TOTAL_GRADUATE_TABS } from './graduateTrendConfig';
 const EMPTY_ITEMS = [];
 
 const JENJANG_TONE = { s1Count: 'text-digital-blue-900', s2Count: 'text-gray-800' };
-
-function CompactBarShape({ x, y, width, height, payload, dataKey, color, bars }) {
-  const layout = compactBarLayout({ bars, payload, dataKey, x, width });
-  if (!layout || !(height > 0)) return null;
-
-  return (
-    <g>
-      <rect x={layout.x} y={y} width={layout.width} height={height} rx={4} fill={color} />
-      <text
-        x={layout.x + layout.width / 2}
-        y={y - 4}
-        textAnchor="middle"
-        style={{ fill: DIGITAL_BLUE[800], fontSize: 10, fontWeight: 700 }}
-      >
-        {payload[dataKey]}
-      </text>
-    </g>
-  );
-}
 
 // Kolom jenjang dinamis dari baris pertama: S1/S2 tampil seperti semula,
 // jenjang tambahan (Profesi) memakai kolom yang sama polanya.
@@ -116,16 +95,7 @@ export default function TotalGraduatesModal({ isOpen, onClose, originRect, data,
   const searchSuffix = searchTail ? ` ${searchTail}` : '';
 
   const combinedTrend = totalData?.byYear || EMPTY_ITEMS;
-  const bars = useMemo(() => {
-    const baseBars = trendBars(combinedTrend);
-    return baseBars.map((bar) => ({
-      ...bar,
-      labelKey: undefined,
-      shape: (props) => (
-        <CompactBarShape {...props} dataKey={bar.dataKey} color={bar.color} bars={baseBars} />
-      ),
-    }));
-  }, [combinedTrend]);
+  const bars = useMemo(() => trendBars(combinedTrend), [combinedTrend]);
   const columns = useMemo(() => totalTableColumns(combinedTrend), [combinedTrend]);
   const tooltipRows = useMemo(
     () =>
@@ -163,7 +133,7 @@ export default function TotalGraduatesModal({ isOpen, onClose, originRect, data,
               data={combinedTrend}
               xDataKey="tahun"
               bars={bars}
-              barGap={0}
+              compactZeroBars
               tooltipContent={
                 <TrendChartTooltip
                   titleKey="tahun"

@@ -1,7 +1,7 @@
 /**
- * Posisi satu batang dalam kelompok tahun: batang bernilai 0 tidak memakai slot,
- * lalu batang yang tersisa dirapatkan dan ditengahkan dalam lebar kelompok asli.
- * `barGap` chart harus 0 agar jarak antar-slot sama dengan `width`.
+ * Posisi satu batang dalam kelompok kategori: batang bernilai 0 tidak memakai
+ * slot, lalu batang yang tersisa dirapatkan dan ditengahkan dalam lebar
+ * kelompok asli. `barGap` chart harus 0 agar jarak antar-slot sama dengan `width`.
  */
 export function compactBarLayout({ bars, payload, dataKey, x, width }) {
   if (!(Number(payload?.[dataKey]) > 0)) return null;

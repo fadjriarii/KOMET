@@ -10,6 +10,7 @@ const { rate } = require('../../utils/percentageUtils');
 const { getScopeJenjangs } = require('./filterBuilder');
 const {
   valuesByYearAndJenjang,
+  windowGraduateTrend,
   resolveTahunScope,
   describeTahunScope,
   withTahunScope,
@@ -56,7 +57,7 @@ async function getIpkByYear(whereFilter) {
     valueOf: ({ items }) => avgOf(items).average,
     missing: null,
   });
-  return series.map(({ tahun, ...avgs }) => {
+  return windowGraduateTrend(series, whereFilter).map(({ tahun, ...avgs }) => {
     const entry = { tahun };
     for (const [key, value] of Object.entries(avgs)) entry[`${key}AvgIpk`] = value;
     return entry;
