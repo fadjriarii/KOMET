@@ -179,9 +179,11 @@ async function getTepatWaktuByYear(whereFilter) {
       filtered.forEach((s) => {
         const duration = lamaStudi(s, label);
         if (duration === null) unknownCount++;
-        else if (duration < batas) fastCount++;
-        else if (duration === batas) onTimeCount++;
-        else lateCount++;
+        // Program satu tahun selesai di tahun ajaran yang sama menghasilkan
+        // selisih 0; itu tepat waktu, bukan lebih cepat.
+        else if (duration > batas) lateCount++;
+        else if (batas <= 1 || duration === batas) onTimeCount++;
+        else fastCount++;
       });
 
       const total = fastCount + onTimeCount + lateCount;

@@ -71,6 +71,18 @@ describe('cohort tepat waktu per jenjang', () => {
     });
   });
 
+  it('Profesi yang selesai di tahun ajaran yang sama dihitung tepat waktu', async () => {
+    stub([row('Profesi', '2025/2026', 0)]);
+    const detail = await getTepatWaktuByYear({});
+
+    expect(detail.profesi[0]).toMatchObject({
+      fastCount: 0,
+      onTimeCount: 1,
+      lateCount: 0,
+      rate: 100,
+    });
+  });
+
   it('Profesi bertambah satu cohort tiap tahun lulus baru', async () => {
     stub(defaultRows());
     const first = await getTepatWaktuByYear({});

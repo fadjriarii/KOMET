@@ -187,6 +187,16 @@ describe('trendBars Total Lulusan (grouped)', () => {
   });
 });
 
+describe('warna kategori OnTime', () => {
+  it('tiga kategori memakai warna berbeda dari palet jenjang', async () => {
+    const { OUTCOME_COLORS, JENJANG_COLORS } =
+      await import('../src/modules/graduates/components/modals/totalTrendBars');
+    const colors = [OUTCOME_COLORS.fast, OUTCOME_COLORS.onTime, OUTCOME_COLORS.late];
+    expect(new Set(colors).size).toBe(3);
+    expect(colors.every((color) => JENJANG_COLORS.includes(color))).toBe(true);
+  });
+});
+
 describe('compactBarLayout', () => {
   const bars = [{ dataKey: 's1Count' }, { dataKey: 'profesiCount' }, { dataKey: 's2Count' }];
 

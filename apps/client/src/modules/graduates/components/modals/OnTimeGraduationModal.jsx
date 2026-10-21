@@ -7,11 +7,11 @@ import ModalTable from '../../../../components/common/modals/ModalTable';
 import ModalTabContent from '../../../../components/common/modals/ModalTabContent';
 import { useTabTransition } from '../../../../hooks/useTabTransition';
 import { formatNumber, formatPercentage } from '@komet/shared/formatters';
-import { DIGITAL_BLUE } from '../../../../utils/theme';
 import { useDetail } from '../../graduateQueries';
 import TrendBarChart from '../../../../components/common/charts/TrendBarChart';
 import TrendChartTooltip from '../../../../components/common/charts/TrendChartTooltip';
 import { onTimeTabs, selectChartCohorts, withBatas } from './graduateTrendConfig';
+import { OUTCOME_COLORS } from './totalTrendBars';
 import { describeScope, searchSentence } from '../../utils/filterScope';
 
 const ON_TIME_TABLE_COLUMNS = [
@@ -70,6 +70,8 @@ const ON_TIME_TABLE_COLUMNS = [
 
 // Satu builder dipakai tab S1 dan S2; angka batas datang dari server (batasS1/batasS2).
 function CohortTrendChart({ cohorts, batas, isLoading, error }) {
+  // Profesi satu tahun: durasi 0 dan 1 sama-sama tepat waktu.
+  const onTimeOperator = batas === 1 ? '≤' : '=';
   return (
     <div className="h-full flex flex-col pt-0.5 px-1">
       <div className="h-56 sm:h-64 md:h-72 w-full">
@@ -81,16 +83,36 @@ function CohortTrendChart({ cohorts, batas, isLoading, error }) {
           compactZeroBars
           bars={[
             {
+              dataKey: 'fastCount',
+              name: withBatas('Lebih Cepat', batas, '<'),
+              color: OUTCOME_COLORS.fast,
+              labelKey: 'fastCount',
+            },
+            {
               dataKey: 'onTimeCount',
-              name: withBatas('Tepat Waktu', batas, '≤'),
-              color: DIGITAL_BLUE[600],
+              name: withBatas('Tepat Waktu', batas, onTimeOperator),
+              color: OUTCOME_COLORS.onTime,
               labelKey: 'onTimeCount',
+            },
+            {
+              dataKey: 'lateCount',
+              name: withBatas('Lewat Waktu', batas, '>'),
+              color: OUTCOME_COLORS.late,
+              labelKey: 'lateCount',
             },
           ]}
           tooltipContent={
             <TrendChartTooltip
               titleKey="cohortLabel"
-              rows={[{ key: 'onTimeCount', label: 'Lulus Tepat Waktu' }]}
+              rows={[
+                { key: 'fastCount', label: 'Lulus Lebih Cepat', colorClass: 'bg-emerald-500' },
+                {
+                  key: 'onTimeCount',
+                  label: 'Lulus Tepat Waktu',
+                  colorClass: 'bg-digital-blue-600',
+                },
+                { key: 'lateCount', label: 'Lewat Batas Waktu', colorClass: 'bg-amber-500' },
+              ]}
             />
           }
         />

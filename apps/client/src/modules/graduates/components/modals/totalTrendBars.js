@@ -10,6 +10,13 @@ export const JENJANG_COLORS = [
   '#8B5CF6',
 ];
 
+// Kategori hasil masa studi memakai palet yang sama dengan chart jenjang.
+export const OUTCOME_COLORS = {
+  fast: JENJANG_COLORS[2],
+  onTime: JENJANG_COLORS[0],
+  late: JENJANG_COLORS[3],
+};
+
 const JENJANG_LABEL = { s1: 'S1', s2: 'S2' };
 export const jenjangName = (key) => JENJANG_LABEL[key] ?? key.toUpperCase();
 
