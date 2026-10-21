@@ -19,6 +19,32 @@ export const GPA_OVERVIEW_TABS = [
 export const withBatas = (label, batas, operator) =>
   batas ? `${label} (${operator} ${batas} Thn)` : label;
 
+// Keberhasilan studi dievaluasi SETELAH lag kohort, bukan dibatasi olehnya.
+// Jangan pakai kata "maks" yang membuat angka terbaca sebagai batas studi.
+export const withEvaluationLag = (label, lag) => (lag ? `${label} (Evaluasi +${lag} Thn)` : label);
+
+// Satu pilihan jenjang = cukup tab itu; tanpa pilihan = semua tab yang
+// tersedia. Dipakai modal agar filter `Profesi` tidak menyisakan tab S1/S2 hantu.
+export const tabsForSelectedJenjang = (tabs, jenjang = []) => {
+  const selected = (Array.isArray(jenjang) ? jenjang : [jenjang])
+    .filter(Boolean)
+    .map((value) => String(value).toLowerCase());
+  return selected.length ? tabs.filter((tab) => selected.includes(tab.key)) : tabs;
+};
+
+// Default Tahun Lulus = tahun terbaru adalah pilihan UI, bukan permintaan user.
+// Chart tren dan tabel riwayat butuh jendela 5 tahun; strip hanya saat nilainya
+// masih default. Pilihan eksplisit (termasuk tahun yang sama yang dipilih user
+// setelah mengubah filter) tetap dihormati.
+export const withoutDefaultTahunLulus = (filters, defaultTahunLulus) => {
+  const selected = filters?.selectedTahunLulus;
+  if (!defaultTahunLulus || !Array.isArray(selected)) return filters;
+  if (selected.length !== 1 || selected[0] !== defaultTahunLulus) return filters;
+  const rest = { ...filters };
+  delete rest.selectedTahunLulus;
+  return rest;
+};
+
 export const onTimeTabs = (batas = {}) => {
   const jenjangTabs = Object.entries(batas)
     .filter(([key]) => key !== 's1' && key !== 's2')
@@ -39,12 +65,12 @@ export const studySuccessTabs = (batas = {}) => {
     .filter(([key]) => key !== 's1' && key !== 's2')
     .map(([key, value]) => ({
       key,
-      label: withBatas(`Jenjang ${key.toUpperCase()}`, value, 'Maks'),
+      label: withEvaluationLag(`Jenjang ${key.toUpperCase()}`, value),
       icon: BarChart3,
     }));
   return [
-    { key: 's1', label: withBatas('Jenjang S1', batas.s1, 'Maks'), icon: BarChart3 },
-    { key: 's2', label: withBatas('Jenjang S2', batas.s2, 'Maks'), icon: BarChart3 },
+    { key: 's1', label: withEvaluationLag('Jenjang S1', batas.s1), icon: BarChart3 },
+    { key: 's2', label: withEvaluationLag('Jenjang S2', batas.s2), icon: BarChart3 },
     ...jenjangTabs,
   ];
 };

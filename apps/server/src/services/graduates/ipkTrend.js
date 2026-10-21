@@ -11,9 +11,7 @@ const { getScopeJenjangs } = require('./filterBuilder');
 const {
   valuesByYearAndJenjang,
   windowGraduateTrend,
-  resolveTahunScope,
-  describeTahunScope,
-  withTahunScope,
+  resolveTahunAjaranScope,
 } = require('./yearJenjangSeries');
 
 const avgOf = (items) => {
@@ -30,14 +28,14 @@ const avgOf = (items) => {
  * Tidak ada data → `average: null` (bukan 0.00); IPK 0 bukan "tidak ada data".
  */
 async function getAvgIpk(whereFilter) {
-  const { scope, isDefault } = await resolveTahunScope(whereFilter);
-  const jenjangs = await getScopeJenjangs(whereFilter);
+  const { where, tahunScope } = await resolveTahunAjaranScope(whereFilter);
+  const jenjangs = await getScopeJenjangs(where);
   const students = await prisma.student.findMany({
-    where: withTahunScope(whereFilter, scope),
+    where,
     select: { jenjang: true, graduate: { select: { ipk: true } } },
   });
 
-  const result = { tahunScope: describeTahunScope(scope, isDefault) };
+  const result = { tahunScope };
   for (const jenjang of jenjangs) {
     result[jenjang.toLowerCase()] = avgOf(students.filter((s) => s.jenjang === jenjang));
   }
@@ -78,10 +76,10 @@ async function getIpkByYear(whereFilter) {
  * berindeks, lalu agregasi pindah ke database.
  */
 async function getIpkOverview(whereFilter) {
-  const { scope } = await resolveTahunScope(whereFilter);
+  const { where } = await resolveTahunAjaranScope(whereFilter);
 
   const results = await prisma.student.findMany({
-    where: withTahunScope(whereFilter, scope),
+    where,
     select: {
       programStudi: true,
       fakultas: true,

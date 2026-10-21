@@ -8,8 +8,12 @@ import { useState, useCallback } from 'react';
  */
 export function useTabTransition(tabs = [], initialTabKey = '') {
   const defaultKey = initialTabKey || (tabs[0]?.key ?? '');
-  const [activeTab, setActiveTab] = useState(defaultKey);
+  const [selectedTab, setSelectedTab] = useState(defaultKey);
   const [slideDirection, setSlideDirection] = useState('forward'); // 'forward' | 'backward'
+
+  // Tab bisa menyusut setelah filter berubah (mis. S1/S2 → Profesi). Turunkan
+  // tab efektif saat render, bukan lewat effect setState.
+  const activeTab = tabs.some((tab) => tab.key === selectedTab) ? selectedTab : defaultKey;
 
   const handleTabChange = useCallback(
     (newTabKey) => {
@@ -17,7 +21,7 @@ export function useTabTransition(tabs = [], initialTabKey = '') {
       const prevIdx = tabs.findIndex((t) => t.key === activeTab);
       const nextIdx = tabs.findIndex((t) => t.key === newTabKey);
       setSlideDirection(nextIdx > prevIdx ? 'forward' : 'backward');
-      setActiveTab(newTabKey);
+      setSelectedTab(newTabKey);
     },
     [activeTab, tabs],
   );

@@ -384,6 +384,21 @@ describe('useGraduateKpiDisplay', () => {
     );
   });
 
+  it('menyebut scope tahun pada subtitle IPK juga', () => {
+    const summary = {
+      ...mockGraduateSummary,
+      summary: {
+        ...mockGraduateSummary.summary,
+        avgIpk: { tahunScope: { phrase: 'sampai tahun ajaran 2023/2024' } },
+      },
+    };
+    const { result } = renderHook(() => useGraduateKpiDisplay(summary, false, {}));
+
+    expect(result.current.displaySubtitles.gpa).toBe(
+      'IPK rata-rata lulusan 3.65 (S1) dan 3.80 (S2) dari skala 4.00 sampai tahun ajaran 2023/2024.',
+    );
+  });
+
   it('menyebut scope tahun pada subtitle total dan onTime', () => {
     const summary = {
       ...mockGraduateSummary,
@@ -516,6 +531,34 @@ describe('useGraduateKpiDisplay', () => {
     );
   });
 
+  it('multi-jenjang hanya menyebut jenjang yang dipilih, bukan S1 yang tidak diminta', () => {
+    const scope = {
+      success: true,
+      kpis: {},
+      summary: {
+        keberhasilanStudi: {
+          s1: 92.0,
+          s2: 75.5,
+          profesi: 90.0,
+          angkatanS1: '2019/2020',
+          angkatanS2: '2021/2022',
+          angkatanProfesi: '2023/2024',
+        },
+      },
+    };
+    const filters = {
+      selectedFaculty: [],
+      selectedProdi: [],
+      selectedJenjang: ['S2', 'Profesi'],
+    };
+    const { result } = renderHook(() => useGraduateKpiDisplay(scope, false, filters));
+
+    expect(result.current.kpis.studySuccessDisplay).toBe('75.5%');
+    expect(result.current.displaySubtitles.studySuccess).toBe(
+      'Yang akhirnya lulus: S2 75.5% (Angkatan 2021/2022) dan Profesi 90.0% (Angkatan 2023/2024). Dinilai dari kohort terbaru yang hasil akhirnya sudah pasti.',
+    );
+  });
+
   it('rincian ikut memuat jenjang tambahan yang angkanya ada', () => {
     const scope = {
       success: true,
@@ -626,7 +669,7 @@ describe('useGraduateKpiDisplay', () => {
     };
     const { result } = renderHook(() => useGraduateKpiDisplay(summary, false, filters));
     expect(result.current.displaySubtitles.studySuccess).toBe(
-      'Status Cum Laude, periode Ganjil, 92.0% mahasiswa Angkatan 2019/2020 (S1) akhirnya lulus. Dinilai dari kohort terbaru yang hasil akhirnya sudah pasti. Filter tahun lulus, periode lulus, dan status kelulusan tidak mengubah angka ini.',
+      '92.0% mahasiswa Angkatan 2019/2020 (S1) akhirnya lulus. Dinilai dari kohort terbaru yang hasil akhirnya sudah pasti. Filter tahun lulus, periode lulus, dan status kelulusan tidak mengubah angka ini.',
     );
   });
 

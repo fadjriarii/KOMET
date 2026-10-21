@@ -81,6 +81,14 @@ export default function TrendBarChart({
         icon={AlertCircle}
       />
     );
+  if (!Array.isArray(data) || data.length === 0)
+    return (
+      <EmptyState
+        title="Belum Ada Data Tren"
+        description="Tidak ada data pada rentang filter yang dipilih."
+        icon={AlertCircle}
+      />
+    );
 
   return (
     <ResponsiveContainer width="100%" height={height}>

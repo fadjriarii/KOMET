@@ -86,7 +86,7 @@ describe('getTotalLulusan', () => {
       buildGraduateFilter({ tahunAjaran: '2023/2024', jenjang: 'S1' }),
     );
     expect(calls).toHaveLength(1);
-    expect(calls[0].where.graduate).toEqual({ tahunLulus: { lte: '2023/2024' } });
+    expect(calls[0].where.graduate).toEqual({ tahunLulus: { lte: '2023/2024', not: '' } });
     expect(result.tahunScope).toEqual({
       labels: ['2023/2024'],
       isDefault: false,

@@ -9,7 +9,7 @@ const { getAcademicYearStart, getReferenceLabelStart } = require('../../utils/ac
 const { formatAcademicYearLabel } = require('@komet/shared/academicYear');
 const { toArray } = require('@komet/shared/filterUtils');
 const { roundedRate } = require('../../utils/percentageUtils');
-const { getRequestedJenjang } = require('./filterBuilder');
+const { getRequestedJenjang, includesJenjang } = require('./filterBuilder');
 const { getTahunAjaranLabel, tahunAjaranStart } = require('./tahunAjaran');
 
 /**
@@ -272,11 +272,16 @@ async function getKeberhasilanStudi(whereFilter) {
   jenjangs.forEach((jenjang, index) => {
     result[jenjang.toLowerCase()] = values[index];
   });
-  // Kunci lama untuk kompatibilitas kartu S1/S2 yang sudah ada.
-  result.s1 = result.s1 ?? null;
-  result.s2 = result.s2 ?? null;
-  result.angkatanS1 = result.angkatanS1 ?? angkatanLabelFromStart(evalStart('S1'));
-  result.angkatanS2 = result.angkatanS2 ?? angkatanLabelFromStart(evalStart('S2'));
+  // Kunci lama untuk kompatibilitas kartu S1/S2 yang sudah ada — hanya
+  // diisi bila jenjang itu memang ada dalam scope filter.
+  result.s1 = includesJenjang(whereFilter, 'S1') ? (result.s1 ?? null) : null;
+  result.s2 = includesJenjang(whereFilter, 'S2') ? (result.s2 ?? null) : null;
+  if (includesJenjang(whereFilter, 'S1')) {
+    result.angkatanS1 = result.angkatanS1 ?? angkatanLabelFromStart(evalStart('S1'));
+  }
+  if (includesJenjang(whereFilter, 'S2')) {
+    result.angkatanS2 = result.angkatanS2 ?? angkatanLabelFromStart(evalStart('S2'));
+  }
   // Label angkatan per jenjang dalam scope (S2/Profesi/S3, ...) supaya kartu
   // bisa menceritakan jenjang terpilih, bukan selalu S1.
   for (const jenjang of jenjangs) {
@@ -332,10 +337,15 @@ async function getKeberhasilanStudiByAngkatan(whereFilter) {
   // keluar dari sini, jadi teks S3 tidak bisa bocor ke UI.
   const result = {};
   jenjangs.forEach((jenjang, index) => {
-    result[jenjang.toLowerCase()] = values[index];
+    const series = values[index];
+    const upper = String(jenjang).toUpperCase();
+    // Jenjang non-inti tanpa baris tidak boleh mengirim array kosong: client
+    // membangun tab dari kunci array dan akan menampilkan tab hantu.
+    if (!CORE_JENJANG.has(upper) && (!Array.isArray(series) || series.length === 0)) return;
+    result[jenjang.toLowerCase()] = series;
     const lag = cohortLagFor(jenjang);
     if (lag === undefined) return;
-    const canon = `${jenjang.charAt(0).toUpperCase()}${jenjang.slice(1)}`;
+    const canon = `${upper.charAt(0)}${upper.slice(1).toLowerCase()}`;
     result[`batasStudi${canon}`] = lag;
     result[`angkatanEvaluasi${canon}`] = angkatanLabelFromStart(evalStart(jenjang));
   });

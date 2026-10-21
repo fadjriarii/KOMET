@@ -22,7 +22,7 @@ describe('jangkar tahun ajaran', () => {
     const where = withTahunAjaranAnchor({ NOT: { graduate: null }, tahunAjaran: '2024/2025' });
     expect(where.tahunAjaran).toBeUndefined();
     expect(where.NOT).toEqual({ graduate: null });
-    expect(where.graduate.tahunLulus).toEqual({ lte: '2024/2025' });
+    expect(where.graduate.tahunLulus).toEqual({ lte: '2024/2025', not: '' });
   });
 
   it('filter tahunLulus eksplisit menang atas jangkar', () => {

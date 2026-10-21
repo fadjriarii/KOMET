@@ -80,18 +80,22 @@ const COLUMNS = [
     label: 'IPK',
     headerClassName: 'w-[7%] text-center',
     cellClassName: 'text-center',
-    render: (row) => (
-      <Badge size="sm" variant={badgeVariantForPredikat(row.predikatLulus)} className="font-bold">
-        {typeof row.ipk === 'number' ? row.ipk.toFixed(2) : (row.ipk ?? '0.00')}
-      </Badge>
-    ),
+    render: (row) => {
+      const ipk =
+        row.ipk === null || row.ipk === undefined || row.ipk === '' ? NaN : Number(row.ipk);
+      return (
+        <Badge size="sm" variant={badgeVariantForPredikat(row.predikatLulus)} className="font-bold">
+          {Number.isFinite(ipk) ? ipk.toFixed(2) : '-'}
+        </Badge>
+      );
+    },
   },
   {
     key: 'sksLulus',
     label: 'SKS',
     headerClassName: 'w-[5%] text-center',
     cellClassName: 'text-center font-medium text-gray-700 text-xs',
-    render: (row) => `${row.sksLulus ?? '0'}`,
+    render: (row) => (row.sksLulus === null || row.sksLulus === undefined ? '-' : row.sksLulus),
   },
   {
     key: 'predikatLulus',
@@ -117,8 +121,12 @@ const COLUMNS = [
     headerClassName: 'w-[8%] text-center',
     cellClassName: 'text-center',
     render: (row) => (
-      <Badge size="sm" variant="success" className="justify-center text-xs">
-        <span>{row.statusKelulusan || 'Lulus'}</span>
+      <Badge
+        size="sm"
+        variant={row.statusKelulusan === 'Lulus' ? 'success' : 'default'}
+        className="justify-center text-xs"
+      >
+        <span>{row.statusKelulusan || '-'}</span>
       </Badge>
     ),
   },
@@ -133,24 +141,33 @@ export default function GraduateDataTable({
   pagination,
   onPageChange,
   isLoading = false,
+  error = null,
 }) {
+  const headerMeta =
+    error && rows.length === 0
+      ? 'Gagal memuat data'
+      : isLoading && rows.length === 0
+        ? 'Memuat…'
+        : `${formatNumber(pagination?.total || 0)} lulusan`;
+
   return (
     <DataTable
       title="Daftar Lulusan"
       description="Daftar identitas lulusan, capaian IPK, SKS lulus, dan predikat kelulusan."
-      headerMeta={`${formatNumber(pagination?.total || 0)} lulusan`}
+      headerMeta={headerMeta}
       columns={COLUMNS}
       rowNumber
       rowKey="nim"
       data={rows}
       isLoading={isLoading}
+      error={error}
       emptyTitle="Lulusan Tidak Ditemukan"
       emptyMessage="Tidak ada data lulusan yang cocok dengan filter yang dipilih."
       emptyIcon={null}
       pagination={pagination}
       onPageChange={onPageChange}
       tableClassName="table-fixed min-w-[850px]"
-      tableViewportClassName="overflow-x-hidden overflow-y-hidden"
+      tableViewportClassName="overflow-x-auto overflow-y-hidden custom-scrollbar"
       density="compact"
       className="min-h-[360px]"
     />

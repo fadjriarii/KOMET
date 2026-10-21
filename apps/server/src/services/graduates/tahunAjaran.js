@@ -45,16 +45,20 @@ function tahunAjaranStart(label) {
  * Filter `tahunLulus` eksplisit dari user selalu menang; kunci meta
  * `tahunAjaran` (bukan kolom Prisma) dibuang supaya tak bocor ke query.
  *
- * `totalLulusan.js` memakai pemetaan yang sama secara inline karena ia sekaligus
- * memberi label scope kartu; upgrade path: lipat ke helper ini bila pemakai
- * bertambah lagi.
+ * `resolveTahunAjaranScope` di `yearJenjangSeries.js` memakai pemetaan yang
+ * sama untuk kartu/modal yang sekaligus butuh label scope tahun.
  */
 function withTahunAjaranAnchor(whereFilter = {}) {
   const { tahunAjaran, ...rest } = whereFilter;
   const anchor = getTahunAjaranLabel(tahunAjaran);
   const explicit = rest.graduate?.tahunLulus ?? rest.tahunLulus;
   if (!anchor || explicit) return rest;
-  return { ...rest, graduate: { ...(rest.graduate || {}), tahunLulus: { lte: anchor } } };
+  // Baris manual tanpa tahun lulus tidak boleh lolos `lte` sebagai string
+  // kosong; ia tetap ada di tampilan tanpa jangkar.
+  return {
+    ...rest,
+    graduate: { ...(rest.graduate || {}), tahunLulus: { lte: anchor, not: '' } },
+  };
 }
 
 module.exports = { getTahunAjaranLabel, getTahunAjaran, tahunAjaranStart, withTahunAjaranAnchor };

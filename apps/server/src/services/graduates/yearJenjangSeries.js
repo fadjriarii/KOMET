@@ -21,7 +21,8 @@ const {
 } = require('../../utils/academicUtils');
 const { toArray } = require('@komet/shared/filterUtils');
 const { formatAcademicYearLabel } = require('@komet/shared/academicYear');
-const { getTahunAjaran, tahunAjaranStart } = require('./tahunAjaran');
+const { getRequestedJenjang } = require('./filterBuilder');
+const { getTahunAjaran, getTahunAjaranLabel, tahunAjaranStart } = require('./tahunAjaran');
 
 /**
  * Lima label ajaran ke belakang dari label terbaru di DB — hanya untuk opsi
@@ -84,6 +85,29 @@ function describeTahunAnchor(anchor) {
 }
 
 /**
+ * Satu titik resolusi scope tahun untuk kartu, modal, dan distribusi:
+ * `tahunLulus` eksplisit menang; tanpa itu `tahunAjaran` menjadi jangkar
+ * kumulatif `lte`. `tahunLulus` kosong (lima baris manual tanpa tahun) tidak
+ * ikut jangkar — string kosong tidak boleh lolos sebagai "lulus sebelum X".
+ */
+async function resolveTahunAjaranScope(whereFilter = {}) {
+  const { tahunAjaran, ...cleanFilter } = whereFilter;
+  const { scope, isDefault } = await resolveTahunScope(cleanFilter);
+  const where = withTahunScope(cleanFilter, scope);
+  const explicitTahun = cleanFilter.graduate?.tahunLulus ?? cleanFilter.tahunLulus;
+  const anchor = explicitTahun ? null : getTahunAjaranLabel(tahunAjaran);
+  if (anchor) where.graduate = { ...(where.graduate || {}), tahunLulus: { lte: anchor, not: '' } };
+  return {
+    cleanFilter,
+    where,
+    scope,
+    isDefault,
+    anchor,
+    tahunScope: anchor ? describeTahunAnchor(anchor) : describeTahunScope(scope, isDefault),
+  };
+}
+
+/**
  * Terapkan scope tahun ke relasi `graduate` — Student tak punya kolom
  * `tahunLulus`, jadi scope flat lama dipindah ke nesting (tak pernah dikirim
  * mentah ke Prisma). Tanpa pilihan user scope-nya undefined = seluruh populasi.
@@ -124,10 +148,8 @@ async function valuesByYearAndJenjang(whereFilter, { valueOf, missing }) {
 
   // Filter jenjang user menang; tanpanya = semua jenjang yang ada di populasi
   // (termasuk `Profesi`) — dibaca dari data, bukan daftar statis.
-  const requested = [
-    ...new Set((toArray(whereFilter.jenjang?.in ?? whereFilter.jenjang) || []).filter(Boolean)),
-  ];
-  const jenjangs = requested.length
+  const requested = getRequestedJenjang(whereFilter);
+  const jenjangs = requested?.length
     ? requested
     : [...new Set(students.map((s) => s.jenjang))].sort();
 
@@ -135,9 +157,8 @@ async function valuesByYearAndJenjang(whereFilter, { valueOf, missing }) {
   if (scope) {
     years = [...new Set((toArray(scope?.in ?? scope) || []).filter(Boolean))].sort();
   } else {
-    // Deret chart mengikuti cakupan kartu: seluruh tahun yang ada di populasi.
-    // Semua baris populasi punya relasi graduate (dijamin filterBuilder),
-    // sehingga tak ada lagi lulusan tanpa tahun yang dihitung di total saja.
+    // Deret chart hanya berisi tahun yang diketahui. Baris manual tanpa
+    // `tahunLulus` tetap masuk total kartu, tetapi tidak punya bucket tahun.
     years = [...new Set(students.map((s) => s.graduate?.tahunLulus).filter(Boolean))].sort();
   }
 
@@ -167,6 +188,7 @@ module.exports = {
   windowGraduateTrend,
   getGraduateLabelWindow,
   resolveTahunScope,
+  resolveTahunAjaranScope,
   describeTahunScope,
   describeTahunAnchor,
   withTahunScope,

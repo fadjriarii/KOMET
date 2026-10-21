@@ -52,21 +52,37 @@ function buildSuccessItems(ks = {}, selectedJenjang = [], fallbackS1Rate = null)
     }
     return [];
   }
-  const candidates = [
-    { label: 'S1', rate: rateOf('s1', fallbackS1Rate), angkatan: findSuccessAngkatan(ks, 's1') },
-    { label: 'S2', rate: rateOf('s2'), angkatan: findSuccessAngkatan(ks, 's2') },
-    ...Object.keys(ks ?? {})
-      .filter(
-        (key) =>
-          key !== 's1' && key !== 's2' && !key.toLowerCase().startsWith('angkatan') && ks[key],
-      )
-      .sort()
-      .map((key) => ({
-        label: key.toUpperCase(),
-        rate: ks[key],
+  // Lebih dari satu jenjang dipilih: jangan menambahkan jenjang yang tidak
+  // diminta. Tanpa pilihan (list kosong) = semua jenjang yang punya data.
+  const requested = list.map((item) => item.trim().toLowerCase());
+  const candidates = requested.length
+    ? requested.map((key) => ({
+        label:
+          key === 's1' || key === 's2'
+            ? key.toUpperCase()
+            : key.charAt(0).toUpperCase() + key.slice(1),
+        rate: rateOf(key, key === 's1' ? fallbackS1Rate : null),
         angkatan: findSuccessAngkatan(ks, key),
-      })),
-  ];
+      }))
+    : [
+        {
+          label: 'S1',
+          rate: rateOf('s1', fallbackS1Rate),
+          angkatan: findSuccessAngkatan(ks, 's1'),
+        },
+        { label: 'S2', rate: rateOf('s2'), angkatan: findSuccessAngkatan(ks, 's2') },
+        ...Object.keys(ks ?? {})
+          .filter(
+            (key) =>
+              key !== 's1' && key !== 's2' && !key.toLowerCase().startsWith('angkatan') && ks[key],
+          )
+          .sort()
+          .map((key) => ({
+            label: key.toUpperCase(),
+            rate: ks[key],
+            angkatan: findSuccessAngkatan(ks, key),
+          })),
+      ];
   return candidates.filter((item) => item.rate && item.angkatan);
 }
 function withRest(sentence, rest) {
@@ -135,6 +151,13 @@ export function useGraduateKpiDisplay(summaryData, isLoading, filterValues = {})
       status: filterValues.selectedStatusKelulusan,
       periode: filterValues.selectedPeriodeWisuda,
     });
+    // Keberhasilan studi hanya melihat kohort angkatan; status kelulusan dan
+    // periode wisuda adalah filter kejadian, bukan pembentuk kohort.
+    const successScope = describeScope({
+      faculty: filterValues.selectedFaculty,
+      prodi: filterValues.selectedProdi,
+      angkatan: filterValues.selectedAngkatan,
+    });
     // Pencarian bebas menempel di akhir setiap kalimat sebagai kalimat sendiri.
     const searchTail = searchSentence(filterValues.searchQuery);
     const withSearch = (sentence) => (searchTail ? `${sentence} ${searchTail}` : sentence);
@@ -166,9 +189,10 @@ export function useGraduateKpiDisplay(summaryData, isLoading, filterValues = {})
         .filter((key) => gpaByJenjang[key])
         .map((key) => `${formatDecimal(gpaByJenjang[key], 2)} (${key.toUpperCase()})`),
     ].filter(Boolean);
+    const gpaScopePhrase = summary.avgIpk?.tahunScope?.phrase || '';
     const baseGpa = `IPK rata-rata lulusan${scope.suffix} ${joinParts(
       withFallback(gpaSegmen, `${s1Gpa} (S1) dan ${s2Gpa} (S2)`),
-    )} dari skala 4.00.`;
+    )} dari skala 4.00${gpaScopePhrase ? ` ${gpaScopePhrase}` : ''}.`;
     const onTimeOverallFmt = formatPercentage(kpis.onTimeGraduationRateOverall, 1, '0.0%');
     const onTimeScopePhrase = summary.tepatWaktu?.tahunScope?.phrase || '';
     const onTimeScopeTail = onTimeScopePhrase ? ` ${onTimeScopePhrase}` : '';
@@ -209,27 +233,26 @@ export function useGraduateKpiDisplay(summaryData, isLoading, filterValues = {})
       filterValues.selectedJenjang,
       kpis.studySuccessRateS1,
     );
-    const successValueRaw =
-      successItems.length === 1
-        ? successItems[0].rate
-        : (successItems.find((item) => item.label === 'S1')?.rate ?? kpis.studySuccessRateS1);
+    const successValueRaw = successItems.length
+      ? (successItems.find((item) => item.label === 'S1')?.rate ?? successItems[0].rate)
+      : kpis.studySuccessRateS1;
     const successRateFmt = (rate) => formatPercentage(rate, 1, '0.0%');
     let baseStudySuccess;
     if (!successItems.length) {
       baseStudySuccess = withScope(
         withRest('Tingkat Kelulusan Akhir', jenjangContext),
-        scope.label,
+        successScope.label,
       );
     } else if (successItems.length === 1) {
       const [item] = successItems;
       const sentence = `${successRateFmt(item.rate)} mahasiswa Angkatan ${item.angkatan} (${item.label}) akhirnya lulus. ${SUCCESS_TAIL}`;
-      baseStudySuccess = scope.label ? `${scope.label}, ${sentence}` : sentence;
+      baseStudySuccess = successScope.label ? `${successScope.label}, ${sentence}` : sentence;
     } else {
       const parts = successItems.map(
         (item) => `${item.label} ${successRateFmt(item.rate)} (Angkatan ${item.angkatan})`,
       );
       const sentence = `Yang akhirnya lulus: ${joinParts(parts)}. ${SUCCESS_TAIL}`;
-      baseStudySuccess = scope.label ? `${scope.label}, ${sentence}` : sentence;
+      baseStudySuccess = successScope.label ? `${successScope.label}, ${sentence}` : sentence;
     }
     const successClause = studySuccessClause({
       tahunLulus: filterValues.selectedTahunLulus,

@@ -9,6 +9,8 @@ import {
   onTimeTabs,
   selectChartCohorts,
   studySuccessTabs,
+  tabsForSelectedJenjang,
+  withoutDefaultTahunLulus,
 } from '../src/modules/graduates/components/modals/graduateTrendConfig';
 import StudySuccessModal from '../src/modules/graduates/components/modals/StudySuccessModal';
 import { compactBarLayout } from '../src/components/common/charts/compactBarLayout';
@@ -150,9 +152,40 @@ describe('chart OnTime 5 cohort terakhir', () => {
     const { filters } = vi.mocked(useDetail).mock.calls.at(-1)[0];
     expect(filters.selectedTahunLulus).toEqual(['2022/2023']);
   });
+
+  it('Total dan GPA memakai jendela tahun untuk chart, tetapi kartu tetap default', async () => {
+    renderModal(TotalGraduatesModal, { selectedTahunLulus: ['2025/2026'] });
+    await waitFor(() => expect(useDetail).toHaveBeenCalled());
+    const totalCall = vi
+      .mocked(useDetail)
+      .mock.calls.find(([config]) => config.resourceKey === 'total-lulusan');
+    expect(totalCall[0].filters.selectedTahunLulus).toBeUndefined();
+
+    vi.mocked(useDetail).mockClear();
+    renderModal(GpaOverviewModal, { selectedTahunLulus: ['2025/2026'] });
+    await waitFor(() => expect(useDetail).toHaveBeenCalled());
+    const ipkCalls = vi
+      .mocked(useDetail)
+      .mock.calls.filter(([config]) => config.resourceKey === 'ipk-trend')
+      .map(([config]) => config.filters.selectedTahunLulus);
+    expect(ipkCalls).toContain(undefined);
+    expect(ipkCalls).toContainEqual(['2025/2026']);
+  });
+
+  it('helper menghormati pilihan tahun eksplisit', () => {
+    const filters = { selectedTahunLulus: ['2022/2023'], faculty: ['FST'] };
+    expect(withoutDefaultTahunLulus(filters, '2025/2026')).toBe(filters);
+    expect(withoutDefaultTahunLulus(filters, '2022/2023').selectedTahunLulus).toBeUndefined();
+  });
+
+  it('tab jenjang mengikuti pilihan filter', () => {
+    const tabs = [{ key: 's1' }, { key: 's2' }, { key: 'profesi' }];
+    expect(tabsForSelectedJenjang(tabs, ['Profesi']).map((tab) => tab.key)).toEqual(['profesi']);
+    expect(tabsForSelectedJenjang(tabs, [])).toHaveLength(3);
+  });
 });
 
-it('banner studySuccess menyebut filter non-kohort yang aktif', async () => {
+it('banner studySuccess menyebut filter non-kohort yang aktif tanpa memasukkannya ke cakupan', async () => {
   renderModal(StudySuccessModal, {
     selectedTahunLulus: ['2022/2023'],
     predikat: ['Cum Laude'],
@@ -162,6 +195,7 @@ it('banner studySuccess menyebut filter non-kohort yang aktif', async () => {
       'Filter tahun lulus dan status kelulusan tidak mengubah angka ini.',
     ),
   );
+  expect(document.body.textContent).not.toContain('Status Cum Laude,');
 });
 
 describe('trendBars Total Lulusan (grouped)', () => {

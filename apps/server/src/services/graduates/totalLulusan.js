@@ -11,10 +11,7 @@ const { getRequestedJenjang } = require('./filterBuilder');
 const {
   valuesByYearAndJenjang,
   windowGraduateTrend,
-  resolveTahunScope,
-  describeTahunScope,
-  describeTahunAnchor,
-  withTahunScope,
+  resolveTahunAjaranScope,
 } = require('./yearJenjangSeries');
 
 /**
@@ -24,32 +21,8 @@ const {
  * filterBuilder — bukan where Prisma) hanya berlaku tanpa `tahunLulus` dan
  * membuat scope kumulatif `lte` sampai label jangkar.
  */
-const AJARAN_PATTERN = /^(\d{4})\/(\d{4})$/;
-// ponytail: validasi label ditulis ulang di sini, bukan import shared, supaya
-// tanpa dependensi baru; ceiling: 1 pemakai. Upgrade path: pakai
-// `isValidAcademicYear` shared bila pemakai bertambah.
-const getAnchorLabel = (value) => {
-  if (typeof value !== 'string') return null;
-  const label = value.trim();
-  const match = AJARAN_PATTERN.exec(label);
-  if (!match || Number(match[1]) < 1900 || Number(match[2]) !== Number(match[1]) + 1) return null;
-  return label;
-};
-
 async function getTotalLulusan(whereFilter = {}) {
-  const cleanFilter = { ...whereFilter };
-  delete cleanFilter.tahunAjaran;
-  const anchor = getAnchorLabel(whereFilter.tahunAjaran);
-  const hasTahunLulus = cleanFilter.graduate?.tahunLulus ?? cleanFilter.tahunLulus;
-
-  const { scope, isDefault } = await resolveTahunScope(cleanFilter);
-  const where = withTahunScope({ ...cleanFilter }, scope);
-
-  let tahunScope = describeTahunScope(scope, isDefault);
-  if (anchor && !hasTahunLulus) {
-    where.graduate = { ...(where.graduate || {}), tahunLulus: { lte: anchor } };
-    tahunScope = describeTahunAnchor(anchor);
-  }
+  const { cleanFilter, where, tahunScope } = await resolveTahunAjaranScope(whereFilter);
 
   const rows = await prisma.student.groupBy({
     by: ['jenjang'],
@@ -57,7 +30,7 @@ async function getTotalLulusan(whereFilter = {}) {
     _count: true,
   });
 
-  const requested = getRequestedJenjang(whereFilter);
+  const requested = getRequestedJenjang(cleanFilter);
   const countOf = (jenjang) => rows.find((row) => row.jenjang === jenjang)?._count ?? 0;
   const pick = (jenjang) => (!requested || requested.includes(jenjang) ? countOf(jenjang) : null);
 

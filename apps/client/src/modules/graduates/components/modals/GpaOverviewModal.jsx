@@ -11,14 +11,30 @@ import { describeScope, searchSentence } from '../../utils/filterScope';
 import TrendBarChart from '../../../../components/common/charts/TrendBarChart';
 import DistributionChart from '../../../../components/common/charts/DistributionChart';
 import TrendChartTooltip from '../../../../components/common/charts/TrendChartTooltip';
-import { GPA_OVERVIEW_TABS } from './graduateTrendConfig';
+import { GPA_OVERVIEW_TABS, withoutDefaultTahunLulus } from './graduateTrendConfig';
 import { JENJANG_COLORS } from './totalTrendBars';
 
 const EMPTY_ITEMS = [];
 
 export default function GpaOverviewModal({ isOpen, onClose, originRect, data, filters }) {
   const { activeTab, handleTabChange, slideClass } = useTabTransition(GPA_OVERVIEW_TABS, 'tren');
+  const defaultTahunLulus = data?.filterOptions?.rollingYears?.[0];
+  const chartFilters = useMemo(
+    () => withoutDefaultTahunLulus(filters, defaultTahunLulus),
+    [filters, defaultTahunLulus],
+  );
 
+  const {
+    data: trendData,
+    isLoading: isTrendLoading,
+    error: trendError,
+  } = useDetail({
+    isOpen,
+    resourceKey: 'ipk-trend',
+    filters: chartFilters,
+    method: 'getIpkTrendDetail',
+    errorMessage: 'Gagal memuat rincian tren IPK lulusan',
+  });
   const {
     data: ipkData,
     isLoading,
@@ -57,23 +73,35 @@ export default function GpaOverviewModal({ isOpen, onClose, originRect, data, fi
   // Segmen jenjang bernilai 0 disembunyikan, hanya yang ada nilainya.
   const gpaSegments = useMemo(
     () => [
-      ...(kpis.averageGpaS1 ? [{ key: 's1', text: `${gpaS1} (Jenjang S1)` }] : []),
-      ...(kpis.averageGpaS2 ? [{ key: 's2', text: `${gpaS2} (Jenjang S2)` }] : []),
+      ...(kpis.averageGpaS1
+        ? [{ key: 's1', label: 'S1', value: gpaS1, text: `${gpaS1} (Jenjang S1)` }]
+        : []),
+      ...(kpis.averageGpaS2
+        ? [{ key: 's2', label: 'S2', value: gpaS2, text: `${gpaS2} (Jenjang S2)` }]
+        : []),
       ...Object.entries(gpaByJenjang)
         .filter(([key, value]) => key !== 's1' && key !== 's2' && value)
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([key, value]) => ({
           key,
+          label: key.toUpperCase(),
+          value: formatDecimal(value, 2, '0.00'),
           text: `${formatDecimal(value, 2, '0.00')} (Jenjang ${key.toUpperCase()})`,
         })),
     ],
     [gpaByJenjang, gpaS1, gpaS2, kpis.averageGpaS1, kpis.averageGpaS2],
   );
+  const gpaMain = gpaSegments[0];
+  const gpaSubLabel = gpaSegments
+    .slice(1)
+    .map((segment) => `${segment.label}: ${segment.value}`)
+    .join(', ');
   const ipkDetail = ipkData || {};
+  const trendDetail = trendData || ipkDetail;
 
   // Server mengirim satu deret per tahun untuk semua jenjang, terurut naik.
   // Bar IPK dinamis dari kunci baris pertama — S1/S2 tampil seperti semula.
-  const combinedTrend = ipkDetail.byYear || EMPTY_ITEMS;
+  const combinedTrend = trendDetail.byYear || EMPTY_ITEMS;
   const avgBars = useMemo(() => {
     const keys = Object.keys(combinedTrend[0] ?? {})
       .filter((key) => key !== 'tahun' && key.endsWith('AvgIpk'))
@@ -89,15 +117,10 @@ export default function GpaOverviewModal({ isOpen, onClose, originRect, data, fi
   }, [combinedTrend]);
   const avgTooltipRows = useMemo(
     () =>
-      avgBars.map((bar, index) => ({
+      avgBars.map((bar) => ({
         key: bar.dataKey,
         label: `Rata-rata ${bar.name}`,
-        colorClass:
-          index === 0
-            ? 'bg-digital-blue-600'
-            : index === 1
-              ? 'bg-digital-blue-400'
-              : 'bg-emerald-500',
+        color: bar.color,
         format: (val) => formatDecimal(val, 2),
       })),
     [avgBars],
@@ -117,9 +140,14 @@ export default function GpaOverviewModal({ isOpen, onClose, originRect, data, fi
               xDataKey="tahun"
               bars={avgBars}
               compactZeroBars
+              isLoading={isTrendLoading}
+              error={trendError}
               tooltipContent={<TrendChartTooltip titleKey="tahun" rows={avgTooltipRows} />}
             />
           </div>
+          <p className="text-[10px] text-gray-500 text-center">
+            Jendela 5 tahun terbaru; pilih Tahun Lulus spesifik untuk satu tahun.
+          </p>
         </div>
       ),
       rentang: (
@@ -184,7 +212,9 @@ export default function GpaOverviewModal({ isOpen, onClose, originRect, data, fi
       facultyList,
       gpaBandsList,
       isLoading,
+      isTrendLoading,
       prodiList,
+      trendError,
     ],
   );
 
@@ -221,8 +251,8 @@ export default function GpaOverviewModal({ isOpen, onClose, originRect, data, fi
             </div>
           }
           label="Rata-rata IPK"
-          value={gpaS1}
-          sublabel={`S2: ${gpaS2}`}
+          value={gpaMain?.value ?? gpaS1}
+          sublabel={gpaSubLabel || null}
         />
 
         <div className="flex-1 flex flex-col min-h-0">

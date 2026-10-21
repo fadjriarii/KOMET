@@ -14,12 +14,12 @@
 const prisma = require('../../config/prisma');
 const { countByPredikat } = require('../../utils/graduateUtils');
 const { rate } = require('../../utils/percentageUtils');
-const { resolveTahunScope, withTahunScope } = require('./yearJenjangSeries');
+const { resolveTahunAjaranScope } = require('./yearJenjangSeries');
 
 async function getGraduateDistribution(whereFilter) {
-  const { scope } = await resolveTahunScope(whereFilter);
+  const { where } = await resolveTahunAjaranScope(whereFilter);
   const students = await prisma.student.findMany({
-    where: withTahunScope(whereFilter, scope),
+    where,
     select: { graduate: { select: { ipk: true, predikatLulus: true } } },
   });
   const graduates = students.map((s) => s.graduate).filter(Boolean);

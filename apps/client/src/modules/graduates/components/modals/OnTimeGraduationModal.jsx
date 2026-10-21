@@ -8,7 +8,13 @@ import { formatPercentage } from '@komet/shared/formatters';
 import { useDetail } from '../../graduateQueries';
 import TrendBarChart from '../../../../components/common/charts/TrendBarChart';
 import TrendChartTooltip from '../../../../components/common/charts/TrendChartTooltip';
-import { onTimeTabs, selectChartCohorts, withBatas } from './graduateTrendConfig';
+import {
+  onTimeTabs,
+  selectChartCohorts,
+  tabsForSelectedJenjang,
+  withBatas,
+  withoutDefaultTahunLulus,
+} from './graduateTrendConfig';
 import { OUTCOME_COLORS } from './totalTrendBars';
 import { describeScope, searchSentence } from '../../utils/filterScope';
 
@@ -52,15 +58,26 @@ function CohortTrendChart({ cohorts, batas, isLoading, error }) {
                 {
                   key: 'onTimeCount',
                   label: 'Lulus Tepat Waktu',
-                  colorClass: 'bg-digital-blue-600',
+                  color: OUTCOME_COLORS.onTime,
                 },
-                { key: 'fastCount', label: 'Lulus Lebih Cepat', colorClass: 'bg-digital-blue-400' },
-                { key: 'lateCount', label: 'Lewat Batas Waktu', colorClass: 'bg-emerald-500' },
+                {
+                  key: 'fastCount',
+                  label: 'Lulus Lebih Cepat',
+                  color: OUTCOME_COLORS.fast,
+                },
+                {
+                  key: 'lateCount',
+                  label: 'Lewat Batas Waktu',
+                  color: OUTCOME_COLORS.late,
+                },
               ]}
             />
           }
         />
       </div>
+      <p className="text-[10px] text-gray-500 text-center">
+        Jendela 5 cohort terbaru; pilih Tahun Lulus spesifik untuk satu tahun.
+      </p>
     </div>
   );
 }
@@ -69,14 +86,10 @@ export default function OnTimeGraduationModal({ isOpen, onClose, originRect, dat
   // Tahun Lulus default = tahun terbaru; untuk chart itu jangkar jendela,
   // bukan filter satu tahun. Pilihan manual user tetap diteruskan.
   const defaultTahunLulus = data?.filterOptions?.rollingYears?.[0];
-  const detailFilters = useMemo(() => {
-    const selected = filters?.selectedTahunLulus;
-    if (!defaultTahunLulus || !Array.isArray(selected)) return filters;
-    if (selected.length !== 1 || selected[0] !== defaultTahunLulus) return filters;
-    const { selectedTahunLulus, ...rest } = filters;
-    void selectedTahunLulus;
-    return rest;
-  }, [filters, defaultTahunLulus]);
+  const detailFilters = useMemo(
+    () => withoutDefaultTahunLulus(filters, defaultTahunLulus),
+    [filters, defaultTahunLulus],
+  );
 
   const {
     data: detailData,
@@ -112,14 +125,21 @@ export default function OnTimeGraduationModal({ isOpen, onClose, originRect, dat
   }, [detailData]);
   // Tab hanya untuk jenjang yang datanya benar ada (batas hanya melabeli
   // angka) — kunci batas yatim tidak bisa membentuk tab S3 hantu.
+  const selectedJenjang = useMemo(() => filters?.jenjang || [], [filters?.jenjang]);
   const tabs = useMemo(
     () =>
-      onTimeTabs(
-        Object.fromEntries(Object.keys(cohortsByJenjang).map((key) => [key, batasByJenjang[key]])),
+      tabsForSelectedJenjang(
+        onTimeTabs(
+          Object.fromEntries(
+            Object.keys(cohortsByJenjang).map((key) => [key, batasByJenjang[key]]),
+          ),
+        ),
+        selectedJenjang,
       ),
-    [batasByJenjang, cohortsByJenjang],
+    [batasByJenjang, cohortsByJenjang, selectedJenjang],
   );
-  const { activeTab, handleTabChange, slideClass } = useTabTransition(tabs, 's1');
+  const initialTab = selectedJenjang.length === 1 ? selectedJenjang[0].toLowerCase() : 's1';
+  const { activeTab, handleTabChange, slideClass } = useTabTransition(tabs, initialTab);
 
   const kpis = data?.kpis || {};
   const { suffix: scopeSuffix } = describeScope({
@@ -257,13 +277,17 @@ export default function OnTimeGraduationModal({ isOpen, onClose, originRect, dat
                     lulus
                   </>
                 )}
-                , dihitung dari lulusan {onTimeScopePhrase}.{searchSuffix}
+                .{searchSuffix}
               </p>
             </div>
           }
           label="Tepat Waktu"
           value={onTimeOverall}
-          sublabel={`S1: ${onTimeS1}, S2: ${onTimeS2}`}
+          sublabel={
+            onTimeSegments.length
+              ? onTimeSegments.map((segment) => `${segment.jenjang}: ${segment.value}`).join(', ')
+              : `S1: ${onTimeS1}, S2: ${onTimeS2}`
+          }
         />
 
         <div className="flex-1 flex flex-col min-h-0">

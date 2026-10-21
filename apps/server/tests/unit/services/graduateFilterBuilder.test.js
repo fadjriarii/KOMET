@@ -46,6 +46,15 @@ describe('graduate filter builder', () => {
     expect(getRequestedJenjang({ jenjang: 'D3' })).toEqual(['D3']);
   });
 
+  it('menormalkan kapitalisasi jenjang tanpa mengubah ejaan data', () => {
+    expect(getRequestedJenjang({ jenjang: 's1' })).toEqual(['S1']);
+    expect(getRequestedJenjang({ jenjang: 'profesi' })).toEqual(['Profesi']);
+    expect(getRequestedJenjang({ jenjang: ['s2', 'PROFESI'] })).toEqual(['S2', 'Profesi']);
+    expect(buildGraduateFilter({ jenjang: ['s1', 'profesi'] }).jenjang).toEqual({
+      in: ['S1', 'Profesi'],
+    });
+  });
+
   it('periode wisuda Ganjil/Genap = akhiran kode seperti periode masuk', () => {
     expect(buildGraduateFilter({ periodeWisuda: 'Ganjil' }).graduate.periodeWisuda).toEqual({
       endsWith: '1',

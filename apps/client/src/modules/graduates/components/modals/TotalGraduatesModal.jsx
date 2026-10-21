@@ -13,7 +13,7 @@ import { jenjangName, trendBars } from './totalTrendBars';
 import TrendBarChart from '../../../../components/common/charts/TrendBarChart';
 import DistributionChart from '../../../../components/common/charts/DistributionChart';
 import TrendChartTooltip from '../../../../components/common/charts/TrendChartTooltip';
-import { TOTAL_GRADUATE_TABS } from './graduateTrendConfig';
+import { TOTAL_GRADUATE_TABS, withoutDefaultTahunLulus } from './graduateTrendConfig';
 
 const EMPTY_ITEMS = [];
 
@@ -58,6 +58,11 @@ function totalTableColumns(rows) {
 
 export default function TotalGraduatesModal({ isOpen, onClose, originRect, data, filters }) {
   const { activeTab, handleTabChange, slideClass } = useTabTransition(TOTAL_GRADUATE_TABS, 'tren');
+  const defaultTahunLulus = data?.filterOptions?.rollingYears?.[0];
+  const chartFilters = useMemo(
+    () => withoutDefaultTahunLulus(filters, defaultTahunLulus),
+    [filters, defaultTahunLulus],
+  );
 
   const {
     data: totalData,
@@ -66,7 +71,7 @@ export default function TotalGraduatesModal({ isOpen, onClose, originRect, data,
   } = useDetail({
     isOpen,
     resourceKey: 'total-lulusan',
-    filters,
+    filters: chartFilters,
     method: 'getTotalLulusanDetail',
     errorMessage: 'Gagal memuat tren total lulusan',
   });
@@ -99,10 +104,10 @@ export default function TotalGraduatesModal({ isOpen, onClose, originRect, data,
   const columns = useMemo(() => totalTableColumns(combinedTrend), [combinedTrend]);
   const tooltipRows = useMemo(
     () =>
-      bars.map((bar, index) => ({
+      bars.map((bar) => ({
         key: bar.dataKey,
         label: bar.name,
-        colorClass: index < 2 ? `bg-digital-blue-${index === 0 ? 600 : 400}` : 'bg-emerald-500',
+        color: bar.color,
       })),
     [bars],
   );
@@ -134,6 +139,8 @@ export default function TotalGraduatesModal({ isOpen, onClose, originRect, data,
               xDataKey="tahun"
               bars={bars}
               compactZeroBars
+              isLoading={isLoadingTotal}
+              error={totalError}
               tooltipContent={
                 <TrendChartTooltip
                   titleKey="tahun"
@@ -143,6 +150,9 @@ export default function TotalGraduatesModal({ isOpen, onClose, originRect, data,
               }
             />
           </div>
+          <p className="text-[10px] text-gray-500 text-center">
+            Jendela 5 tahun terbaru; pilih Tahun Lulus spesifik untuk satu tahun.
+          </p>
         </div>
       ),
       predikat: (
@@ -205,11 +215,11 @@ export default function TotalGraduatesModal({ isOpen, onClose, originRect, data,
               <p>
                 Menampilkan{' '}
                 <strong className="text-digital-blue-900 font-bold">
-                  {kpis.totalGraduates || 0} lulusan{scopeSuffix}
+                  {formatNumber(kpis.totalGraduates ?? 0)} lulusan{scopeSuffix}
                 </strong>{' '}
                 yang menyelesaikan studi{' '}
                 {kpis.totalScopePhrase || 'di seluruh tahun akademik tercatat'}. Terdiri dari{' '}
-                <strong>{composition || '0 lulusan'}</strong>. Angka ini mengikuti filter yang
+                <strong>{composition || '0 lulusan'}</strong>. Ringkasan ini mengikuti filter yang
                 sedang aktif dan mencakup seluruh jenjang pada cakupan tersebut.{searchSuffix}
               </p>
             </div>

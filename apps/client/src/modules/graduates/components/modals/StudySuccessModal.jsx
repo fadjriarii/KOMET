@@ -10,7 +10,12 @@ import EmptyState from '../../../../components/common/feedback/EmptyState';
 import { useDetail } from '../../graduateQueries';
 import TrendBarChart from '../../../../components/common/charts/TrendBarChart';
 import TrendChartTooltip from '../../../../components/common/charts/TrendChartTooltip';
-import { hasStudySuccessData, studySuccessTabs, withBatas } from './graduateTrendConfig';
+import {
+  hasStudySuccessData,
+  studySuccessTabs,
+  tabsForSelectedJenjang,
+  withEvaluationLag,
+} from './graduateTrendConfig';
 import { JENJANG_COLORS } from './totalTrendBars';
 import { describeScope, searchSentence, studySuccessClause } from '../../utils/filterScope';
 
@@ -42,7 +47,7 @@ function CohortTrendChart({ cohorts, batas, isLoading, error }) {
           bars={[
             {
               dataKey: 'successCount',
-              name: withBatas('Mahasiswa Lulus', batas, 'Maks'),
+              name: withEvaluationLag('Mahasiswa Lulus', batas),
               color: JENJANG_COLORS[0],
               labelKey: 'successCount',
             },
@@ -60,14 +65,17 @@ function CohortTrendChart({ cohorts, batas, isLoading, error }) {
                 {
                   key: 'successCount',
                   label: 'Berhasil Lulus',
-                  colorClass: 'bg-digital-blue-600',
+                  color: JENJANG_COLORS[0],
                 },
-                { key: 'intake', label: 'Total Intake', colorClass: 'bg-digital-blue-400' },
+                { key: 'intake', label: 'Total Intake', color: JENJANG_COLORS[1] },
               ]}
             />
           }
         />
       </div>
+      <p className="text-[10px] text-gray-500 text-center">
+        Lima angkatan terbaru yang sudah melewati masa evaluasi; pilih angkatan untuk kohort lain.
+      </p>
     </div>
   );
 }
@@ -98,6 +106,10 @@ export default function StudySuccessModal({ isOpen, onClose, originRect, data, f
   }, [detailData]);
   const batasS1 = batasByJenjang.s1;
   const batasS2 = batasByJenjang.s2;
+  const selectedJenjang = useMemo(
+    () => (Array.isArray(filters?.jenjang) ? filters.jenjang.filter(Boolean) : []),
+    [filters],
+  );
 
   const s1Cohorts = useMemo(() => detailData?.s1 || [], [detailData]);
   const s2Cohorts = useMemo(() => detailData?.s2 || [], [detailData]);
@@ -120,14 +132,18 @@ export default function StudySuccessModal({ isOpen, onClose, originRect, data, f
   // Tab hanya untuk jenjang yang datanya benar ada (batas hanya melabeli
   // angka) — kunci batas yatim tidak bisa membentuk tab S3 hantu.
   const tabs = useMemo(
-    () => studySuccessTabs(Object.fromEntries(cohortKeys.map((key) => [key, batasByJenjang[key]]))),
-    [batasByJenjang, cohortKeys],
+    () =>
+      tabsForSelectedJenjang(
+        studySuccessTabs(Object.fromEntries(cohortKeys.map((key) => [key, batasByJenjang[key]]))),
+        selectedJenjang,
+      ),
+    [batasByJenjang, cohortKeys, selectedJenjang],
   );
-  const { activeTab, handleTabChange, slideClass } = useTabTransition(tabs, 's1');
+  const initialTab = selectedJenjang.length === 1 ? selectedJenjang[0].toLowerCase() : 's1';
+  const { activeTab, handleTabChange, slideClass } = useTabTransition(tabs, initialTab);
 
   const kpis = data?.kpis || {};
   // Satu jenjang terpilih = banner menceritakan jenjang itu; selain itu S1.
-  const selectedJenjang = Array.isArray(filters?.jenjang) ? filters.jenjang.filter(Boolean) : [];
   const bannerKey = selectedJenjang.length === 1 ? selectedJenjang[0].toLowerCase() : 's1';
   const bannerCanon = bannerKey.charAt(0).toUpperCase() + bannerKey.slice(1);
   const bannerRate =
@@ -139,13 +155,14 @@ export default function StudySuccessModal({ isOpen, onClose, originRect, data, f
   // Angkatan evaluasi dibaca dari payload chart yang sama, bukan dari cache
   // summary — dialog tidak boleh mencampur dua sumber untuk satu fakta.
   const angkatanEvaluasi =
-    detailData?.[`angkatanEvaluasi${bannerCanon}`] ?? detailData?.angkatanEvaluasiS1;
+    detailData?.[`angkatanEvaluasi${bannerCanon}`] ??
+    (bannerKey === 's1' ? detailData?.angkatanEvaluasiS1 : null);
+  // Keberhasilan studi hanya mengikuti filter kohort; periode/predikat/tahun
+  // lulus adalah filter kejadian dan tidak boleh muncul sebagai cakupan kartu.
   const { suffix: scopeSuffix } = describeScope({
     faculty: filters?.faculty,
     prodi: filters?.prodi,
     angkatan: filters?.selectedAngkatan,
-    status: filters?.predikat,
-    periode: filters?.periodeWisuda,
   });
   const searchTail = searchSentence(filters?.search);
   const searchSuffix = searchTail ? ` ${searchTail}` : '';
@@ -195,8 +212,8 @@ export default function StudySuccessModal({ isOpen, onClose, originRect, data, f
       title="Rincian Keberhasilan Studi"
       subtitle={
         batasS1 && batasS2
-          ? `Tingkat keberhasilan penyelesaian studi dihitung pada batas masa studi maksimal (S1: ${batasS1} tahun, S2: ${batasS2} tahun)`
-          : 'Tingkat keberhasilan penyelesaian studi dihitung pada batas masa studi maksimal'
+          ? `Evaluasi keberhasilan studi setelah masa evaluasi (S1: ${batasS1} tahun, S2: ${batasS2} tahun sejak angkatan masuk)`
+          : 'Evaluasi keberhasilan studi setelah masa evaluasi masing-masing jenjang'
       }
       maxWidth="max-w-4xl"
       originRect={originRect}

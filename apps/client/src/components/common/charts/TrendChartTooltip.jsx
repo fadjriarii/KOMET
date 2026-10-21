@@ -27,17 +27,22 @@ export default function TrendChartTooltip({
         <p className="font-bold text-gray-800">{item[titleKey]}</p>
         {titleAccessory?.(item)}
       </div>
-      {rows.map(({ key, label, colorClass, format, indicatorClassName = 'w-3 h-3 rounded-sm' }) => (
-        <div key={key} className="flex items-center justify-between gap-4 mb-1">
-          <span className="flex items-center gap-1.5 text-gray-500">
-            <span className={`inline-block ${indicatorClassName} ${colorClass}`} />
-            {label}
-          </span>
-          <span className="font-semibold text-gray-800">
-            {format ? format(item[key], item) : `${formatNumber(item[key])} mhs`}
-          </span>
-        </div>
-      ))}
+      {rows.map(
+        ({ key, label, colorClass, color, format, indicatorClassName = 'w-3 h-3 rounded-sm' }) => (
+          <div key={key} className="flex items-center justify-between gap-4 mb-1">
+            <span className="flex items-center gap-1.5 text-gray-500">
+              <span
+                className={`inline-block ${indicatorClassName} ${colorClass || ''}`}
+                style={color ? { backgroundColor: color } : undefined}
+              />
+              {label}
+            </span>
+            <span className="font-semibold text-gray-800">
+              {format ? format(item[key], item) : `${formatNumber(item[key])} mhs`}
+            </span>
+          </div>
+        ),
+      )}
       {footer && (
         <div className="flex items-center justify-between gap-4 mt-2 pt-2 border-t border-gray-100">
           <span className="text-gray-500 font-medium">{footer.label}</span>

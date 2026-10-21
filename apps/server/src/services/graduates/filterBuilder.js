@@ -32,9 +32,18 @@ const {
  * Tanpa filter jenjang: null = seluruh populasi (pemanggil tidak menyaring).
  * Nilai tak dikenal dikembalikan apa adanya — server tidak menebak maksud user.
  */
+// Nilai kanonis mengikuti ejaan yang dipakai data SEVIMA (`Profesi`, bukan
+// `PROFESI`). URL bebas mengirim huruf kecil; jangan sampai filter cocok
+// dengan nol baris hanya karena beda kapitalisasi.
+const CANONICAL_JENJANG = { S1: 'S1', S2: 'S2', S3: 'S3', PROFESI: 'Profesi', D3: 'D3', D4: 'D4' };
+const normalizeJenjang = (jenjang) => {
+  const raw = String(jenjang ?? '').trim();
+  return CANONICAL_JENJANG[raw.toUpperCase()] ?? raw;
+};
+
 function getRequestedJenjang(whereFilter = {}) {
   const requested = toArray(whereFilter.jenjang?.in ?? whereFilter.jenjang) || [];
-  return requested.length ? [...new Set(requested)] : null;
+  return requested.length ? [...new Set(requested.map(normalizeJenjang))] : null;
 }
 
 function includesJenjang(whereFilter, jenjang, knownJenjangs = null) {
@@ -117,7 +126,8 @@ function buildGraduateFilter(query) {
   // ADA TIDAKNYA baris graduate (asal `/kelulusan`), bukan oleh status
   // keaktifan mahasiswa — `NOT: { graduate: null }` = "punya catatan kelulusan".
   const where = { NOT: { graduate: null } };
-  addInFilter(where, 'jenjang', jenjang);
+  const jenjangValues = toArray(jenjang)?.map(normalizeJenjang);
+  addInFilter(where, 'jenjang', jenjangValues);
   addInFilter(where, 'programStudi', programStudi);
   addInFilter(where, 'fakultas', fakultas);
   // Angkatan = label ajaran penuh: pencocokan persis seperti tab Student.

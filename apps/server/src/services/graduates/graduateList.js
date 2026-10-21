@@ -9,7 +9,7 @@
  */
 
 const prisma = require('../../config/prisma');
-const { calculatePredikat } = require('../../utils/graduateUtils');
+const { calculatePredikat, UNCLASSIFIED_PREDIKAT } = require('../../utils/graduateUtils');
 const { paginateList } = require('../../utils/paginationUtils');
 const { withTahunAjaranAnchor } = require('./tahunAjaran');
 const { TABLE_LIMIT } = require('@komet/shared/constants');
@@ -66,9 +66,10 @@ async function getGraduateList(whereFilter, page = 1, limit = TABLE_LIMIT) {
       // Status terkini berasal dari data, bukan label yang dikarang per baris.
       statusKeaktifan: s.statusKeaktifan ?? null,
       // Label resmi dari SK yudisium; ambang IPK hanya dipakai untuk baris yang
-      // belum disinkron ulang sejak kolom `predikatLulus` ada.
-      predikatLulus: g?.predikatLulus || calculatePredikat(g?.ipk),
-      statusKelulusan: g?.statusKelulusan ?? 'Lulus',
+      // belum disinkron ulang sejak kolom `predikatLulus` ada. Label yang sama
+      // dengan agregasi distribusi supaya baris dan slice chart tidak berbeda.
+      predikatLulus: g?.predikatLulus || calculatePredikat(g?.ipk) || UNCLASSIFIED_PREDIKAT,
+      statusKelulusan: g?.statusKelulusan ?? null,
     };
   });
 
