@@ -5,6 +5,7 @@ import TotalGraduatesModal from '../src/modules/graduates/components/modals/Tota
 import GpaOverviewModal from '../src/modules/graduates/components/modals/GpaOverviewModal';
 import OnTimeGraduationModal from '../src/modules/graduates/components/modals/OnTimeGraduationModal';
 import StudySuccessModal from '../src/modules/graduates/components/modals/StudySuccessModal';
+import { compactBarLayout } from '../src/modules/graduates/components/modals/compactBarLayout';
 import { useDetail } from '../src/modules/graduates/graduateQueries';
 
 vi.mock('../src/modules/graduates/graduateQueries', () => ({
@@ -121,21 +122,84 @@ it('banner studySuccess menyebut filter non-kohort yang aktif', async () => {
   );
 });
 
-describe('trendBars Total Lulusan (stacked)', () => {
-  it('satu segmen per jenjang, S1 dulu, warna beda, tanpa kunci statis', async () => {
+describe('trendBars Total Lulusan (grouped)', () => {
+  it('satu batang per jenjang, S1 dulu, warna beda, tanpa stackId', async () => {
     const { trendBars } = await import('../src/modules/graduates/components/modals/totalTrendBars');
     const bars = trendBars([
       { tahun: '2025/2026', s1Count: 40, s2Count: 20, profesiCount: 5, total: 65 },
     ]);
     expect(bars.map((bar) => bar.dataKey)).toEqual(['s1Count', 'profesiCount', 's2Count']);
     expect(new Set(bars.map((bar) => bar.color)).size).toBe(3);
-    for (const bar of bars) expect(bar.stackId).toBe('total-per-tahun');
+    for (const bar of bars) {
+      expect(bar.stackId).toBeUndefined();
+      expect(bar.labelPosition).toBe('top');
+    }
   });
 
-  it('jenjang baru (S3) otomatis jadi segmen keempat', async () => {
+  it('jenjang baru (S3) otomatis jadi batang keempat', async () => {
     const { trendBars } = await import('../src/modules/graduates/components/modals/totalTrendBars');
     const bars = trendBars([{ tahun: '2026/2027', s1Count: 1, s3Count: 2, total: 3 }]);
     expect(bars.map((bar) => bar.dataKey)).toEqual(['s1Count', 's3Count']);
     expect(bars.at(-1).name).toContain('S3');
+    expect(bars.every((bar) => bar.stackId === undefined)).toBe(true);
+  });
+
+  it('jenjang yang seluruh periode nol tidak membuat seri kosong', async () => {
+    const { trendBars } = await import('../src/modules/graduates/components/modals/totalTrendBars');
+    const bars = trendBars([
+      { tahun: '2021/2022', s1Count: 10, s2Count: 2, profesiCount: 0, total: 12 },
+      { tahun: '2022/2023', s1Count: 12, s2Count: 3, profesiCount: 0, total: 15 },
+    ]);
+    expect(bars.map((bar) => bar.dataKey)).toEqual(['s1Count', 's2Count']);
+  });
+});
+
+describe('compactBarLayout', () => {
+  const bars = [{ dataKey: 's1Count' }, { dataKey: 'profesiCount' }, { dataKey: 's2Count' }];
+
+  it('menghapus slot nol dan merapatkan batang yang tersisa', () => {
+    const payload = { s1Count: 153, profesiCount: 0, s2Count: 2 };
+    const s1 = compactBarLayout({ bars, payload, dataKey: 's1Count', x: 100, width: 20 });
+    const s2 = compactBarLayout({ bars, payload, dataKey: 's2Count', x: 140, width: 20 });
+
+    expect(s1).toEqual({ x: 111, width: 18 });
+    expect(s2).toEqual({ x: 131, width: 18 });
+    expect(s2.x - (s1.x + s1.width)).toBe(2);
+  });
+
+  it('mengembalikan null untuk batang bernilai nol', () => {
+    expect(
+      compactBarLayout({
+        bars,
+        payload: { s1Count: 10, profesiCount: 0, s2Count: 2 },
+        dataKey: 'profesiCount',
+        x: 120,
+        width: 20,
+      }),
+    ).toBeNull();
+  });
+
+  it('tidak menggeser batang saat semua jenjang terisi', () => {
+    const payload = { s1Count: 10, profesiCount: 3, s2Count: 2 };
+    expect(compactBarLayout({ bars, payload, dataKey: 's1Count', x: 100, width: 20 })).toEqual({
+      x: 101,
+      width: 18,
+    });
+    expect(compactBarLayout({ bars, payload, dataKey: 's2Count', x: 140, width: 20 })).toEqual({
+      x: 141,
+      width: 18,
+    });
+  });
+
+  it('menengahkan satu batang yang tersisa', () => {
+    expect(
+      compactBarLayout({
+        bars,
+        payload: { s1Count: 10, profesiCount: 0, s2Count: 0 },
+        dataKey: 's1Count',
+        x: 100,
+        width: 20,
+      }),
+    ).toEqual({ x: 121, width: 18 });
   });
 });

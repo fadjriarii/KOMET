@@ -14,20 +14,20 @@ const JENJANG_LABEL = { s1: 'S1', s2: 'S2' };
 export const jenjangName = (key) => JENJANG_LABEL[key] ?? key.toUpperCase();
 
 /**
- * Satu batang per tahun dibagi segmen per jenjang (stacked): kunci dinamis
- * sehingga jenjang baru otomatis jadi segmen berikutnya. S1 selalu dulu,
- * sisanya alfabetis. Label di tengah segmen, total di tooltip + tab Tabel.
+ * Satu batang per jenjang, berdampingan dalam kelompok tahun ajaran yang sama.
+ * Kunci dinamis sehingga jenjang baru otomatis jadi batang berikutnya. S1 selalu
+ * dulu, sisanya alfabetis. Label di atas batang, total di tooltip + tab Tabel.
  */
 export function trendBars(rows) {
   const jenjangKeys = Object.keys(rows[0] ?? {})
     .filter((key) => key !== 'tahun' && key !== 'total' && key.endsWith('Count'))
+    .filter((key) => rows.some((row) => Number(row?.[key]) > 0))
     .sort((a, b) => (a === 's1Count' ? -1 : b === 's1Count' ? 1 : a.localeCompare(b)));
   return jenjangKeys.map((key, index) => ({
     dataKey: key,
     name: `Lulusan ${jenjangName(key.replace(/Count$/, ''))}`,
     color: JENJANG_COLORS[index % JENJANG_COLORS.length],
     labelKey: key,
-    labelPosition: 'center',
-    stackId: 'total-per-tahun',
+    labelPosition: 'top',
   }));
 }

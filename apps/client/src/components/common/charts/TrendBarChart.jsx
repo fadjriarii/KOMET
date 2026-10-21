@@ -26,6 +26,7 @@ export default function TrendBarChart({
   xAngle = -25,
   tooltipContent,
   legendHeight = 36,
+  barGap = 4,
   isLoading = false,
   error = null,
 }) {
@@ -50,7 +51,7 @@ export default function TrendBarChart({
 
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data} margin={{ top: 12, right: 24, left: 4, bottom: 44 }}>
+      <BarChart data={data} barGap={barGap} margin={{ top: 12, right: 24, left: 4, bottom: 44 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
         <XAxis
           dataKey={xDataKey}
@@ -87,6 +88,7 @@ export default function TrendBarChart({
             radius={bar.stackId ? [0, 0, 0, 0] : [4, 4, 0, 0]}
             maxBarSize={bar.maxBarSize || 44}
             animationDuration={800}
+            shape={bar.shape}
             {...(bar.stackId ? { stackId: bar.stackId } : null)}
           >
             {bar.stackId

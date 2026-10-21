@@ -136,7 +136,6 @@ export default function GpaOverviewModal({ isOpen, onClose, originRect, data, fi
             emptyTitle="Tidak Ada Data Rentang IPK"
             emptyDescription="Belum ada data distribusi rentang IPK dari backend."
             yAxisWidth={140}
-            useMultiColor={true}
           />
         </div>
       ),

@@ -22,7 +22,11 @@ export default function DistributionBarChart({
   tooltipContent,
   labelFormatter,
 }) {
-  const chartItems = Array.isArray(items) ? items : [];
+  // Kategori bernilai 0 tidak perlu memakan baris: chart distribusi hanya
+  // menampilkan kelompok yang benar-benar punya data.
+  const chartItems = (Array.isArray(items) ? items : []).filter(
+    (item) => Number(item?.[dataKey]) > 0,
+  );
   if (isLoading || error || !chartItems.length) {
     return (
       <DistributionStates
