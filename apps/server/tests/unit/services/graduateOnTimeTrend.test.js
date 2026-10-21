@@ -35,13 +35,19 @@ function row(jenjang, tahunLulus, duration) {
 const rows = (jenjang, years, duration) => years.map((year) => row(jenjang, year, duration));
 
 function filterByScope(rowsToFilter, where) {
+  let filtered = rowsToFilter;
+  const angkatan = where?.angkatan;
+  if (angkatan) {
+    const labels = angkatan.in ?? (Array.isArray(angkatan) ? angkatan : [angkatan]);
+    filtered = filtered.filter((item) => labels.includes(item.angkatan));
+  }
   const scope = where?.graduate?.tahunLulus;
-  if (!scope) return rowsToFilter;
+  if (!scope) return filtered;
   if (scope.lte) {
-    return rowsToFilter.filter((item) => item.graduate.tahunLulus <= scope.lte);
+    return filtered.filter((item) => item.graduate.tahunLulus <= scope.lte);
   }
   const labels = scope.in ?? (Array.isArray(scope) ? scope : [scope]);
-  return rowsToFilter.filter((item) => labels.includes(item.graduate.tahunLulus));
+  return filtered.filter((item) => labels.includes(item.graduate.tahunLulus));
 }
 
 function stub(rowsToStub) {
@@ -111,5 +117,56 @@ describe('cohort tepat waktu per jenjang', () => {
     expect(detail.s1.map((item) => item.tahunLulusTepat)).toEqual([
       2018, 2019, 2020, 2021, 2022, 2023, 2024,
     ]);
+  });
+
+  it('filter angkatan memakai angkatan riil, bukan tahun lulus', async () => {
+    stub([row('S1', '2023/2024', 2), row('S1', '2024/2025', 3), row('S1', '2025/2026', 4)]);
+    const detail = await getTepatWaktuByYear({ angkatan: { in: ['2021/2022'] } });
+
+    expect(detail.s1).toEqual([
+      expect.objectContaining({
+        cohort: 2021,
+        cohortLabel: 'Angkatan 2021/2022',
+        tahunLulusTepat: 2025,
+        fastCount: 2,
+        onTimeCount: 1,
+        lateCount: 0,
+        total: 3,
+        rate: 100,
+      }),
+    ]);
+  });
+
+  it('filter tahun lulus menampilkan tiap angkatan riil yang lulus', async () => {
+    stub([
+      row('S1', '2021/2022', 5),
+      row('S1', '2021/2022', 4),
+      row('S1', '2021/2022', 3),
+      row('S1', '2021/2022', 2),
+    ]);
+    const detail = await getTepatWaktuByYear({
+      graduate: { tahunLulus: { in: ['2021/2022'] } },
+    });
+
+    expect(
+      detail.s1.map(({ cohortLabel, fastCount, onTimeCount, lateCount }) => ({
+        cohortLabel,
+        fastCount,
+        onTimeCount,
+        lateCount,
+      })),
+    ).toEqual([
+      { cohortLabel: 'Angkatan 2016/2017', fastCount: 0, onTimeCount: 0, lateCount: 1 },
+      { cohortLabel: 'Angkatan 2017/2018', fastCount: 0, onTimeCount: 1, lateCount: 0 },
+      { cohortLabel: 'Angkatan 2018/2019', fastCount: 1, onTimeCount: 0, lateCount: 0 },
+      { cohortLabel: 'Angkatan 2019/2020', fastCount: 1, onTimeCount: 0, lateCount: 0 },
+    ]);
+  });
+
+  it('tanpa filter eksplisit, kohort yang belum mencapai tahun lulus standar disembunyikan', async () => {
+    stub([row('S1', '2025/2026', 2), row('S1', '2025/2026', 4)]);
+    const detail = await getTepatWaktuByYear({});
+
+    expect(detail.s1.map((item) => item.cohortLabel)).toEqual(['Angkatan 2021/2022']);
   });
 });

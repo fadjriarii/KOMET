@@ -67,8 +67,17 @@ describe('kesiapan S3', () => {
     expect(card.s3).toBe(50);
     const detail = await getTepatWaktuByYear({ jenjang: { in: ['S3'] } });
     expect(detail.batasS3).toBe(3);
-    expect(detail.s3).toHaveLength(1);
-    expect(detail.s3[0]).toMatchObject({ onTimeCount: 1, lateCount: 1, rate: 50 });
+    expect(detail.s3).toHaveLength(2);
+    expect(detail.s3.find((row) => row.cohortLabel === 'Angkatan 2020/2021')).toMatchObject({
+      onTimeCount: 1,
+      lateCount: 0,
+      rate: 100,
+    });
+    expect(detail.s3.find((row) => row.cohortLabel === 'Angkatan 2019/2020')).toMatchObject({
+      onTimeCount: 0,
+      lateCount: 1,
+      rate: 0,
+    });
   });
 
   it('keberhasilan studi S3 memakai lag 6 (evaluasi angkatan 2019/2020)', async () => {

@@ -36,6 +36,12 @@ const lamaStudi = (student, tahunLulusLabel) => {
   return tahunMasuk === null || tahunLulusStart === null ? null : tahunLulusStart - tahunMasuk;
 };
 
+// Kohort chart = angkatan riil yang difilter user. `getStudyStartYear` dipanggil
+// dengan angkatan saja supaya `periodeMasuk` tidak menggeser label; periode
+// hanya jadi fallback bila angkatan kosong.
+const cohortStartFor = (student) =>
+  getStudyStartYear({ angkatan: student.angkatan }) ?? getStudyStartYear(student);
+
 const batasFor = (jenjang) => BATAS_STUDI_TEPAT_WAKTU[String(jenjang ?? '').toUpperCase()] ?? null;
 
 /**
@@ -127,9 +133,10 @@ async function getTepatWaktu(whereFilter) {
  * [{ cohort, cohortLabel, tahunLulusTepat, fastCount, onTimeCount, lateCount,
  *    unknownCount, rate, total }]
  *
- * `tahunLulus` di DB adalah label ajaran, jadi iterasi memakai label; `cohort`
- * dan `tahunLulusTepat` tetap angka tahun mulai (start) untuk kompatibilitas,
- * `cohortLabel` verbatim `Angkatan YYYY/YYYY` seperti dibaca modal.
+ * Baris dikelompokkan menurut `angkatan` riil, bukan `tahunLulus`: filter
+ * angkatan harus menghasilkan satu bar, sedangkan filter tahun lulus boleh
+ * menghasilkan beberapa angkatan yang lulus pada tahun itu. `tahunLulusTepat`
+ * adalah tahun lulus standar (`cohort + batas`), bukan tahun lulus aktual.
  *
  * `rate` dihitung atas kohort yang lama studinya bisa ditentukan; baris tanpa
  * `periodeMasuk`/`angkatan` dilaporkan sebagai `unknownCount`, tidak dihitung
@@ -150,58 +157,61 @@ async function getTepatWaktuByYear(whereFilter) {
   // scope (termasuk jangkar tahun ajaran) — bukan seluruh distinct DB.
   const requestedJenjang = getRequestedJenjang(cleanFilter);
   const jenjangs = requestedJenjang ?? [...new Set(students.map((s) => s.jenjang))].sort();
+  const explicitCohort = Boolean(
+    cleanFilter.angkatan ?? cleanFilter.graduate?.tahunLulus ?? cleanFilter.tahunLulus,
+  );
 
   const buildCohortData = (jenjang) => {
     const batas = batasFor(jenjang);
     if (batas === null) return [];
-    // Label cohort dibaca per jenjang: Profesi tidak mewarisi tahun S1/S2
-    // yang belum punya lulusan Profesi (dulu menjadi baris nol).
-    const labels = [
-      ...new Set(
-        students
-          .filter((s) => s.jenjang === jenjang)
-          .map((s) => s.graduate?.tahunLulus)
-          .filter(Boolean),
-      ),
-    ].sort();
+    const rows = students.filter((s) => s.jenjang === jenjang);
+    const latestGraduation = rows.reduce((latest, s) => {
+      const start = getAcademicYearStart(String(s.graduate?.tahunLulus ?? '').trim());
+      return start === null ? latest : Math.max(latest, start);
+    }, null);
 
-    return labels.map((label) => {
-      const tahunLulusStart = getAcademicYearStart(label);
-      const filtered = students.filter(
-        (s) => s.jenjang === jenjang && s.graduate?.tahunLulus === label,
-      );
-
-      let fastCount = 0;
-      let onTimeCount = 0;
-      let lateCount = 0;
-      let unknownCount = 0;
-
-      filtered.forEach((s) => {
-        const duration = lamaStudi(s, label);
-        if (duration === null) unknownCount++;
-        // Program satu tahun selesai di tahun ajaran yang sama menghasilkan
-        // selisih 0; itu tepat waktu, bukan lebih cepat.
-        else if (duration > batas) lateCount++;
-        else if (batas <= 1 || duration === batas) onTimeCount++;
-        else fastCount++;
-      });
-
-      const total = fastCount + onTimeCount + lateCount;
-      const cohortRate = rate(fastCount + onTimeCount, total, null);
-      const cohortStart = tahunLulusStart - batas;
-
-      return {
+    const groups = new Map();
+    rows.forEach((s) => {
+      const cohortStart = cohortStartFor(s);
+      if (cohortStart === null) return;
+      const group = groups.get(cohortStart) ?? {
         cohort: cohortStart,
-        cohortLabel: `Angkatan ${formatAcademicYearLabel(cohortStart)}`,
-        tahunLulusTepat: tahunLulusStart,
-        rate: cohortRate,
-        fastCount,
-        onTimeCount,
-        lateCount,
-        unknownCount,
-        total,
+        fastCount: 0,
+        onTimeCount: 0,
+        lateCount: 0,
+        unknownCount: 0,
       };
+      const duration = lamaStudi(s, s.graduate?.tahunLulus);
+      if (duration === null) group.unknownCount++;
+      // Program satu tahun selesai di tahun ajaran yang sama menghasilkan
+      // selisih 0; itu tepat waktu, bukan lebih cepat.
+      else if (duration > batas) group.lateCount++;
+      else if (batas <= 1 || duration === batas) group.onTimeCount++;
+      else group.fastCount++;
+      groups.set(cohortStart, group);
     });
+
+    // Tanpa filter angkatan/tahun lulus, sembunyikan kohort yang tahun lulus
+    // standarnya belum tercapai supaya kohort berjalan tidak tampil parsial.
+    // Program satu tahun bisa selesai di tahun angkatannya (selisih 0).
+    return [...groups.values()]
+      .filter(
+        (group) =>
+          explicitCohort ||
+          latestGraduation === null ||
+          (batas <= 1 ? group.cohort : group.cohort + batas) <= latestGraduation,
+      )
+      .sort((a, b) => a.cohort - b.cohort)
+      .map((group) => {
+        const total = group.fastCount + group.onTimeCount + group.lateCount;
+        return {
+          ...group,
+          cohortLabel: `Angkatan ${formatAcademicYearLabel(group.cohort)}`,
+          tahunLulusTepat: group.cohort + batas,
+          rate: rate(group.fastCount + group.onTimeCount, total, null),
+          total,
+        };
+      });
   };
 
   // Kunci batas hanya untuk jenjang dalam scope yang aturannya dikenal —
