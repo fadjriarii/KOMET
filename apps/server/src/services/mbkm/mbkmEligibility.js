@@ -76,10 +76,36 @@ async function getEligibleStudentsAtPeriode(studentFilter = {}, selectedPeriode,
   );
 }
 
+/**
+ * Eligible untuk satu tahun ajaran = gabungan kohort semester 7 di Ganjil dan
+ * Genap, dideduplikasi per NIM. Satu mahasiswa hanya mencapai semester 7 sekali,
+ * jadi gabungan ini aman dipakai sebagai penyebut tanpa double-count.
+ */
+async function getEligibleStudentsAtPeriodes(studentFilter = {}, selectedPeriods, db = prisma) {
+  const periods = Array.isArray(selectedPeriods)
+    ? selectedPeriods.filter(Boolean)
+    : selectedPeriods
+      ? [selectedPeriods]
+      : [];
+  const seen = new Set();
+  const students = [];
+
+  for (const periode of periods) {
+    for (const student of await getEligibleStudentsAtPeriode(studentFilter, periode, db)) {
+      if (seen.has(student.nim)) continue;
+      seen.add(student.nim);
+      students.push(student);
+    }
+  }
+
+  return students;
+}
+
 module.exports = {
   MBKM_ELIGIBLE_SEMESTER,
   getStartPeriode,
   semesterAtPeriode,
   isActiveAtPeriode,
   getEligibleStudentsAtPeriode,
+  getEligibleStudentsAtPeriodes,
 };

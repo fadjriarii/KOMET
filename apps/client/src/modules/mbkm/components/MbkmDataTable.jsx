@@ -88,17 +88,6 @@ const COLUMNS = [
     render: (row) => row.fakultas || '-',
   },
   {
-    key: 'jenjang',
-    label: 'Jenjang',
-    headerClassName: 'w-[6%] text-center',
-    cellClassName: 'text-center',
-    render: (row) => (
-      <span className="inline-flex items-center justify-center px-2 py-1 rounded-md bg-blue-50 text-blue-700 text-xs font-bold border border-blue-100/80">
-        {row.jenjang || '-'}
-      </span>
-    ),
-  },
-  {
     key: 'angkatan',
     label: 'Angkatan',
     headerClassName: 'w-[7%] text-center',

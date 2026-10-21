@@ -1,15 +1,14 @@
-import { useMemo } from 'react';
 import { Award, BookOpen, Building2, CalendarDays, UserCheck } from 'lucide-react';
 import { getCurrentAcademicYear, isValidAcademicYear } from '@komet/shared/academicYear';
 import { useDashboardFilters } from '../../../hooks/useDashboardFilters';
 import { sanitizeSearch } from '../../../utils/querySanitizer';
 
-/** Tahun berjalan dan tahun default data sama dengan "tanpa filter" (periode terbaru). */
-const sanitizeAcademicYear = (value, defaultAcademicYear = '') => {
-  if (!isValidAcademicYear(value)) return '';
-  if (value === defaultAcademicYear || value === getCurrentAcademicYear()) return '';
-  return value;
-};
+/** Header selalu menunjuk satu tahun ajaran; tanpa itu server memakai periode terbaru saja. */
+const DEFAULT_ACADEMIC_YEAR = getCurrentAcademicYear();
+
+/** Tahun ajaran dari URL yang bentuknya bukan "YYYY/YYYY" dikembalikan ke tahun berjalan. */
+const sanitizeAcademicYear = (value) =>
+  isValidAcademicYear(value) ? value : DEFAULT_ACADEMIC_YEAR;
 
 /**
  * Field filter MBKM: state ↔ URL ↔ param server ↔ kontrol tampilan.
@@ -27,7 +26,7 @@ export const mbkmFilterFields = {
   },
   // Tahun ajaran dipilih di header halaman, bukan di grid filter.
   tahunAjaran: {
-    initial: '',
+    initial: DEFAULT_ACADEMIC_YEAR,
     param: 'tahunAjaran',
     setter: 'setTahunAjaran',
     sanitize: sanitizeAcademicYear,
@@ -96,27 +95,17 @@ export const mbkmFilterFields = {
     control: 'single',
     label: 'Periode MBKM',
     icon: CalendarDays,
-    optionsKey: 'periode',
+    optionsKey: 'periodeOptions',
     placeholder: 'Semua Periode MBKM',
   },
 };
 
 export const mbkmFilterForm = {
   title: 'Filter & Pencarian MBKM',
-  secondRowColumns: 3,
+  secondRowColumns: 4,
   fields: mbkmFilterFields,
 };
 
-export function useMbkmFilters(defaultAcademicYear = '') {
-  const fields = useMemo(
-    () => ({
-      ...mbkmFilterFields,
-      tahunAjaran: {
-        ...mbkmFilterFields.tahunAjaran,
-        sanitize: (value) => sanitizeAcademicYear(value, defaultAcademicYear),
-      },
-    }),
-    [defaultAcademicYear],
-  );
-  return useDashboardFilters({ fields });
+export function useMbkmFilters() {
+  return useDashboardFilters({ fields: mbkmFilterFields });
 }

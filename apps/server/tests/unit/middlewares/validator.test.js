@@ -60,6 +60,13 @@ describe('student query validation', () => {
     expect(mbkmQuerySchema.safeParse({ periode: '2025/2026', topN: '-1' }).success).toBe(false);
   });
 
+  it('mempertahankan tahun ajaran pada query MBKM', () => {
+    expect(mbkmQuerySchema.parse({ tahunAjaran: '2025/2026' })).toMatchObject({
+      tahunAjaran: '2025/2026',
+    });
+    expect(mbkmQuerySchema.safeParse({ tahunAjaran: '2025' }).success).toBe(false);
+  });
+
   it('menerima label ajaran penuh, menolak tahun mentah YYYY', () => {
     expect(
       studentQuerySchema.safeParse({ angkatanTahun: ['2025/2026', '2024/2025'] }).success,

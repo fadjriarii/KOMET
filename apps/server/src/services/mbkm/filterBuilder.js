@@ -4,7 +4,7 @@
  */
 
 const prisma = require('../../config/prisma');
-const { getAcademicYearStart, parsePeriode } = require('../../utils/academicUtils');
+const { getAcademicYearStart } = require('../../utils/academicUtils');
 const { addInFilter, addSearchFilter, hasFilters } = require('@komet/shared/filterUtils');
 
 function buildMbkmFilter(query) {
@@ -12,8 +12,10 @@ function buildMbkmFilter(query) {
 
   const where = {};
 
-  // Filter langsung di tabel mbkm_activities
-  if (periode) where.periode = periode;
+  // Filter langsung di tabel mbkm_activities. Array = satu tahun ajaran
+  // (Ganjil + Genap); string = satu periode.
+  if (Array.isArray(periode)) where.periode = { in: periode };
+  else if (periode) where.periode = periode;
 
   addInFilter(where, 'statusAktivitas', statusAktivitas);
   addInFilter(where, 'jenjang', jenjang);
@@ -60,12 +62,18 @@ const MBKM_EVALUATION_STATUSES = [MBKM_STATUS.DIAJUKAN];
  */
 function buildActivityWhere(
   whereFilter = {},
-  selectedPeriode,
+  selectedPeriods,
   allowedStatuses = MBKM_ACTIVE_STATUSES,
 ) {
+  const periods = Array.isArray(selectedPeriods)
+    ? selectedPeriods.filter(Boolean)
+    : selectedPeriods
+      ? [selectedPeriods]
+      : [];
   const where = {
     ...whereFilter,
-    ...(selectedPeriode ? { periode: selectedPeriode } : {}),
+    ...(periods.length === 1 ? { periode: periods[0] } : {}),
+    ...(periods.length > 1 ? { periode: { in: periods } } : {}),
   };
 
   if (allowedStatuses) {
@@ -90,24 +98,24 @@ async function getDefaultPeriode() {
 }
 
 /**
- * Periode efektif: periode eksplisit menang. Tahun ajaran dipetakan ke periode
- * Ganjil-nya karena kohort eligible MBKM adalah semester 7; bila Ganjil belum
- * ada, pakai periode pertama yang tersedia di tahun itu.
+ * Satu tahun ajaran selalu berisi dua periode: `YYYY1` (Ganjil) dan `YYYY2`
+ * (Genap). Tabel dan kartu menampilkan total keduanya saat user hanya memilih
+ * tahun ajaran; filter periode eksplisit tetap memenangkan salah satunya.
  */
-async function resolvePeriode(query = {}) {
-  if (query.periode) return query.periode;
+function getAcademicYearPeriods(tahunAjaran) {
+  const start = getAcademicYearStart(tahunAjaran);
+  return start === null ? [] : [`${start}1`, `${start}2`];
+}
 
-  const academicYearStart = getAcademicYearStart(query.tahunAjaran);
-  if (academicYearStart !== null) {
-    const earliest = await prisma.mbkmActivity.findFirst({
-      where: { periode: { startsWith: String(academicYearStart) } },
-      orderBy: { periode: 'asc' },
-      select: { periode: true },
-    });
-    return earliest?.periode || `${academicYearStart}1`;
-  }
+/** Daftar periode efektif: periode eksplisit > dua periode tahun ajaran > terbaru. */
+async function resolvePeriods(query = {}) {
+  if (query.periode) return [query.periode];
 
-  return getDefaultPeriode();
+  const yearPeriods = getAcademicYearPeriods(query.tahunAjaran);
+  if (yearPeriods.length) return yearPeriods;
+
+  const latest = await getDefaultPeriode();
+  return latest ? [latest] : [];
 }
 
 /** Daftar tabel: tanpa tahun ajaran tetap menampilkan semua periode seperti sebelumnya. */
@@ -115,7 +123,7 @@ async function resolveMbkmListFilter(query = {}) {
   if (query.periode || getAcademicYearStart(query.tahunAjaran) === null) {
     return buildMbkmFilter(query);
   }
-  return buildMbkmFilter({ ...query, periode: await resolvePeriode(query) });
+  return buildMbkmFilter({ ...query, periode: await resolvePeriods(query) });
 }
 
 /**
@@ -123,27 +131,12 @@ async function resolveMbkmListFilter(query = {}) {
  * ditulis ulang di setiap handler analisis MBKM.
  */
 async function resolveMbkmQuery(query = {}) {
-  const selectedPeriode = await resolvePeriode(query);
+  const selectedPeriods = await resolvePeriods(query);
   return {
-    selectedPeriode,
-    whereFilter: buildMbkmFilter({ ...query, periode: selectedPeriode }),
+    selectedPeriode: selectedPeriods[0] ?? null,
+    selectedPeriods,
+    whereFilter: buildMbkmFilter({ ...query, periode: selectedPeriods }),
   };
-}
-
-/** Card mitra memakai periode sebelumnya sebagai basis perbandingan. */
-async function resolveMitraPeriode(query = {}) {
-  if (query.periode) return query.periode;
-  if (getAcademicYearStart(query.tahunAjaran) !== null) {
-    return getPreviousPeriode(await resolvePeriode(query));
-  }
-  return getPreviousPeriode(await getDefaultPeriode());
-}
-
-/** Periode Ganjil (`YYYY1`) sebelum `currentPeriode`, memakai parsing periode tunggal. */
-function getPreviousPeriode(currentPeriode) {
-  const periode = typeof currentPeriode === 'string' ? parsePeriode(currentPeriode) : null;
-  if (!periode) return null;
-  return periode.isGanjil ? `${periode.year - 1}2` : `${periode.year}1`;
 }
 
 /**
@@ -163,11 +156,9 @@ module.exports = {
   buildMbkmFilter,
   buildActivityWhere,
   getDefaultPeriode,
-  getPreviousPeriode,
-  resolvePeriode,
+  resolvePeriods,
   resolveMbkmQuery,
   resolveMbkmListFilter,
-  resolveMitraPeriode,
   buildStudentFilterFromMbkmQuery,
   MBKM_STATUS,
   MBKM_ACTIVE_STATUSES,

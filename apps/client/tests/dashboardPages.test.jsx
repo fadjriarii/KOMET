@@ -197,15 +197,27 @@ const ROUTES = {
     Page: MbkmPage,
     summaryPath: '/mbkm/summary',
     listPath: '/mbkm/list',
-    summaryPayload: summary({
-      participationRate: 25.5,
-      totalParticipants: 300,
-      eligibleCount: 1176,
-      selesaiCount: 200,
-      berjalanCount: 100,
-      evaluasiCount: 0,
-      totalMitra: 42,
-    }),
+    summaryPayload: summary(
+      {
+        participationRate: 25.5,
+        totalParticipants: 300,
+        eligibleCount: 1176,
+        selesaiCount: 200,
+        berjalanCount: 100,
+        evaluasiCount: 0,
+        totalMitra: 42,
+      },
+      {
+        selectedPeriods: ['20251'],
+        filterOptions: {
+          ...OPTIONS,
+          periodeOptions: [
+            { value: '20251', label: 'Ganjil' },
+            { value: '20252', label: 'Genap' },
+          ],
+        },
+      },
+    ),
     listPayload: listPayload([MBKM_ROW]),
     extraPaths: {},
     cards: [
@@ -352,6 +364,39 @@ describe('kartu MBKM', () => {
 
     await waitFor(() => expect(lastQuery(route.summaryPath).get('tahunAjaran')).toBe(year));
     expect(lastQuery(route.summaryPath).get('periode')).toBeNull();
+  });
+
+  it('menampilkan kembali filter jenjang pada baris pertama lima kolom', async () => {
+    const route = mockModule('mbkm');
+    renderPage(MbkmPage);
+
+    await cardsReady(route);
+    expect(screen.getByLabelText('Jenjang')).toBeTruthy();
+
+    const searchWrapper = screen.getByText('Cari Aktivitas MBKM').closest('div');
+    expect(searchWrapper.className).toContain('md:col-span-2');
+    expect(searchWrapper.parentElement.className).toContain('md:grid-cols-5');
+  });
+
+  it('tidak menampilkan kolom jenjang di tabel MBKM', async () => {
+    const route = mockModule('mbkm');
+    renderPage(MbkmPage);
+
+    await cardsReady(route);
+    await screen.findByText('Peserta Tiga');
+    expect(screen.queryByRole('columnheader', { name: 'Jenjang' })).toBeNull();
+    expect(screen.getByRole('columnheader', { name: 'Program Studi' })).toBeTruthy();
+  });
+
+  it('opsi periode MBKM hanya Ganjil/Genap dengan nilai kode periode', async () => {
+    const route = mockModule('mbkm');
+    renderPage(MbkmPage, ['/mbkm?tahunAjaran=2025/2026']);
+
+    await cardsReady(route);
+    fireEvent.click(screen.getByRole('button', { name: /Periode MBKM/i }));
+    fireEvent.click(screen.getByRole('option', { name: 'Ganjil' }));
+
+    await waitFor(() => expect(lastQuery(route.summaryPath).get('periode')).toBe('20251'));
   });
 });
 

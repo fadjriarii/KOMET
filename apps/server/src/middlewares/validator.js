@@ -110,6 +110,12 @@ const mbkmQuerySchema = z.object({
   angkatan: academicYearLabelOrArray,
   statusAktivitas: stringOrArray,
   jenjang: stringOrArray,
+  tahunAjaran: z
+    .string()
+    .trim()
+    .max(20)
+    .regex(/^\d{4}\/\d{4}$/)
+    .optional(),
   periode: z
     .string()
     .trim()

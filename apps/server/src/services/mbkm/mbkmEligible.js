@@ -1,12 +1,12 @@
-const { getEligibleStudentsAtPeriode } = require('./mbkmEligibility');
+const { getEligibleStudentsAtPeriodes } = require('./mbkmEligibility');
 const { rate } = require('../../utils/percentageUtils');
 
 /**
  * Mahasiswa eligible pada periode terpilih dan sebarannya per prodi.
  * Definisi yang sama dengan penyebut `getMbkmRate`.
  */
-async function getEligibleStudents(studentFilter = {}, selectedPeriode) {
-  const students = await getEligibleStudentsAtPeriode(studentFilter, selectedPeriode);
+async function getEligibleStudents(studentFilter = {}, selectedPeriods) {
+  const students = await getEligibleStudentsAtPeriodes(studentFilter, selectedPeriods);
 
   const counts = new Map();
   for (const student of students) {

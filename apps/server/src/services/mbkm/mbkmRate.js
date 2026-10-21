@@ -1,23 +1,27 @@
 const prisma = require('../../config/prisma');
 const { roundedRate } = require('../../utils/percentageUtils');
 const { buildActivityWhere, MBKM_ACTIVE_STATUSES, MBKM_STATUS } = require('./filterBuilder');
-const { getEligibleStudentsAtPeriode } = require('./mbkmEligibility');
+const { getEligibleStudentsAtPeriodes } = require('./mbkmEligibility');
 
 /**
- * Analisis partisipasi MBKM vs mahasiswa eligible pada satu periode.
+ * Analisis partisipasi MBKM vs mahasiswa eligible pada periode terpilih.
+ *
+ * Satu periode = perilaku lama. Dua periode (tahun ajaran tanpa filter
+ * Ganjil/Genap) = gabungan aktivitas Ganjil + Genap, dengan penyebut gabungan
+ * kohort semester 7 yang dideduplikasi per NIM.
  *
  * Pembilang = mahasiswa unik di kohort eligible yang punya aktivitas pada
  * periode itu. Membatasi ke kohort yang sama membuat persentase tidak pernah
  * melebihi 100% dan tidak mencampur mahasiswa semester lain.
  */
-async function getMbkmRate(whereFilter = {}, selectedPeriode, studentFilter = {}) {
-  const eligibleStudents = await getEligibleStudentsAtPeriode(studentFilter, selectedPeriode);
+async function getMbkmRate(whereFilter = {}, selectedPeriods, studentFilter = {}) {
+  const eligibleStudents = await getEligibleStudentsAtPeriodes(studentFilter, selectedPeriods);
   const eligibleCount = eligibleStudents.length;
   const eligibleNims = eligibleStudents.map((student) => student.nim);
 
   let activities = [];
   if (eligibleNims.length) {
-    const where = buildActivityWhere(whereFilter, selectedPeriode);
+    const where = buildActivityWhere(whereFilter, selectedPeriods);
     // Syarat requirement: jenis aktivitas tidak boleh kosong.
     where.jenisAktivitas = { not: '' };
     where.nim = { in: eligibleNims };

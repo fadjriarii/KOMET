@@ -7,7 +7,6 @@ const { contractFor, contractProblems } = require('@komet/shared/contracts');
 const {
   buildActivityWhere,
   resolveMbkmListFilter,
-  resolveMitraPeriode,
 } = require('../../../src/services/mbkm/filterBuilder');
 const {
   distributionBy,
@@ -133,6 +132,11 @@ describe('scope status agregasi MBKM', () => {
   it('tanpa filter status client, partisipan mencakup Evaluasi/Diajukan', () => {
     const where = buildActivityWhere({}, '20251');
     expect(where.statusAktivitas.in).toEqual(['Disetujui', 'Selesai', 'Diajukan']);
+  });
+
+  it('dua periode tahun ajaran menjadi filter IN, bukan salah satu periode', () => {
+    const where = buildActivityWhere({}, ['20251', '20252']);
+    expect(where.periode).toEqual({ in: ['20251', '20252'] });
   });
 });
 
@@ -261,6 +265,20 @@ describe('getMbkmRate', () => {
     const eligible = await getEligibleStudents({ fakultas: { in: ['FST'] } }, '20251');
     expect(rate.eligibleCount).toBe(eligible.eligibleCount);
   });
+
+  it('tahun ajaran menggabungkan kohort dan aktivitas Ganjil + Genap', async () => {
+    stubDelegates({ students: ELIGIBLE_STUDENTS, activities: RATE_ACTIVITIES });
+    const periods = ['20251', '20252'];
+    const data = await getMbkmRate({ periode: { in: periods } }, periods, {});
+
+    expect(data.eligibleCount).toBe(200);
+    expect(data.participantStats.count).toBe(47);
+    expect(
+      calls.filter((call) => call.kind === 'findMany' && call.model === 'student'),
+    ).toHaveLength(2);
+    const query = calls.find((call) => call.kind === 'findMany' && call.model === 'mbkmActivity');
+    expect(query.where.periode).toEqual({ in: periods });
+  });
 });
 
 describe('getMbkmSummary', () => {
@@ -293,7 +311,7 @@ describe('getMbkmSummary', () => {
     ).toHaveLength(1);
     // Client sudah mengirim periode → tidak ada `findFirst` untuk default periode.
     expect(calls.some((call) => call.kind === 'findFirst')).toBe(false);
-    expect(result.previousPeriode).toBe('20242');
+    expect(result.selectedPeriods).toEqual(['20251']);
     expect(result.summary.persentaseMbkm).toEqual({
       mbkmCount: 47,
       eligibleCount: 200,
@@ -315,25 +333,34 @@ describe('getMbkmSummary', () => {
     expect(result.kpiFilterScope.eligible).not.toContain('statusAktivitas');
     expect(result.kpiFilterScope.mitra).toEqual(['periode', 'tahunAjaran']);
     expect(result.filterOptions.academicYearOptions[0]).toBe('2026/2027');
+    expect(result.filterOptions.periodeOptions).toEqual([
+      { value: '20251', label: 'Ganjil' },
+      { value: '20252', label: 'Genap' },
+    ]);
     expect(JSON.stringify(result)).not.toContain('Target IKU-2');
   });
 
-  it('tahun ajaran memilih periode terakhir yang tersedia di data', async () => {
-    const result = await getMbkmSummary({ tahunAjaran: '2024/2025' });
+  it('tahun ajaran memakai Ganjil + Genap dan opsi periode mengikuti tahun itu', async () => {
+    const result = await getMbkmSummary({ tahunAjaran: '2025/2026' });
 
-    const lookup = calls.find((call) => call.kind === 'findFirst');
-    expect(lookup.where).toEqual({ periode: { startsWith: '2024' } });
-    expect(lookup.orderBy).toEqual({ periode: 'asc' });
-    expect(result.selectedPeriode).toBe('20241');
+    // Tahun ajaran deterministik; tidak perlu mencari periode di database.
+    expect(calls.some((call) => call.kind === 'findFirst')).toBe(false);
+    expect(result.selectedPeriods).toEqual(['20251', '20252']);
+    expect(result.selectedPeriode).toBe('20251');
+    expect(result.filterOptions.periodeOptions).toEqual([
+      { value: '20251', label: 'Ganjil' },
+      { value: '20252', label: 'Genap' },
+    ]);
     expect(result.kpiFilterScope.rate).toContain('tahunAjaran');
     expect(result.kpiFilterScope.eligible).toContain('tahunAjaran');
     expect(result.kpiFilterScope.mitra).toContain('tahunAjaran');
   });
 
-  it('daftar memakai periode Ganjil tahun ajaran tanpa mengubah default semua periode', async () => {
-    expect((await resolveMbkmListFilter({ tahunAjaran: '2024/2025' })).periode).toBe('20241');
+  it('daftar memakai kedua periode tahun ajaran tanpa mengubah default semua periode', async () => {
+    expect((await resolveMbkmListFilter({ tahunAjaran: '2024/2025' })).periode).toEqual({
+      in: ['20241', '20242'],
+    });
     expect((await resolveMbkmListFilter({})).periode).toBeUndefined();
-    expect(await resolveMitraPeriode({ tahunAjaran: '2024/2025' })).toBe('20232');
   });
 
   it('bentuknya memenuhi kontrak yang dibaca client', async () => {
@@ -374,5 +401,11 @@ describe('getMitraDistribution', () => {
     const data = await getMitraDistribution('20251', 10);
     expect(data.mitraData).toHaveLength(4);
     expect(data.mitraData.some((item) => item.name === 'Lainnya')).toBe(false);
+  });
+
+  it('tahun ajaran menghitung mitra unik dari Ganjil + Genap', async () => {
+    stubDelegates({ '["mitra"]': MITRA_GROUPS });
+    await getMitraDistribution(['20251', '20252'], 10);
+    expect(calls[0].where.periode).toEqual({ in: ['20251', '20252'] });
   });
 });

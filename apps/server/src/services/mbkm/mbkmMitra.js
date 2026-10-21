@@ -14,12 +14,18 @@ const DEFAULT_MITRA_TOP_N = 10;
  * prefix (100 karakter) terbukti tidak dipakai optimizer untuk grouping. Jalur
  * upgrade: kolom VARCHAR(191) turunan yang berindeks, diisi oleh sync.
  *
- * @param {string} selectedPeriode Periode yang dipilih
+ * @param {string|string[]} selectedPeriods Periode yang dipilih; array = satu tahun ajaran
  * @param {number} topN Jumlah top mitra yang diambil (default: 10)
  */
-async function getMitraDistribution(selectedPeriode, topN = DEFAULT_MITRA_TOP_N) {
+async function getMitraDistribution(selectedPeriods, topN = DEFAULT_MITRA_TOP_N) {
+  const periods = Array.isArray(selectedPeriods)
+    ? selectedPeriods.filter(Boolean)
+    : selectedPeriods
+      ? [selectedPeriods]
+      : [];
   const where = {
-    ...(selectedPeriode ? { periode: selectedPeriode } : {}),
+    ...(periods.length === 1 ? { periode: periods[0] } : {}),
+    ...(periods.length > 1 ? { periode: { in: periods } } : {}),
     mitra: { not: '' },
   };
 

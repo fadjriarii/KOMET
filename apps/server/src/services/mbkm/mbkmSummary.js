@@ -5,13 +5,10 @@
  * dan opsi filter. Controller tidak menghitung maupun merakit apa pun.
  *
  * `eligibleCount` hanya dihitung satu kali — lewat `getMbkmRate()` — memakai
- * proyeksi periode yang sama dengan pembilangnya (`getEligibleStudentsAtPeriode`).
+ * proyeksi periode yang sama dengan pembilangnya. Saat user memilih tahun
+ * ajaran tanpa periode, kedua periode (Ganjil + Genap) digabung.
  */
-const {
-  buildStudentFilterFromMbkmQuery,
-  getPreviousPeriode,
-  resolveMbkmQuery,
-} = require('./filterBuilder');
+const { buildStudentFilterFromMbkmQuery, resolveMbkmQuery } = require('./filterBuilder');
 const { getMbkmFilterOptions } = require('./filterOptions');
 const { getMbkmRate } = require('./mbkmRate');
 const { getMitraDistribution } = require('./mbkmMitra');
@@ -41,14 +38,16 @@ const ELIGIBLE_PARAMS = [
   'tahunAjaran',
 ];
 async function getMbkmSummary(query = {}) {
-  const { selectedPeriode, whereFilter } = await resolveMbkmQuery(query);
-  const previousPeriode = getPreviousPeriode(selectedPeriode);
+  const { selectedPeriode, selectedPeriods, whereFilter } = await resolveMbkmQuery(query);
   const topN = query.topN;
 
   const [filterOptions, rateData, mitra] = await Promise.all([
-    getMbkmFilterOptions(),
-    getMbkmRate(whereFilter, selectedPeriode, buildStudentFilterFromMbkmQuery(query)),
-    getMitraDistribution(previousPeriode, topN),
+    getMbkmFilterOptions(false, {
+      tahunAjaran: query.tahunAjaran,
+      periode: query.periode,
+    }),
+    getMbkmRate(whereFilter, selectedPeriods, buildStudentFilterFromMbkmQuery(query)),
+    getMitraDistribution(selectedPeriods, topN),
   ]);
 
   const { count, disetujuiCount, selesaiCount, evaluasiCount } = rateData.participantStats;
@@ -58,7 +57,7 @@ async function getMbkmSummary(query = {}) {
 
   return {
     selectedPeriode,
-    previousPeriode,
+    selectedPeriods,
     summary: {
       persentaseMbkm: { mbkmCount: count, eligibleCount, percentage: numPercentage },
       totalMbkmAktif: disetujuiCount,
@@ -81,7 +80,7 @@ async function getMbkmSummary(query = {}) {
       rate: ACTIVITY_PARAMS,
       // Penyebut tidak ikut search/status aktivitas.
       eligible: ELIGIBLE_PARAMS,
-      // Distribusi mitra mengikuti periode (basisnya periode sebelumnya).
+      // Distribusi mitra mengikuti periode yang sama dengan kartu lainnya.
       mitra: ['periode', 'tahunAjaran'],
     },
     filterOptions,
