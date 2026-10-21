@@ -4,7 +4,11 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import TotalGraduatesModal from '../src/modules/graduates/components/modals/TotalGraduatesModal';
 import GpaOverviewModal from '../src/modules/graduates/components/modals/GpaOverviewModal';
 import OnTimeGraduationModal from '../src/modules/graduates/components/modals/OnTimeGraduationModal';
-import { selectChartCohorts } from '../src/modules/graduates/components/modals/graduateTrendConfig';
+import {
+  hasStudySuccessData,
+  onTimeTabs,
+  selectChartCohorts,
+} from '../src/modules/graduates/components/modals/graduateTrendConfig';
 import StudySuccessModal from '../src/modules/graduates/components/modals/StudySuccessModal';
 import { compactBarLayout } from '../src/components/common/charts/compactBarLayout';
 import { useDetail } from '../src/modules/graduates/graduateQueries';
@@ -116,6 +120,10 @@ describe.each([
 });
 
 describe('chart OnTime 5 cohort terakhir', () => {
+  it('tidak punya tab tabel riwayat', () => {
+    expect(onTimeTabs({ s1: 4, s2: 2, profesi: 1 }).map((tab) => tab.key)).not.toContain('tabel');
+  });
+
   it('memotong ke 5 data terakhir saat tanpa filter tahun eksplisit', () => {
     const cohorts = Array.from({ length: 8 }, (_, index) => ({
       cohortLabel: `Angkatan ${2018 + index}`,
@@ -187,13 +195,20 @@ describe('trendBars Total Lulusan (grouped)', () => {
   });
 });
 
+describe('chart StudySuccess', () => {
+  it('membedakan kohort kosong dari kohort yang sudah punya data', () => {
+    expect(hasStudySuccessData([{ intake: 0, successCount: 0 }])).toBe(false);
+    expect(hasStudySuccessData([{ intake: 80, successCount: 37 }])).toBe(true);
+  });
+});
+
 describe('warna kategori OnTime', () => {
-  it('tiga kategori memakai warna berbeda dari palet jenjang', async () => {
+  it('tiga kategori memakai urutan palet yang sama dengan chart jenjang', async () => {
     const { OUTCOME_COLORS, JENJANG_COLORS } =
       await import('../src/modules/graduates/components/modals/totalTrendBars');
-    const colors = [OUTCOME_COLORS.fast, OUTCOME_COLORS.onTime, OUTCOME_COLORS.late];
-    expect(new Set(colors).size).toBe(3);
-    expect(colors.every((color) => JENJANG_COLORS.includes(color))).toBe(true);
+    expect([OUTCOME_COLORS.onTime, OUTCOME_COLORS.fast, OUTCOME_COLORS.late]).toEqual(
+      JENJANG_COLORS.slice(0, 3),
+    );
   });
 });
 

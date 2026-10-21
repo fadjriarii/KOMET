@@ -7,11 +7,12 @@ import ModalTable from '../../../../components/common/modals/ModalTable';
 import ModalTabContent from '../../../../components/common/modals/ModalTabContent';
 import { useTabTransition } from '../../../../hooks/useTabTransition';
 import { formatNumber, formatPercentage } from '@komet/shared/formatters';
-import { DIGITAL_BLUE } from '../../../../utils/theme';
+import EmptyState from '../../../../components/common/feedback/EmptyState';
 import { useDetail } from '../../graduateQueries';
 import TrendBarChart from '../../../../components/common/charts/TrendBarChart';
 import TrendChartTooltip from '../../../../components/common/charts/TrendChartTooltip';
-import { studySuccessTabs, withBatas } from './graduateTrendConfig';
+import { hasStudySuccessData, studySuccessTabs, withBatas } from './graduateTrendConfig';
+import { JENJANG_COLORS } from './totalTrendBars';
 import { describeScope, searchSentence, studySuccessClause } from '../../utils/filterScope';
 
 const SUCCESS_TABLE_COLUMNS = [
@@ -62,6 +63,20 @@ const SUCCESS_TABLE_COLUMNS = [
 
 // Satu builder dipakai tab S1 dan S2; hanya kohortnya yang berbeda.
 function CohortTrendChart({ cohorts, batas, isLoading, error }) {
+  if (!isLoading && !error && !hasStudySuccessData(cohorts)) {
+    return (
+      <div className="h-full flex flex-col pt-0.5 px-1">
+        <div className="h-56 sm:h-64 md:h-72 w-full flex items-center justify-center">
+          <EmptyState
+            icon={BookOpenCheck}
+            title="Belum Ada Kohort yang Dievaluasi"
+            description="Kohort jenjang ini belum cukup umur untuk dinilai keberhasilan studinya."
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full flex flex-col pt-0.5 px-1">
       <div className="h-56 sm:h-64 md:h-72 w-full">
@@ -70,18 +85,18 @@ function CohortTrendChart({ cohorts, batas, isLoading, error }) {
           xDataKey="cohortLabel"
           isLoading={isLoading}
           error={error}
+          compactZeroBars
           bars={[
             {
               dataKey: 'successCount',
               name: withBatas('Mahasiswa Lulus', batas, 'Maks'),
-              color: DIGITAL_BLUE[600],
-              labelKey: 'rate',
-              labelFormatter: (value) => formatPercentage(value),
+              color: JENJANG_COLORS[0],
+              labelKey: 'successCount',
             },
             {
               dataKey: 'intake',
               name: 'Total Intake Awal',
-              color: DIGITAL_BLUE[200],
+              color: JENJANG_COLORS[1],
               labelKey: 'intake',
             },
           ]}
@@ -89,10 +104,13 @@ function CohortTrendChart({ cohorts, batas, isLoading, error }) {
             <TrendChartTooltip
               titleKey="cohortLabel"
               rows={[
-                { key: 'intake', label: 'Total Intake', colorClass: 'bg-digital-blue-200' },
-                { key: 'successCount', label: 'Berhasil Lulus', colorClass: 'bg-digital-blue-600' },
+                {
+                  key: 'successCount',
+                  label: 'Berhasil Lulus',
+                  colorClass: 'bg-digital-blue-600',
+                },
+                { key: 'intake', label: 'Total Intake', colorClass: 'bg-digital-blue-400' },
               ]}
-              footer={{ key: 'rate', label: 'Tingkat Keberhasilan', format: formatPercentage }}
             />
           }
         />

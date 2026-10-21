@@ -10,11 +10,12 @@ export const JENJANG_COLORS = [
   '#8B5CF6',
 ];
 
-// Kategori hasil masa studi memakai palet yang sama dengan chart jenjang.
+// Urutan warna kategori mengikuti urutan palet chart jenjang: biru, biru
+// muda, hijau. Jadi seri pertama di semua chart memakai warna yang sama.
 export const OUTCOME_COLORS = {
-  fast: JENJANG_COLORS[2],
   onTime: JENJANG_COLORS[0],
-  late: JENJANG_COLORS[3],
+  fast: JENJANG_COLORS[1],
+  late: JENJANG_COLORS[2],
 };
 
 const JENJANG_LABEL = { s1: 'S1', s2: 'S2' };

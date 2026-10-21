@@ -33,7 +33,6 @@ export const onTimeTabs = (batas = {}) => {
     { key: 's1', label: withBatas('Jenjang S1', batas.s1, '≤'), icon: BarChart3 },
     { key: 's2', label: withBatas('Jenjang S2', batas.s2, '≤'), icon: BarChart3 },
     ...jenjangTabs,
-    cohortTableTab,
   ];
 };
 
@@ -56,3 +55,7 @@ export const studySuccessTabs = (batas = {}) => {
 // Chart tren cohort cukup 5 data terakhir; filter tahun eksplisit user tidak dipotong.
 export const selectChartCohorts = (cohorts, explicitYear) =>
   explicitYear ? cohorts : cohorts.slice(-5);
+
+// Kohort baru bisa dievaluasi setelah punya intake atau lulusan.
+export const hasStudySuccessData = (cohorts = []) =>
+  cohorts.some((row) => Number(row?.intake) > 0 || Number(row?.successCount) > 0);

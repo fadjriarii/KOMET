@@ -1,72 +1,16 @@
 import { Fragment, useMemo } from 'react';
-import { Calendar, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 import Modal from '../../../../components/common/modals/Modal';
 import ModalSummaryBanner from '../../../../components/common/modals/ModalSummaryBanner';
 import ModalTabNav from '../../../../components/common/modals/ModalTabNav';
-import ModalTable from '../../../../components/common/modals/ModalTable';
 import ModalTabContent from '../../../../components/common/modals/ModalTabContent';
 import { useTabTransition } from '../../../../hooks/useTabTransition';
-import { formatNumber, formatPercentage } from '@komet/shared/formatters';
+import { formatPercentage } from '@komet/shared/formatters';
 import { useDetail } from '../../graduateQueries';
 import TrendBarChart from '../../../../components/common/charts/TrendBarChart';
 import TrendChartTooltip from '../../../../components/common/charts/TrendChartTooltip';
 import { onTimeTabs, selectChartCohorts, withBatas } from './graduateTrendConfig';
 import { OUTCOME_COLORS } from './totalTrendBars';
 import { describeScope, searchSentence } from '../../utils/filterScope';
-
-const ON_TIME_TABLE_COLUMNS = [
-  {
-    key: 'cohortLabel',
-    label: 'Cohort / Angkatan',
-    icon: Calendar,
-    render: (row) => (
-      <div className="flex items-center gap-2">
-        <span className="w-1.5 h-1.5 rounded-full bg-digital-blue-500" />
-        <span className="font-semibold text-gray-900">{row.cohortLabel}</span>
-      </div>
-    ),
-  },
-  {
-    key: 'fastCount',
-    label: 'Lulus Lebih Cepat',
-    icon: CheckCircle2,
-    headerClassName: 'text-right',
-    cellClassName: 'text-right font-medium text-emerald-700',
-    render: (row) => `${formatNumber(row.fastCount)} mhs`,
-  },
-  {
-    key: 'onTimeCount',
-    label: 'Lulus Tepat Waktu',
-    icon: Clock,
-    headerClassName: 'text-right',
-    cellClassName: 'text-right font-medium text-digital-blue-900',
-    render: (row) => (
-      <span className="bg-digital-blue-50/80 text-digital-blue-800 px-2.5 py-0.5 rounded-md border border-digital-blue-100 font-semibold">
-        {formatNumber(row.onTimeCount)} mhs
-      </span>
-    ),
-  },
-  {
-    key: 'lateCount',
-    label: 'Lewat Batas Waktu',
-    icon: AlertCircle,
-    headerClassName: 'text-right',
-    cellClassName: 'text-right font-medium text-amber-700',
-    render: (row) => `${formatNumber(row.lateCount)} mhs`,
-  },
-  {
-    key: 'rate',
-    label: 'Persentase Tepat Waktu',
-    icon: Clock,
-    headerClassName: 'text-right',
-    cellClassName: 'text-right font-bold text-digital-blue-700',
-    render: (row) => (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-digital-blue-50 text-digital-blue-800 border border-digital-blue-200">
-        {formatPercentage(row.rate, 1, '0.0%')}
-      </span>
-    ),
-  },
-];
 
 // Satu builder dipakai tab S1 dan S2; angka batas datang dari server (batasS1/batasS2).
 function CohortTrendChart({ cohorts, batas, isLoading, error }) {
@@ -83,16 +27,16 @@ function CohortTrendChart({ cohorts, batas, isLoading, error }) {
           compactZeroBars
           bars={[
             {
-              dataKey: 'fastCount',
-              name: withBatas('Lebih Cepat', batas, '<'),
-              color: OUTCOME_COLORS.fast,
-              labelKey: 'fastCount',
-            },
-            {
               dataKey: 'onTimeCount',
               name: withBatas('Tepat Waktu', batas, onTimeOperator),
               color: OUTCOME_COLORS.onTime,
               labelKey: 'onTimeCount',
+            },
+            {
+              dataKey: 'fastCount',
+              name: withBatas('Lebih Cepat', batas, '<'),
+              color: OUTCOME_COLORS.fast,
+              labelKey: 'fastCount',
             },
             {
               dataKey: 'lateCount',
@@ -105,13 +49,13 @@ function CohortTrendChart({ cohorts, batas, isLoading, error }) {
             <TrendChartTooltip
               titleKey="cohortLabel"
               rows={[
-                { key: 'fastCount', label: 'Lulus Lebih Cepat', colorClass: 'bg-emerald-500' },
                 {
                   key: 'onTimeCount',
                   label: 'Lulus Tepat Waktu',
                   colorClass: 'bg-digital-blue-600',
                 },
-                { key: 'lateCount', label: 'Lewat Batas Waktu', colorClass: 'bg-amber-500' },
+                { key: 'fastCount', label: 'Lulus Lebih Cepat', colorClass: 'bg-digital-blue-400' },
+                { key: 'lateCount', label: 'Lewat Batas Waktu', colorClass: 'bg-emerald-500' },
               ]}
             />
           }
@@ -249,37 +193,7 @@ export default function OnTimeGraduationModal({ isOpen, onClose, originRect, dat
         />
       );
     }
-    return {
-      ...entries,
-      tabel: (
-        <div className="h-full flex flex-col gap-4 pt-0.5 pb-1 overflow-y-auto custom-scrollbar">
-          {[
-            ['S1', s1Cohorts, batasS1],
-            ['S2', s2Cohorts, batasS2],
-            ...extraCohorts.map(([key, cohorts]) => [
-              key.toUpperCase(),
-              cohorts,
-              batasByJenjang[key],
-            ]),
-          ].map(([jenjang, cohorts, batas]) => (
-            <div key={jenjang} className="space-y-1.5">
-              <h4 className="text-xs font-bold text-gray-700">
-                Kohort {jenjang}
-                {batas ? ` (tepat waktu ≤ ${batas} tahun)` : ''}
-              </h4>
-              <ModalTable
-                columns={ON_TIME_TABLE_COLUMNS}
-                data={cohorts}
-                isLoading={isLoading}
-                error={error}
-                emptyTitle="Tidak Ada Data Cohort"
-                emptyDescription="Belum ada data riwayat kelulusan tepat waktu dari backend."
-              />
-            </div>
-          ))}
-        </div>
-      ),
-    };
+    return entries;
   }, [
     batasByJenjang,
     batasS1,
