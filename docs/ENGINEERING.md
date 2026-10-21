@@ -93,6 +93,8 @@ Security is a requirement, not a later hardening phase.
 - Treat session storage, `SYNC_API_KEY`, and SEVIMA credentials as security
   boundaries. Do not broaden access without an explicit request and tests.
 - Never commit `.env` files or secrets.
+- Keep raw requirement extracts, API captures, and data dumps local; they may
+  contain live credentials or PII. Sanitize before sharing or committing.
 - Remember that every `VITE_*` value is public in the browser bundle.
 - Never log NIM, names, search queries, cookies, or tokens.
 - Return safe error messages in production; do not expose stack traces.

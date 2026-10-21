@@ -27,7 +27,7 @@ Read the relevant documents before structural or domain changes:
 - `ARCHITECTURE.md` — system design and module boundaries
 - `docs/ENGINEERING.md` — engineering standards and review checklist
 - `docs/adr/` — accepted technical decisions
-- `requirements/` — product requirements (the PRD)
+- `requirements/` — local product requirements (the PRD); never commit as-is
 - `task/` — active implementation tasks
 - `docs/HANDOFF-*.md` — historical snapshots, not current truth
 - `ai-context/` — historical audits, not current truth
@@ -153,6 +153,8 @@ predicate.
   tests.
 - Never log PII such as NIM, names, or search queries.
 - Never expose server secrets to the client. `VITE_*` values are public.
+- Keep raw requirement extracts, API captures, and data dumps local; they may
+  contain live credentials or PII. Never commit them.
 - Do not run destructive database commands against a shared database without
   confirmation.
 - Do not edit generated Prisma client files.
@@ -218,6 +220,8 @@ Do not guess API field names. Check the controller, service, and tests.
   `ARCHITECTURE.md` and `docs/adr/`.
 - Do not read `node_modules`, `dist`, `coverage`, or
   `docs/SEVIMA API Platform Docs_files` unless working on that integration.
+- `requirements/` stays ignored because it contains real SEVIMA credentials and
+  student PII. Sanitize before sharing or committing any part of it.
 - Treat old handoffs and audits as historical context. Verify current code
   before acting on them.
 

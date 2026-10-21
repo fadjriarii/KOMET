@@ -4,6 +4,7 @@
 node_modules/
 .pnp
 .pnp.js
+.pnpm-store/
 
 # Environment Variables & Secrets
 .env
@@ -14,12 +15,13 @@ node_modules/
 !.env.example
 !*.env.example
 
-# Build & Output 
+# Build & Output
 dist/
 dist-ssr/
 build/
 out/
 .next/
+*.tsbuildinfo
 
 # Cache
 .turbo/
@@ -27,6 +29,7 @@ out/
 .cache/
 .eslintcache
 .stylelintcache
+vite.config.*.timestamp-*
 
 # Logs
 logs/
@@ -48,16 +51,17 @@ coverage/
 *.sqlite3
 *.db
 *.db-journal
+*.db-wal
+*.db-shm
 **/generated/prisma
 
-# Temporary / Scratch & Test Dumps
+# Temporary / Scratch
 scratch/
 tmp/
 temp/
-test-*.js
-test_*.js
-test.json
 *.tmp
+*.bak
+*.orig
 
 # OS Files
 .DS_Store
@@ -77,7 +81,6 @@ ehthumbs.db
 .agents/
 .codex/
 .kilo/
-ai-context/
 .ai/
 .aider*
 aider/
@@ -85,14 +88,25 @@ aider/
 CLAUDE.local.md
 .claude/settings.local.json
 
-# Project-specific ignores
+# Local source material
+# requirements/ contains real SEVIMA credentials and student PII. Never unignore as-is.
 requirements/
+
+# Historical analysis and generated graph output
+ai-context/
 graphify-out/
+
+# Local credentials and orchestration scratch
 .aws/
 komet-orchestrator/
-task/
+
 # Keep curated documentation; ignore local research and vendor snapshots.
 docs/*
 !docs/ENGINEERING.md
 !docs/adr/
 !docs/adr/**
+
+# Package manager: pnpm only
+package-lock.json
+yarn.lock
+npm-shrinkwrap.json

@@ -114,11 +114,14 @@ Komet/
 | `ARCHITECTURE.md`     | System design and module boundaries        |
 | `docs/ENGINEERING.md` | Engineering standards and review checklist |
 | `docs/adr/`           | Accepted technical decisions               |
-| `requirements/`       | Product requirements                       |
+| `requirements/`       | Product requirements, local-only           |
 | `task/`               | Active implementation tasks                |
 
 Filter options are derived from synced data. Default-year behavior is documented
 in `docs/adr/0001-data-driven-default-academic-year.md`.
+
+`requirements/` is intentionally local-only because it contains raw credentials
+and PII. Do not commit it as-is.
 
 ---
 
