@@ -80,8 +80,9 @@ ehthumbs.db
 ai-context/
 .aider*
 aider/
-AGENTS.md
 .qoder/
+CLAUDE.local.md
+.claude/settings.local.json
 
 # Project-specific ignores
 requirements/
@@ -89,4 +90,8 @@ graphify-out/
 .aws/
 komet-orchestrator/
 task/
-docs/
+# Keep curated documentation; ignore local research and vendor snapshots.
+docs/*
+!docs/ENGINEERING.md
+!docs/adr/
+!docs/adr/**

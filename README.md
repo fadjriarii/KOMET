@@ -104,6 +104,23 @@ Komet/
 
 ---
 
+## Documentation
+
+| Document              | Purpose                                    |
+| --------------------- | ------------------------------------------ |
+| `AGENTS.md`           | Canonical instructions for AI agents       |
+| `CLAUDE.md`           | Claude Code entry point                    |
+| `ARCHITECTURE.md`     | System design and module boundaries        |
+| `docs/ENGINEERING.md` | Engineering standards and review checklist |
+| `docs/adr/`           | Accepted technical decisions               |
+| `requirements/`       | Product requirements                       |
+| `task/`               | Active implementation tasks                |
+
+Filter options are derived from synced data. Default-year behavior is documented
+in `docs/adr/0001-data-driven-default-academic-year.md`.
+
+---
+
 ## Available Scripts
 
 ### Root (runs across workspaces via Turborepo)
