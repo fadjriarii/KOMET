@@ -78,6 +78,7 @@ ehthumbs.db
 .codex/
 .kilo/
 ai-context/
+.ai/
 .aider*
 aider/
 .qoder/

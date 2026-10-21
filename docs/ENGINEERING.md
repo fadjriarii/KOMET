@@ -150,14 +150,14 @@ pnpm format:check
 
 Update the correct document in the same change:
 
-| Change                                 | Update                |
-| -------------------------------------- | --------------------- |
-| Install, run, or user-visible behavior | `README.md`           |
-| Module boundaries or data flow         | `ARCHITECTURE.md`     |
-| Technical decision and trade-off       | `docs/adr/`           |
-| Engineering standard                   | `docs/ENGINEERING.md` |
-| Active implementation work             | `task/`               |
-| Temporary handoff                      | `docs/HANDOFF-*.md`   |
+| Change                                 | Update                      |
+| -------------------------------------- | --------------------------- |
+| Install, run, or user-visible behavior | `README.md`, `CHANGELOG.md` |
+| Module boundaries or data flow         | `ARCHITECTURE.md`           |
+| Technical decision and trade-off       | `docs/adr/`                 |
+| Engineering standard                   | `docs/ENGINEERING.md`       |
+| Active implementation work             | `task/`                     |
+| Temporary handoff                      | `docs/HANDOFF-*.md`         |
 
 New documentation is written in English. UI copy remains Indonesian unless the
 product asks otherwise. Do not create a second document for a rule that already

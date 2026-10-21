@@ -110,6 +110,7 @@ Komet/
 | --------------------- | ------------------------------------------ |
 | `AGENTS.md`           | Canonical instructions for AI agents       |
 | `CLAUDE.md`           | Claude Code entry point                    |
+| `CHANGELOG.md`        | User-visible changes                       |
 | `ARCHITECTURE.md`     | System design and module boundaries        |
 | `docs/ENGINEERING.md` | Engineering standards and review checklist |
 | `docs/adr/`           | Accepted technical decisions               |

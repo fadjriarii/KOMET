@@ -23,6 +23,7 @@ The server uses CommonJS (`require`); the client and shared package use ESM
 Read the relevant documents before structural or domain changes:
 
 - `README.md` — installation, commands, and repository overview
+- `CHANGELOG.md` — user-visible changes, released and unreleased
 - `ARCHITECTURE.md` — system design and module boundaries
 - `docs/ENGINEERING.md` — engineering standards and review checklist
 - `docs/adr/` — accepted technical decisions
@@ -200,7 +201,8 @@ Do not guess API field names. Check the controller, service, and tests.
 ## 8. AI tool compatibility
 
 - `AGENTS.md` is the canonical source for all AI providers.
-- `CLAUDE.md` is a pointer for Claude Code and must not duplicate these rules.
+- `CLAUDE.md` and `.cursorrules` are pointers and must not duplicate these
+  rules.
 - If another tool needs its own instruction file, make it a one-line pointer to
   `AGENTS.md`.
 - Keep one source of truth. Do not create competing rule files.
