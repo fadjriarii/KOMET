@@ -46,6 +46,13 @@ coverage/
 *.lcov
 .nyc_output/
 
+# Browser verification artifacts (playwright-cli / Playwright)
+.playwright-cli/
+playwright-report/
+blob-report/
+test-results/
+playwright/.cache/
+
 # Database & Prisma
 *.sqlite
 *.sqlite3
@@ -82,8 +89,8 @@ ehthumbs.db
 # .claude/skills/ or .opencode/skills/; see docs/SKILLS.md.
 .agents/
 .codex/
+.gemini/
 .kilo/
-.ai/
 .aider*
 aider/
 .qoder/
@@ -104,6 +111,7 @@ komet-orchestrator/
 
 # Keep curated documentation; ignore local research and vendor snapshots.
 docs/*
+!docs/ARCHITECTURE.md
 !docs/ENGINEERING.md
 !docs/SKILLS.md
 !docs/adr/

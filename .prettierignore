@@ -5,6 +5,18 @@ coverage
 pnpm-lock.yaml
 prisma
 
+# Local source material, historical notes, and generated output (not authored code)
+requirements
+ai-context
+graphify-out
+.agents
+.codex
+.gemini
+.qoder
+.playwright-cli
+playwright-report
+test-results
+
 # Vendored / generated static assets (minified — must not be reformatted)
 apps/server/public/vendor
 apps/server/public/animations

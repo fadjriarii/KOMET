@@ -18,11 +18,20 @@ Use `~/.claude/skills/` for a global skill that should work in both tools. Use
 `.claude/skills/` and `.opencode/skills/` for a project skill that teammates
 must receive through Git.
 
+The canonical global store is `~/.agents/skills/`. It is read directly by
+OpenCode, Codex, and Antigravity CLI. Skills that Claude Code must also see are
+symlinked into `~/.claude/skills/` instead of copied, so one directory holds the
+only copy:
+
+```bash
+ln -sfn ~/.agents/skills/<id> ~/.claude/skills/<id>
+```
+
 Claude Code plugins can also provide skills. Manage those with `claude plugin`
 instead of copying files; the ponytail skills are installed this way.
 
-Directories such as `.agents/`, `.codex/`, `.kilo/`, `.qoder/`, and `.ai/` are
-git-ignored on purpose. A project skill placed there will not be committed.
+Directories such as `.agents/`, `.codex/`, `.gemini/`, `.kilo/`, and `.qoder/`
+are git-ignored on purpose. A project skill placed there will not be committed.
 
 ## Skill IDs
 
@@ -81,6 +90,48 @@ the skill are relative to the directory containing `SKILL.md`.
 
 Use `metadata.opencode/autoinvoke: false` (or `disable-model-invocation: true`)
 when the skill should only be loaded explicitly by ID.
+
+## Installed global skills
+
+| Skill                     | Purpose                                          | Token rule                                             |
+| ------------------------- | ------------------------------------------------ | ------------------------------------------------------ |
+| `ponytail`                | Lazy senior dev mode, smallest correct change    | Loaded at session start                                |
+| `antislop` + `antislop-*` | Filter against generic AI UI, copy, and comments | UI/UX work only, core + one child skill, never all six |
+| `playwright-cli`          | Real browser verification and page snapshots     | Loaded only when verifying a UI in a browser           |
+| `skill-inspector`         | Source-aware review of a candidate skill         | Before installing any skill                            |
+| `insecure-defaults`       | Audit for fail-open config and hardcoded secrets | Config, auth, Docker, and IaC work only                |
+
+`antislop` is a filter, not a design system. In KOMET its direction comes from
+`DESIGN.md`, which points at the `digital-blue` theme and
+`components/common/ui/`. Loading the antislop core on a backend task is a token
+regression, not a quality gain.
+
+## Browser verification
+
+`playwright-cli` is installed globally (`@playwright/cli`) and its skills live
+in `~/.agents/skills/playwright-cli/`. It drives a real Chromium session so an
+agent can verify loading, empty, and error states that `vitest` cannot see.
+
+```bash
+playwright-cli open --browser=chromium http://localhost:5173
+playwright-cli snapshot
+playwright-cli close
+```
+
+It writes session artifacts to `.playwright-cli/`, which is git-ignored. Do not
+turn it into a committed end-to-end suite without a separate decision; the
+project uses `vitest` for automated tests.
+
+## Multi-agent installation
+
+`npx skills add <owner>/<repo>` installs into `~/.agents/skills/` and symlinks
+into the agent directories it detects, including Claude Code, Codex, OpenCode,
+Qoder, Antigravity CLI, and Hermes. Two caveats:
+
+- It performs no security scan. Run `skillspector scan <path>` yourself first.
+- Project-scope installs for Codex land in `.agents/skills/` and for Qoder in
+  `.qoder/skills/`, both git-ignored here. Use `.claude/skills/` or
+  `.opencode/skills/` for a project skill that must be committed.
 
 ## Security rules
 
