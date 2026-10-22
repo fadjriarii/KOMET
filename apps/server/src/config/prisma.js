@@ -5,11 +5,8 @@ const { PrismaMariaDb } = require('@prisma/adapter-mariadb');
 const logger = require('../utils/logger');
 const { logSlowQuery } = require('./slowQueryLog');
 
-// Prisma 7 mewajibkan driver adapter. Unit test tidak pernah membuka koneksi,
-// jadi URL fallback menjaga konstruksi tetap jalan tanpa apps/server/.env (CI).
-const adapter = new PrismaMariaDb(
-  process.env.DATABASE_URL || 'mysql://localhost:3306/komet_placeholder',
-);
+// Prisma 7 mewajibkan driver adapter.
+const adapter = new PrismaMariaDb(process.env.DATABASE_URL);
 
 const prisma = new PrismaClient({
   adapter,

@@ -12,7 +12,7 @@ function matchesFieldValue(value, rule) {
     switch (operator) {
       case 'equals':
         return actual === String(operand);
-      // Perbandingan string murni seperti MySQL; nilai kosong sengaja TIDAK
+      // Perbandingan string murni seperti MariaDB; nilai kosong sengaja TIDAK
       // dikecualikan di sini — kondisi yang butuh "harus terisi" menyatakan
       // `{ not: '' }` sendiri, sama seperti di SQL.
       case 'lt':

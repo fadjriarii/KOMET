@@ -7,7 +7,7 @@ process.env.SESSION_SECRET ||= 'zero-trust-test-secret';
 process.env.SYNC_API_KEY ||= 'zero-trust-sync-key';
 // PrismaClient butuh datasource URL saat konstruksi; test ini tidak pernah mengirim
 // query karena setiap request data harus ditolak sebelum sampai ke controller.
-process.env.DATABASE_URL ||= 'mysql://test:test@127.0.0.1:3306/komet_test';
+process.env.DATABASE_URL ||= 'mariadb://test:test@127.0.0.1:3306/komet_test';
 
 const express = require('express');
 const {

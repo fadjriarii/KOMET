@@ -44,7 +44,7 @@ year comes from the data that exists, never from the calendar year.**
 
 ### Data synchronization
 
-- Pulls students, graduates, and MBKM data from the SEVIMA SIS API into MySQL
+- Pulls students, graduates, and MBKM data from the SEVIMA SIS API into MariaDB
 - Manual sync per module or for all modules at once, with live progress
 - Keeps the last five sync runs with per-module status
 - A failed sync never deletes existing data
@@ -68,22 +68,22 @@ Details, including the full route protection matrix, are in
 | Layer       | Technologies                                                                          |
 | ----------- | ------------------------------------------------------------------------------------- |
 | **Client**  | React 19, Vite 8, TailwindCSS 4, TanStack Query 5, React Router 7, Recharts 3         |
-| **Server**  | Express 5, Prisma 7 (MySQL, MariaDB driver adapter), Redis (optional), Zod 4, Winston |
+| **Server**  | Express 5, Prisma 7 (MariaDB 10.11, driver adapter), Redis (optional), Zod 4, Winston |
 | **Shared**  | `@komet/shared` — ESM modules with subpath exports                                    |
 | **Testing** | Vitest 5, Testing Library                                                             |
 | **Tooling** | pnpm 12, Turborepo 2, ESLint 10, Prettier 3, Husky 9, GitHub Actions                  |
-| **Runtime** | Node.js ≥ 22.12                                                                       |
+| **Runtime** | Node.js ≥ 24 (LTS)                                                                    |
 
 ---
 
 ## Prerequisites
 
-| Requirement | Notes                                                              |
-| ----------- | ------------------------------------------------------------------ |
-| **Node.js** | ≥ 22.12 — the server `require()`s ESM modules from `@komet/shared` |
-| **pnpm**    | Mandatory — npm and yarn are **not** supported                     |
-| **MySQL**   | Any 8.x-compatible server                                          |
-| **Redis**   | Optional — used for rate limiting and session storage              |
+| Requirement | Notes                                                                 |
+| ----------- | --------------------------------------------------------------------- |
+| **Node.js** | ≥ 24 LTS                                                              |
+| **pnpm**    | Mandatory — npm and yarn are **not** supported                        |
+| **MariaDB** | 10.11 LTS or newer. Prisma configures it through its `mysql` provider |
+| **Redis**   | Optional — used for rate limiting and session storage                 |
 
 ---
 
@@ -130,7 +130,7 @@ Turborepo starts both apps in parallel:
 SEVIMA SIS API
       │  manual sync (POST /api/sync/*)
       ▼
-Sync controllers ──► MySQL (Prisma)
+Sync controllers ──► MariaDB (Prisma)
                           │  aggregation queries
                           ▼
                     Service layer ──► REST API ──► React client

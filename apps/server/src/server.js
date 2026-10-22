@@ -2,7 +2,6 @@ const app = require('./app');
 const logger = require('./utils/logger');
 const prisma = require('./config/prisma');
 const { connectRedis, disconnectRedis } = require('./config/redis');
-const { registerApplicationRoutes } = require('./routes');
 
 const PORT = process.env.PORT || 3000;
 
@@ -36,6 +35,9 @@ async function startServer() {
   // dikonfigurasi, server berjalan dengan store in-process: diterima di development,
   // ditolak di production kecuali degradasi diizinkan eksplisit (lihat config/redis.js).
   await connectRedis();
+  // Route memilih store rate limit saat modulnya dimuat. Require setelah Redis
+  // siap supaya RedisStore yang dipakai, bukan memory store.
+  const { registerApplicationRoutes } = require('./routes');
   registerApplicationRoutes(app);
   server = app.listen(PORT, () => {
     logger.success(`🚀 Server Komet berjalan di http://localhost:${PORT}`);

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "KPI Observation, Monitoring and Evaluation Tool",
-  "packageManager": "pnpm@12.9.1",
+  "packageManager": "pnpm@12.14.0",
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",

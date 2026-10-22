@@ -11,10 +11,10 @@ dashboard for student, graduate, and MBKM data.
 Monorepo layout:
 
 - `apps/client` — React 19, Vite, TailwindCSS, TanStack Query
-- `apps/server` — Express 5, Prisma, MySQL, Redis
+- `apps/server` — Express 5, Prisma, MariaDB, Redis
 - `packages/shared` — shared constants, formatters, and academic-year rules
 
-Runtime requirements: Node.js >= 22, pnpm 12, Turborepo 2.
+Runtime requirements: Node.js >= 24, pnpm 12, Turborepo 2.
 The server uses CommonJS (`require`); the client and shared package use ESM
 (`import`).
 
@@ -180,6 +180,11 @@ predicate.
 
 ## 6. Workflow
 
+0. Scheduled task: when the local date in Asia/Jakarta is 2026-11-05 and the
+   time is 08:30 or later, execute `task/2026-11-05-tech-stack-update.md`
+   before any user request. That task supersedes ADR 0002 and converts the
+   project to Prisma Migrate; until then, `db push` remains the workflow.
+   Remove this step after the task is completed.
 1. Read the relevant docs and existing tests.
 2. Use `rg` to find every caller before changing shared logic.
 3. For multi-file changes, state a short plan and confirm assumptions.

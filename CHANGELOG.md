@@ -50,9 +50,24 @@ Version numbers follow the root `package.json`.
 - Upgraded Prisma to 7.10.1: the connection URL lives in
   `apps/server/prisma.config.ts`, the client is built with
   `@prisma/adapter-mariadb`, and `db:push` now regenerates the client.
+- Refreshed dependencies: React 19.3.1, Vite 8.3.5, Vitest 5.0.5, Express
+  5.3.0, TanStack Query 5.104.5, Zod 4.6.7, Lucide 1.61.0, dotenv 18.0.8, and
+  pnpm 12.14.0.
+- Hardened Redis clients for node-redis 6 (`close()` replaces `quit()`) and
+  moved `rate-limit-redis` to 6.0.1.
+- Node baseline is now 24 LTS, including the CI workflow.
+
+### Removed
+
+- `mysql2`, which was listed but never imported; the connection goes through
+  the MariaDB driver adapter.
+- The placeholder `DATABASE_URL` fallback in `src/config/prisma.js`. Unit tests
+  now receive a non-routable test URL from `vitest.config.mjs`.
 
 ### Fixed
 
+- Redis-backed rate limiting now uses Redis. Routes load after the Redis client
+  connects, so the limiter no longer captures the in-memory store at import.
 - Graduate Data filter and visualization behavior for anchored and unanchored
   scopes, including jenjang tabs and chart windows.
 - Live-database summary assertion now expects the actual active-student count
@@ -63,3 +78,6 @@ Version numbers follow the root `package.json`.
 - Documented the project structure, commands, domain invariants, and definition
   of done for future contributors and AI agents.
 - Added the documentation map to `README.md`.
+- Corrected database documentation: the engine is MariaDB. `DATABASE_URL` now
+  uses `mariadb://`, and `prisma.config.ts` rewrites it to the `mysql://`
+  scheme the Prisma CLI requires.

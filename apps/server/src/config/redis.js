@@ -61,7 +61,7 @@ async function connectRedis() {
 
 async function disconnectRedis() {
   redisUsable = false;
-  if (redisClient?.isOpen) await redisClient.quit();
+  if (redisClient?.isOpen) await redisClient.close();
 }
 
 module.exports = { redisClient, connectRedis, disconnectRedis, isRedisUsable: () => redisUsable };

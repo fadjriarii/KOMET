@@ -4,7 +4,7 @@ const { HTTP_STATUS } = require('@komet/shared/constants');
 const { isValidAcademicYear } = require('@komet/shared/academicYear');
 
 // Schema pembantu untuk mengizinkan string tunggal atau array of string
-// Byte kontrol (0x00-0x1F, 0x7F) ditolak: string ini lanjut ke LIKE/IN di MySQL dan
+// Byte kontrol (0x00-0x1F, 0x7F) ditolak: string ini lanjut ke LIKE/IN di MariaDB dan
 // bisa dipakai menyamarkan payload injeksi dari pembacaan log.
 // eslint-disable-next-line no-control-regex
 const WITHOUT_CONTROL_BYTES = /^[^\u0000-\u001F\u007F]+$/;

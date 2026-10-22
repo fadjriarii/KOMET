@@ -11,7 +11,7 @@ const prisma = require('../config/prisma');
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
 async function fetchDistinctValues(spec) {
-  // `groupBy` beragregat di database. `findMany` + `distinct` pada MySQL justru
+  // `groupBy` beragregat di database. `findMany` + `distinct` pada MariaDB justru
   // mengirim seluruh baris (primary key ikut ter-select) lalu membuang duplikat
   // di Node, jadi biayanya tumbuh bersama jumlah mahasiswa, bukan jumlah nilai.
   const rows = await prisma[spec.model].groupBy({

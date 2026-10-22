@@ -65,7 +65,7 @@ graduates, and MBKM modules.
 
 ### `apps/server` — @komet/server
 
-Express 5 REST API backend. Uses Prisma ORM for MySQL database access and
+Express 5 REST API backend. Uses Prisma ORM for MariaDB database access and
 optional Redis for rate limiting and caching. Handles authentication, data
 synchronization with the SEVIMA API, and serves aggregated statistics.
 
@@ -222,9 +222,13 @@ Formatting is style, not semantics. One `.prettierrc` ensures consistent code st
 
 The database schema (`schema.prisma`), the connection URL in
 `prisma.config.ts`, and the generated Prisma client live inside `apps/server/`.
-There is no migration history — see ADR 0002. Prisma 7 requires a driver adapter,
-so `src/config/prisma.js` builds the client with `@prisma/adapter-mariadb`. The
-database is a server-only concern — the client never accesses MySQL directly.
+There is no migration history — see ADR 0002. The database is MariaDB; Prisma has
+no `mariadb` provider, so `datasource.provider` is `mysql`. `DATABASE_URL` uses
+the `mariadb://` scheme the app and driver adapter accept, and
+`prisma.config.ts` rewrites it to `mysql://` for the CLI. Prisma 7 requires a
+driver adapter, so `src/config/prisma.js` builds the client with
+`@prisma/adapter-mariadb`, which connects through the MariaDB driver. The
+database is a server-only concern — the client never accesses MariaDB directly.
 Placing Prisma at the root would imply the schema is shared across apps, which
 it is not.
 
@@ -277,7 +281,7 @@ instead of a barrel `index`:
 | `@komet/shared/filterUtils`  | Query-param filter builders used by all three data modules           |
 
 The client imports these as ESM. The server is CommonJS and calls
-`require('@komet/shared/<subpath>')`; this works because Node.js 22.12+ supports
+`require('@komet/shared/<subpath>')`; this works because Node.js 24 supports
 `require()` of an ESM module when it has no top-level await. There is no second
 CJS build, no bundling step, and no `index.js` barrel — importing a subpath
 keeps the dependency surface explicit and tree-shakeable.
@@ -324,7 +328,7 @@ No publishing to npm, no version bumps — pnpm resolves it directly from the lo
          │ HTTP (sync endpoints)
          ▼
 ┌──────────────────┐     ┌─────────┐
-│  Sync Controllers │────▶│  MySQL   │
+│  Sync Controllers │────▶│ MariaDB  │
 │  (upsert logic)   │     │ (Prisma) │
 └──────────────────┘     └────┬────┘
                               │ query
@@ -353,9 +357,9 @@ No publishing to npm, no version bumps — pnpm resolves it directly from the lo
 
 1. **SEVIMA SIS API** is the authoritative source of truth for student records, graduate data, and MBKM (Merdeka Belajar Kampus Merdeka) participation.
 
-2. **Sync controllers** pull data from SEVIMA via HTTP and upsert it into the local MySQL database through Prisma. This decouples dashboard performance from the external API's availability and response time.
+2. **Sync controllers** pull data from SEVIMA via HTTP and upsert it into the local MariaDB database through Prisma. This decouples dashboard performance from the external API's availability and response time.
 
-3. **Dashboard endpoints** query the local MySQL database for aggregated statistics — graduation rates, KPI metrics, enrollment trends — through a service layer that encapsulates business logic.
+3. **Dashboard endpoints** query the local MariaDB database for aggregated statistics — graduation rates, KPI metrics, enrollment trends — through a service layer that encapsulates business logic.
 
 4. **Express routes** expose these aggregations as REST endpoints. Authentication uses HttpOnly session cookies (not localStorage tokens) to prevent XSS-based credential theft.
 

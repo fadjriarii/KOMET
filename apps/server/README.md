@@ -1,27 +1,27 @@
 # @komet/server
 
-Express 5 REST API backend for **KOMET** — a university analytics platform. Serves aggregated statistical data (students, graduates, MBKM) to a React frontend. Data is sourced from the [SEVIMA SIS](https://api.sevima.com/) (Student Information System) API and synced into a local MySQL database via Prisma.
+Express 5 REST API backend for **KOMET** — a university analytics platform. Serves aggregated statistical data (students, graduates, MBKM) to a React frontend. Data is sourced from the [SEVIMA SIS](https://api.sevima.com/) (Student Information System) API and synced into a local MariaDB database via Prisma.
 
 ## Tech Stack
 
-| Layer                 | Technology                           |
-| --------------------- | ------------------------------------ |
-| Runtime               | Node.js (CommonJS)                   |
-| Framework             | Express 5                            |
-| ORM                   | Prisma 7 (MySQL, MariaDB adapter)    |
-| Cache / Rate Limiting | Redis (optional — graceful fallback) |
-| Validation            | Zod 4 (request & environment)        |
-| Logging               | Winston                              |
-| Testing               | Vitest 5                             |
-| Dev Server            | Nodemon                              |
+| Layer                 | Technology                               |
+| --------------------- | ---------------------------------------- |
+| Runtime               | Node.js (CommonJS)                       |
+| Framework             | Express 5                                |
+| ORM                   | Prisma 7 (MariaDB 10.11, driver adapter) |
+| Cache / Rate Limiting | Redis (optional — graceful fallback)     |
+| Validation            | Zod 4 (request & environment)            |
+| Logging               | Winston                                  |
+| Testing               | Vitest 5                                 |
+| Dev Server            | Nodemon                                  |
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js ≥ 18
+- Node.js ≥ 24 (LTS)
 - pnpm
-- MySQL database
+- MariaDB 10.11 or newer
 - Redis (optional)
 - SEVIMA SIS API credentials
 
@@ -44,7 +44,7 @@ Copy `.env.example` to `.env` and configure:
 
 | Variable            | Required | Default       | Description                                            |
 | ------------------- | -------- | ------------- | ------------------------------------------------------ |
-| `DATABASE_URL`      | ✅       | —             | MySQL connection string                                |
+| `DATABASE_URL`      | ✅       | —             | MariaDB connection string (`mariadb://`)               |
 | `SEVIMA_APP_KEY`    | ✅       | —             | SEVIMA SIS API app key                                 |
 | `SEVIMA_SECRET_KEY` | ✅       | —             | SEVIMA SIS API secret key                              |
 | `SYNC_API_KEY`      | ✅       | —             | API key for sync endpoint authentication               |
@@ -197,7 +197,7 @@ eksplisit dan menjalankan ulang skripnya.
 | `GET /api/mbkm/analytics/rate`           |      4 | status (1), fakultas (1), eligible (1), opsi/periode seperlunya                                        |
 
 Fan-out `Promise.all` pada endpoint-endpoint ini **tidak** dibatasi semaphore
-aplikasi: Prisma sudah mengantre permintaan pada connection pool MySQL
+aplikasi: Prisma sudah mengantre permintaan pada connection pool MariaDB
 (`connection_limit` di `DATABASE_URL`, default `cpu×2+1`), sehingga menambahkan
 batas konkurensi di lapisan aplikasi hanya memindahkan antrian dan menambah
 waktu tunggu. Query yang lambat tetap terukur lewat `[SlowQuery]`
@@ -205,7 +205,7 @@ waktu tunggu. Query yang lambat tetap terukur lewat `[SlowQuery]`
 
 ## Database Schema
 
-Three Prisma models backed by MySQL:
+Three Prisma models backed by MariaDB:
 
 ### Student
 

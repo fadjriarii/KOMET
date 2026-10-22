@@ -1,4 +1,4 @@
-/** Aggregates international-student trends directly in MySQL. */
+/** Aggregates international-student trends directly in MariaDB. */
 const { FILTER_SCOPES, buildStudentFilter, getAcademicYear } = require('./filterBuilder');
 const { buildAcademicYearFilter } = require('./snapshotConditions');
 const { resolveTrendYears } = require('./international/trendYears');

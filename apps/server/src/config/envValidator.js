@@ -7,7 +7,7 @@ const logger = require('../utils/logger');
  */
 const baseEnvSchema = z.object({
   // Database
-  DATABASE_URL: z.string().min(1, 'Koneksi database MySQL Prisma wajib diisi'),
+  DATABASE_URL: z.string().min(1, 'Koneksi database MariaDB (Prisma) wajib diisi'),
 
   // SEVIMA API
   SEVIMA_APP_KEY: z.string().min(1, 'X-App-Key untuk autentikasi API SEVIMA wajib diisi'),
