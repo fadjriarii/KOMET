@@ -12,29 +12,83 @@ Komet/
 │   ├── client/          # @komet/client — React 19 SPA frontend
 │   └── server/          # @komet/server — Express 5 REST API
 ├── packages/
-│   └── shared/          # @komet/shared — Shared utilities and constants
+│   └── shared/          # @komet/shared — ESM modules shared by both apps
+├── docs/
+│   ├── ARCHITECTURE.md  # System design and module boundaries
+│   ├── ENGINEERING.md   # Standards and review checklist
+│   ├── SKILLS.md        # Agent skill installation
+│   └── adr/             # Accepted technical decisions
+├── .github/workflows/   # CI (runs `pnpm verify`)
+├── task/                # Active implementation tasks (committed)
+├── requirements/        # Local source material — git-ignored, contains PII
+├── AGENTS.md            # Canonical instructions for AI agents
+├── DESIGN.md            # UI direction for the existing design system
 ├── pnpm-workspace.yaml
 ├── turbo.json
 ├── package.json
 ├── eslint.config.mjs
-├── .prettierrc
-├── .prettierignore
+├── .prettierrc / .prettierignore
 ├── .npmrc
 ├── .husky/pre-commit
 └── .gitignore
 ```
 
+Local-only tool directories (`.agents/`, `.codex/`, `.gemini/`, `.qoder/`,
+`.opencode/`, `ai-context/`, `graphify-out/`) are git-ignored and are not part
+of the deployed system.
+
 ### `apps/client` — @komet/client
 
-React 19 single-page application built with Vite 8 and TailwindCSS 4. Renders the analytics dashboard UI: charts, tables, filters, and KPI visualizations. Communicates with the server exclusively via REST API calls.
+React 19 single-page application built with Vite 8 and TailwindCSS 4. Renders
+the analytics dashboard UI: charts, tables, filters, and KPI visualizations.
+Communicates with the server exclusively via REST API calls.
+
+| Path                     | Contents                                                                             |
+| ------------------------ | ------------------------------------------------------------------------------------ |
+| `src/components/common/` | `cards`, `charts`, `dashboard`, `feedback`, `filters`, `modals`, `tables`, `ui`      |
+| `src/components/layout/` | `Navbar`, `Sidebar`                                                                  |
+| `src/modules/students/`  | `components/`, `hooks/`, `pages/`, `services/`, `studentQueries.js`                  |
+| `src/modules/graduates/` | `components/`, `hooks/`, `pages/`, `services/`, `utils/`, `graduateQueries.js`       |
+| `src/modules/mbkm/`      | `components/`, `hooks/`, `pages/`, `services/`, `mbkmQueries.js`                     |
+| `src/modules/errors/`    | `ErrorPage.jsx` and the error-state catalog                                          |
+| `src/hooks/`             | Query keys, dashboard filters, debounced search params, modal origin, tab transition |
+| `src/services/`          | `apiClient`, query-param builder, filter-service factory, sync service               |
+| `src/utils/`             | KPI labels/scopes/subtitles, pagination, query sanitizer, theme, UI helpers          |
+| `src/constants/`         | Navigation, debounce values, cache policy                                            |
+| `src/config/`            | `envValidator.js` (fails fast on a missing `VITE_API_BASE_URL`)                      |
+| `src/assets/`            | Logos and static images imported by the UI                                           |
+| `scripts/`               | `check-bundle.mjs` (bundle budget)                                                   |
+| `tests/`                 | Vitest + Testing Library suites                                                      |
+
+There is no `overview` module; the dashboard root is assembled from the students,
+graduates, and MBKM modules.
 
 ### `apps/server` — @komet/server
 
-Express 5 REST API backend. Uses Prisma ORM for MySQL database access and optional Redis for rate limiting and caching. Handles authentication, data synchronization with external APIs, and serves aggregated statistics to the client.
+Express 5 REST API backend. Uses Prisma ORM for MySQL database access and
+optional Redis for rate limiting and caching. Handles authentication, data
+synchronization with the SEVIMA API, and serves aggregated statistics.
+
+| Path               | Contents                                                                                                                                       |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/app.js`       | Express app assembly (helmet, cors, parsers, routes)                                                                                           |
+| `src/server.js`    | Bootstrap: env validation, Redis, route registration, listen                                                                                   |
+| `src/routes/`      | `rootRoutes`, `studentsRoutes`, `graduatesRoutes`, `mbkmRoutes`, `syncRoutes`, `index`                                                         |
+| `src/controllers/` | `students`, `graduates`, `mbkm` handlers + `sync/` ETL (`createSyncHandler`, mappers, writers, sevima lookup)                                  |
+| `src/services/`    | Per-domain aggregation: `students/`, `graduates/`, `mbkm/`, `sync/`, plus `filterOptionsSource`, `sessionStore`, `studentDeduplicationService` |
+| `src/middlewares/` | `auth`, `studentSession`, `syncAuth`, `syncGuard`, `sessionIdentity`, `rateLimiter`, `validator`                                               |
+| `src/config/`      | `envValidator`, `prisma`, `redis`, `sevimaApi`, `corsPolicy`, `accessLog`, `slowQueryLog`                                                      |
+| `src/utils/`       | `academic/`, `syncJob/`, `errorCatalog`, `errorHandler`, `logger`, pagination, percentage, trend helpers                                       |
+| `prisma/`          | `schema.prisma` (only schema source) and `data/` for one-off SQL fixes                                                                         |
+| `tests/unit/`      | Vitest suites mirroring `src/`                                                                                                                 |
+| `scripts/`         | `check-contracts.js` and `count-queries.js`                                                                                                    |
+| `public/`          | Landing page and vendored static assets                                                                                                        |
 
 ### `packages/shared` — @komet/shared
 
-Shared utilities and constants consumed by both client and server. Provides dual ESM/CJS exports so it works in the client's module environment and the server's CommonJS environment. Contains only logic that is genuinely duplicated across both codebases.
+Shared ESM modules consumed by both client and server. Contains only logic that
+is genuinely duplicated across both codebases: constants, formatters,
+academic-year rules, response contracts, and filter query builders.
 
 ### Why This Structure
 
@@ -48,7 +102,14 @@ Shared utilities and constants consumed by both client and server. Provides dual
 
 ### `pnpm-workspace.yaml`
 
-Defines the workspace package locations (`apps/*`, `packages/*`). All dependencies are managed from the root — a single `pnpm install` at the repo root resolves and hoists everything. Individual apps don't need their own install step.
+Defines the workspace package locations (`apps/*`, `packages/*`). All
+dependencies are managed from the root — a single `pnpm install` at the repo
+root resolves and hoists everything. Individual apps don't need their own
+install step.
+
+It also holds pnpm 12's `allowBuilds` list (packages allowed to run install
+scripts) and `minimumReleaseAgeExclude` pins for the Turborepo binaries, which
+are exempted from the release-age delay so the pinned version resolves.
 
 ### `turbo.json`
 
@@ -58,12 +119,16 @@ Turborepo task runner configuration. Defines the task dependency graph and cachi
 | ------- | ------- | ---------- | ------------ | --------- |
 | `dev`   | `false` | `true`     | —            | —         |
 | `build` | `true`  | `false`    | `^build`     | `dist/**` |
-| `lint`  | `true`  | `false`    | —            | —         |
-| `test`  | `true`  | `false`    | —            | —         |
+| `lint`  | `true`  | `false`    | `^build`     | —         |
+| `test`  | `true`  | `false`    | `^build`     | —         |
 
 - **`dev`** disables caching (`cache: false`) and sets `persistent: true` because dev servers are long-running processes, not cacheable outputs.
 - **`build`** depends on `^build` (caret prefix), meaning a package's build runs only after all its workspace dependencies have built. Build outputs in `dist/**` are cached by Turborepo.
-- **`lint`** and **`test`** run independently with caching enabled.
+- **`lint`** and **`test`** also depend on `^build`, so they run against built
+  workspace dependencies rather than stale sources, and remain cached.
+- Only the client emits `dist/**`. The server build is an intentional no-op
+  (`echo 'No build step for backend'`), which is why Turborepo warns that no
+  output files were found for `@komet/server#build`.
 
 ### `package.json` (root)
 
@@ -72,6 +137,9 @@ Workspace orchestrator. Does not contain application code — its scripts proxy 
 - **`devDependencies`**: `turbo`, `eslint`, `prettier`, `husky`, `lint-staged` — tooling shared across the entire repo.
 - **`packageManager`**: Pins `pnpm@12.9.1` via Corepack to ensure all contributors use the same package manager version.
 - **`lint-staged`** config: runs `prettier --write` and `eslint --fix` on staged `.js/.jsx/.cjs/.mjs` files; runs `prettier --write` on staged `.json/.md/.yaml/.yml` files.
+- **`verify`** script: chains `format:check`, `lint`, `test`, and `build`. It is
+  the single command CI runs and the one contributors should run before a
+  commit.
 
 ### `eslint.config.mjs`
 
@@ -88,6 +156,7 @@ Shared Prettier configuration applied across the entire monorepo:
   "trailingComma": "all",
   "printWidth": 100,
   "tabWidth": 2,
+  "arrowParens": "always",
   "endOfLine": "lf"
 }
 ```
@@ -96,11 +165,19 @@ Prettier auto-discovers this file by walking up the directory tree, so every wor
 
 ### `.prettierignore`
 
-Excludes generated and non-source files from formatting: `node_modules`, `dist`, `coverage`, `.turbo`, `pnpm-lock.yaml`, and `prisma` (generated client code).
+Excludes generated, vendored, and local-only files from formatting:
+`node_modules`, `dist`, `coverage`, `.turbo`, `pnpm-lock.yaml`, `prisma`,
+`requirements`, `ai-context`, `graphify-out`, the local agent directories, and
+Playwright output. Without these entries Prettier would traverse multi-megabyte
+generated JSON on every `format:check`.
 
 ### `.npmrc`
 
-pnpm settings. Uses `onlyBuiltDependencies` to allowlist packages that are permitted to run build scripts (Prisma packages). This is a security measure — only explicitly approved packages can execute post-install scripts, reducing the attack surface from supply-chain compromises.
+pnpm settings. Uses `onlyBuiltDependencies` to allowlist packages that are
+permitted to run build scripts (the Prisma packages). This is a security
+measure — only explicitly approved packages can execute post-install scripts,
+reducing the attack surface from supply-chain compromises. The same allowlist is
+mirrored as `allowBuilds` in `pnpm-workspace.yaml`.
 
 ### `.husky/pre-commit`
 
@@ -144,31 +221,67 @@ Formatting is style, not semantics. One `.prettierrc` ensures consistent code st
 
 The database schema (`schema.prisma`), migrations, and generated Prisma client live inside `apps/server/`. The database is a server-only concern — the client never accesses MySQL directly. Placing Prisma at the root would imply the schema is shared across apps, which it is not.
 
+### F. Barrel files — `X.js` + `X/` (same name, on purpose)
+
+Four modules ship a facade file and an implementation folder with the same base
+name:
+
+| Facade (public surface)              | Implementation folder              |
+| ------------------------------------ | ---------------------------------- |
+| `services/students/declineTrend.js`  | `services/students/declineTrend/`  |
+| `services/students/filterBuilder.js` | `services/students/filterBuilder/` |
+| `utils/academicUtils.js`             | `utils/academic/`                  |
+| `utils/syncJobTracker.js`            | `utils/syncJob/`                   |
+
+Callers import the facade (`require('./declineTrend')`), never the topic files
+inside the folder. The folder holds the topical implementations; the file holds
+the public exports and the module-level documentation.
+
+This is a barrel, not a duplicate. Do not delete one side, rename the folder, or
+flatten the pair before every caller has been migrated in the same change.
+
 ---
 
 ## 4. Shared Package Design (`@komet/shared`)
 
-### Dual Exports
+### Module Exports
 
-The shared package provides both ESM and CJS entry points via conditional exports in its `package.json`:
+`@komet/shared` is ESM-only (`"type": "module"`) and exposes named subpaths
+instead of a barrel `index`:
 
 ```json
 {
   "exports": {
-    ".": {
-      "import": "./src/index.js",
-      "require": "./src/index.cjs"
-    }
+    "./constants": "./src/constants.js",
+    "./formatters": "./src/formatters.js",
+    "./academicYear": "./src/academicYear.js",
+    "./contracts": "./src/contracts.js",
+    "./filterUtils": "./src/filterUtils.js"
   }
 }
 ```
 
-This is necessary because the client uses `type: "module"` (ESM imports) while the server uses `type: "commonjs"` (require calls). The conditional exports field lets Node.js and bundlers resolve the correct format automatically.
+| Subpath                      | Contents                                                             |
+| ---------------------------- | -------------------------------------------------------------------- |
+| `@komet/shared/constants`    | Pagination defaults, table limits, status enums, academic rules      |
+| `@komet/shared/formatters`   | `id-ID` number and percentage formatting                             |
+| `@komet/shared/academicYear` | Academic-year parsing, rollover, and valid period labels             |
+| `@komet/shared/contracts`    | Response-shape contracts checked by `check:contracts` and the client |
+| `@komet/shared/filterUtils`  | Query-param filter builders used by all three data modules           |
+
+The client imports these as ESM. The server is CommonJS and calls
+`require('@komet/shared/<subpath>')`; this works because Node.js 22.12+ supports
+`require()` of an ESM module when it has no top-level await. There is no second
+CJS build, no bundling step, and no `index.js` barrel — importing a subpath
+keeps the dependency surface explicit and tree-shakeable.
 
 ### Contents
 
-- **Shared constants**: Pagination defaults, HTTP status codes, student status enums — values that must stay consistent between client display logic and server validation.
-- **Shared formatters**: `formatNumber` (id-ID locale), `formatPercentage` — formatting functions used identically in both server responses and client rendering.
+- **Shared constants**: pagination defaults, table limits, status enums, and
+  academic-year rules that must stay consistent between client display logic and
+  server validation.
+- **Shared formatters**: `formatNumber` (id-ID locale) and percentage helpers
+  used identically in both server responses and client rendering.
 
 ### Why Not More Shared Code
 

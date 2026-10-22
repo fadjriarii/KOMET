@@ -1,31 +1,89 @@
 # KOMET
 
-**KPI Observation, Monitoring and Evaluation Tool** — an analytics dashboard for Indonesian higher education institutions to track students, graduates, and the MBKM (_Merdeka Belajar – Kampus Merdeka_) program.
+**KPI Observation, Monitoring and Evaluation Tool** — an analytics dashboard for
+Indonesian higher education institutions. KOMET turns the student, graduate, and
+MBKM (_Merdeka Belajar – Kampus Merdeka_) records held by SEVIMA into the
+indicators a faculty or study program needs to monitor intake, retention, and
+graduate outcomes.
 
 Built as a monorepo with **pnpm workspaces** and **Turborepo**.
 
 ---
 
-## Tech Stack
+## What it does
 
-| Layer       | Technologies                                                                |
-| ----------- | --------------------------------------------------------------------------- |
-| **Client**  | React 19, Vite 8, TailwindCSS 4, TanStack Query 5, Recharts 3, Lucide React |
-| **Server**  | Express 5, Prisma ORM (MySQL), Redis, Zod 4, Winston logging                |
-| **Shared**  | `@komet/shared` — common constants & formatters (dual ESM/CJS)              |
-| **Tooling** | pnpm 12, Turborepo 2, ESLint 10, Prettier 3, Husky 9, lint-staged           |
-| **Runtime** | Node.js ≥ 22                                                                |
+KOMET has three data modules. All three share the same filter system (academic
+year, faculty, study program, jenjang, cohort) and the same rule: **a default
+year comes from the data that exists, never from the calendar year.**
+
+### Student Data (`/students`)
+
+- Active student count with the current status scope
+- International student share
+- New-student intake for the selected academic year
+- New-student decline against the previous 1–5 years
+- Filterable student table with a per-student detail modal
+
+### Graduates (`/graduates`)
+
+- Total graduates
+- Average GPA on a 4.00 scale
+- On-time graduation rate against the standard study duration
+- Study success (final evaluation)
+- GPA distribution and per-cohort trends
+- Filterable graduate table with a detail modal
+
+### MBKM (`/mbkm`)
+
+- Total participants, split into running and completed
+- Eligible students (active, semester 7)
+- MBKM participation rate
+- Unique partner (_mitra_) count
+- Activity, study program, and status distributions
+- Filterable participant table with a detail modal
+
+### Data synchronization
+
+- Pulls students, graduates, and MBKM data from the SEVIMA SIS API into MySQL
+- Manual sync per module or for all modules at once, with live progress
+- Keeps the last five sync runs with per-module status
+- A failed sync never deletes existing data
+- Filter options and summaries refetch after a successful sync
+
+### Access control
+
+- Data routes require an HttpOnly session cookie issued by
+  `POST /api/session/student`
+- Sync routes require the sync credential (`x-api-key` or `Bearer`)
+- Rate limits are applied per session identity and per IP
+- Error responses only use messages from a server-side allowlist
+
+Details, including the full route protection matrix, are in
+`docs/ARCHITECTURE.md`.
+
+---
+
+## Tech stack
+
+| Layer       | Technologies                                                                  |
+| ----------- | ----------------------------------------------------------------------------- |
+| **Client**  | React 19, Vite 8, TailwindCSS 4, TanStack Query 5, React Router 7, Recharts 3 |
+| **Server**  | Express 5, Prisma 6 (MySQL), Redis (optional), Zod 4, Winston                 |
+| **Shared**  | `@komet/shared` — ESM modules with subpath exports                            |
+| **Testing** | Vitest 5, Testing Library                                                     |
+| **Tooling** | pnpm 12, Turborepo 2, ESLint 10, Prettier 3, Husky 9, GitHub Actions          |
+| **Runtime** | Node.js ≥ 22.12                                                               |
 
 ---
 
 ## Prerequisites
 
-| Requirement | Notes                                          |
-| ----------- | ---------------------------------------------- |
-| **Node.js** | ≥ 22                                           |
-| **pnpm**    | Mandatory — npm and yarn are **not** supported |
-| **MySQL**   | Any 8.x-compatible server                      |
-| **Redis**   | Optional — used for rate limiting & caching    |
+| Requirement | Notes                                                              |
+| ----------- | ------------------------------------------------------------------ |
+| **Node.js** | ≥ 22.12 — the server `require()`s ESM modules from `@komet/shared` |
+| **pnpm**    | Mandatory — npm and yarn are **not** supported                     |
+| **MySQL**   | Any 8.x-compatible server                                          |
+| **Redis**   | Optional — used for rate limiting and session storage              |
 
 ---
 
@@ -51,7 +109,7 @@ pnpm --filter @komet/server db:push
 
 ---
 
-## Running Locally
+## Running locally
 
 ```bash
 pnpm dev
@@ -66,67 +124,78 @@ Turborepo starts both apps in parallel:
 
 ---
 
-## Project Structure
+## Data flow
+
+```
+SEVIMA SIS API
+      │  manual sync (POST /api/sync/*)
+      ▼
+Sync controllers ──► MySQL (Prisma)
+                          │  aggregation queries
+                          ▼
+                    Service layer ──► REST API ──► React client
+                          │                        (TanStack Query)
+                          └──► Redis (rate limit, sessions; optional)
+```
+
+The SEVIMA API is the source of truth. KOMET stores a local copy so dashboard
+requests never depend on the external API's availability or response time.
+
+---
+
+## Project structure
 
 ```
 Komet/
 ├── apps/
-│   ├── client/              (@komet/client – React SPA)
+│   ├── client/                 (@komet/client – React SPA)
 │   │   ├── src/
-│   │   │   ├── components/      Reusable UI: cards, charts, modals, tables, filters, layout
-│   │   │   ├── modules/         Feature modules: overview, students, graduates, mbkm
-│   │   │   ├── hooks/           Shared React hooks: useSummaryQuery, usePaginatedList, etc.
-│   │   │   ├── services/        API client, query params
+│   │   │   ├── components/
+│   │   │   │   ├── common/      cards, charts, dashboard, feedback, filters, modals, tables, ui
+│   │   │   │   └── layout/      Navbar, Sidebar
+│   │   │   ├── modules/         students, graduates, mbkm, errors
+│   │   │   ├── hooks/           Query keys, dashboard filters, debounce, tab transition
+│   │   │   ├── services/        API client, query params, filter factory, sync
+│   │   │   ├── utils/           KPI labels/scopes, pagination, query sanitizer, theme
+│   │   │   ├── constants/       Navigation, debounce, cache policy
 │   │   │   ├── config/          Env validation
-│   │   │   ├── constants/       Navigation items (routes + menu + breadcrumbs), debounce values
-│   │   │   └── utils/           Formatters, UI helpers
-│   │   └── package.json
-│   └── server/              (@komet/server – Express API)
+│   │   │   ├── assets/          Logos and static images
+│   │   │   ├── App.jsx
+│   │   │   └── main.jsx
+│   │   ├── scripts/             Bundle-budget check
+│   │   └── tests/               Vitest + Testing Library
+│   └── server/                 (@komet/server – Express API)
 │       ├── src/
-│       │   ├── config/          Env validator, Prisma, Redis, SEVIMA API
-│       │   ├── controllers/     Route handlers: students, graduates, mbkm, sync
-│       │   ├── middlewares/     Auth, rate limiter, session, validator
-│       │   ├── routes/          Express routers
-│       │   ├── services/        Business logic by domain
-│       │   └── utils/           Logger, error handler, academic utils
+│       │   ├── app.js           Express app assembly
+│       │   ├── server.js        Env, Redis, routes, listen
+│       │   ├── config/          Env validator, Prisma, Redis, SEVIMA API, CORS, logging
+│       │   ├── routes/          root, students, graduates, mbkm, sync
+│       │   ├── controllers/     Route handlers + sync/ ETL (mappers, writers, lookup)
+│       │   ├── services/        students/, graduates/, mbkm/, sync/
+│       │   ├── middlewares/     Auth, session, rate limiter, validator, sync guard
+│       │   └── utils/           academic/, syncJob/, error catalog, logger, helpers
 │       ├── prisma/              Schema + migrations
-│       ├── tests/               Vitest unit tests
-│       └── package.json
+│       ├── scripts/             Contract check + query counter
+│       ├── tests/unit/          Vitest unit tests
+│       └── public/              Landing page + static assets
 ├── packages/
-│   └── shared/              (@komet/shared – common utilities)
-│       └── src/                 Constants, formatters (dual ESM/CJS)
+│   └── shared/                 (@komet/shared – shared ESM modules)
+│       ├── src/                 constants, formatters, academicYear, contracts, filterUtils
+│       └── tests/
+├── docs/                       ARCHITECTURE.md, ENGINEERING.md, adr/
+├── .github/workflows/ci.yml    CI: runs `pnpm verify`
+├── task/                       Active implementation tasks
 ├── turbo.json
 ├── pnpm-workspace.yaml
 ├── eslint.config.mjs
 ├── .prettierrc
+├── DESIGN.md                   UI direction and design tokens
 └── package.json
 ```
 
 ---
 
-## Documentation
-
-| Document              | Purpose                                    |
-| --------------------- | ------------------------------------------ |
-| `AGENTS.md`           | Canonical instructions for AI agents       |
-| `CLAUDE.md`           | Claude Code entry point                    |
-| `CHANGELOG.md`        | User-visible changes                       |
-| `ARCHITECTURE.md`     | System design and module boundaries        |
-| `docs/ENGINEERING.md` | Engineering standards and review checklist |
-| `docs/SKILLS.md`      | Agent skill installation and authoring     |
-| `docs/adr/`           | Accepted technical decisions               |
-| `requirements/`       | Product requirements, local-only           |
-| `task/`               | Active implementation tasks                |
-
-Filter options are derived from synced data. Default-year behavior is documented
-in `docs/adr/0001-data-driven-default-academic-year.md`.
-
-`requirements/` is intentionally local-only because it contains raw credentials
-and PII. Do not commit it as-is.
-
----
-
-## Available Scripts
+## Available scripts
 
 ### Root (runs across workspaces via Turborepo)
 
@@ -138,33 +207,59 @@ and PII. Do not commit it as-is.
 | `pnpm lint`         | Lint all packages                           |
 | `pnpm format`       | Format all files with Prettier              |
 | `pnpm format:check` | Check formatting without writing            |
+| `pnpm verify`       | Run format, lint, tests, and build in order |
 
 ### Per-workspace
 
-| Command                                   | Description                         |
-| ----------------------------------------- | ----------------------------------- |
-| `pnpm --filter @komet/client dev`         | Start the client dev server only    |
-| `pnpm --filter @komet/server dev`         | Start the API server with nodemon   |
-| `pnpm --filter @komet/server test`        | Run server unit tests (Vitest)      |
-| `pnpm --filter @komet/server db:generate` | Generate Prisma client              |
-| `pnpm --filter @komet/server db:migrate`  | Deploy Prisma migrations            |
-| `pnpm --filter @komet/server db:push`     | Push schema changes to the database |
+| Command                                           | Description                         |
+| ------------------------------------------------- | ----------------------------------- |
+| `pnpm --filter @komet/client dev`                 | Start the client dev server only    |
+| `pnpm --filter @komet/client check:bundle`        | Check the client bundle budget      |
+| `pnpm --filter @komet/server dev`                 | Start the API server with nodemon   |
+| `pnpm --filter @komet/server test`                | Run server unit tests (Vitest)      |
+| `RUN_DB_TESTS=1 pnpm --filter @komet/server test` | Also run live-database assertions   |
+| `pnpm --filter @komet/server check:contracts`     | Verify API response contracts       |
+| `pnpm --filter @komet/server count:queries`       | Report query counts for a request   |
+| `pnpm --filter @komet/server db:generate`         | Generate Prisma client              |
+| `pnpm --filter @komet/server db:push`             | Push schema changes to the database |
+
+`apps/server/prisma/schema.prisma` is the only schema source — there is no
+migration history. Run `db push` after changing it, and run the one-off SQL in
+`apps/server/prisma/data/` manually only when restoring an older dump.
 
 ---
 
-## Environment Variables
+## Environment variables
 
-Environment files live inside each app directory — they are **not** in the repository root.
+Environment files live inside each app directory — they are **not** in the
+repository root.
 
 | App    | File               | Template                   |
 | ------ | ------------------ | -------------------------- |
 | Client | `apps/client/.env` | `apps/client/.env.example` |
 | Server | `apps/server/.env` | `apps/server/.env.example` |
 
-Copy the `.env.example` file in each app and fill in the required values (database URL, API keys, etc.) before starting the application.
+Only `VITE_*` variables belong in the client: they are bundled into the browser
+build and are public. Database credentials, `SESSION_SECRET`, `SYNC_API_KEY`,
+and the SEVIMA keys belong only in `apps/server/.env`.
+
+---
+
+## Documentation
+
+| Document               | Purpose                                     |
+| ---------------------- | ------------------------------------------- |
+| `docs/ARCHITECTURE.md` | System design, module boundaries, data flow |
+| `docs/ENGINEERING.md`  | Engineering standards and review checklist  |
+| `docs/adr/`            | Accepted technical decisions                |
+| `CHANGELOG.md`         | User-visible changes                        |
+
+Filter options are derived from synced data. Default-year behavior is documented
+in `docs/adr/0001-data-driven-default-academic-year.md`.
 
 ---
 
 ## License
 
-ISC
+ISC © Universitas Bio Scientia Internasional Indonesia (i3L University). See
+[LICENSE](LICENSE).

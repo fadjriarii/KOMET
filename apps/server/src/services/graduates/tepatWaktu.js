@@ -8,7 +8,7 @@
  * implementasi — memindahkannya ke `GROUP BY` SQL menyimpan aturan yang sama dua
  * kali. Biayanya O(lulusan dalam scope), satu roundtrip Prisma per tabel.
  * Upgrade path: kolom turunan `lamaStudi` berindeks, atau snapshot per tahun
- * akademik (lihat catatan akurasi tren di ARCHITECTURE.md).
+ * akademik (lihat catatan akurasi tren di docs/ARCHITECTURE.md).
  */
 
 const prisma = require('../../config/prisma');

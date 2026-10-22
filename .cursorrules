@@ -4,7 +4,7 @@ Read `AGENTS.md` first. It is the canonical instruction file for this repository
 
 Before structural changes, also read:
 
-- `ARCHITECTURE.md`
+- `docs/ARCHITECTURE.md`
 - `docs/ENGINEERING.md`
 - `docs/adr/`
 

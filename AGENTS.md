@@ -24,13 +24,13 @@ Read the relevant documents before structural or domain changes:
 
 - `README.md` — installation, commands, and repository overview
 - `CHANGELOG.md` — user-visible changes, released and unreleased
-- `ARCHITECTURE.md` — system design and module boundaries
+- `docs/ARCHITECTURE.md` — system design and module boundaries
+- `DESIGN.md` — UI direction and design-system entry point
 - `docs/ENGINEERING.md` — engineering standards and review checklist
 - `docs/adr/` — accepted technical decisions
 - `requirements/` — local product requirements (the PRD); never commit as-is
 - `task/` — active implementation tasks
-- `docs/HANDOFF-*.md` — historical snapshots, not current truth
-- `ai-context/` — historical audits, not current truth
+- `ai-context/` — historical audits and handoffs, not current truth
 
 Do not create `PRD.md` or `TASKS.md` duplicates while `requirements/` and
 `task/` remain the active sources.
@@ -58,8 +58,10 @@ Database:
 ```bash
 pnpm --filter @komet/server db:generate
 pnpm --filter @komet/server db:push
-pnpm --filter @komet/server db:migrate
 ```
+
+`schema.prisma` is the only schema source; see
+`docs/adr/0002-schema-only-prisma-workflow.md`. Never run `prisma migrate`.
 
 Environment files:
 
@@ -196,7 +198,7 @@ Do not guess API field names. Check the controller, service, and tests.
 - `pnpm build` passes.
 - `pnpm format:check` passes.
 - If behavior, filters, API, architecture, or setup changed, update
-  `README.md`, `ARCHITECTURE.md`, `docs/ENGINEERING.md`, or the relevant ADR in
+  `README.md`, `docs/ARCHITECTURE.md`, `docs/ENGINEERING.md`, or the relevant ADR in
   the same change.
 - Commit only after verification. Push only when explicitly asked.
 
@@ -209,11 +211,19 @@ Do not guess API field names. Check the controller, service, and tests.
   `AGENTS.md`.
 - Keep one source of truth. Do not create competing rule files.
 - Skill installation, IDs, and locations are documented in `docs/SKILLS.md`.
-- Global skills shared by OpenCode and Claude Code live in
-  `~/.claude/skills/`.
+- Global skills live once in `~/.agents/skills/` and are symlinked into
+  `~/.claude/skills/` for Claude Code. Do not copy a skill into a second
+  directory.
 - Project skills shared with the team live in `.claude/skills/` or
   `.opencode/skills/`; git-ignored `.agents/` is not shareable.
-- Scan every candidate skill with `skill-inspector` before installing it.
+- Scan every candidate skill with `skillspector` (or `skill-inspector`) before
+  installing it.
+- Installed global skills: `ponytail`, `playwright-cli`, `anti-slop`,
+  `skill-inspector`, `insecure-defaults`. Do not let an installer write or
+  rewrite this file; add pointers here manually.
+- UI/UX work reads `DESIGN.md` first. `antislop` is only a filter on top of
+  the existing `digital-blue` system: it must not introduce a second palette,
+  font, or layout language.
 
 ## 9. Context hygiene
 
@@ -223,9 +233,9 @@ Do not guess API field names. Check the controller, service, and tests.
   `git rev-parse --short HEAD`; regenerate with `graphify update .` when stale.
 - Do not read `graph.json` or `graph.html` unless specifically needed.
 - The graph is not an architecture source of truth. Decisions live in
-  `ARCHITECTURE.md` and `docs/adr/`.
-- Do not read `node_modules`, `dist`, `coverage`, or
-  `docs/SEVIMA API Platform Docs_files` unless working on that integration.
+  `docs/ARCHITECTURE.md` and `docs/adr/`.
+- Do not read `node_modules`, `dist`, `coverage`, or the vendored SEVIMA API
+  docs in `requirements/sevima-api-docs/` unless working on that integration.
 - `requirements/` stays ignored because it contains real SEVIMA credentials and
   student PII. Sanitize before sharing or committing any part of it.
 - Treat old handoffs and audits as historical context. Verify current code

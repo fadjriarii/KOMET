@@ -58,7 +58,7 @@ Kalimat tunggal yang merangkum: **Google yang membuktikan siapa Anda, portal yan
 divisi Anda, Komet yang memutuskan hak akses Anda.**
 
 Akibat dari alur ini (penting): `POST /api/sync/*` hari ini bisa dipicu oleh **sesi anonim mana pun**
-(`ARCHITECTURE.md:290`, dan itu konsekuensi yang diterima sadar di `ARCHITECTURE.md:311`).
+(`docs/ARCHITECTURE.md` §6.1, dan itu konsekuensi yang diterima sadar di `docs/ARCHITECTURE.md` §6.3).
 Setelah login berjalan, sync menjadi **admin-only**. Itu nilai keamanan nyata dari pekerjaan ini,
 lebih besar daripada kehadiran halaman login itu sendiri.
 
@@ -156,7 +156,7 @@ tidak boleh dihitung sebagai aktif.
 
 ### Langkah 3 — Endpoint OAuth (callback di SERVER, bukan di SPA)
 
-Ini mengikuti keputusan yang sudah Anda tulis di `ARCHITECTURE.md:240`: kredensial tidak pernah
+Ini mengikuti keputusan yang sudah Anda tulis di `docs/ARCHITECTURE.md` §6.1: kredensial tidak pernah
 hidup di JavaScript sisi klien. Token Google tinggal di server; browser hanya punya cookie opaque.
 
 ```
@@ -295,7 +295,7 @@ keuangan portal adalah proyek berbeda yang membutuhkan keputusan arsitektur lebi
 - [ ] Client: `UserProfile.jsx` baca dari context; "Keluar" jadi berfungsi
 - [ ] Client: sembunyikan panel sync untuk non-admin
 - [ ] Test: unit klaim token, pemetaan divisi, integrasi alur callback, perluasan `zeroTrust`
-- [ ] `ARCHITECTURE.md:311` — perbarui catatan "sesi tanpa login per-user", kini sudah tidak benar
+- [ ] `docs/ARCHITECTURE.md` §6.3 — perbarui catatan "sesi tanpa login per-user", kini sudah tidak benar
 - [ ] Audit log percobaan login (gagal karena apa: bukan staf, nonaktif, token tak sah)
 
 ---

@@ -63,7 +63,7 @@ The codebase is partially aligned:
 
 - `apps/server/src/services/graduates/filterOptions.js` derives
   `academicYearOptions` from `tahunLulus` and `rollingYears` from synced data.
-- `apps/client/src/components/common/layout/DashboardPage.jsx` reads
+- `apps/client/src/components/common/dashboard/DashboardPage.jsx` reads
   `academicYearOptions[0]` and `rollingYears[0]`.
 - `apps/client/src/modules/graduates/hooks/useGraduateFilters.js` applies the
   latest graduation year as the default.
@@ -104,5 +104,5 @@ Follow-up implementation work:
 - `AGENTS.md`
 - `docs/ENGINEERING.md`
 - `apps/server/src/services/graduates/filterOptions.js`
-- `apps/client/src/components/common/layout/DashboardPage.jsx`
+- `apps/client/src/components/common/dashboard/DashboardPage.jsx`
 - `apps/client/src/modules/graduates/hooks/useGraduateFilters.js`

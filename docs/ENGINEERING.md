@@ -155,7 +155,7 @@ Update the correct document in the same change:
 | Change                                 | Update                      |
 | -------------------------------------- | --------------------------- |
 | Install, run, or user-visible behavior | `README.md`, `CHANGELOG.md` |
-| Module boundaries or data flow         | `ARCHITECTURE.md`           |
+| Module boundaries or data flow         | `docs/ARCHITECTURE.md`      |
 | Technical decision and trade-off       | `docs/adr/`                 |
 | Engineering standard                   | `docs/ENGINEERING.md`       |
 | Active implementation work             | `task/`                     |
