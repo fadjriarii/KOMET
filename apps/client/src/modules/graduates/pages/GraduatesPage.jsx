@@ -1,5 +1,5 @@
 import { Award, BookOpenCheck, Clock, GraduationCap } from 'lucide-react';
-import DashboardPage from '../../../components/common/layout/DashboardPage';
+import DashboardPage from '../../../components/common/dashboard/DashboardPage';
 import HeaderAcademicYearFilter from '../../../components/common/filters/HeaderAcademicYearFilter';
 import { formatKpiDisplay } from '../../../utils/uiHelpers';
 import GraduateDataTable from '../components/GraduateDataTable';

@@ -1,5 +1,5 @@
 import { Award, Building2, UserCheck, Users } from 'lucide-react';
-import DashboardPage from '../../../components/common/layout/DashboardPage';
+import DashboardPage from '../../../components/common/dashboard/DashboardPage';
 import HeaderAcademicYearFilter from '../../../components/common/filters/HeaderAcademicYearFilter';
 import { formatKpiDisplay } from '../../../utils/uiHelpers';
 import MbkmDataTable from '../components/MbkmDataTable';

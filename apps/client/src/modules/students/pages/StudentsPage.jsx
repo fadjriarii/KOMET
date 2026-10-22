@@ -1,7 +1,7 @@
 import { buildStudentCards } from './buildStudentCards';
 import { useSearchParams } from 'react-router-dom';
 import { getRollingAcademicYears } from '@komet/shared/academicYear';
-import DashboardPage from '../../../components/common/layout/DashboardPage';
+import DashboardPage from '../../../components/common/dashboard/DashboardPage';
 import StudentDataTable from '../components/StudentDataTable';
 import StudentDetailModal from '../components/StudentDetailModal';
 import AcademicYearFilter from '../../../components/common/filters/AcademicYearFilter';
