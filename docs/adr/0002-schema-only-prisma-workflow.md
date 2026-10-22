@@ -28,6 +28,8 @@ The live database matches `schema.prisma` exactly (verified with
 ## Consequences
 
 - A fresh database is created by `db push` followed by a full sync.
+- Prisma 7 no longer regenerates the client after `db push`, so the `db:push`
+  script chains `prisma generate`.
 - Schema changes have no history and no per-step rollback. `mysqldump` before a
   `db push` that changes existing columns is mandatory.
 - `db push` can drop columns when the schema and database diverge. The SQL it

@@ -65,14 +65,14 @@ Details, including the full route protection matrix, are in
 
 ## Tech stack
 
-| Layer       | Technologies                                                                  |
-| ----------- | ----------------------------------------------------------------------------- |
-| **Client**  | React 19, Vite 8, TailwindCSS 4, TanStack Query 5, React Router 7, Recharts 3 |
-| **Server**  | Express 5, Prisma 6 (MySQL), Redis (optional), Zod 4, Winston                 |
-| **Shared**  | `@komet/shared` — ESM modules with subpath exports                            |
-| **Testing** | Vitest 5, Testing Library                                                     |
-| **Tooling** | pnpm 12, Turborepo 2, ESLint 10, Prettier 3, Husky 9, GitHub Actions          |
-| **Runtime** | Node.js ≥ 22.12                                                               |
+| Layer       | Technologies                                                                          |
+| ----------- | ------------------------------------------------------------------------------------- |
+| **Client**  | React 19, Vite 8, TailwindCSS 4, TanStack Query 5, React Router 7, Recharts 3         |
+| **Server**  | Express 5, Prisma 7 (MySQL, MariaDB driver adapter), Redis (optional), Zod 4, Winston |
+| **Shared**  | `@komet/shared` — ESM modules with subpath exports                                    |
+| **Testing** | Vitest 5, Testing Library                                                             |
+| **Tooling** | pnpm 12, Turborepo 2, ESLint 10, Prettier 3, Husky 9, GitHub Actions                  |
+| **Runtime** | Node.js ≥ 22.12                                                                       |
 
 ---
 
@@ -174,7 +174,7 @@ Komet/
 │       │   ├── services/        students/, graduates/, mbkm/, sync/
 │       │   ├── middlewares/     Auth, session, rate limiter, validator, sync guard
 │       │   └── utils/           academic/, syncJob/, error catalog, logger, helpers
-│       ├── prisma/              Schema + migrations
+│       ├── prisma/              Schema + one-off SQL data fixes
 │       ├── scripts/             Contract check + query counter
 │       ├── tests/unit/          Vitest unit tests
 │       └── public/              Landing page + static assets

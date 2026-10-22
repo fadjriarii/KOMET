@@ -47,6 +47,9 @@ Version numbers follow the root `package.json`.
   the tooling behind it.
 - Documented the `X.js` + `X/` barrel pattern in `docs/ARCHITECTURE.md`.
 - Moved `ARCHITECTURE.md` to `docs/ARCHITECTURE.md`.
+- Upgraded Prisma to 7.10.1: the connection URL lives in
+  `apps/server/prisma.config.ts`, the client is built with
+  `@prisma/adapter-mariadb`, and `db:push` now regenerates the client.
 
 ### Fixed
 

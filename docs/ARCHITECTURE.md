@@ -80,6 +80,7 @@ synchronization with the SEVIMA API, and serves aggregated statistics.
 | `src/config/`      | `envValidator`, `prisma`, `redis`, `sevimaApi`, `corsPolicy`, `accessLog`, `slowQueryLog`                                                      |
 | `src/utils/`       | `academic/`, `syncJob/`, `errorCatalog`, `errorHandler`, `logger`, pagination, percentage, trend helpers                                       |
 | `prisma/`          | `schema.prisma` (only schema source) and `data/` for one-off SQL fixes                                                                         |
+| `prisma.config.ts` | Prisma 7 config: schema path and datasource URL (CLI no longer reads `.env` itself)                                                            |
 | `tests/unit/`      | Vitest suites mirroring `src/`                                                                                                                 |
 | `scripts/`         | `check-contracts.js` and `count-queries.js`                                                                                                    |
 | `public/`          | Landing page and vendored static assets                                                                                                        |
@@ -219,7 +220,13 @@ Formatting is style, not semantics. One `.prettierrc` ensures consistent code st
 
 ### E. Prisma — INSIDE `apps/server/`
 
-The database schema (`schema.prisma`), migrations, and generated Prisma client live inside `apps/server/`. The database is a server-only concern — the client never accesses MySQL directly. Placing Prisma at the root would imply the schema is shared across apps, which it is not.
+The database schema (`schema.prisma`), the connection URL in
+`prisma.config.ts`, and the generated Prisma client live inside `apps/server/`.
+There is no migration history — see ADR 0002. Prisma 7 requires a driver adapter,
+so `src/config/prisma.js` builds the client with `@prisma/adapter-mariadb`. The
+database is a server-only concern — the client never accesses MySQL directly.
+Placing Prisma at the root would imply the schema is shared across apps, which
+it is not.
 
 ### F. Barrel files — `X.js` + `X/` (same name, on purpose)
 

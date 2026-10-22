@@ -8,7 +8,7 @@ Express 5 REST API backend for **KOMET** — a university analytics platform. Se
 | --------------------- | ------------------------------------ |
 | Runtime               | Node.js (CommonJS)                   |
 | Framework             | Express 5                            |
-| ORM                   | Prisma 6 (MySQL)                     |
+| ORM                   | Prisma 7 (MySQL, MariaDB adapter)    |
 | Cache / Rate Limiting | Redis (optional — graceful fallback) |
 | Validation            | Zod 4 (request & environment)        |
 | Logging               | Winston                              |
@@ -264,7 +264,7 @@ pnpm build        # Build (Prisma generate)
 pnpm test         # Run Vitest test suite
 pnpm lint         # Lint with ESLint
 pnpm db:generate  # Generate Prisma client
-pnpm db:push      # Apply schema.prisma to the database
+pnpm db:push      # Apply schema.prisma and regenerate the client
 ```
 
 ## Testing
