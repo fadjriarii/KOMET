@@ -1,9 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const { getRollingYears } = require('../../../src/services/students/filterOptions');
 const { applyCountOrder } = require('../../../src/services/students/filterOptions');
+const prisma = require('../../../src/config/prisma');
 
 const LABELS = [
   '2026/2027',
@@ -45,36 +46,92 @@ describe('rolling angkatan mengikuti tahun ajaran terpilih', () => {
 });
 
 describe('urutan opsi mengikuti hitungan aktif tahun terpilih', () => {
+  const originalGroupBy = prisma.student.groupBy;
+
+  afterEach(() => {
+    prisma.student.groupBy = originalGroupBy;
+  });
+
   it('terbanyak dulu, sisanya alfabetis, tak ada opsi hilang', () => {
     expect(applyCountOrder(['B', 'A', 'C'], ['C', 'A'])).toEqual(['C', 'A', 'B']);
     expect(applyCountOrder(['B', 'A'], [])).toEqual(['A', 'B']);
   });
 
-  it('urutan fakultas/prodi 2024/2025 количеству populasi aktif tahun itu', async () => {
+  it('urutan fakultas/prodi 2024/2025 mengikuti populasi aktif tahun itu', async () => {
     const { getFilterOptions } = require('../../../src/services/students/filterOptions');
-    const { getTotalActiveStudents } = require('../../../src/services/students/activeStudents');
     const { buildStudentFilter } = require('../../../src/services/students/filterBuilder');
-    const { PrismaClient } = require('@prisma/client');
-    const prisma = new PrismaClient();
     const q = { statusKeaktifan: 'Aktif', tahunAjaran: '2024/2025' };
+
+    prisma.student.groupBy = async ({ by, where }) => {
+      const field = by[0];
+      const isActiveScope = where?.statusKeaktifan === 'Aktif' && where?.periodeMasuk;
+
+      if (field === 'fakultas') {
+        return isActiveScope
+          ? [
+              { fakultas: 'FEB', _count: { fakultas: 10 } },
+              { fakultas: 'FT', _count: { fakultas: 8 } },
+            ]
+          : [
+              { fakultas: 'FIK', _count: { fakultas: 30 } },
+              { fakultas: 'FT', _count: { fakultas: 20 } },
+              { fakultas: 'FEB', _count: { fakultas: 10 } },
+            ];
+      }
+
+      if (field === 'programStudi') {
+        return isActiveScope
+          ? [
+              { programStudi: 'AK', _count: { programStudi: 9 } },
+              { programStudi: 'TI', _count: { programStudi: 8 } },
+            ]
+          : [
+              { programStudi: 'SI', _count: { programStudi: 30 } },
+              { programStudi: 'TI', _count: { programStudi: 20 } },
+              { programStudi: 'AK', _count: { programStudi: 10 } },
+            ];
+      }
+
+      if (field === 'angkatan') {
+        return [
+          { angkatan: '2024/2025', _count: { angkatan: 12 } },
+          { angkatan: '2023/2024', _count: { angkatan: 6 } },
+        ];
+      }
+      if (field === 'semester') {
+        return [
+          { semester: '2', _count: { semester: 10 } },
+          { semester: '10', _count: { semester: 2 } },
+        ];
+      }
+      if (field === 'periodeMasuk') {
+        return [
+          { periodeMasuk: '2024/2025', _count: { periodeMasuk: 8 } },
+          { periodeMasuk: '2023/2024', _count: { periodeMasuk: 4 } },
+        ];
+      }
+      if (field === 'kewarganegaraan') {
+        return [{ kewarganegaraan: 'WNI', _count: { kewarganegaraan: 12 } }];
+      }
+      if (field === 'statusKeaktifan') {
+        return [{ statusKeaktifan: 'Aktif', _count: { statusKeaktifan: 12 } }];
+      }
+      if (field === 'jenjang') {
+        return [{ jenjang: 'S1', _count: { jenjang: 12 } }];
+      }
+
+      return [];
+    };
+
     const opts = await getFilterOptions('2024/2025');
-    // Fakultas teratas = pemilik hitungan aktif terbesar tahun itu.
-    const counts = await prisma.student.groupBy({
+
+    expect(opts.fakultas).toEqual(['FEB', 'FT', 'FIK']);
+    expect([...opts.fakultas].sort()).toEqual(['FEB', 'FIK', 'FT']);
+    expect(opts.programStudi).toEqual(['AK', 'TI', 'SI']);
+    expect(prisma.student.groupBy).toHaveBeenCalledWith({
       by: ['fakultas'],
       where: buildStudentFilter(q),
       _count: { fakultas: true },
     });
-    const top = counts.sort((a, b) => b._count.fakultas - a._count.fakultas)[0].fakultas;
-    expect(opts.fakultas[0]).toBe(top);
-    // Total opsi utuh (tak ada yang hilang karena sepi tahun itu).
-    const all = await prisma.student.groupBy({ by: ['fakultas'], _count: { fakultas: true } });
-    expect([...opts.fakultas].sort()).toEqual(
-      all
-        .map((r) => r.fakultas)
-        .filter(Boolean)
-        .sort(),
-    );
-    expect(await getTotalActiveStudents(buildStudentFilter(q))).toBeGreaterThan(0);
-    await prisma.$disconnect();
   });
 });

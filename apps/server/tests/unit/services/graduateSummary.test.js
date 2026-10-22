@@ -9,6 +9,7 @@ const totalLulusan = require('../../../src/services/graduates/totalLulusan');
 const ipkTrend = require('../../../src/services/graduates/ipkTrend');
 const tepatWaktu = require('../../../src/services/graduates/tepatWaktu');
 const keberhasilanStudi = require('../../../src/services/graduates/keberhasilanStudi');
+const yearJenjangSeries = require('../../../src/services/graduates/yearJenjangSeries');
 
 const original = [
   [filterOptions, 'getGraduateFilterOptions'],
@@ -16,6 +17,7 @@ const original = [
   [ipkTrend, 'getAvgIpk'],
   [tepatWaktu, 'getTepatWaktu'],
   [keberhasilanStudi, 'getKeberhasilanStudi'],
+  [yearJenjangSeries, 'getGraduateLabelWindow'],
 ].map(([target, key]) => [target, key, target[key]]);
 
 /**
@@ -30,6 +32,13 @@ totalLulusan.getTotalLulusan = async () => AGG.total;
 ipkTrend.getAvgIpk = async () => AGG.ipk;
 tepatWaktu.getTepatWaktu = async () => AGG.tepatWaktu;
 keberhasilanStudi.getKeberhasilanStudi = async () => AGG.keberhasilan;
+yearJenjangSeries.getGraduateLabelWindow = async () => [
+  '2020/2021',
+  '2021/2022',
+  '2022/2023',
+  '2023/2024',
+  '2024/2025',
+];
 
 // Harus di-require SETELAH patched: service-nya mengambil fungsi saat dimuat.
 const { getGraduateSummary } = require('../../../src/services/graduates/graduateSummary');
