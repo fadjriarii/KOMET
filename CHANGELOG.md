@@ -14,6 +14,8 @@ Version numbers follow the root `package.json`.
 - Engineering standards in `docs/ENGINEERING.md`.
 - Data-driven default academic year decision in
   `docs/adr/0001-data-driven-default-academic-year.md`.
+- Agent skill installation guide in `docs/SKILLS.md` and project permission
+  rules in `opencode.json`.
 - Server regression coverage for Graduate Data anchored scopes.
 
 ### Fixed

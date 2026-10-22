@@ -208,6 +208,12 @@ Do not guess API field names. Check the controller, service, and tests.
 - If another tool needs its own instruction file, make it a one-line pointer to
   `AGENTS.md`.
 - Keep one source of truth. Do not create competing rule files.
+- Skill installation, IDs, and locations are documented in `docs/SKILLS.md`.
+- Global skills shared by OpenCode and Claude Code live in
+  `~/.claude/skills/`.
+- Project skills shared with the team live in `.claude/skills/` or
+  `.opencode/skills/`; git-ignored `.agents/` is not shareable.
+- Scan every candidate skill with `skill-inspector` before installing it.
 
 ## 9. Context hygiene
 

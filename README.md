@@ -113,6 +113,7 @@ Komet/
 | `CHANGELOG.md`        | User-visible changes                       |
 | `ARCHITECTURE.md`     | System design and module boundaries        |
 | `docs/ENGINEERING.md` | Engineering standards and review checklist |
+| `docs/SKILLS.md`      | Agent skill installation and authoring     |
 | `docs/adr/`           | Accepted technical decisions               |
 | `requirements/`       | Product requirements, local-only           |
 | `task/`               | Active implementation tasks                |
