@@ -7,6 +7,12 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: './tests/setup.js',
+    // envValidator melempar saat modul di-import; test tidak boleh bergantung
+    // pada `apps/client/.env` yang tidak di-commit (CI tidak punya file itu).
+    // `.invalid` dicadangkan RFC 2606, jadi tidak mungkin menunjuk backend nyata.
+    env: {
+      VITE_API_BASE_URL: 'http://test.invalid/api',
+    },
     // Fork pool intermittently gagal menyalakan worker di WSL saat turbo menjalankan
     // task lain paralel ("Timeout waiting for worker to respond"); threads pool stabil
     // dan tetap cepat untuk beberapa file test.
