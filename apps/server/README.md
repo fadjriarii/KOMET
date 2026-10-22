@@ -34,8 +34,8 @@ pnpm install
 # Generate Prisma client
 pnpm --filter @komet/server db:generate
 
-# Apply database migrations
-pnpm --filter @komet/server db:migrate
+# Apply the schema (no migration history; see ADR 0002)
+pnpm --filter @komet/server db:push
 ```
 
 ### Environment Variables
@@ -264,8 +264,7 @@ pnpm build        # Build (Prisma generate)
 pnpm test         # Run Vitest test suite
 pnpm lint         # Lint with ESLint
 pnpm db:generate  # Generate Prisma client
-pnpm db:migrate   # Run Prisma migrations
-pnpm db:push      # Push schema to database (no migration)
+pnpm db:push      # Apply schema.prisma to the database
 ```
 
 ## Testing

@@ -10,7 +10,6 @@
     "build": "echo 'No build step for backend'",
     "lint": "eslint src/",
     "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate deploy",
     "db:push": "prisma db push",
     "test": "vitest run --maxWorkers=2",
     "count:queries": "node scripts/count-queries.js",
