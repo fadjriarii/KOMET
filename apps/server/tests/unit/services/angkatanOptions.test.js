@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
@@ -61,10 +61,13 @@ describe('urutan opsi mengikuti hitungan aktif tahun terpilih', () => {
     const { getFilterOptions } = require('../../../src/services/students/filterOptions');
     const { buildStudentFilter } = require('../../../src/services/students/filterBuilder');
     const q = { statusKeaktifan: 'Aktif', tahunAjaran: '2024/2025' };
+    // buildStudentFilter mengembalikan pohon AND, bukan field datar. Bandingkan
+    // utuh supaya mock hanya memilih cabang "populasi aktif tahun terpilih".
+    const activeWhere = buildStudentFilter(q);
 
-    prisma.student.groupBy = async ({ by, where }) => {
+    prisma.student.groupBy = vi.fn(async ({ by, where }) => {
       const field = by[0];
-      const isActiveScope = where?.statusKeaktifan === 'Aktif' && where?.periodeMasuk;
+      const isActiveScope = JSON.stringify(where) === JSON.stringify(activeWhere);
 
       if (field === 'fakultas') {
         return isActiveScope
@@ -121,7 +124,7 @@ describe('urutan opsi mengikuti hitungan aktif tahun terpilih', () => {
       }
 
       return [];
-    };
+    });
 
     const opts = await getFilterOptions('2024/2025');
 
