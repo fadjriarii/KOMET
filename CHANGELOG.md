@@ -23,8 +23,8 @@ Version numbers follow the root `package.json`.
   `digital-blue` theme and shared UI primitives.
 - Documented global skills (`playwright-cli`, `antislop`, `ponytail`) and the
   `~/.agents/skills/` canonical store in `docs/SKILLS.md`.
-- `LICENSE` file with the ISC license, held by Universitas Bio Scientia
-  Internasional Indonesia (i3L University).
+- `LICENSE` file with a proprietary, all-rights-reserved notice held by
+  Universitas Bio Scientia Internasional Indonesia (i3L University).
 - `docs/adr/0002-schema-only-prisma-workflow.md`, recording `schema.prisma` as
   the only schema source.
 - `docs/adr/0003-mbkm-filter-scope.md`, recording the MBKM filter change.

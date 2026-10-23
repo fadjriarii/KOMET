@@ -287,5 +287,5 @@ in `docs/adr/0001-data-driven-default-academic-year.md`.
 
 ## License
 
-ISC © Universitas Bio Scientia Internasional Indonesia (i3L University). See
-[LICENSE](LICENSE).
+Proprietary / All Rights Reserved © Universitas Bio Scientia Internasional
+Indonesia (i3L University). See [LICENSE](LICENSE).
