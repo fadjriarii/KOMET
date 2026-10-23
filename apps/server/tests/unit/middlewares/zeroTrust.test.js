@@ -65,6 +65,7 @@ describe('zero-trust: route data mahasiswa butuh sesi yang sah', () => {
   it.each([
     '/api/students/summary',
     '/api/students/students',
+    '/api/graduates/filter-options',
     '/api/graduates/list',
     '/api/mbkm/analytics/rate',
   ])('%s ditolak tanpa sesi maupun dengan SYNC_API_KEY', async (endpoint) => {

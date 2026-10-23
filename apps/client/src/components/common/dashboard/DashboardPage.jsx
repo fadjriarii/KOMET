@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import MetricSummaryGrid from '../cards/MetricSummaryGrid';
 import DashboardErrorGuard from './DashboardErrorGuard';
 import DashboardFilterForm from '../filters/DashboardFilterForm';
@@ -24,6 +24,7 @@ export default function DashboardPage({
   Table,
   DetailModal,
   filterOptions,
+  waitForFilterOptions = false,
   headerExtra: HeaderExtra,
 }) {
   // Tab Lulusan: tahun ajaran "default" adalah tahun ajaran terbaru
@@ -36,6 +37,13 @@ export default function DashboardPage({
   // Sama dengan defaultAcademicYear: baru diketahui setelah
   // summary termuat, disimpan di state untuk render berikutnya.
   const [latestTahunLulus, setLatestTahunLulus] = useState('');
+  // Opsi dari prop adalah sumber default terbaru untuk jangkar tahun ajaran
+  // yang sedang dipilih; state hanya cadangan saat opsi sedang dimuat ulang.
+  const hasProvidedOptions = Object.keys(filterOptions || {}).length > 0;
+  const propAcademicYear = hasProvidedOptions ? (filterOptions.academicYearOptions?.[0] ?? '') : '';
+  const propTahunLulus = hasProvidedOptions ? (filterOptions.rollingYears?.[0] ?? '') : '';
+  const effectiveAcademicYear = propAcademicYear || defaultAcademicYear;
+  const effectiveTahunLulus = propTahunLulus || latestTahunLulus;
   const {
     values: filters,
     setters,
@@ -44,23 +52,46 @@ export default function DashboardPage({
     activeFilterParams,
     activeFilterCount,
     resetFilters,
-  } = useFilters(defaultAcademicYear, latestTahunLulus);
+  } = useFilters(effectiveAcademicYear, effectiveTahunLulus);
   const { params: requestParams, isDebouncing } = useDebouncedSearchParams(
     filterParams,
     filters.searchQuery,
   );
 
-  const summaryQuery = useSummary(requestParams);
+  // Tab Lulusan menunggu opsi filter: summary/list pertama langsung memakai
+  // Tahun Lulus default, bukan hasil tanpa tahun yang langsung dibuang.
+  const optionsReady = !waitForFilterOptions || hasProvidedOptions;
+  const summaryQuery = useSummary(requestParams, { enabled: optionsReady });
   const {
     rows,
     pagination,
     setPage,
     isLoading: isListLoading,
     error: listError,
-  } = useList(requestParams);
+  } = useList(requestParams, { enabled: optionsReady });
   const { activeModalType, currentModalType, originRect, openModal, closeModal } = useModalOrigin();
 
-  const availableFilterOptions = filterOptions || summaryQuery.data?.filterOptions || {};
+  const availableFilterOptions = hasProvidedOptions
+    ? filterOptions
+    : summaryQuery.data?.filterOptions || {};
+
+  // Setelah kartu pertama tampil, muat chunk modal di latar belakang supaya
+  // klik kartu tidak menunggu unduhan grafik. requestIdleCallback juga membuat
+  // prefetch ini tidak bersaing dengan permintaan awal.
+  const detailPrefetchedRef = useRef(false);
+  useEffect(() => {
+    const prefetch = DetailModal.prefetch;
+    if (!summaryQuery.data || detailPrefetchedRef.current || !prefetch) return;
+    if (typeof window.requestIdleCallback !== 'function') return;
+    const handle = window.requestIdleCallback(
+      () => {
+        detailPrefetchedRef.current = true;
+        prefetch().catch(() => {});
+      },
+      { timeout: 3000 },
+    );
+    return () => window.cancelIdleCallback?.(handle);
+  }, [DetailModal, summaryQuery.data]);
 
   // Sinkronkan tahun ajaran default (terbaru dari data) setelah
   // summary termuat; render berikutnya menormalisasi pilihan
@@ -92,7 +123,7 @@ export default function DashboardPage({
   }, [latestTahunLulusFromData]);
 
   // Refetch senyap tidak boleh mengubah kartu yang sudah tampil menjadi skeleton.
-  const isKpiLoading = summaryQuery.isLoading || isDebouncing;
+  const isKpiLoading = !optionsReady || summaryQuery.isLoading || isDebouncing;
   const display = useKpiDisplay(summaryQuery.data, isKpiLoading, filters);
   const { cards, cardProps } = useDashboardCards({
     buildCards,
@@ -132,14 +163,14 @@ export default function DashboardPage({
           options={availableFilterOptions}
           activeCount={activeFilterCount}
           onResetAll={resetFilters}
-          isLoading={summaryQuery.isLoading && !summaryQuery.data}
+          isLoading={!optionsReady || (summaryQuery.isLoading && !summaryQuery.data)}
         />
 
         <Table
           rows={rows}
           pagination={pagination}
           onPageChange={setPage}
-          isLoading={isListLoading}
+          isLoading={!optionsReady || isListLoading}
           error={listError}
         />
 

@@ -21,12 +21,14 @@ const { getMitraDistribution } = require('../services/mbkm/mbkmMitra');
 const { getMbkmList } = require('../services/mbkm/mbkmList');
 const { getMbkmRate } = require('../services/mbkm/mbkmRate');
 const { getMbkmSummary } = require('../services/mbkm/mbkmSummary');
+const { getOrLoad } = require('../services/summaryCache');
 const { sendServerError } = require('../utils/errorHandler');
 
 // GET /api/mbkm/summary — data card MBKM + filter options
 const getSummary = async (req, res) => {
   try {
-    return res.json({ success: true, ...(await getMbkmSummary(req.query)) });
+    const data = await getOrLoad('mbkm', req.query, () => getMbkmSummary(req.query));
+    return res.json({ success: true, ...data });
   } catch (error) {
     return sendServerError(res, 'DATA_READ_FAILED', error, 'mbkm/getSummary');
   }

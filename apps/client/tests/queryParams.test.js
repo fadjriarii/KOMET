@@ -37,8 +37,11 @@ describe('serialisasi query ke server', () => {
       'fakultas=A&programStudi=B&jenjang=S1&tahunLulus=2024%2F2025&periodeWisuda=Ganjil&angkatanTahun=2021%2F2022&search=ani',
     );
     expect(
-      mbkmService.toQueryString({ angkatan: ['2022/2023'], statusAktivitas: ['Selesai'] }),
-    ).toBe('angkatan=2022%2F2023&statusAktivitas=Selesai');
+      mbkmService.toQueryString({
+        jenisAktivitas: ['Magang'],
+        statusAktivitas: ['Selesai'],
+      }),
+    ).toBe('jenisAktivitas=Magang&statusAktivitas=Selesai');
   });
 
   it('membedakan "semua status" dari status yang tidak dipilih', () => {

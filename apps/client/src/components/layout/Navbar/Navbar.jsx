@@ -1,4 +1,4 @@
-import logoNavbar from '../../../assets/KOMET.png';
+import logoNavbar from '../../../assets/KOMET.webp';
 import Breadcrumbs from './Breadcrumbs';
 import UserProfile from './UserProfile';
 

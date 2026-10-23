@@ -1,10 +1,12 @@
 import { Award, BookOpenCheck, Clock, GraduationCap } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import DashboardPage from '../../../components/common/dashboard/DashboardPage';
 import HeaderAcademicYearFilter from '../../../components/common/filters/HeaderAcademicYearFilter';
 import { formatKpiDisplay } from '../../../utils/uiHelpers';
 import GraduateDataTable from '../components/GraduateDataTable';
 import GraduateDetailModal from '../components/GraduateDetailModal';
 import { graduateFilterForm, useGraduateFilters } from '../hooks/useGraduateFilters';
+import { useGraduateFilterOptions } from '../hooks/useGraduateFilterOptions';
 import { useGraduateKpiDisplay } from '../hooks/useGraduateKpiDisplay';
 import { useSummary, useList } from '../graduateQueries';
 
@@ -54,6 +56,11 @@ function buildCards({ kpis, displaySubtitles, kpiScope, isReady, openModal }) {
 }
 
 export default function GraduatesPage() {
+  const [searchParams] = useSearchParams();
+  const { filterOptions, isLoading: isFilterOptionsLoading } = useGraduateFilterOptions(
+    searchParams.get('tahunAjaran'),
+  );
+
   return (
     <DashboardPage
       title="Graduate Data"
@@ -66,6 +73,8 @@ export default function GraduatesPage() {
       buildCards={buildCards}
       Table={GraduateDataTable}
       DetailModal={GraduateDetailModal}
+      filterOptions={filterOptions}
+      waitForFilterOptions={isFilterOptionsLoading}
       headerExtra={HeaderAcademicYearFilter}
     />
   );

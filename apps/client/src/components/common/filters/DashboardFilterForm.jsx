@@ -3,9 +3,15 @@ import FilterContainerShell from './FilterContainerShell';
 import FilterField from './FilterField';
 import YearMultiFilter from './YearMultiFilter';
 
+/** Kelas baris pertama; jumlah kolom per modul, tapi harus literal supaya Tailwind mengenalinya. */
+const FIRST_ROW_CLASS = {
+  4: 'grid grid-cols-1 md:grid-cols-4 gap-4 sm:gap-4.5 w-full items-end',
+  5: 'grid grid-cols-1 md:grid-cols-5 gap-4 sm:gap-4.5 w-full items-end',
+};
+
 /** Kelas baris kedua; jumlahnya berbeda per modul, tapi harus literal supaya Tailwind mengenalinya. */
 const SECOND_ROW_CLASS = {
-  3: 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-4.5 w-full items-end pt-1',
+  3: 'grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-4.5 w-full items-end pt-1',
   4: 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-4.5 w-full items-end pt-1',
   5: 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-4.5 w-full items-end pt-1',
 };
@@ -66,6 +72,7 @@ const DashboardFilterForm = memo(function DashboardFilterForm({
   values,
   setters,
   options = {},
+  firstRowColumns = 5,
   secondRowColumns = 4,
   activeCount = 0,
   onResetAll,
@@ -93,7 +100,7 @@ const DashboardFilterForm = memo(function DashboardFilterForm({
       isLoading={isLoading}
       className={className}
     >
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 sm:gap-4.5 w-full items-end">
+      <div className={FIRST_ROW_CLASS[firstRowColumns] || FIRST_ROW_CLASS[5]}>
         {rows[1].map(({ key, ...item }) => (
           <Control key={key} {...item} disabled={isLoading} />
         ))}

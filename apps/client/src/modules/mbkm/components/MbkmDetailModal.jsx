@@ -1,12 +1,21 @@
 import { lazy } from 'react';
 import DetailModalOrchestrator from '../../../components/common/modals/DetailModalOrchestrator';
 
-const MODAL_MAP = {
-  rate: lazy(() => import('./modals/MbkmRateModal')),
-  activities: lazy(() => import('./modals/MbkmActivitiesModal')),
-  eligible: lazy(() => import('./modals/MbkmEligibleModal')),
-  partners: lazy(() => import('./modals/MbkmPartnersModal')),
+const MODAL_IMPORTS = {
+  rate: () => import('./modals/MbkmRateModal'),
+  activities: () => import('./modals/MbkmActivitiesModal'),
+  eligible: () => import('./modals/MbkmEligibleModal'),
+  partners: () => import('./modals/MbkmPartnersModal'),
 };
+
+const MODAL_MAP = Object.fromEntries(
+  Object.entries(MODAL_IMPORTS).map(([key, load]) => [key, lazy(load)]),
+);
+
+/** Muat semua chunk modal (termasuk chunk grafik bersama) saat halaman idle. */
+function prefetchDetailModals() {
+  return Promise.all(Object.values(MODAL_IMPORTS).map((load) => load()));
+}
 
 /**
  * MbkmDetailModal
@@ -16,3 +25,5 @@ const MODAL_MAP = {
 export default function MbkmDetailModal(props) {
   return <DetailModalOrchestrator {...props} modalMap={MODAL_MAP} />;
 }
+
+MbkmDetailModal.prefetch = prefetchDetailModals;

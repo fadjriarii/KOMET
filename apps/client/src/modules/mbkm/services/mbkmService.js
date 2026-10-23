@@ -4,7 +4,7 @@ import { createQuerySanitizer } from '../../../utils/querySanitizer';
 
 const sanitizeMbkmQuery = createQuerySanitizer({
   single: ['periode', 'tahunAjaran', 'topN'],
-  multi: ['faculty', 'prodi', 'jenjang', 'angkatan', 'statusAktivitas'],
+  multi: ['faculty', 'prodi', 'jenisAktivitas', 'statusAktivitas'],
 });
 
 function toQueryParams(filters = {}, pagination = {}) {
@@ -13,8 +13,7 @@ function toQueryParams(filters = {}, pagination = {}) {
 
   appendMany('fakultas', sanitized.faculty);
   appendMany('programStudi', sanitized.prodi);
-  appendMany('jenjang', sanitized.jenjang);
-  appendMany('angkatan', sanitized.angkatan);
+  appendMany('jenisAktivitas', sanitized.jenisAktivitas);
   appendMany('statusAktivitas', sanitized.statusAktivitas);
   append('periode', sanitized.periode);
   append('tahunAjaran', sanitized.tahunAjaran);

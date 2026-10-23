@@ -12,7 +12,7 @@ function buildCards({ kpis, displaySubtitles, kpiScope, isReady, openModal }) {
   return [
     {
       key: 'totalParticipants',
-      title: 'Total Partisipan',
+      title: 'Partisipan MBKM',
       value: formatKpiDisplay(kpis.totalParticipants),
       subtitle: displaySubtitles.participants,
       icon: Users,
@@ -21,7 +21,7 @@ function buildCards({ kpis, displaySubtitles, kpiScope, isReady, openModal }) {
     },
     {
       key: 'eligible',
-      title: 'Eligible',
+      title: 'Mahasiswa Eligible',
       value: formatKpiDisplay(kpis.eligibleCount),
       subtitle: displaySubtitles.eligible,
       icon: UserCheck,
@@ -30,7 +30,7 @@ function buildCards({ kpis, displaySubtitles, kpiScope, isReady, openModal }) {
     },
     {
       key: 'rate',
-      title: 'Persentase MBKM',
+      title: 'Persentase Partisipasi',
       value: formatKpiDisplay(kpis.participationRate),
       subtitle: displaySubtitles.rate,
       icon: Award,
@@ -39,7 +39,7 @@ function buildCards({ kpis, displaySubtitles, kpiScope, isReady, openModal }) {
     },
     {
       key: 'mitra',
-      title: 'Mitra',
+      title: 'Mitra MBKM',
       value: formatKpiDisplay(kpis.totalMitra),
       subtitle: displaySubtitles.mitra,
       icon: Building2,

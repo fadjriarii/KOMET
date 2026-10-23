@@ -58,6 +58,8 @@ describe('student query validation', () => {
     expect(graduateQuerySchema.safeParse({ periodeWisuda: '20251' }).success).toBe(false);
     expect(mbkmQuerySchema.safeParse({ periode: '20252', topN: '10' }).success).toBe(true);
     expect(mbkmQuerySchema.safeParse({ periode: '2025/2026', topN: '-1' }).success).toBe(false);
+    expect(mbkmQuerySchema.safeParse({ jenisAktivitas: ['Magang'] }).success).toBe(true);
+    expect(mbkmQuerySchema.safeParse({ jenisAktivitas: '' }).success).toBe(false);
   });
 
   it('mempertahankan tahun ajaran pada query MBKM', () => {

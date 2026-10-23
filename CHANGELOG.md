@@ -27,13 +27,39 @@ Version numbers follow the root `package.json`.
   Internasional Indonesia (i3L University).
 - `docs/adr/0002-schema-only-prisma-workflow.md`, recording `schema.prisma` as
   the only schema source.
+- `docs/adr/0003-mbkm-filter-scope.md`, recording the MBKM filter change.
+- MBKM filter for activity type (BKP).
+- Single-origin presentation mode (`SERVE_CLIENT=true`) and a
+  `build:presentation` client script, so a temporary tunnel exposes one port.
+- Gzip compression for API and static responses, and WebP logos in place of
+  the two ~400 KB PNGs.
+- `GET /api/graduates/filter-options` so the Graduate page can resolve the
+  latest `Tahun Lulus` before the first summary request.
+- In-process summary response cache, cleared after sync, plus a production
+  startup warm-up for filter options and default summaries.
+- Route-chunk prefetch on sidebar hover/focus and idle prefetch for detail
+  modal chunks.
 
 ### Changed
 
+- MBKM Data now uses the academic year and period as its cohort anchor. The
+  intake-cohort (angkatan) filter is removed from the page, while the API keeps
+  accepting it for existing callers.
+- MBKM Data no longer exposes the jenjang or angkatan filter; search, faculty,
+  program studi, and activity type share a four-column filter grid, and the
+  bottom filters align to the same columns.
+- MBKM KPI cards now explain their metric, filter scope, and inactive status
+  handling instead of showing raw period codes and activity-status counts.
+- MBKM search now covers NIM, name, and partner; partner is no longer a
+  separate filter.
 - Moved vendored SEVIMA API documentation out of `ai-context/` into
   `requirements/sevima-api-docs/`, where local source material belongs.
 - Live-database summary assertions now run only with `RUN_DB_TESTS=1`, so the
   default test suite and CI are deterministic.
+- Dashboard query data stays fresh for five minutes; sync still invalidates the
+  affected module immediately.
+- Graduate Data waits for filter options before fetching summary/list, so the
+  default `Tahun Lulus` no longer causes a second summary/list request.
 - Renamed `task/todo-loginFeature.md` to `task/login-feature.md`.
 - Consolidated local AI state: `.ai/` removed, scratchpad moved to
   `ai-context/`, and `.gitignore` now covers browser and additional agent
@@ -72,6 +98,12 @@ Version numbers follow the root `package.json`.
   scopes, including jenjang tabs and chart windows.
 - Live-database summary assertion now expects the actual active-student count
   (611) instead of a stale 612, so `RUN_DB_TESTS=1` passes again.
+- Concurrent dashboard queries now share one student-session mint instead of
+  issuing one POST per request on page load.
+- Concurrent identical summary requests now share one in-flight computation;
+  later requests are served from the same cache until the next sync.
+- Graduate Data no longer renders an extra empty/default-year request pair
+  before the latest graduation year is known.
 
 ### Documentation
 

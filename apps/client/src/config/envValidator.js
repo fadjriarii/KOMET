@@ -7,10 +7,19 @@
  */
 import { z } from 'zod';
 
+// Same-origin builds use a path such as `/api`; split deployments use an
+// absolute http(s) URL. Protocol-relative `//host` is rejected because it
+// silently points at another origin.
+const isApiBaseUrl = (value) =>
+  (value.startsWith('/') && !value.startsWith('//')) || /^https?:\/\//.test(value);
+
 const envSchema = z.object({
   VITE_API_BASE_URL: z
     .string()
-    .url('VITE_API_BASE_URL harus berupa URL yang valid (contoh: http://localhost:3000/api)'),
+    .refine(
+      isApiBaseUrl,
+      'VITE_API_BASE_URL harus berupa path (/api) atau URL http(s) yang valid (contoh: http://localhost:3000/api)',
+    ),
 });
 
 function validateEnv() {

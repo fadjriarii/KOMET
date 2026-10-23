@@ -2,6 +2,7 @@ require('dotenv').config();
 
 const path = require('path');
 const express = require('express');
+const compression = require('compression');
 const cors = require('cors');
 const helmet = require('helmet');
 const hpp = require('hpp');
@@ -42,6 +43,9 @@ app.use(
   }),
 );
 app.use(hpp());
+// JSON and the client bundle are the largest responses; gzip keeps remote
+// presentation loads close to LAN latency.
+app.use(compression());
 
 // Parser query 'simple': satu sintaks untuk satu arti — `key=value`, dan kunci yang
 // diulang menjadi array. Default 'extended' (qs) juga menerima `fakultas[]=x` dan
@@ -95,7 +99,13 @@ app.use((req, res, next) => {
 
 app.use(express.json());
 
-// Static assets for the landing page (animations, css, js, vendor)
-app.use(express.static(path.join(__dirname, '..', 'public')));
+// Static assets for the landing page (animations, css, js, vendor). In
+// single-origin mode the SPA owns `/`, so the landing index must not answer first.
+const serveClient = process.env.SERVE_CLIENT === 'true';
+app.use(
+  express.static(path.join(__dirname, '..', 'public'), {
+    index: serveClient ? false : 'index.html',
+  }),
+);
 
 module.exports = app;

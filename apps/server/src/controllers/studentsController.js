@@ -9,13 +9,15 @@ const { getIntakeTrend, getIntakeYearCounts } = require('../services/students/in
 const { getNewStudentDecline } = require('../services/students/declineTrend');
 const { getStudentSummary } = require('../services/students/studentSummary');
 const { getStudentList } = require('../services/students/studentList');
+const { getOrLoad } = require('../services/summaryCache');
 const { getPaginationParams } = require('../utils/paginationUtils');
 const { sendServerError } = require('../utils/errorHandler');
 
 // GET /api/students/summary — Data 4 card utama dashboard + filter options
 const getSummary = async (req, res) => {
   try {
-    return res.json({ success: true, ...(await getStudentSummary(req.query)) });
+    const data = await getOrLoad('students', req.query, () => getStudentSummary(req.query));
+    return res.json({ success: true, ...data });
   } catch (error) {
     return sendServerError(res, 'DATA_READ_FAILED', error, 'students/getSummary');
   }

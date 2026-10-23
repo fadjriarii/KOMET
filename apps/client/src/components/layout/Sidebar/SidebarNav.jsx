@@ -11,11 +11,13 @@ export default function SidebarNav() {
       {GROUPS.map((group) => (
         <MenuGroup key={group} title={group}>
           {NAV_ITEMS.filter((item) => item.group === group).map(
-            ({ id, path, label, icon: Icon }) => (
+            ({ id, path, label, icon: Icon, load }) => (
               <NavLink
                 key={id}
                 to={path}
                 end={path === '/'}
+                onMouseEnter={() => load?.().catch(() => {})}
+                onFocus={() => load?.().catch(() => {})}
                 className={({ isActive }) =>
                   `w-full px-3.5 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2.5 group cursor-pointer text-left ${
                     isActive

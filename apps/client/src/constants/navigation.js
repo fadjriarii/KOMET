@@ -1,11 +1,16 @@
 import { lazy } from 'react';
 import { Briefcase, GraduationCap, Users } from 'lucide-react';
 
+const loadStudents = () => import('../modules/students/pages/StudentsPage');
+const loadGraduates = () => import('../modules/graduates/pages/GraduatesPage');
+const loadMbkm = () => import('../modules/mbkm/pages/MbkmPage');
+
 /**
  * Satu daftar untuk tiga hal: rute React Router, menu sidebar, dan breadcrumb.
  * Menambah halaman = satu entri di sini; tidak ada lagi label atau path yang
  * disalin di tempat lain (dulu `NAV_CONFIG` sidebar adalah salinan keempat).
  * `/` bukan halaman sendiri: ia dialihkan ke `/students` (lihat `App.jsx`).
+ * `load` yang sama dipakai `lazy` dan prefetch hover/focus di sidebar.
  */
 export const NAV_ITEMS = [
   {
@@ -14,7 +19,8 @@ export const NAV_ITEMS = [
     label: 'Student Data',
     group: 'Student Navigation',
     icon: Users,
-    Component: lazy(() => import('../modules/students/pages/StudentsPage')),
+    load: loadStudents,
+    Component: lazy(loadStudents),
   },
   {
     id: 'graduates',
@@ -22,7 +28,8 @@ export const NAV_ITEMS = [
     label: 'Graduates',
     group: 'Student Navigation',
     icon: GraduationCap,
-    Component: lazy(() => import('../modules/graduates/pages/GraduatesPage')),
+    load: loadGraduates,
+    Component: lazy(loadGraduates),
   },
   {
     id: 'mbkm',
@@ -30,6 +37,7 @@ export const NAV_ITEMS = [
     label: 'MBKM',
     group: 'Student Navigation',
     icon: Briefcase,
-    Component: lazy(() => import('../modules/mbkm/pages/MbkmPage')),
+    load: loadMbkm,
+    Component: lazy(loadMbkm),
   },
 ];

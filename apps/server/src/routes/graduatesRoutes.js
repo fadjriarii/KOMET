@@ -16,6 +16,9 @@ router.use(statsLimiter);
 router.use(studentSessionAuth);
 router.use(validateQuery(graduateQuerySchema));
 
+// Opsi filter dipakai lebih dulu untuk menentukan Tahun Lulus default.
+router.get('/filter-options', graduates.getFilterOptions);
+
 // Endpoint utama tab lulusan (4 card + filter options)
 router.get('/summary', summaryLimiter, graduates.getSummary);
 

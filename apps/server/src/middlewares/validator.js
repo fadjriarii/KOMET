@@ -107,6 +107,7 @@ const mbkmQuerySchema = z.object({
   search: z.string().trim().max(100).optional(),
   fakultas: stringOrArray,
   programStudi: stringOrArray,
+  jenisAktivitas: stringOrArray,
   angkatan: academicYearLabelOrArray,
   statusAktivitas: stringOrArray,
   jenjang: stringOrArray,

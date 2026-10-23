@@ -6,13 +6,15 @@ const { HTTP_STATUS } = require('@komet/shared/constants');
 
 function clearFilterCachesSafely() {
   try {
-    // Setelah sync, isi kolom (prodi, fakultas, angkatan, periode) bisa berubah,
-    // jadi semua tab dibuang dari cache — bukan cuma modul yang disinkronkan.
+    // Setelah sync, isi kolom (prodi, fakultas, angkatan, periode) dan angka
+    // ringkasan bisa berubah, jadi semua tab dibuang dari cache — bukan cuma
+    // modul yang disinkronkan.
     require('../../services/students/filterOptions').clearFilterCache();
     require('../../services/graduates/filterOptions').clearGraduateFilterCache();
     require('../../services/mbkm/filterOptions').clearMbkmFilterCache();
+    require('../../services/summaryCache').clearSummaryCaches();
   } catch (error) {
-    logger.warn('Gagal membersihkan cache filter options:', error.message);
+    logger.warn('Gagal membersihkan cache dashboard:', error.message);
   }
 }
 

@@ -1,16 +1,18 @@
+const path = require('path');
+const express = require('express');
 const { sendError, sendRejected, GENERIC_ERROR_MESSAGE } = require('../utils/errorHandler');
 const prisma = require('../config/prisma');
 const apiKeyAuth = require('../middlewares/auth');
 const { sessionIssueLimiter, statusLimiter } = require('../middlewares/rateLimiter');
 const { issueStudentSession, revokeStudentSession } = require('../middlewares/studentSession');
 
+const CLIENT_DIST = path.join(__dirname, '..', '..', '..', 'client', 'dist');
+
 function registerApplicationRoutes(app) {
   // Sesi siswa adalah satu-satunya credential untuk route data mahasiswa. Penerbitannya
   // dibatasi keras per IP/sesi dan dikunci ke origin yang dipercaya (issueStudentSession).
   app.post('/api/session/student', sessionIssueLimiter, issueStudentSession);
   app.delete('/api/session/student', sessionIssueLimiter, revokeStudentSession);
-
-  app.use('/', require('./rootRoutes'));
 
   // Loading these routers after Redis is ready prevents rate-limit-redis
   // from issuing commands against an offline client during process startup.
@@ -39,6 +41,22 @@ function registerApplicationRoutes(app) {
       database: { status: dbStatus, latencyMs: dbLatencyMs },
     });
   });
+
+  // Presentation mode: one origin serves the SPA and the API, so cookies and
+  // CORS stay simple behind a single tunnel. Vite hashes asset names, hence
+  // the immutable cache; index.html is revalidated on every entry.
+  if (process.env.SERVE_CLIENT === 'true') {
+    app.use(
+      '/assets',
+      express.static(path.join(CLIENT_DIST, 'assets'), { immutable: true, maxAge: '1y' }),
+    );
+    app.use(express.static(CLIENT_DIST, { index: false }));
+    app.get(['/', '/students', '/graduates', '/mbkm'], (_req, res) => {
+      res.sendFile(path.join(CLIENT_DIST, 'index.html'));
+    });
+  } else {
+    app.use('/', require('./rootRoutes'));
+  }
 
   app.use((_req, res) => sendRejected(res, 404, 'Endpoint tidak ditemukan.'));
 

@@ -17,6 +17,7 @@ const mbkmQueries = {
   },
   fakultas: { model: 'mbkmActivity', field: 'fakultas', byCount: true },
   programStudi: { model: 'mbkmActivity', field: 'programStudi', byCount: true },
+  jenisAktivitas: { model: 'mbkmActivity', field: 'jenisAktivitas', byCount: true },
   angkatan: { model: 'student', field: 'angkatan', where: hasMbkmActivity, desc: true },
   statusAktivitas: { model: 'mbkmActivity', field: 'statusAktivitas' },
   jenjang: { model: 'mbkmActivity', field: 'jenjang', where: { jenjang: { in: JENJANGS } } },

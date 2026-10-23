@@ -40,6 +40,8 @@ year comes from the data that exists, never from the calendar year.**
 - MBKM participation rate
 - Unique partner (_mitra_) count
 - Activity, study program, and status distributions
+- Filters for faculty, study program, activity type (BKP), activity status, and
+  period; search by NIM, name, or partner
 - Filterable participant table with a detail modal
 
 ### Data synchronization
@@ -121,6 +123,29 @@ Turborepo starts both apps in parallel:
 | -------------------- | ----------------------- |
 | Client (React SPA)   | `http://localhost:5173` |
 | Server (Express API) | `http://localhost:3000` |
+
+### Presenting from a laptop
+
+For temporary public access, use one origin instead of forwarding the client
+and API separately. Build the client with a relative API base, then let Express
+serve both:
+
+```bash
+pnpm --filter @komet/client build:presentation
+SERVE_CLIENT=true NODE_ENV=production ALLOW_MEMORY_STORES=true \
+  pnpm --filter @komet/server start
+```
+
+Open the public `/students` URL. In this mode Express serves the SPA, the API,
+and gzip compression from port `3000`, so the browser never calls
+`localhost:3000` and cookies keep working. Expose only port `3000` through
+Cloudflare Tunnel (`cloudflared tunnel --url http://localhost:3000`) or your
+forwarding tool; a tunnel is preferable to raw router port-forwarding because
+it provides HTTPS and a stable public edge. Set `TRUST_PROXY=1` when the tunnel
+forwards the original client IP.
+
+Do not run Vite's development server for the presentation: it compiles modules
+on demand. The production build above is the fast path.
 
 ---
 
@@ -214,6 +239,7 @@ Komet/
 | Command                                           | Description                         |
 | ------------------------------------------------- | ----------------------------------- |
 | `pnpm --filter @komet/client dev`                 | Start the client dev server only    |
+| `pnpm --filter @komet/client build:presentation`  | Build with same-origin `/api`       |
 | `pnpm --filter @komet/client check:bundle`        | Check the client bundle budget      |
 | `pnpm --filter @komet/server dev`                 | Start the API server with nodemon   |
 | `pnpm --filter @komet/server test`                | Run server unit tests (Vitest)      |

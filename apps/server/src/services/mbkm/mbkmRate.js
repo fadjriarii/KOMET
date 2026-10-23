@@ -22,8 +22,8 @@ async function getMbkmRate(whereFilter = {}, selectedPeriods, studentFilter = {}
   let activities = [];
   if (eligibleNims.length) {
     const where = buildActivityWhere(whereFilter, selectedPeriods);
-    // Syarat requirement: jenis aktivitas tidak boleh kosong.
-    where.jenisAktivitas = { not: '' };
+    // Syarat requirement: jenis aktivitas tidak boleh kosong; filter BKP tetap berlaku.
+    where.jenisAktivitas = { ...(where.jenisAktivitas || {}), not: '' };
     where.nim = { in: eligibleNims };
     activities = await prisma.mbkmActivity.findMany({
       where,

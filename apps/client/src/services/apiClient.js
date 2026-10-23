@@ -5,7 +5,7 @@ import { env } from '../config/envValidator.js';
 import { contractFor, contractProblems } from '@komet/shared/contracts';
 import { CLIENT_REQUEST_TIMEOUT_MS, SESSION_MAX_AGE_SECONDS } from '@komet/shared/constants';
 
-const BASE_URL = env.VITE_API_BASE_URL;
+const BASE_URL = env.VITE_API_BASE_URL.replace(/\/+$/, '');
 const REQUEST_TIMEOUT_MS = CLIENT_REQUEST_TIMEOUT_MS;
 const SESSION_RENEWAL_BUFFER_MS = 10 * 60 * 1000;
 const SESSION_MAX_AGE_MS = SESSION_MAX_AGE_SECONDS * 1000;
@@ -72,6 +72,8 @@ function toTransportError(error) {
 function mintStudentSession() {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  // 0 marks the mint as in flight, including a renewal after the old expiry.
+  sessionExpiresAt = 0;
   sessionMintedAt = Date.now();
   // BASE_URL sudah mengandung /api (e.g. http://localhost:3000/api),
   // jadi jangan tambahkan /api lagi agar tidak menjadi /api/api/session/student
@@ -98,7 +100,10 @@ async function ensureStudentSession({ force = false } = {}) {
   const now = Date.now();
   // Renew shortly before the server-side cookie expires, so a dashboard that
   // stays open all day does not start failing its chart calls.
-  if (sessionPromise && now < sessionExpiresAt - SESSION_RENEWAL_BUFFER_MS) return sessionPromise;
+  // `sessionExpiresAt` is 0 while the first mint is in flight; without the
+  // second condition every parallel query starts its own mint.
+  if (sessionPromise && (!sessionExpiresAt || now < sessionExpiresAt - SESSION_RENEWAL_BUFFER_MS))
+    return sessionPromise;
   // Permintaan pasca-401: mint yang baru dimulai (mungkin milik request lain) sudah
   // cukup untuk kita juga, jadi tidak ada amplifikasi mint saat sesi mati mendadak.
   if (force && sessionPromise && now - sessionMintedAt < SESSION_REMINT_COOLDOWN_MS)

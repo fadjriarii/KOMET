@@ -6,6 +6,7 @@ const prisma = require('../../../src/config/prisma');
 const { contractFor, contractProblems } = require('@komet/shared/contracts');
 const {
   buildActivityWhere,
+  buildMbkmFilter,
   resolveMbkmListFilter,
 } = require('../../../src/services/mbkm/filterBuilder');
 const {
@@ -138,6 +139,21 @@ describe('scope status agregasi MBKM', () => {
     const where = buildActivityWhere({}, ['20251', '20252']);
     expect(where.periode).toEqual({ in: ['20251', '20252'] });
   });
+
+  it('meneruskan filter jenis aktivitas dan mencari NIM, nama, serta mitra', () => {
+    const where = buildMbkmFilter({
+      jenisAktivitas: 'Magang',
+      search: 'kalbe',
+      angkatan: '2023/2024',
+    });
+    expect(where.jenisAktivitas).toEqual({ in: ['Magang'] });
+    expect(where.student).toEqual({ angkatan: { in: ['2023/2024'] } });
+    expect(where.OR).toEqual([
+      { student: { nim: { contains: 'kalbe' } } },
+      { student: { nama: { contains: 'kalbe' } } },
+      { mitra: { contains: 'kalbe' } },
+    ]);
+  });
 });
 
 describe('eligible per periode', () => {
@@ -248,6 +264,12 @@ describe('getMbkmRate', () => {
     expect(query.where.jenisAktivitas).toEqual({ not: '' });
   });
 
+  it('mempertahankan filter BKP saat menambahkan syarat jenis terisi', async () => {
+    await getMbkmRate({ jenisAktivitas: { in: ['Magang'] } }, '20251', {});
+    const query = calls.find((call) => call.kind === 'findMany' && call.model === 'mbkmActivity');
+    expect(query.where.jenisAktivitas).toEqual({ in: ['Magang'], not: '' });
+  });
+
   it('penyebut nol menghasilkan null, bukan 0%', async () => {
     stubDelegates({ students: [], activities: [] });
     const data = await getMbkmRate({}, '20251', {});
@@ -292,6 +314,10 @@ describe('getMbkmSummary', () => {
         { _count: { mitra: 4 }, mitra: 'Mitra C' },
         { _count: { mitra: 3 }, mitra: 'Mitra D' },
       ],
+      '["jenisAktivitas"]': [
+        { _count: { jenisAktivitas: 20 }, jenisAktivitas: 'Magang' },
+        { _count: { jenisAktivitas: 10 }, jenisAktivitas: 'Riset' },
+      ],
       '["periode"]': [
         { _count: { periode: 1 }, periode: '20241' },
         { _count: { periode: 1 }, periode: '20242' },
@@ -328,10 +354,13 @@ describe('getMbkmSummary', () => {
     });
     expect(result.kpiFilterScope.totalParticipants).toContain('search');
     expect(result.kpiFilterScope.rate).toContain('statusAktivitas');
+    expect(result.kpiFilterScope.totalParticipants).toContain('jenisAktivitas');
     expect(result.kpiFilterScope.eligible).toContain('fakultas');
     expect(result.kpiFilterScope.eligible).not.toContain('search');
     expect(result.kpiFilterScope.eligible).not.toContain('statusAktivitas');
+    expect(result.kpiFilterScope.eligible).not.toContain('jenisAktivitas');
     expect(result.kpiFilterScope.mitra).toEqual(['periode', 'tahunAjaran']);
+    expect(result.filterOptions.jenisAktivitas).toEqual(['Magang', 'Riset']);
     expect(result.filterOptions.academicYearOptions).toEqual([
       '2026/2027',
       '2025/2026',

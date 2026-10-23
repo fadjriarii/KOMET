@@ -6,7 +6,9 @@
 
 const { buildGraduateFilter } = require('../services/graduates/filterBuilder');
 const { getPaginationParams } = require('../utils/paginationUtils');
+const { getGraduateFilterOptions } = require('../services/graduates/filterOptions');
 const { getGraduateSummary } = require('../services/graduates/graduateSummary');
+const { getOrLoad } = require('../services/summaryCache');
 const { getTotalLulusanByYear } = require('../services/graduates/totalLulusan');
 const { getAvgIpk, getIpkByYear, getIpkOverview } = require('../services/graduates/ipkTrend');
 const { getTepatWaktuByYear } = require('../services/graduates/tepatWaktu');
@@ -15,11 +17,22 @@ const { getGraduateDistribution } = require('../services/graduates/graduateDistr
 const { getGraduateList } = require('../services/graduates/graduateList');
 const { sendServerError } = require('../utils/errorHandler');
 
+// GET /api/graduates/filter-options — opsi ringan sebelum summary, supaya
+// halaman tidak sempat memuat summary tanpa Tahun Lulus default.
+const getFilterOptions = async (req, res) => {
+  try {
+    const data = await getGraduateFilterOptions(req.query?.tahunAjaran);
+    return res.json({ success: true, data });
+  } catch (error) {
+    return sendServerError(res, 'DATA_READ_FAILED', error, 'graduates/getFilterOptions');
+  }
+};
+
 // GET /api/graduates/summary — Data 4 card + filter options untuk tab lulusan
 const getSummary = async (req, res) => {
   try {
     const whereFilter = buildGraduateFilter(req.query);
-    const data = await getGraduateSummary(whereFilter);
+    const data = await getOrLoad('graduates', req.query, () => getGraduateSummary(whereFilter));
     return res.json({ success: true, ...data });
   } catch (error) {
     return sendServerError(res, 'DATA_READ_FAILED', error, 'graduates/getSummary');
@@ -122,6 +135,7 @@ const getGraduates = async (req, res) => {
 };
 
 module.exports = {
+  getFilterOptions,
   getSummary,
   getTotalLulusanDetail,
   getIpkTrendDetail,

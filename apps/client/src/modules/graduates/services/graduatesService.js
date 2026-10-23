@@ -1,3 +1,4 @@
+import apiClient from '../../../services/apiClient';
 import { createFilterService } from '../../../services/createFilterService';
 import { createQueryParams } from '../../../services/queryParams';
 import { createQuerySanitizer } from '../../../utils/querySanitizer';
@@ -27,17 +28,24 @@ function toQueryParams(filters = {}, pagination = {}) {
   return params;
 }
 
-export const graduatesService = createFilterService({
-  toQueryParams,
-  summaryPath: '/graduates/summary',
-  listPath: '/graduates/list',
-  detailPaths: {
-    getTotalLulusanDetail: '/graduates/total-lulusan',
-    getIpkTrendDetail: '/graduates/ipk-trend',
-    getTepatWaktuDetail: '/graduates/tepat-waktu',
-    getKeberhasilanStudiDetail: '/graduates/keberhasilan-studi',
-    getGraduateDistribution: '/graduates/distribution',
+export const graduatesService = {
+  ...createFilterService({
+    toQueryParams,
+    summaryPath: '/graduates/summary',
+    listPath: '/graduates/list',
+    detailPaths: {
+      getTotalLulusanDetail: '/graduates/total-lulusan',
+      getIpkTrendDetail: '/graduates/ipk-trend',
+      getTepatWaktuDetail: '/graduates/tepat-waktu',
+      getKeberhasilanStudiDetail: '/graduates/keberhasilan-studi',
+      getGraduateDistribution: '/graduates/distribution',
+    },
+  }),
+
+  getFilterOptions: ({ signal, tahunAjaran } = {}) => {
+    const params = tahunAjaran ? `?tahunAjaran=${encodeURIComponent(tahunAjaran)}` : '';
+    return apiClient.get(`/graduates/filter-options${params}`, { signal });
   },
-});
+};
 
 export default graduatesService;

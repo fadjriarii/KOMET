@@ -27,7 +27,7 @@ function readPage(searchParams) {
   return Number.isInteger(raw) && raw > DEFAULT_PAGE ? raw : DEFAULT_PAGE;
 }
 
-function useModuleSummary({ namespace, service, queryParams, enabled }) {
+function useModuleSummary({ namespace, service, queryParams, enabled = true }) {
   const queryString = useMemo(() => service.toQueryString(queryParams), [service, queryParams]);
   const query = useQuery({
     queryKey: queryKey(namespace, 'summary', queryString),
@@ -47,7 +47,7 @@ function useModuleSummary({ namespace, service, queryParams, enabled }) {
  * `useDashboardFilters` drops `page` whenever a filter changes, which is why no
  * local "reset on filter change" bookkeeping is needed here.
  */
-function useModuleList({ namespace, service, queryParams, limit = TABLE_LIMIT }) {
+function useModuleList({ namespace, service, queryParams, limit = TABLE_LIMIT, enabled = true }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const filterKey = useMemo(() => service.toQueryString(queryParams), [service, queryParams]);
   const page = readPage(searchParams);
@@ -77,6 +77,7 @@ function useModuleList({ namespace, service, queryParams, limit = TABLE_LIMIT })
     meta: { filterKey },
     placeholderData: (previousData, previousQuery) =>
       previousQuery?.meta?.filterKey === filterKey ? previousData : undefined,
+    enabled,
     staleTime: DASHBOARD_STALE_TIME_MS,
   });
 
@@ -142,17 +143,17 @@ function useModuleDetail({
  * `useXDetailResource` yang hanya berbeda nama.
  */
 export function createModuleQueries({ namespace, service, summaryEnabled }) {
-  function useSummary(queryParams) {
+  function useSummary(queryParams, { enabled = true } = {}) {
     return useModuleSummary({
       namespace,
       service,
       queryParams,
-      enabled: summaryEnabled ? summaryEnabled(queryParams) : true,
+      enabled: enabled && (summaryEnabled ? summaryEnabled(queryParams) : true),
     });
   }
 
-  function useList(queryParams, { limit } = {}) {
-    return useModuleList({ namespace, service, queryParams, limit });
+  function useList(queryParams, { limit, enabled = true } = {}) {
+    return useModuleList({ namespace, service, queryParams, limit, enabled });
   }
 
   function useDetail(args) {

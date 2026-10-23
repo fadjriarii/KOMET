@@ -27,6 +27,8 @@ const baseEnvSchema = z.object({
   // Degradasi eksplisit ke store in-process (sesi & rate limit per-proses).
   // Tanpa ini, REDIS_URL yang kosong di production membuat server menolak start.
   ALLOW_MEMORY_STORES: z.enum(['true', 'false']).optional(),
+  // Serve apps/client/dist from this server for single-origin presentations.
+  SERVE_CLIENT: z.enum(['true', 'false']).optional(),
   // Diagnostik error mentah di respons HANYA untuk dev lokal yang disengaja.
   EXPOSE_ERROR_DETAILS: z.enum(['true', 'false']).optional(),
 });

@@ -367,6 +367,28 @@ No publishing to npm, no version bumps — pnpm resolves it directly from the lo
 
 6. **React client** fetches data via TanStack Query, which handles request deduplication, background refetching, and cache invalidation. The UI renders charts, tables, and KPI cards from the API responses.
 
+### Dashboard latency path
+
+- Graduate Data requests `GET /api/graduates/filter-options` first and only
+  enables summary/list after the latest `Tahun Lulus` is known. This avoids a
+  cold request pair whose result is immediately replaced by the default year.
+- Summary responses are cached in-process by normalized query. Identical
+  concurrent requests share one computation, and sync clears the cache.
+  Production startup warms filter options and the default summary queries.
+- The client keeps query data for five minutes. Sidebar hover/focus prefetches
+  route chunks, and detail-modal chunks load during idle time after the first
+  summary response.
+- List responses are not cached: they contain student records and vary by page,
+  search, and filters.
+
+### Single-origin presentation mode
+
+For temporary public demos, set `SERVE_CLIENT=true` and build the client with
+`VITE_API_BASE_URL=/api`. Express then serves `apps/client/dist` and the API on
+the same port. This avoids two tunnels, cross-origin cookie rules, and a
+`localhost` API URL leaking into the browser bundle. Normal development stays
+split: Vite on `5173` proxies `/api` to the server on `3000`.
+
 ### Riwayat sinkronisasi (`sync_runs`)
 
 Popup sinkronisasi tidak menyimpan keadaan di klien: progres dibaca dari
@@ -420,14 +442,15 @@ Dijegakan oleh dua middleware berbeda: `middlewares/studentSession.js` (sesi saj
 
 | Route                                                   | Limiter                                                     | Guard                                          | Catatan                                                            |
 | ------------------------------------------------------- | ----------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------ |
-| `GET /` (landing)                                       | —                                                           | —                                              | static, tanpa data                                                 |
+| `GET /` (landing)                                       | —                                                           | —                                              | static, tanpa data; diganti SPA shell bila `SERVE_CLIENT=true`     |
 | `POST /api/session/student`                             | `sessionIssueLimiter` 10/menit                              | origin allowlist di handler                    | 204 + `Cache-Control: no-store`                                    |
 | `DELETE /api/session/student`                           | `sessionIssueLimiter` 10/menit                              | —                                              | revoke diri sendiri; idempoten                                     |
 | `GET /api/health`                                       | —                                                           | `apiKeyAuth`                                   | uptime + latensi DB = fingerprint infrastruktur, khusus monitoring |
 | `GET /api/sync/status`                                  | `statusLimiter` 120/menit                                   | `syncAuth`                                     | polling UI 2 detik, tidak memakai jatah dashboard                  |
 | `GET /api/sync/history`, `DELETE /api/sync/history/:id` | `statsLimiter` 60/menit                                     | `syncAuth`                                     | 5 sync terakhir; penulisannya di `endJob`, penghapusan satu baris  |
 | `POST /api/sync/{students,graduates,mbkm,all}`          | `statsLimiter` + `syncLimiter` 5/menit + `checkSyncRunning` | `syncAuth`                                     |                                                                    |
-| `GET /api/{students,graduates,mbkm}/summary`            | `statsLimiter` 60/menit + `summaryLimiter` 20/menit         | `studentSessionAuth`                           | endpoint termahal (puluhan query)                                  |
+| `GET /api/{students,graduates,mbkm}/summary`            | `statsLimiter` 60/menit + `summaryLimiter` 20/menit         | `studentSessionAuth`                           | endpoint termahal (puluhan query), di-cache sampai sync berikutnya |
+| `GET /api/graduates/filter-options`                     | `statsLimiter` 60/menit                                     | `studentSessionAuth`                           | menentukan Tahun Lulus default sebelum summary                     |
 | route data lain di ketiga tab                           | `statsLimiter` 60/menit                                     | `studentSessionAuth` + `validateQuery(schema)` |                                                                    |
 
 ### 6.3 Keputusan yang disengaja

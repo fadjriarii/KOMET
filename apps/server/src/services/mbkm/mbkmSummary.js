@@ -22,6 +22,7 @@ const ACTIVITY_PARAMS = [
   'search',
   'fakultas',
   'programStudi',
+  'jenisAktivitas',
   'angkatan',
   'statusAktivitas',
   'jenjang',

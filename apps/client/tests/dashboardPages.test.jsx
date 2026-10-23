@@ -108,6 +108,7 @@ const ACTIVITY_PARAMS = [
   'search',
   'fakultas',
   'programStudi',
+  'jenisAktivitas',
   'angkatan',
   'statusAktivitas',
   'jenjang',
@@ -167,7 +168,18 @@ const ROUTES = {
       studySuccessRateS1: 91.2,
     }),
     listPayload: listPayload([GRADUATE_ROW]),
-    extraPaths: {},
+    extraPaths: {
+      '/graduates/filter-options': {
+        success: true,
+        data: {
+          ...OPTIONS,
+          rollingYears: ['2025/2026'],
+          rollingAngkatan: ['2022/2023'],
+          academicYearOptions: ['2026/2027', '2025/2026'],
+          predikatOptions: [],
+        },
+      },
+    },
     cards: [
       { key: 'total', title: 'Total Lulusan' },
       { key: 'gpa', title: 'Rata-rata IPK Lulusan' },
@@ -211,6 +223,7 @@ const ROUTES = {
         selectedPeriods: ['20251'],
         filterOptions: {
           ...OPTIONS,
+          jenisAktivitas: ['Magang'],
           periodeOptions: [
             { value: '20251', label: 'Ganjil' },
             { value: '20252', label: 'Genap' },
@@ -221,10 +234,10 @@ const ROUTES = {
     listPayload: listPayload([MBKM_ROW]),
     extraPaths: {},
     cards: [
-      { key: 'totalParticipants', title: 'Total Partisipan' },
-      { key: 'eligible', title: 'Eligible' },
-      { key: 'rate', title: 'Persentase MBKM' },
-      { key: 'mitra', title: 'Mitra' },
+      { key: 'totalParticipants', title: 'Partisipan MBKM' },
+      { key: 'eligible', title: 'Mahasiswa Eligible' },
+      { key: 'rate', title: 'Persentase Partisipasi' },
+      { key: 'mitra', title: 'Mitra MBKM' },
     ],
     scope: {
       rate: ACTIVITY_PARAMS,
@@ -234,6 +247,9 @@ const ROUTES = {
     },
     filterCases: [
       { url: '/mbkm?faculty=FST', api: 'fakultas', value: 'FST' },
+      { url: '/mbkm?search=ani', api: 'search', value: 'ani' },
+      { url: '/mbkm?statusAktivitas=Disetujui', api: 'statusAktivitas', value: 'Disetujui' },
+      { url: '/mbkm?jenisAktivitas=Magang', api: 'jenisAktivitas', value: 'Magang' },
       { url: '/mbkm?periode=20251', api: 'periode', value: '20251' },
       { url: '/mbkm?tahunAjaran=2020/2021', api: 'tahunAjaran', value: '2020/2021' },
     ],
@@ -344,10 +360,15 @@ describe('kartu MBKM', () => {
     renderPage(MbkmPage);
 
     await cardsReady(route);
-    const titles = ['Total Partisipan', 'Eligible', 'Persentase MBKM', 'Mitra'];
+    const titles = [
+      'Partisipan MBKM',
+      'Mahasiswa Eligible',
+      'Persentase Partisipasi',
+      'Mitra MBKM',
+    ];
     const grid = cardOf(titles[0]).parentElement;
     expect([...grid.children].map((card) => card.querySelector('p').textContent)).toEqual(titles);
-    expect(within(cardOf('Mitra')).getByText('42')).toBeTruthy();
+    expect(within(cardOf('Mitra MBKM')).getByText('42')).toBeTruthy();
     expect(screen.queryByText(/Target IKU-2/)).toBeNull();
     expect(screen.queryByText('Mitra MBKM & Industri')).toBeNull();
   });
@@ -366,16 +387,26 @@ describe('kartu MBKM', () => {
     expect(lastQuery(route.summaryPath).get('periode')).toBeNull();
   });
 
-  it('menampilkan kembali filter jenjang pada baris pertama lima kolom', async () => {
+  it('memakai filter BKP tanpa angkatan dan mitra di grid tiga kolom penuh', async () => {
     const route = mockModule('mbkm');
     renderPage(MbkmPage);
 
     await cardsReady(route);
-    expect(screen.getByLabelText('Jenjang')).toBeTruthy();
+    expect(screen.queryByLabelText('Jenjang')).toBeNull();
+    expect(screen.queryByLabelText('Angkatan')).toBeNull();
+    expect(screen.queryByLabelText('Mitra')).toBeNull();
+    expect(screen.getByLabelText('Jenis Aktivitas MBKM')).toBeTruthy();
+    expect(screen.getByPlaceholderText('Cari berdasarkan NIM, Nama, atau Mitra...')).toBeTruthy();
 
     const searchWrapper = screen.getByText('Cari Aktivitas MBKM').closest('div');
     expect(searchWrapper.className).toContain('md:col-span-2');
-    expect(searchWrapper.parentElement.className).toContain('md:grid-cols-5');
+
+    const firstRow = searchWrapper.parentElement;
+    expect(firstRow.className).toContain('md:grid-cols-4');
+
+    const secondRow = firstRow.nextElementSibling;
+    expect(secondRow.className).toContain('md:grid-cols-3');
+    expect(secondRow.children).toHaveLength(3);
   });
 
   it('tidak menampilkan kolom jenjang di tabel MBKM', async () => {
@@ -401,8 +432,27 @@ describe('kartu MBKM', () => {
 });
 
 describe('kartu KPI Graduates', () => {
+  it('memuat opsi filter lebih dulu dan langsung memakai Tahun Lulus default', async () => {
+    const route = mockModule('graduates');
+    renderPage(GraduatesPage);
+
+    await waitFor(() => expect(callsFor('/graduates/filter-options')).toHaveLength(1));
+    await waitFor(() => expect(callsFor(route.summaryPath)).toHaveLength(1));
+
+    expect(callsFor(route.listPath)).toHaveLength(1);
+    expect(lastQuery(route.summaryPath).get('tahunLulus')).toBe('2025/2026');
+    expect(
+      callsFor(route.summaryPath).map((url) =>
+        new URLSearchParams(url.split('?')[1]).get('tahunLulus'),
+      ),
+    ).toEqual(['2025/2026']);
+  });
+
   it('data kosong tampil sebagai 0, bukan strip', async () => {
     respondWith((url) => {
+      if (url.startsWith('/graduates/filter-options')) {
+        return ROUTES.graduates.extraPaths['/graduates/filter-options'];
+      }
       if (url.startsWith('/graduates/summary')) {
         return summary({
           totalGraduates: null,

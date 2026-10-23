@@ -1,4 +1,4 @@
-import logoSidebar from '../../../assets/I3L - KOMET.png';
+import logoSidebar from '../../../assets/I3L-KOMET.webp';
 
 export default function SidebarLogo() {
   return (

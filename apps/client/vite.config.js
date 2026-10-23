@@ -2,8 +2,14 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
+// Keep `/api` relative in development too; the proxy makes the browser origin
+// match the server origin, which is also what the single-origin build uses.
+const apiProxy = { '/api': { target: 'http://localhost:3000' } };
+
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  server: { proxy: apiProxy },
+  preview: { proxy: apiProxy },
   test: {
     environment: 'jsdom',
     setupFiles: './tests/setup.js',

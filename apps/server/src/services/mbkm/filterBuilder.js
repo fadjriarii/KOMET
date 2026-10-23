@@ -5,10 +5,19 @@
 
 const prisma = require('../../config/prisma');
 const { getAcademicYearStart } = require('../../utils/academicUtils');
-const { addInFilter, addSearchFilter, hasFilters } = require('@komet/shared/filterUtils');
+const { addInFilter, hasFilters } = require('@komet/shared/filterUtils');
 
 function buildMbkmFilter(query) {
-  const { search, fakultas, programStudi, angkatan, statusAktivitas, jenjang, periode } = query;
+  const {
+    search,
+    fakultas,
+    programStudi,
+    jenisAktivitas,
+    angkatan,
+    statusAktivitas,
+    jenjang,
+    periode,
+  } = query;
 
   const where = {};
 
@@ -21,15 +30,26 @@ function buildMbkmFilter(query) {
   addInFilter(where, 'jenjang', jenjang);
   addInFilter(where, 'fakultas', fakultas);
   addInFilter(where, 'programStudi', programStudi);
+  addInFilter(where, 'jenisAktivitas', jenisAktivitas);
 
   // Filter via relasi ke student
   const studentFilter = {};
 
   addInFilter(studentFilter, 'angkatan', angkatan);
-  addSearchFilter(studentFilter, search);
 
   if (hasFilters(studentFilter)) {
     where.student = studentFilter;
+  }
+
+  // Pencarian mencakup mitra, bukan filter mitra terpisah; daftar mitra bisa
+  // sangat panjang sehingga tidak layak dimuat sebagai opsi di client.
+  const term = typeof search === 'string' ? search.trim().slice(0, 100) : '';
+  if (term) {
+    where.OR = [
+      { student: { nim: { contains: term } } },
+      { student: { nama: { contains: term } } },
+      { mitra: { contains: term } },
+    ];
   }
 
   return where;

@@ -41,6 +41,11 @@ async function startServer() {
   registerApplicationRoutes(app);
   server = app.listen(PORT, () => {
     logger.success(`🚀 Server Komet berjalan di http://localhost:${PORT}`);
+    if (process.env.NODE_ENV === 'production') {
+      require('./services/serverWarmup')
+        .warmServerCaches()
+        .catch((error) => logger.warn('Cache server tidak siap:', error.message));
+    }
   });
 }
 

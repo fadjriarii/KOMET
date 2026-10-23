@@ -1,4 +1,4 @@
-import { Award, BookOpen, Building2, CalendarDays, UserCheck } from 'lucide-react';
+import { BookOpen, Briefcase, Building2, CalendarDays, UserCheck } from 'lucide-react';
 import { getCurrentAcademicYear, isValidAcademicYear } from '@komet/shared/academicYear';
 import { useDashboardFilters } from '../../../hooks/useDashboardFilters';
 import { sanitizeSearch } from '../../../utils/querySanitizer';
@@ -22,7 +22,7 @@ export const mbkmFilterFields = {
     control: 'search',
     row: 1,
     label: 'Cari Aktivitas MBKM',
-    placeholder: 'Cari berdasarkan NIM, Nama, atau Instansi...',
+    placeholder: 'Cari berdasarkan NIM, Nama, atau Mitra...',
   },
   // Tahun ajaran dipilih di header halaman, bukan di grid filter.
   tahunAjaran: {
@@ -56,27 +56,15 @@ export const mbkmFilterFields = {
     optionsKey: 'programStudi',
     placeholder: 'Semua Program Studi',
   },
-  selectedJenjang: {
+  selectedJenisAktivitas: {
     initial: [],
-    param: 'jenjang',
-    setter: 'setSelectedJenjang',
+    param: 'jenisAktivitas',
+    setter: 'setSelectedJenisAktivitas',
     control: 'multi',
-    row: 1,
-    label: 'Jenjang',
-    icon: Award,
-    optionsKey: 'jenjang',
-    placeholder: 'Semua Jenjang',
-  },
-  selectedAngkatan: {
-    initial: [],
-    param: 'angkatan',
-    setter: 'setSelectedAngkatan',
-    control: 'years',
-    label: 'Angkatan',
-    optionsKey: 'angkatan',
-    placeholder: 'Pilih Angkatan',
-    allTimeLabel: 'Semua Angkatan',
-    yearLabel: 'Angkatan',
+    label: 'Jenis Aktivitas MBKM',
+    icon: Briefcase,
+    optionsKey: 'jenisAktivitas',
+    placeholder: 'Semua Jenis Aktivitas',
   },
   selectedStatusAktivitas: {
     initial: [],
@@ -102,7 +90,8 @@ export const mbkmFilterFields = {
 
 export const mbkmFilterForm = {
   title: 'Filter & Pencarian MBKM',
-  secondRowColumns: 4,
+  firstRowColumns: 4,
+  secondRowColumns: 3,
   fields: mbkmFilterFields,
 };
 

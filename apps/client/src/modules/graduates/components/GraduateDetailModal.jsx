@@ -1,12 +1,21 @@
 import { lazy } from 'react';
 import DetailModalOrchestrator from '../../../components/common/modals/DetailModalOrchestrator';
 
-const MODAL_MAP = {
-  total: lazy(() => import('./modals/TotalGraduatesModal')),
-  gpa: lazy(() => import('./modals/GpaOverviewModal')),
-  onTime: lazy(() => import('./modals/OnTimeGraduationModal')),
-  studySuccess: lazy(() => import('./modals/StudySuccessModal')),
+const MODAL_IMPORTS = {
+  total: () => import('./modals/TotalGraduatesModal'),
+  gpa: () => import('./modals/GpaOverviewModal'),
+  onTime: () => import('./modals/OnTimeGraduationModal'),
+  studySuccess: () => import('./modals/StudySuccessModal'),
 };
+
+const MODAL_MAP = Object.fromEntries(
+  Object.entries(MODAL_IMPORTS).map(([key, load]) => [key, lazy(load)]),
+);
+
+/** Muat semua chunk modal (termasuk chunk grafik bersama) saat halaman idle. */
+function prefetchDetailModals() {
+  return Promise.all(Object.values(MODAL_IMPORTS).map((load) => load()));
+}
 
 /**
  * GraduateDetailModal
@@ -16,3 +25,5 @@ const MODAL_MAP = {
 export default function GraduateDetailModal(props) {
   return <DetailModalOrchestrator {...props} modalMap={MODAL_MAP} />;
 }
+
+GraduateDetailModal.prefetch = prefetchDetailModals;
