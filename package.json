@@ -2,6 +2,7 @@
   "name": "komet",
   "version": "1.0.0",
   "private": true,
+  "license": "SEE LICENSE IN LICENSE",
   "description": "KPI Observation, Monitoring and Evaluation Tool",
   "packageManager": "pnpm@12.14.0",
   "scripts": {

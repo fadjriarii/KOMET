@@ -1,22 +1,111 @@
-Proprietary License / All Rights Reserved
+Proprietary Software License — All Rights Reserved
+Version 1.0 — 23 October 2026
 
-Copyright (c) 2026 Universitas Bio Scientia Internasional Indonesia (i3L University). All rights reserved.
+Copyright (c) 2026 Universitas Bio Scientia Internasional Indonesia (i3L
+University). All rights reserved.
 
-This software, including its source code, documentation, and associated
-materials, is the proprietary and confidential property of Universitas Bio
-Scientia Internasional Indonesia (i3L University).
+This is not an open-source license. This software, including its source code,
+documentation, designs, data models, and associated materials (the "Software"),
+is the proprietary property of Universitas Bio Scientia Internasional Indonesia
+(i3L University) (the "Copyright Holder"). Non-public versions of the Software
+are confidential information of the Copyright Holder.
 
-No part of this software may be copied, reproduced, modified, distributed,
-published, sublicensed, sold, or used in any form or by any means without prior
-written permission from the copyright holder.
+1. Ownership
 
-Access to this software does not grant any license or right to use, copy, or
-distribute it except as expressly authorized in writing by the copyright
-holder.
+The Copyright Holder owns all rights, title, and interest in and to the
+Software, including all intellectual property rights. No rights are granted
+except as expressly stated in this License. No license or right is granted by
+implication, estoppel, or otherwise, and all rights not expressly granted are
+reserved.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+2. Permitted Use
+
+The Copyright Holder may use, copy, modify, and maintain the Software for its
+internal purposes. The Copyright Holder's authorized personnel may do the same
+only within the scope of their authorization and the Copyright Holder's written
+policies. All modifications and derivative works created by authorized
+personnel in the course of their duties are the property of the Copyright
+Holder. All use must comply with applicable laws, including data protection and
+privacy laws. This License does not grant any rights to data processed by the
+Software; use of that data is governed by applicable law and the Copyright
+Holder's policies.
+
+3. Restrictions
+
+Except as expressly permitted in Section 2, no person may:
+
+(a) use, copy, reproduce, modify, adapt, translate, or create derivative works
+of the Software;
+(b) publish, distribute, sublicense, sell, lease, rent, lend, or otherwise make
+the Software available to any third party;
+(c) use the Software for any commercial purpose;
+(d) remove, alter, or obscure any copyright, license, or proprietary notice; or
+(e) reverse engineer, decompile, or disassemble the Software, except to the
+extent permitted by applicable law.
+
+4. Confidentiality
+
+Non-public versions of the Software are confidential information of the
+Copyright Holder. You must not disclose them to any third party without prior
+written permission. This obligation does not apply to information that was
+lawfully made public before the effective date of this License, or that you are
+required to disclose by law, provided you give the Copyright Holder prompt
+written notice where legally permitted.
+
+5. Third-Party Components
+
+The Software may include third-party components governed by their own licenses.
+Those licenses continue to apply. See THIRD_PARTY_NOTICES.md. If a third-party
+license conflicts with this License, the third-party license governs the
+relevant component.
+
+6. Trademarks
+
+No rights are granted to use the names, logos, or trademarks of the Copyright
+Holder or any third party.
+
+7. Contributions
+
+Contributions from authorized personnel are governed by the Copyright Holder's
+internal intellectual-property policies. External contributions require a
+written agreement assigning the necessary rights to the Copyright Holder.
+
+8. No Support
+
+No support, maintenance, updates, or warranties are provided unless separately
+agreed in writing.
+
+9. Disclaimer of Warranties
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE SOFTWARE IS PROVIDED "AS
+IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND
+NONINFRINGEMENT.
+
+10. Limitation of Liability
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT SHALL THE
 COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+Nothing in this License excludes or limits liability that cannot be excluded or
+limited under applicable law.
+
+11. Governing Law and Jurisdiction
+
+This License is governed by the laws of the Republic of Indonesia. The courts of
+Jakarta, Indonesia shall have exclusive jurisdiction, unless mandatory law
+provides otherwise.
+
+12. General
+
+If any provision of this License is held invalid or unenforceable, the remaining
+provisions remain in full force and effect. A failure to enforce any provision
+is not a waiver. This License is the entire agreement regarding the Software and
+supersedes prior understandings on the same subject.
+
+13. Contact
+
+Permission requests and questions about this License must be made in writing
+through the official contact channels of Universitas Bio Scientia Internasional
+Indonesia (i3L University).

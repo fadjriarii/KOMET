@@ -2,6 +2,7 @@
   "name": "@komet/shared",
   "version": "1.0.0",
   "private": true,
+  "license": "SEE LICENSE IN LICENSE",
   "description": "Konstanta dan formatter tunggal untuk frontend dan backend Komet",
   "type": "module",
   "exports": {

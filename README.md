@@ -273,12 +273,13 @@ and the SEVIMA keys belong only in `apps/server/.env`.
 
 ## Documentation
 
-| Document               | Purpose                                     |
-| ---------------------- | ------------------------------------------- |
-| `docs/ARCHITECTURE.md` | System design, module boundaries, data flow |
-| `docs/ENGINEERING.md`  | Engineering standards and review checklist  |
-| `docs/adr/`            | Accepted technical decisions                |
-| `CHANGELOG.md`         | User-visible changes                        |
+| Document                 | Purpose                                     |
+| ------------------------ | ------------------------------------------- |
+| `docs/ARCHITECTURE.md`   | System design, module boundaries, data flow |
+| `docs/ENGINEERING.md`    | Engineering standards and review checklist  |
+| `docs/adr/`              | Accepted technical decisions                |
+| `CHANGELOG.md`           | User-visible changes                        |
+| `THIRD_PARTY_NOTICES.md` | Third-party dependency licenses             |
 
 Filter options are derived from synced data. Default-year behavior is documented
 in `docs/adr/0001-data-driven-default-academic-year.md`.
@@ -287,5 +288,14 @@ in `docs/adr/0001-data-driven-default-academic-year.md`.
 
 ## License
 
-Proprietary / All Rights Reserved © Universitas Bio Scientia Internasional
-Indonesia (i3L University). See [LICENSE](LICENSE).
+Proprietary Software License — All Rights Reserved.
+
+Copyright © 2026 Universitas Bio Scientia Internasional Indonesia (i3L
+University). This software is proprietary; non-public versions are confidential.
+No license or right is granted except as expressly authorized in writing by the
+copyright holder.
+
+See [LICENSE](LICENSE) for the full terms and
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for third-party dependency
+licenses. Permission requests must be made in writing through the official
+contact channels of i3L University.
