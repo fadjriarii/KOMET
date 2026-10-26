@@ -1,0 +1,20 @@
+# Graphify: keep the graph to production code only.
+
+# Tests verify behavior; they are not part of the architecture under analysis.
+apps/*/tests/
+packages/shared/tests/
+**/*.test.*
+**/*.spec.*
+
+# Vendored/minified assets: noise, not project code.
+apps/server/public/vendor/
+**/*.min.js
+
+# Scratch task notes: stale implementation TODOs, not project code.
+task/
+
+# Generated and local-only material (also in .gitignore, pinned here so
+# --no-gitignore cannot pull it in by accident).
+graphify-out/
+requirements/
+ai-context/
