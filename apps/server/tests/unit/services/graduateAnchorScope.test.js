@@ -75,6 +75,9 @@ describe('scope tahun ajaran untuk IPK dan distribusi', () => {
 
     expect(result.total).toBe(1);
     expect(result.byPredikat).toContainEqual({ name: 'Memuaskan', count: 1, percentage: 100 });
-    expect(result.byPredikat.find((item) => item.name === 'Cum Laude').count).toBe(0);
+    // Kategori kosong tidak dikirim: jumlah item = kategori berdata.
+    expect(result.byPredikat.find((item) => item.name === 'Cum Laude')).toBeUndefined();
+    expect(result.byProdi).toEqual([{ name: 'Informatika', count: 1, percentage: 100 }]);
+    expect(result.byFaculty).toEqual([{ name: 'FST', count: 1, percentage: 100 }]);
   });
 });

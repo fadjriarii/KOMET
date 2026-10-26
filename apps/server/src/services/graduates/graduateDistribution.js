@@ -1,7 +1,7 @@
 /**
  * graduateDistribution.js
  *
- * Menghitung distribusi predikat kelulusan (byPredikat). Tren lulusan per tahun dihitung
+ * Menghitung distribusi lulusan per predikat, program studi, dan fakultas. Tren lulusan per tahun dihitung
  * di `totalLulusan.js`, yang sudah memecahnya per jenjang — menyajikannya lagi di sini
  * hanya menuliskan satu angka dengan dua nama kunci.
  *
@@ -16,23 +16,49 @@ const { countByPredikat } = require('../../utils/graduateUtils');
 const { roundedRate } = require('../../utils/percentageUtils');
 const { resolveTahunAjaranScope } = require('./yearJenjangSeries');
 
+/** Jumlah per nilai kolom (prodi/fakultas), terbanyak dulu, dengan persentase. */
+function countBy(rows, field, total) {
+  const counts = new Map();
+  for (const row of rows) {
+    const name = row[field] || 'Lainnya';
+    counts.set(name, (counts.get(name) || 0) + 1);
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([name, count]) => ({ name, count, percentage: roundedRate(count, total, null) }));
+}
+
 async function getGraduateDistribution(whereFilter) {
   const { where } = await resolveTahunAjaranScope(whereFilter);
   const students = await prisma.student.findMany({
     where,
-    select: { graduate: { select: { ipk: true, predikatLulus: true } } },
+    select: {
+      programStudi: true,
+      fakultas: true,
+      graduate: { select: { ipk: true, predikatLulus: true } },
+    },
   });
-  const graduates = students.map((s) => s.graduate).filter(Boolean);
+  const withGraduate = students.filter((s) => s.graduate);
+  const graduates = withGraduate.map((s) => s.graduate);
 
   const totalGraduates = graduates.length;
   const predikatCounts = countByPredikat(graduates);
-  const byPredikat = Object.entries(predikatCounts).map(([name, count]) => ({
-    name,
-    count,
-    percentage: roundedRate(count, totalGraduates, null),
-  }));
+  // Kategori bernilai 0 tidak dikirim: jumlah item = jumlah kategori berdata,
+  // dasar aturan "tab satu kategori disembunyikan" di client.
+  const byPredikat = Object.entries(predikatCounts)
+    .filter(([, count]) => count > 0)
+    .map(([name, count]) => ({
+      name,
+      count,
+      percentage: roundedRate(count, totalGraduates, null),
+    }));
 
-  return { total: totalGraduates, byPredikat };
+  return {
+    total: totalGraduates,
+    byPredikat,
+    byProdi: countBy(withGraduate, 'programStudi', totalGraduates),
+    byFaculty: countBy(withGraduate, 'fakultas', totalGraduates),
+  };
 }
 
 module.exports = { getGraduateDistribution };

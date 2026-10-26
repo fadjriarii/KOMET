@@ -179,6 +179,54 @@ it('banner studySuccess menyebut filter event dari server tanpa memasukkannya ke
   expect(document.body.textContent).not.toContain('Status Cum Laude,');
 });
 
+describe('presentasi multi-filter popup Total Lulusan', () => {
+  it('satu prodi: tab Per Program Studi disembunyikan, beberapa fakultas tetap tampil', async () => {
+    vi.mocked(useDetail).mockImplementation(({ resourceKey }) => ({
+      data:
+        resourceKey === 'distribution'
+          ? {
+              total: 30,
+              byPredikat: [
+                { name: 'Memuaskan', count: 10, percentage: 33.33 },
+                { name: 'Sangat Memuaskan', count: 20, percentage: 66.67 },
+              ],
+              byProdi: [{ name: 'Farmasi', count: 30, percentage: 100 }],
+              byFaculty: [
+                { name: 'SHLS', count: 20, percentage: 66.67 },
+                { name: 'SBE', count: 10, percentage: 33.33 },
+              ],
+            }
+          : DETAILS[resourceKey],
+      isLoading: false,
+      error: null,
+    }));
+    renderModal(TotalGraduatesModal);
+    await waitFor(() => expect(document.body.textContent).toContain('Per Fakultas'));
+    expect(document.body.textContent).toContain('Distribusi Predikat');
+    expect(document.body.textContent).not.toContain('Per Program Studi');
+  });
+
+  it('kombinasi tanpa lulusan menampilkan pesan, bukan chart kosong', async () => {
+    const summary = structuredClone(SUMMARY);
+    summary.kpis.cards.total = { value: null, isEmpty: true, byJenjang: [] };
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <TotalGraduatesModal
+          isOpen
+          onClose={() => {}}
+          originRect={null}
+          data={summary}
+          filters={{}}
+        />
+      </QueryClientProvider>,
+    );
+    await waitFor(() =>
+      expect(document.body.textContent).toContain('Tidak ada lulusan untuk kombinasi filter ini.'),
+    );
+    expect(document.body.textContent).not.toContain('Tren Tahunan');
+  });
+});
+
 describe('trendBars dari jenjangs server', () => {
   it('urutan, label, dan dataKey mengikuti server; warna beda; tanpa stackId', async () => {
     const { trendBars } = await import('../src/modules/graduates/components/modals/totalTrendBars');

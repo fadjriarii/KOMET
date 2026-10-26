@@ -5,6 +5,8 @@ import ModalSummaryBanner from '../../../../components/common/modals/ModalSummar
 import ModalTabNav from '../../../../components/common/modals/ModalTabNav';
 import ModalTabContent from '../../../../components/common/modals/ModalTabContent';
 import { useTabTransition } from '../../../../hooks/useTabTransition';
+import EmptyState from '../../../../components/common/feedback/EmptyState';
+import { tabsWithData } from '../../../../components/common/modals/tabsWithData';
 import { formatDecimal, formatNumber } from '@komet/shared/formatters';
 import { useDetail } from '../../graduateQueries';
 import { scopeTexts } from '../../utils/filterScope';
@@ -17,7 +19,6 @@ import { trendBars } from './totalTrendBars';
 const EMPTY_ITEMS = [];
 
 export default function GpaOverviewModal({ isOpen, onClose, originRect, data, filters }) {
-  const { activeTab, handleTabChange, slideClass } = useTabTransition(GPA_OVERVIEW_TABS, 'tren');
   // Satu request: server memakai jendela tren untuk `byYear` dan scope kartu
   // untuk rentang/prodi/fakultas.
   const {
@@ -63,6 +64,17 @@ export default function GpaOverviewModal({ isOpen, onClose, originRect, data, fi
   const prodiList = ipkDetail.prodiGpaData || EMPTY_ITEMS;
   const facultyList = ipkDetail.facultyGpaData || EMPTY_ITEMS;
   const gpaBandsList = ipkDetail.gpaBandsData || EMPTY_ITEMS;
+  // Tab satu kategori disembunyikan (satu prodi/fakultas/rentang tidak merinci apa pun).
+  const tabs = useMemo(
+    () =>
+      tabsWithData(
+        GPA_OVERVIEW_TABS,
+        { rentang: gpaBandsList, prodi: prodiList, fakultas: facultyList },
+        { isLoading },
+      ),
+    [facultyList, gpaBandsList, isLoading, prodiList],
+  );
+  const { activeTab, handleTabChange, slideClass } = useTabTransition(tabs, 'tren');
 
   const content = useMemo(
     () => ({
@@ -196,18 +208,24 @@ export default function GpaOverviewModal({ isOpen, onClose, originRect, data, fi
         />
 
         <div className="flex-1 flex flex-col min-h-0">
-          <ModalTabNav
-            tabs={GPA_OVERVIEW_TABS}
-            activeTab={activeTab}
-            onTabChange={handleTabChange}
-          />
-          <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar scroll-smooth pr-1">
-            <div className="overflow-x-hidden w-full">
-              <div key={activeTab} className={`w-full ${slideClass}`}>
-                <ModalTabContent activeTab={activeTab} content={content} />
+          {card.isEmpty ? (
+            <EmptyState
+              icon={PieChart}
+              title="Tidak Ada Lulusan"
+              description="Tidak ada lulusan ber-IPK untuk kombinasi filter ini. Longgarkan salah satu filter."
+            />
+          ) : (
+            <>
+              <ModalTabNav tabs={tabs} activeTab={activeTab} onTabChange={handleTabChange} />
+              <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar scroll-smooth pr-1">
+                <div className="overflow-x-hidden w-full">
+                  <div key={activeTab} className={`w-full ${slideClass}`}>
+                    <ModalTabContent activeTab={activeTab} content={content} />
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            </>
+          )}
         </div>
       </div>
     </Modal>

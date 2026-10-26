@@ -79,6 +79,7 @@ function studySuccessCard(keberhasilanStudi) {
     value: cohort?.rate ?? null,
     intake: cohort?.intake ?? 0,
     angkatan: cohort?.angkatan ?? null,
+    angkatanList: cohort?.angkatanList ?? (cohort?.angkatan ? [cohort.angkatan] : []),
     batas: studyLimitsFor(jenjang)?.max ?? null,
   }));
   const headline = byJenjang.reduce(

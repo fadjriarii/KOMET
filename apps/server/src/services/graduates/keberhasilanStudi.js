@@ -131,17 +131,20 @@ function getSelectedAngkatanStarts(whereFilter = {}) {
 }
 
 /**
- * Filter angkatan eksplisit menggeser kohort evaluasi ke angkatan terpilih,
- * bukan tetap memakai kohort global. Kalau beberapa angkatan dipilih, pakai
- * yang terbaru yang sudah evaluable; angkatan muda yang masih berjalan null.
+ * Angkatan yang dievaluasi, urut naik. Tanpa filter angkatan = satu kohort
+ * (lag vs bukti tutup). Dengan filter angkatan = SEMUA angkatan terpilih yang
+ * sudah bisa dinilai (masa studi maksimumnya habis, atau terbukti tutup);
+ * angkatan yang masih berjalan dibuang, bukan dihitung parsial.
  */
-function resolveEvaluatedStart(jenjang, { refStart, closedStart, selectedStarts = [] }) {
-  if (!selectedStarts.length) return evaluatedStartFor(jenjang, { refStart, closedStart });
+function resolveEvaluatedStarts(jenjang, { refStart, closedStart, selectedStarts = [] }) {
+  if (!selectedStarts.length) {
+    const start = evaluatedStartFor(jenjang, { refStart, closedStart });
+    return start === null ? [] : [start];
+  }
   const lagStart = getAngkatanEvaluasiStart(jenjang, refStart);
-  const eligible = selectedStarts.filter(
+  return selectedStarts.filter(
     (start) => (lagStart !== null && start <= lagStart) || start === closedStart,
   );
-  return eligible.length ? eligible[eligible.length - 1] : null;
 }
 
 /**
@@ -227,11 +230,8 @@ function forJenjangs(jenjangs, compute) {
   return Promise.all(jenjangs.map((jenjang) => compute(jenjang)));
 }
 
-function angkatanLabelFromStart(start) {
-  return start === null ? null : formatAcademicYearLabel(start);
-}
-
-async function getKeberhasilanStudi(whereFilter) {
+/** Satu konteks evaluasi untuk kartu dan rincian (scope kohort + angkatan dinilai). */
+async function resolveEvaluation(whereFilter) {
   const { studentWhere, jenjangs } = await getCohortScope(whereFilter);
   const refStart = await resolveRefStart(whereFilter);
   // Tanpa jangkar: bukti tutup dari data boleh memajukan evaluasi.
@@ -239,20 +239,34 @@ async function getKeberhasilanStudi(whereFilter) {
   const anchor = getTahunAjaranLabel(whereFilter?.tahunAjaran);
   const closedStarts = anchor ? new Map() : await getClosedCohortStarts(studentWhere);
   const selectedStarts = getSelectedAngkatanStarts(whereFilter);
-  const evalStart = (jenjang) =>
-    resolveEvaluatedStart(jenjang, {
+  const evalStarts = (jenjang) =>
+    resolveEvaluatedStarts(jenjang, {
       refStart,
       closedStart: closedStarts.get(jenjang.toLowerCase()) ?? null,
       selectedStarts,
     });
+  return { studentWhere, jenjangs, refStart, evalStarts, hasSelection: selectedStarts.length > 0 };
+}
 
+async function getKeberhasilanStudi(whereFilter) {
+  const { studentWhere, jenjangs, evalStarts } = await resolveEvaluation(whereFilter);
+
+  // Beberapa angkatan terpilih = satu agregat: Σ lulus dalam batas / Σ masuk.
   const calcCohort = async (jenjang) => {
-    const start = evalStart(jenjang);
-    if (start === null) return null;
-    const angkatan = formatAcademicYearLabel(start);
-    const cohorts = await countCohorts(jenjang, studentWhere, [angkatan]);
-    const cohort = cohorts.get(angkatan);
-    return { rate: toPercentage(cohort), intake: cohort.total, angkatan };
+    const angkatanList = evalStarts(jenjang).map((start) => formatAcademicYearLabel(start));
+    if (!angkatanList.length) return null;
+    const cohorts = await countCohorts(jenjang, studentWhere, angkatanList);
+    const sum = { total: 0, lulus: 0 };
+    for (const cohort of cohorts.values()) {
+      sum.total += cohort.total;
+      sum.lulus += cohort.lulus;
+    }
+    return {
+      rate: toPercentage(sum),
+      intake: sum.total,
+      angkatan: angkatanList[angkatanList.length - 1],
+      angkatanList,
+    };
   };
 
   const values = await forJenjangs(jenjangs, calcCohort);
@@ -266,21 +280,19 @@ async function getKeberhasilanStudi(whereFilter) {
 }
 
 async function getKeberhasilanStudiByAngkatan(whereFilter) {
-  const { studentWhere, jenjangs } = await getCohortScope(whereFilter);
-  const refStart = await resolveRefStart(whereFilter);
-  const anchor = getTahunAjaranLabel(whereFilter?.tahunAjaran);
-  const closedStarts = anchor ? new Map() : await getClosedCohortStarts(studentWhere);
-  const selectedStarts = getSelectedAngkatanStarts(whereFilter);
-  const evalStart = (jenjang) =>
-    resolveEvaluatedStart(jenjang, {
-      refStart,
-      closedStart: closedStarts.get(jenjang.toLowerCase()) ?? null,
-      selectedStarts,
-    });
+  const { studentWhere, jenjangs, refStart, evalStarts, hasSelection } =
+    await resolveEvaluation(whereFilter);
+
+  // Filter angkatan = tepat angkatan terpilih yang bisa dinilai; tanpa filter =
+  // jendela 5 angkatan yang berakhir di angkatan evaluasi.
+  const angkatanListFor = (jenjang) => {
+    const starts = evalStarts(jenjang);
+    if (hasSelection) return starts.map((start) => formatAcademicYearLabel(start));
+    return starts.length ? getEvaluationWindow(jenjang, refStart, starts[starts.length - 1]) : [];
+  };
 
   const calcSeries = async (jenjang) => {
-    const last = evalStart(jenjang);
-    const angkatanList = getEvaluationWindow(jenjang, refStart, last);
+    const angkatanList = angkatanListFor(jenjang);
     if (!angkatanList.length) return null;
     const cohorts = await countCohorts(jenjang, studentWhere, angkatanList);
 
@@ -304,7 +316,7 @@ async function getKeberhasilanStudiByAngkatan(whereFilter) {
 
   const values = await forJenjangs(jenjangs, calcSeries);
 
-  // Deret per jenjang; jenjang non-inti tanpa baris tidak dikirim sama sekali.
+  // Deret per jenjang; jenjang tanpa baris tidak dikirim sama sekali.
   const result = {};
   jenjangs.forEach((jenjang, index) => {
     const series = values[index];
@@ -318,10 +330,14 @@ async function getKeberhasilanStudiByAngkatan(whereFilter) {
         (values[index] || []).filter((row) => row.intake > 0 || row.successCount > 0),
       ]),
     ),
-    (jenjang) => ({
-      batas: cohortLagFor(jenjang),
-      angkatanEvaluasi: angkatanLabelFromStart(evalStart(jenjang)),
-    }),
+    (jenjang) => {
+      const evaluated = evalStarts(jenjang).map((start) => formatAcademicYearLabel(start));
+      return {
+        batas: cohortLagFor(jenjang),
+        angkatanEvaluasi: evaluated[evaluated.length - 1] ?? null,
+        angkatanEvaluasiList: evaluated,
+      };
+    },
   );
   return result;
 }

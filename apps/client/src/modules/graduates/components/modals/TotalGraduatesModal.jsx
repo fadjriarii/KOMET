@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
-import { Calendar, GraduationCap, Award, Users } from 'lucide-react';
+import { Calendar, GraduationCap, Award, Users, BookOpen, Building2 } from 'lucide-react';
+import EmptyState from '../../../../components/common/feedback/EmptyState';
+import { tabsWithData } from '../../../../components/common/modals/tabsWithData';
 import Modal from '../../../../components/common/modals/Modal';
 import ModalSummaryBanner from '../../../../components/common/modals/ModalSummaryBanner';
 import ModalTabNav from '../../../../components/common/modals/ModalTabNav';
@@ -52,8 +54,6 @@ function totalTableColumns(jenjangs) {
 }
 
 export default function TotalGraduatesModal({ isOpen, onClose, originRect, data, filters }) {
-  const { activeTab, handleTabChange, slideClass } = useTabTransition(TOTAL_GRADUATE_TABS, 'tren');
-
   const {
     data: totalData,
     isLoading: isLoadingTotal,
@@ -101,7 +101,20 @@ export default function TotalGraduatesModal({ isOpen, onClose, originRect, data,
     ),
   );
 
-  const predikatList = useMemo(() => distData?.byPredikat || [], [distData]);
+  const predikatList = distData?.byPredikat || EMPTY_ITEMS;
+  const prodiList = distData?.byProdi || EMPTY_ITEMS;
+  const facultyList = distData?.byFaculty || EMPTY_ITEMS;
+  // Tab satu kategori (mis. satu prodi dipilih) disembunyikan.
+  const tabs = useMemo(
+    () =>
+      tabsWithData(
+        TOTAL_GRADUATE_TABS,
+        { predikat: predikatList, prodi: prodiList, fakultas: facultyList },
+        { isLoading: isLoadingDist },
+      ),
+    [facultyList, isLoadingDist, predikatList, prodiList],
+  );
+  const { activeTab, handleTabChange, slideClass } = useTabTransition(tabs, 'tren');
 
   const content = useMemo(
     () => ({
@@ -146,6 +159,32 @@ export default function TotalGraduatesModal({ isOpen, onClose, originRect, data,
           />
         </div>
       ),
+      prodi: (
+        <div className="h-full flex flex-col pt-0.5 px-1">
+          <DistributionChart
+            items={prodiList}
+            countUnit="lulusan"
+            isLoading={isLoadingDist}
+            error={distError}
+            emptyIcon={BookOpen}
+            emptyTitle="Tidak Ada Data Program Studi"
+            yAxisWidth={210}
+          />
+        </div>
+      ),
+      fakultas: (
+        <div className="h-full flex flex-col pt-0.5 px-1">
+          <DistributionChart
+            items={facultyList}
+            countUnit="lulusan"
+            isLoading={isLoadingDist}
+            error={distError}
+            emptyIcon={Building2}
+            emptyTitle="Tidak Ada Data Fakultas"
+            yAxisWidth={190}
+          />
+        </div>
+      ),
       tabel: (
         <div className="h-full flex flex-col pt-0.5 pb-1">
           <ModalTable
@@ -164,9 +203,11 @@ export default function TotalGraduatesModal({ isOpen, onClose, originRect, data,
       columns,
       combinedTrend,
       distError,
+      facultyList,
       isLoadingDist,
       isLoadingTotal,
       predikatList,
+      prodiList,
       tooltipRows,
       totalError,
     ],
@@ -204,16 +245,22 @@ export default function TotalGraduatesModal({ isOpen, onClose, originRect, data,
         />
 
         <div className="flex-1 flex flex-col min-h-0">
-          <ModalTabNav
-            tabs={TOTAL_GRADUATE_TABS}
-            activeTab={activeTab}
-            onTabChange={handleTabChange}
-          />
-          <div className="flex-1 min-h-0 overflow-x-hidden w-full">
-            <div key={activeTab} className={`h-full ${slideClass}`}>
-              <ModalTabContent activeTab={activeTab} content={content} />
-            </div>
-          </div>
+          {card.isEmpty ? (
+            <EmptyState
+              icon={GraduationCap}
+              title="Tidak Ada Lulusan"
+              description="Tidak ada lulusan untuk kombinasi filter ini. Longgarkan salah satu filter."
+            />
+          ) : (
+            <>
+              <ModalTabNav tabs={tabs} activeTab={activeTab} onTabChange={handleTabChange} />
+              <div className="flex-1 min-h-0 overflow-x-hidden w-full">
+                <div key={activeTab} className={`h-full ${slideClass}`}>
+                  <ModalTabContent activeTab={activeTab} content={content} />
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </Modal>

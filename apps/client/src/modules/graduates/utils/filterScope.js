@@ -92,16 +92,17 @@ export function describeScope(selected = {}) {
 
 /**
  * Frasa cakupan + pencarian untuk banner/subtitle dari nilai filter halaman.
- * `cohort` = hanya filter pembentuk kohort (untuk Keberhasilan Studi).
+ * `cohort` = Keberhasilan Studi: hanya fakultas/prodi. Angkatan sudah disebut
+ * di kalimatnya sendiri, dan status/periode lulus bukan pembentuk kohort.
  */
 export function scopeTexts(filters = {}, { cohort = false } = {}) {
   const scope = describeScope({
     faculty: filters.faculty ?? filters.selectedFaculty,
     prodi: filters.prodi ?? filters.selectedProdi,
-    angkatan: filters.selectedAngkatan,
     ...(cohort
       ? {}
       : {
+          angkatan: filters.selectedAngkatan,
           status: filters.predikat ?? filters.selectedStatusKelulusan,
           periode: filters.periodeWisuda ?? filters.selectedPeriodeWisuda,
         }),

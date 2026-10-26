@@ -42,6 +42,13 @@ function onTimeSubtitle(card, scope) {
   return `${base}.`;
 }
 
+/** "Angkatan 2017/2018" atau gabungan "Angkatan 2016/2017 dan 2017/2018 (gabungan)". */
+export function angkatanText(entry) {
+  const list = entry?.angkatanList?.length ? entry.angkatanList : [entry?.angkatan].filter(Boolean);
+  if (list.length > 1) return `Angkatan ${formatList(list)} (gabungan)`;
+  return `Angkatan ${list[0] ?? '-'}`;
+}
+
 function studySuccessSubtitle(card, scope) {
   const entries = card.byJenjang || [];
   let sentence;
@@ -49,9 +56,9 @@ function studySuccessSubtitle(card, scope) {
     sentence = 'Belum ada angkatan yang masa studi maksimumnya sudah habis.';
   } else if (entries.length === 1) {
     const [entry] = entries;
-    sentence = `${rate(entry.value)} mahasiswa Angkatan ${entry.angkatan} (${entry.label}) lulus dalam masa studi maksimum. ${SUCCESS_TAIL}`;
+    sentence = `${rate(entry.value)} mahasiswa ${angkatanText(entry)} (${entry.label}) lulus dalam masa studi maksimum. ${SUCCESS_TAIL}`;
   } else {
-    const parts = entries.map((e) => `${e.label} ${rate(e.value)} (Angkatan ${e.angkatan})`);
+    const parts = entries.map((e) => `${e.label} ${rate(e.value)} (${angkatanText(e)})`);
     sentence = `Lulus dalam masa studi maksimum: ${formatList(parts)}. ${SUCCESS_TAIL}`;
   }
   const clause = ignoredFiltersClause(card.ignoredFilters);

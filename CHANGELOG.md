@@ -18,6 +18,11 @@ Version numbers follow the root `package.json`.
   Intake "Status Saat Ini" tab that splits each intake year by current status.
   The intake chart highlights the year behind the card number. Data comes from
   `GET /api/students/intake-breakdown`.
+- Graduate Data multi-filter presentation: Per Program Studi and Per Fakultas
+  tabs in the Total Lulusan detail, tabs with a single category hidden, an
+  explanation instead of an empty chart when a filter combination has no
+  graduates, and several selected angkatan pooled into one Keberhasilan Studi
+  rate (cohorts still in progress are left out).
 - Graduate Data client renders only: cards, tabs, bars, and table columns come
   from `kpis.cards` and server `jenjangs`; one `CohortTrendChart`, one list
   formatter, and one scope-text helper replace the duplicated copies. Removed

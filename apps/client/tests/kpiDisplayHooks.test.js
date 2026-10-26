@@ -498,6 +498,19 @@ describe('useGraduateKpiDisplay', () => {
     expect(displaySubtitles.onTime).toBe('0.0% lulusan lulus tepat waktu (dari jenjang S1).');
   });
 
+  it('beberapa angkatan terpilih disebut sebagai satu gabungan', () => {
+    const pooled = entry('s1', 'S1', 84, {
+      angkatan: '2017/2018',
+      angkatanList: ['2016/2017', '2017/2018'],
+    });
+    const { displaySubtitles } = render(
+      summaryWith({ studySuccess: { value: 84, isEmpty: false, byJenjang: [pooled] } }),
+    );
+    expect(displaySubtitles.studySuccess).toContain(
+      '84.0% mahasiswa Angkatan 2016/2017 dan 2017/2018 (gabungan) (S1) lulus',
+    );
+  });
+
   it('sebelum summary tiba tidak melempar dan menampilkan "-"', () => {
     const { kpis, isReady } = render(undefined);
     expect(kpis.totalGraduates).toBe('-');

@@ -13,6 +13,7 @@ import { useDetail } from '../../graduateQueries';
 import { withEvaluationLag } from './graduateTrendConfig';
 import { JENJANG_COLORS } from './totalTrendBars';
 import { ignoredFiltersClause, scopeTexts } from '../../utils/filterScope';
+import { angkatanText } from '../../hooks/useGraduateKpiDisplay';
 
 const EMPTY = [];
 
@@ -62,15 +63,24 @@ export default function StudySuccessModal({ isOpen, onClose, originRect, data, f
   // Banner menceritakan tab yang dibuka: rate dan intake dari baris angkatan
   // evaluasi pada deret yang sama (satu sumber untuk satu fakta).
   const active = jenjangs.find((entry) => entry.key === activeTab);
-  const evaluated = (detail?.[activeTab] || EMPTY).find(
-    (row) => row.cohortLabel === `Angkatan ${active?.angkatanEvaluasi}`,
+  const cardEntry = card.byJenjang?.find((entry) => entry.key === activeTab);
+  // Beberapa angkatan terpilih = satu agregat dari kartu; satu angkatan = baris
+  // angkatan evaluasi pada deret yang sama.
+  const pooled = (active?.angkatanEvaluasiList?.length ?? 0) > 1;
+  const row = (detail?.[activeTab] || EMPTY).find(
+    (item) => item.cohortLabel === `Angkatan ${active?.angkatanEvaluasi}`,
   );
+  const evaluated = pooled ? { rate: cardEntry?.value, intake: cardEntry?.intake } : row;
+  const cohortText = pooled
+    ? angkatanText({ angkatanList: active.angkatanEvaluasiList })
+    : `Angkatan ${active?.angkatanEvaluasi || '-'}`;
   const successRate = formatPercentage(evaluated?.rate ?? card.value, 1);
   const { suffix: scopeSuffix, searchSuffix } = scopeTexts(filters, { cohort: true });
   const clause = ignoredFiltersClause(card.ignoredFilters);
   const clauseSuffix = clause ? ` ${clause}` : '';
   const lagPhrase = active?.batas != null ? ` dalam ${active.batas} tahun` : '';
 
+  const hasAngkatanFilter = (filters?.selectedAngkatan?.length ?? 0) > 0;
   const content = useMemo(
     () =>
       Object.fromEntries(
@@ -84,11 +94,15 @@ export default function StudySuccessModal({ isOpen, onClose, originRect, data, f
             emptyIcon={BookOpenCheck}
             emptyTitle="Belum Ada Kohort yang Dievaluasi"
             emptyDescription="Kohort jenjang ini belum cukup umur untuk dinilai keberhasilan studinya."
-            note="Lima angkatan terbaru yang masa studi maksimumnya sudah habis; pilih angkatan untuk kohort lain."
+            note={
+              hasAngkatanFilter
+                ? 'Angkatan terpilih yang masa studi maksimumnya sudah habis; angkatan yang masih berjalan tidak ditampilkan.'
+                : 'Lima angkatan terbaru yang masa studi maksimumnya sudah habis; pilih angkatan untuk kohort lain.'
+            }
           />,
         ]),
       ),
-    [detail, error, isLoading, jenjangs],
+    [detail, error, hasAngkatanFilter, isLoading, jenjangs],
   );
 
   return (
@@ -113,8 +127,7 @@ export default function StudySuccessModal({ isOpen, onClose, originRect, data, f
             <div className="space-y-1.5 text-justify">
               {typeof evaluated?.intake === 'number' ? (
                 <p>
-                  Dari {formatNumber(evaluated.intake)} mahasiswa masuk Angkatan{' '}
-                  {active?.angkatanEvaluasi || '-'}
+                  Dari {formatNumber(evaluated.intake)} mahasiswa masuk {cohortText}
                   {scopeSuffix},{' '}
                   <strong className="text-digital-blue-900 font-bold">{successRate}</strong> lulus
                   {lagPhrase} sejak masuk ({active?.label}). Mahasiswa yang lulus setelah masa studi

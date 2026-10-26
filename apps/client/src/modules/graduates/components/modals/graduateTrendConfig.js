@@ -3,6 +3,8 @@ import { BarChart3, Table, Building2, BookOpen, Award, PieChart } from 'lucide-r
 export const TOTAL_GRADUATE_TABS = [
   { key: 'tren', label: 'Tren Tahunan', icon: BarChart3 },
   { key: 'predikat', label: 'Distribusi Predikat', icon: Award },
+  { key: 'prodi', label: 'Per Program Studi', icon: BookOpen },
+  { key: 'fakultas', label: 'Per Fakultas', icon: Building2 },
   { key: 'tabel', label: 'Tabel Riwayat', icon: Table },
 ];
 

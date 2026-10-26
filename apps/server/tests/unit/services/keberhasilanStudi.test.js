@@ -253,19 +253,34 @@ describe('keberhasilan studi agregasi cohort', () => {
     expect(series.s1.at(-1).cohortLabel).toBe(`Angkatan ${selected}`);
   });
 
-  it('beberapa angkatan memilih yang terbaru yang sudah evaluable', async () => {
+  it('beberapa angkatan = agregat angkatan terpilih yang bisa dinilai; yang berjalan dibuang', async () => {
     const dataset = buildDataset();
     stubGroupBy(dataset);
     const olderStart = REF_START - 10;
     const newerStart = REF_START - 8;
+    const runningStart = REF_START - 2; // masa studi maksimum S1 belum habis
+    const labels = [olderStart, newerStart, runningStart].map((start) =>
+      formatAcademicYearLabel(start),
+    );
 
-    const cards = await getKeberhasilanStudi({
-      angkatan: {
-        in: [formatAcademicYearLabel(olderStart), formatAcademicYearLabel(newerStart)],
-      },
+    const cards = await getKeberhasilanStudi({ angkatan: { in: labels } });
+    const older = expectedCohort(dataset, 'S1', String(olderStart));
+    const newer = expectedCohort(dataset, 'S1', String(newerStart));
+    const pooled = older.successCount + newer.successCount;
+    const intake = older.intake + newer.intake;
+    expect(cards.cohorts.s1).toMatchObject({
+      angkatanList: labels.slice(0, 2),
+      intake,
+      rate: parseFloat(((pooled / intake) * 100).toFixed(2)),
     });
-    expect(cards.cohorts.s1?.angkatan).toBe(formatAcademicYearLabel(newerStart));
-    expect(cards.cohorts.s1?.rate).toBe(expectedCohort(dataset, 'S1', String(newerStart)).rate);
+
+    const series = await getKeberhasilanStudiByAngkatan({ angkatan: { in: labels } });
+    expect(series.s1.map((row) => row.cohortLabel)).toEqual(
+      labels.slice(0, 2).map((label) => `Angkatan ${label}`),
+    );
+    expect(series.jenjangs.find((entry) => entry.key === 's1')?.angkatanEvaluasiList).toEqual(
+      labels.slice(0, 2),
+    );
   });
 
   it('filter jenjang S2 membatalkan perhitungan lain tanpa mengirim query', async () => {

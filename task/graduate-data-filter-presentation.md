@@ -1,6 +1,6 @@
 # TODO: Graduate Data — perhitungan, presentasi multi-filter, bug, dan pemisahan logika
 
-- Status: bug 1–11 dan 13 diperbaiki, Fase 0 selesai (2026-10-26). Fase 0–2 selesai (2026-10-26); bug 12 tuntas. Fase 3–4 belum.
+- Status: bug 1–11 dan 13 diperbaiki, Fase 0 selesai (2026-10-26). Fase 0–3 selesai (2026-10-26). Fase 4 belum.
 - Dibuat: 2026-10-26
 - Cakupan: card KPI, popup "Lihat Rincian", dan service di tab Graduate Data.
   Student Data dan MBKM hanya tersentuh lewat komponen bersama (reset filter,
@@ -153,12 +153,12 @@ Angka = AND semua filter dalam scope. Badge "Terfilter" = OR (dari `kpiFilterSco
 
 ### Fase 3 — Presentasi multi-filter
 
-- [ ] R2 di semua popup (jenjang, predikat, prodi, fakultas), memakai pola
+- [x] R2 di semua popup (jenjang, predikat, prodi, fakultas), memakai pola
       `activeDistributions` dari Student Data.
-- [ ] Total Lulusan popup: tab baru **Per Program Studi** dan **Per Fakultas**
+- [x] Total Lulusan popup: tab baru **Per Program Studi** dan **Per Fakultas**
       (`DistributionChart`, radius sama, tooltip jalan).
-- [ ] R4 `isEmpty` dan pesan kombinasi kosong di card dan popup. R5 "–" vs "0".
-- [ ] Keberhasilan multi-angkatan: agregat di card, angkatan terpilih di popup.
+- [x] R4 `isEmpty` dan pesan kombinasi kosong di card dan popup. R5 "–" vs "0".
+- [x] Keberhasilan multi-angkatan: agregat di card, angkatan terpilih di popup.
 
 ### Fase 4 — Dokumentasi & verifikasi
 
