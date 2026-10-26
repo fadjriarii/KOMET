@@ -77,7 +77,7 @@ export function buildDeclineDisplay({
 }) {
   if (selectedYears.length === 1) {
     return {
-      declineTitle: 'Penurunan Mhs Baru (1 Thn)',
+      declineTitle: 'Trend Intake Mahasiswa Baru (over a 1-year period)',
       declineBadge: hasEnoughDeclineData ? '1-Year Comp' : 'Data Belum Cukup',
       declineSubtitle: declineDemographicLabel
         ? `Perbandingan dengan tahun sebelumnya, pada ${declineDemographicLabel}`
@@ -86,7 +86,7 @@ export function buildDeclineDisplay({
   }
   if (selectedYears.length > 1) {
     return {
-      declineTitle: `Penurunan Mhs Baru (${selectedYears.length} Thn)`,
+      declineTitle: `Trend Intake Mahasiswa Baru (over a ${selectedYears.length}-year period)`,
       declineBadge: hasEnoughDeclineData ? `${selectedYears.length}-Year Avg` : 'Data Belum Cukup',
       declineSubtitle: declineDemographicLabel
         ? `Rata-rata Penurunan Mahasiswa Baru dalam ${selectedYears.length} Tahun, pada ${declineDemographicLabel}`
@@ -94,7 +94,7 @@ export function buildDeclineDisplay({
     };
   }
   return {
-    declineTitle: 'Penurunan Mhs Baru (5 Thn)',
+    declineTitle: 'Trend Intake Mahasiswa Baru (over a 5-year period)',
     declineBadge: hasEnoughDeclineData ? '5-Year Avg' : 'Data Belum Cukup',
     declineSubtitle: nonCohortLocation
       ? `Rata-rata Penurunan Mahasiswa Baru dalam 5 Tahun, pada ${nonCohortLocation}`

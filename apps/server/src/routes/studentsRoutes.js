@@ -20,6 +20,7 @@ router.get('/active-students', studentsController.getActiveStudentsDetail);
 router.get('/international-detail', studentsController.getInternationalDetail);
 router.get('/intake-trend', studentsController.getIntakeTrendDetail);
 router.get('/decline-trend', studentsController.getDeclineTrendDetail);
+router.get('/intake-breakdown', studentsController.getIntakeBreakdownDetail);
 
 // Endpoint tabel mahasiswa dengan filter + pagination
 router.get('/students', studentsController.getStudents);

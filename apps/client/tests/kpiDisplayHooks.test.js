@@ -209,7 +209,7 @@ describe('useStudentKpiDisplay', () => {
       '15 Mahasiswa Internasional Aktif, pada Angkatan 2021/2022',
     );
     expect(displaySubtitles.intakeSubtitle).toBe('Semester 1 Tahun Ajaran 2021/2022');
-    expect(displayTitles.declineTitle).toBe('Penurunan Mhs Baru (1 Thn)');
+    expect(displayTitles.declineTitle).toBe('Trend Intake Mahasiswa Baru (over a 1-year period)');
     expect(displayBadges.declineBadge).toBe('1-Year Comp');
     expect(displaySubtitles.declineSubtitle).toBe(
       'Perbandingan dengan tahun sebelumnya, pada Angkatan 2021/2022',
@@ -227,7 +227,7 @@ describe('useStudentKpiDisplay', () => {
     expect(displaySubtitles.activeSubtitle).toBe('Total Mahasiswa Aktif Angkatan Terpilih');
     expect(displaySubtitles.foreignSubtitle).toContain('pada Angkatan Terpilih');
     expect(displaySubtitles.intakeSubtitle).toBe('Semester 1, pada Angkatan Terpilih');
-    expect(displayTitles.declineTitle).toBe('Penurunan Mhs Baru (2 Thn)');
+    expect(displayTitles.declineTitle).toBe('Trend Intake Mahasiswa Baru (over a 2-year period)');
     expect(displayBadges.declineBadge).toBe('2-Year Avg');
     expect(displaySubtitles.declineSubtitle).toBe(
       'Rata-rata Penurunan Mahasiswa Baru dalam 2 Tahun, pada Angkatan Terpilih',

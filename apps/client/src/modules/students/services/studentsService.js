@@ -47,6 +47,7 @@ export const studentsService = {
       getInternationalDetail: '/students/international-detail',
       getIntakeTrend: '/students/intake-trend',
       getDeclineTrend: '/students/decline-trend',
+      getIntakeBreakdown: '/students/intake-breakdown',
     },
   }),
 

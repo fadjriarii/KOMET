@@ -7,6 +7,7 @@ const { getActiveStudentsMultisector } = require('../services/students/activeStu
 const { getInternationalStudentsTrend } = require('../services/students/internationalTrend');
 const { getIntakeTrend, getIntakeYearCounts } = require('../services/students/intakeTrend');
 const { getNewStudentDecline } = require('../services/students/declineTrend');
+const { getIntakeBreakdown } = require('../services/students/intakeBreakdown');
 const { getStudentSummary } = require('../services/students/studentSummary');
 const { resolveSnapshotSemesterWhere } = require('../services/students/studentSnapshot');
 const { parseSelectedCohortYears } = require('../services/students/intakeCard');
@@ -82,6 +83,15 @@ const getDeclineTrendDetail = async (req, res) => {
   }
 };
 
+// GET /api/students/intake-breakdown — Rincian intake/penurunan per prodi + status saat ini
+const getIntakeBreakdownDetail = async (req, res) => {
+  try {
+    return res.json({ success: true, data: await getIntakeBreakdown(req.query) });
+  } catch (error) {
+    return sendServerError(res, 'DATA_READ_FAILED', error, 'students/getIntakeBreakdownDetail');
+  }
+};
+
 // GET /api/students/students — Tabel mahasiswa dengan filter + pagination
 const getStudents = async (req, res) => {
   try {
@@ -123,6 +133,7 @@ module.exports = {
   getActiveStudentsDetail,
   getIntakeTrendDetail,
   getDeclineTrendDetail,
+  getIntakeBreakdownDetail,
   getStudents,
   getInternationalDetail,
   getFilterOptionsHandler,

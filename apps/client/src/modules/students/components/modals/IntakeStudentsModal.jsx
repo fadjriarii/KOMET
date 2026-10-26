@@ -9,9 +9,9 @@ import { TREND_TABS } from '../../../../components/common/modals/modalTabs';
 import { getStudentIntakeDescription, reverseTrendData } from '../../../../utils/uiHelpers';
 import { formatNumber } from '@komet/shared/formatters';
 import { useDetail } from '../../studentQueries';
+import { intakeExtraTabs } from './intakeExtraTabs';
 
 export default function IntakeStudentsModal({ isOpen, onClose, originRect, data, filters }) {
-  const { activeTab, handleTabChange, slideClass } = useTabTransition(TREND_TABS, 'chart');
   const {
     data: intakeData,
     isLoading,
@@ -25,12 +25,30 @@ export default function IntakeStudentsModal({ isOpen, onClose, originRect, data,
     summaryData: data,
     summaryKey: 'intakeTrend',
   });
+  // Rincian per prodi / status saat ini: satu endpoint dipakai modal Intake dan Penurunan.
+  const { data: breakdown } = useDetail({
+    isOpen,
+    resourceKey: 'intake-breakdown',
+    filters,
+    method: 'getIntakeBreakdown',
+    errorMessage: 'Gagal memuat rincian per program studi',
+  });
+  const extra = useMemo(() => intakeExtraTabs(breakdown, { withStatus: true }), [breakdown]);
+  const tabs = useMemo(() => [...TREND_TABS, ...extra.tabs], [extra]);
+  const { activeTab, handleTabChange, slideClass } = useTabTransition(tabs, 'chart');
 
   const kpis = data?.kpis || {};
   const intakeCount = formatNumber(kpis.intakeCohortCount);
   const trendList = useMemo(() => intakeData?.trend || [], [intakeData]);
   const tableData = reverseTrendData(trendList);
   const hasData = trendList.length > 0;
+  // Tahun di balik angka kartu: angkatan yang dipilih, atau periode intake kartu.
+  const selectedYears = filters?.selectedYears;
+  const intakePeriod = kpis.intakePeriod;
+  const highlightYears = useMemo(() => {
+    if (Array.isArray(selectedYears) && selectedYears.length) return selectedYears;
+    return /^\d{4}\/\d{4}$/.test(intakePeriod || '') ? [intakePeriod] : [];
+  }, [selectedYears, intakePeriod]);
   const content = useMemo(
     () => ({
       chart: (
@@ -40,6 +58,7 @@ export default function IntakeStudentsModal({ isOpen, onClose, originRect, data,
             hasData={hasData}
             isLoading={isLoading}
             error={error}
+            highlightYears={highlightYears}
           />
         </div>
       ),
@@ -56,7 +75,7 @@ export default function IntakeStudentsModal({ isOpen, onClose, originRect, data,
         </div>
       ),
     }),
-    [error, hasData, isLoading, tableData, trendList],
+    [error, hasData, highlightYears, isLoading, tableData, trendList],
   );
 
   return (
@@ -74,12 +93,13 @@ export default function IntakeStudentsModal({ isOpen, onClose, originRect, data,
           sublabel={kpis.intakePeriod ? `Periode ${kpis.intakePeriod}` : 'Mahasiswa Baru'}
         />
       }
-      tabs={TREND_TABS}
+      tabs={tabs}
       activeTab={activeTab}
       onTabChange={handleTabChange}
       slideClass={slideClass}
       chart={content.chart}
       table={content.table}
+      extraContent={extra.content}
     />
   );
 }

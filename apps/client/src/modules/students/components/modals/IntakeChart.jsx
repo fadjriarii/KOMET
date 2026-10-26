@@ -4,9 +4,15 @@ import TrendBarChart from '../../../../components/common/charts/TrendBarChart';
 import TrendChartTooltip from '../../../../components/common/charts/TrendChartTooltip';
 import { formatSignedPercentage } from '@komet/shared/formatters';
 import { BarChart3 } from 'lucide-react';
+import { DIGITAL_BLUE } from '../../../../utils/theme';
 
-/** Chart tren intake: skeleton → empty → bar chart semester 1. */
-export function IntakeChart({ trendList, hasData, isLoading, error }) {
+const INTAKE_COLOR = '#2563eb';
+
+/**
+ * Chart tren intake: skeleton → empty → bar chart semester 1. Tahun yang dipakai
+ * angka kartu (`highlightYears`) disorot; tahun lain di jendela tampil lebih pudar.
+ */
+export function IntakeChart({ trendList, hasData, isLoading, error, highlightYears = [] }) {
   if (isLoading) return <ChartLoadingSkeleton />;
   if (!hasData) {
     return (
@@ -25,8 +31,12 @@ export function IntakeChart({ trendList, hasData, isLoading, error }) {
           {
             dataKey: 'intakeCount',
             name: 'Jumlah Intake Mahasiswa Baru (Semester 1)',
-            color: '#2563eb',
+            color: INTAKE_COLOR,
             labelKey: 'intakeCount',
+            ...(highlightYears.length && {
+              cellColor: (entry) =>
+                highlightYears.includes(entry.tahun) ? INTAKE_COLOR : DIGITAL_BLUE[200],
+            }),
           },
         ]}
         tooltipContent={

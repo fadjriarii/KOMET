@@ -5,7 +5,8 @@ import ModalTabContent from './ModalTabContent';
 /**
  * TrendModal — kerangka yang dipakai semua modal rincian tren (chart + tabel
  * riwayat): bungkus Modal, banner ringkasan, dan navigasi tab. Isi tiap tab
- * (chart, table) dan banner disuplai pemanggil; kerangka tidak tahu domain.
+ * (chart, table, plus `extraContent` untuk tab tambahan) dan banner disuplai
+ * pemanggil; kerangka tidak tahu domain.
  */
 export default function TrendModal({
   isOpen,
@@ -20,6 +21,7 @@ export default function TrendModal({
   slideClass,
   chart,
   table,
+  extraContent,
 }) {
   return (
     <Modal
@@ -37,7 +39,7 @@ export default function TrendModal({
           <ModalTabNav tabs={tabs} activeTab={activeTab} onTabChange={onTabChange} />
           <div className="flex-1 min-h-0 overflow-x-hidden w-full">
             <div key={activeTab} className={`h-full ${slideClass}`}>
-              <ModalTabContent activeTab={activeTab} content={{ chart, table }} />
+              <ModalTabContent activeTab={activeTab} content={{ chart, table, ...extraContent }} />
             </div>
           </div>
         </div>

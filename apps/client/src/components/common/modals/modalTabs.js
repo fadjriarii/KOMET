@@ -16,6 +16,10 @@ export const TREND_TABS = [
   { key: 'table', label: 'Tabel Riwayat', icon: Table },
 ];
 
+/** Tab tambahan modal Intake/Penurunan (tampil hanya bila datanya lebih dari satu kategori). */
+export const INTAKE_PRODI_TAB = { key: 'prodi', label: 'Per Program Studi', icon: BookOpen };
+export const INTAKE_STATUS_TAB = { key: 'status', label: 'Status Saat Ini', icon: Activity };
+
 /** Tab distribusi — dipakai ActiveStudentsModal (urutan = urutan tampil). */
 export const STUDENT_DISTRIBUTION_TABS = [
   { key: 'status', label: 'Per Status', icon: Activity },

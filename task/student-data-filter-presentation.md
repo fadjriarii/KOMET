@@ -1,6 +1,6 @@
 # TODO: Presentasi data Student Data saat filter tunggal dan kombinasi
 
-- Status: Fase 0 dan Fase 1 selesai (2026-10-26); Fase 2–4 belum.
+- Status: Fase 0–2 selesai (2026-10-26); Fase 3–4 belum.
 - Dibuat: 2026-10-26
 - Cakupan: card KPI, popup "Lihat Rincian", dan endpoint rincian di tab
   Student Data. Graduates dan MBKM tidak disentuh.
@@ -141,10 +141,12 @@ Tidak perlu menulis cabang untuk setiap kombinasi filter. Tiga aturan menghasilk
 
 ### Fase 2 — Popup Intake & Penurunan
 
-- [ ] Highlight tahun/semester terpilih di chart intake; banner = angka card.
-- [ ] Intake: tab Per Program Studi (bertumpuk) + tab Status Saat Ini (retensi).
-- [ ] Penurunan: tab Per Program Studi (tabel A–E + rata-rata) per prodi.
-- [ ] Unit test year counts per prodi & decline per grup.
+- [x] Highlight tahun/semester terpilih di chart intake; banner = angka card.
+- [x] Intake: tab Per Program Studi (bertumpuk) + tab Status Saat Ini (retensi).
+- [x] Penurunan: tab Per Program Studi (tabel A–E + rata-rata) per prodi.
+- [x] Unit test year counts per prodi & decline per grup.
+      Semua rincian berasal dari satu endpoint `GET /students/intake-breakdown`
+      (`services/students/intakeBreakdown.js`).
 
 ### Fase 3 — Popup Internasional
 

@@ -26,7 +26,7 @@ export default function ForeignTrendComposedChart({ data = [], isLoading, error 
           { label: 'Rasio Mhs Asing (%)', color: DIGITAL_BLUE[600], shape: 'line' },
         ]}
       />
-      <div className="h-48 sm:h-56 md:h-64 w-full">
+      <div className="h-44 sm:h-52 md:h-56 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={{ top: 8, right: 24, left: 4, bottom: 52 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />

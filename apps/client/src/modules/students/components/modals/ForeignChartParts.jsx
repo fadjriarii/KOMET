@@ -3,10 +3,14 @@ import { formatPercentage } from '@komet/shared/formatters';
 import { Bar, Line } from 'recharts';
 import { DIGITAL_BLUE } from '../../../../utils/theme';
 
-/** Tooltip chart tren asing: total + WNA + footer rasio. */
-export function ForeignChartTooltipContent() {
+/**
+ * Tooltip chart tren asing: total + WNA + footer rasio. Props hover dari Recharts
+ * (`active`, `payload`) wajib diteruskan; tanpanya tooltip tidak pernah tampil.
+ */
+export function ForeignChartTooltipContent(props) {
   return (
     <TrendChartTooltip
+      {...props}
       titleKey="academicYear"
       rows={[
         {

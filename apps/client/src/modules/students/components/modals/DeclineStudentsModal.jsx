@@ -10,9 +10,9 @@ import { reverseTrendData } from '../../../../utils/uiHelpers';
 import { formatSignedPercentage } from '@komet/shared/formatters';
 import { getTrendStyle, INSUFFICIENT_DATA_TREND_STYLE } from '../../../../utils/theme';
 import { useDetail } from '../../studentQueries';
+import { intakeExtraTabs } from './intakeExtraTabs';
 
 export default function DeclineStudentsModal({ isOpen, onClose, originRect, data, filters }) {
-  const { activeTab, handleTabChange, slideClass } = useTabTransition(TREND_TABS, 'chart');
   const {
     data: declineData,
     isLoading,
@@ -26,6 +26,17 @@ export default function DeclineStudentsModal({ isOpen, onClose, originRect, data
     summaryData: data,
     summaryKey: 'newStudentDecline',
   });
+  // Rincian per prodi / status saat ini: satu endpoint dipakai modal Intake dan Penurunan.
+  const { data: breakdown } = useDetail({
+    isOpen,
+    resourceKey: 'intake-breakdown',
+    filters,
+    method: 'getIntakeBreakdown',
+    errorMessage: 'Gagal memuat rincian per program studi',
+  });
+  const extra = useMemo(() => intakeExtraTabs(breakdown), [breakdown]);
+  const tabs = useMemo(() => [...TREND_TABS, ...extra.tabs], [extra]);
+  const { activeTab, handleTabChange, slideClass } = useTabTransition(tabs, 'chart');
 
   const kpis = data?.kpis || {};
   const yearsCount =
@@ -88,12 +99,13 @@ export default function DeclineStudentsModal({ isOpen, onClose, originRect, data
           yearsCount={yearsCount}
         />
       }
-      tabs={TREND_TABS}
+      tabs={tabs}
       activeTab={activeTab}
       onTabChange={handleTabChange}
       slideClass={slideClass}
       chart={content.chart}
       table={content.table}
+      extraContent={extra.content}
     />
   );
 }

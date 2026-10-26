@@ -137,7 +137,7 @@ const ROUTES = {
       { key: 'active', title: 'Mahasiswa Aktif' },
       { key: 'foreign', title: 'Persentase Mahasiswa Internasional' },
       { key: 'intake', title: 'Intake Mahasiswa Baru' },
-      { key: 'decline', title: 'Penurunan Mhs Baru (5 Thn)' },
+      { key: 'decline', title: 'Trend Intake Mahasiswa Baru (over a 5-year period)' },
     ],
     scope: {
       active: POPULATION,

@@ -17,6 +17,8 @@ import EmptyState from '../feedback/EmptyState';
 import { humanizeErrorMessage } from '../../../modules/errors/errorStates';
 import { compactBarLayout } from './compactBarLayout';
 import ChartLegend from './ChartLegend';
+import { roundedStackShape } from './roundedStackShape';
+import { useId } from 'react';
 
 function CompactBarShape({
   x,
@@ -49,7 +51,11 @@ function CompactBarShape({
   );
 }
 
-/** Configurable shared bar chart for dashboard trend visualizations. */
+/**
+ * Configurable shared bar chart for dashboard trend visualizations.
+ * `bar.cellColor(entry)` (opsional, bar non-tumpuk) mewarnai tiap batang sendiri,
+ * mis. menyorot tahun terpilih.
+ */
 export default function TrendBarChart({
   data = [],
   xDataKey = 'tahun',
@@ -62,6 +68,16 @@ export default function TrendBarChart({
   isLoading = false,
   error = null,
 }) {
+  const idPrefix = `trend${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
+  // Satu shape per tumpukan: ujung atas membulat, segmen di dalam tetap rata.
+  const stackShape = (stackId) =>
+    roundedStackShape({
+      keys: bars.filter((item) => item.stackId === stackId).map((item) => item.dataKey),
+      valueOf: (row, key) => row?.[key],
+      vertical: true,
+      radius: 4,
+      idPrefix: `${idPrefix}${stackId}`,
+    });
   // Kegagalan fetch harus tampil sebagai kegagalan, bukan chart kosong yang
   // membaca sebagai "nol data".
   if (isLoading)
@@ -133,40 +149,28 @@ export default function TrendBarChart({
                 maxBarSize={bar.maxBarSize || 44}
                 animationDuration={800}
                 shape={
-                  compactZeroBars && !bar.stackId
-                    ? (props) => (
-                        <CompactBarShape
-                          {...props}
-                          bars={bars}
-                          dataKey={bar.dataKey}
-                          labelKey={bar.labelKey || bar.dataKey}
-                          labelFormatter={bar.labelFormatter}
-                          color={bar.color || DIGITAL_BLUE[600]}
-                        />
-                      )
-                    : bar.shape
+                  bar.stackId && !bar.shape
+                    ? stackShape(bar.stackId)(bar.dataKey)
+                    : compactZeroBars && !bar.stackId
+                      ? (props) => (
+                          <CompactBarShape
+                            {...props}
+                            bars={bars}
+                            dataKey={bar.dataKey}
+                            labelKey={bar.labelKey || bar.dataKey}
+                            labelFormatter={bar.labelFormatter}
+                            color={bar.color || DIGITAL_BLUE[600]}
+                          />
+                        )
+                      : bar.shape
                 }
                 {...(bar.stackId ? { stackId: bar.stackId } : null)}
               >
-                {bar.stackId
-                  ? data.map((entry, index) => {
-                      // Segmen teratas tiap baris (nilai > 0 terakhir dalam tumpukan
-                      // yang sama) menjaga sudut rounded luar; sambungan antar
-                      // warna tetap menyatu tanpa radius.
-                      const topKey = [...bars]
-                        .reverse()
-                        .find(
-                          (stacked) =>
-                            stacked.stackId === bar.stackId && Number(entry?.[stacked.dataKey]) > 0,
-                        )?.dataKey;
-                      return (
-                        <Cell
-                          key={`cell-${index}`}
-                          radius={bar.dataKey === topKey ? [4, 4, 0, 0] : [0, 0, 0, 0]}
-                        />
-                      );
-                    })
-                  : null}
+                {!bar.stackId &&
+                  bar.cellColor &&
+                  data.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={bar.cellColor(entry)} />
+                  ))}
                 {bar.labelKey && !compactZeroBars && (
                   <LabelList
                     dataKey={bar.labelKey}

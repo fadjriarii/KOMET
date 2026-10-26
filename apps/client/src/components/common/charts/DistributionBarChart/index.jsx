@@ -3,7 +3,6 @@ import {
   BarChart,
   CartesianGrid,
   LabelList,
-  Rectangle,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -15,6 +14,8 @@ import { formatCompactNumber, formatPercentage } from '@komet/shared/formatters'
 import { DistributionStates } from './DistributionStates';
 import { DistributionSeries } from './DistributionSeries';
 import ChartLegend from '../ChartLegend';
+import { roundedStackShape } from '../roundedStackShape';
+import { useId } from 'react';
 
 /** Seri terakhir yang terisi pada satu baris = ujung tumpukan. */
 function lastFilledKey(series, row) {
@@ -42,6 +43,14 @@ export default function DistributionBarChart({
   labelFormatter,
   series,
 }) {
+  const idPrefix = `dist${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
+  const stackShape = roundedStackShape({
+    keys: (series || []).map((item) => item.key),
+    valueOf: (row, key) => row?.byStatus?.[key],
+    vertical: false,
+    radius: 6,
+    idPrefix,
+  });
   // Kategori bernilai 0 tidak perlu memakan baris: chart distribusi hanya
   // menampilkan kelompok yang benar-benar punya data.
   const chartItems = (Array.isArray(items) ? items : []).filter(
@@ -104,13 +113,8 @@ export default function DistributionBarChart({
                     fill={color}
                     maxBarSize={22}
                     animationDuration={800}
-                    // Sudut bulat hanya di ujung tumpukan, sama seperti bar tunggal.
-                    shape={(props) => (
-                      <Rectangle
-                        {...props}
-                        radius={lastFilledKey(series, props.payload) === key ? [0, 6, 6, 0] : 0}
-                      />
-                    )}
+                    // Ujung tumpukan membulat (radius sama dengan bar tunggal).
+                    shape={stackShape(key)}
                   >
                     {labelKey && (
                       <LabelList

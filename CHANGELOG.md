@@ -14,6 +14,12 @@ Version numbers follow the root `package.json`.
   bars stack by status when the selection holds more than one status. Per
   Angkatan shows only the five academic years up to the selected one, like the
   other per-year charts.
+- Student Data Intake and Penurunan details: Per Program Studi tabs, and an
+  Intake "Status Saat Ini" tab that splits each intake year by current status.
+  The intake chart highlights the year behind the card number. Data comes from
+  `GET /api/students/intake-breakdown`.
+- The Student Data decline card is titled "Trend Intake Mahasiswa Baru (over a
+  5-year period)" (1-year and N-year variants follow the same wording).
 - Canonical AI-agent guidance in `AGENTS.md`, with `CLAUDE.md` and
   `.cursorrules` as tool-specific pointers.
 - Engineering standards in `docs/ENGINEERING.md`.
@@ -101,6 +107,10 @@ Version numbers follow the root `package.json`.
 
 ### Fixed
 
+- The international trend chart shows its hover tooltip again; the tooltip
+  wrapper now forwards Recharts' hover props.
+- Stacked bars keep a rounded end even when the last segment is very thin
+  (`roundedStackShape`).
 - Chart legends no longer overlap the bars the first time a detail popup
   opens. Legends now render as HTML above the chart (`ChartLegend`) instead of
   the Recharts legend, which measured itself while the popup was still zoomed.
