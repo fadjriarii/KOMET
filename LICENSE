@@ -1,14 +1,163 @@
+Lisensi Perangkat Lunak Proprietary — Hak Cipta Dilindungi
 Proprietary Software License — All Rights Reserved
-Version 1.0 — 23 October 2026
+Versi / Version 1.1 — 26 Oktober / October 2026
 
+Hak Cipta (c) 2026 Universitas Bio Scientia Internasional Indonesia (i3L
+University). Seluruh hak dilindungi.
 Copyright (c) 2026 Universitas Bio Scientia Internasional Indonesia (i3L
 University). All rights reserved.
 
+Lisensi ini dibuat dalam bahasa Indonesia dan bahasa Inggris. Jika terdapat
+perbedaan atau pertentangan penafsiran antara kedua versi, versi bahasa
+Indonesia yang berlaku.
+
+This License is made in Indonesian and English. If the two versions differ or
+conflict, the Indonesian version prevails.
+
+==============================================================================
+BAHASA INDONESIA
+==============================================================================
+
+Ini bukan lisensi sumber terbuka (open source). Perangkat lunak ini, termasuk
+kode sumber, dokumentasi, desain, model data, dan materi terkait
+("Perangkat Lunak"), adalah milik Universitas Bio Scientia Internasional
+Indonesia (i3L University) ("Pemegang Hak Cipta").
+
+1. Kepemilikan
+
+Pemegang Hak Cipta memiliki seluruh hak, kepemilikan, dan kepentingan atas
+Perangkat Lunak, termasuk seluruh hak kekayaan intelektual. Tidak ada hak yang
+diberikan kecuali yang dinyatakan secara tegas dalam Lisensi ini. Tidak ada
+lisensi atau hak yang diberikan secara tersirat, melalui estoppel, atau dengan
+cara lain, dan seluruh hak yang tidak diberikan secara tegas tetap dimiliki
+Pemegang Hak Cipta.
+
+2. Penggunaan yang Diizinkan
+
+Pemegang Hak Cipta dapat menggunakan, menyalin, mengubah, dan memelihara
+Perangkat Lunak untuk keperluan internalnya. Personel yang diberi wewenang oleh
+Pemegang Hak Cipta dapat melakukan hal yang sama, hanya dalam batas wewenangnya
+dan sesuai kebijakan tertulis Pemegang Hak Cipta. Seluruh perubahan dan karya
+turunan yang dibuat personel berwenang dalam rangka tugasnya menjadi milik
+Pemegang Hak Cipta. Seluruh penggunaan wajib mematuhi peraturan
+perundang-undangan yang berlaku, termasuk peraturan pelindungan data pribadi.
+Lisensi ini tidak memberikan hak apa pun atas data yang diproses oleh Perangkat
+Lunak; penggunaan data tersebut tunduk pada peraturan perundang-undangan dan
+kebijakan Pemegang Hak Cipta.
+
+3. Larangan
+
+Kecuali sebagaimana diizinkan secara tegas dalam Pasal 2, setiap orang dilarang:
+
+(a) menggunakan, menyalin, memperbanyak, mengubah, mengadaptasi,
+menerjemahkan, atau membuat karya turunan dari Perangkat Lunak;
+(b) mempublikasikan, mendistribusikan, mensublisensikan, menjual,
+menyewakan, meminjamkan, atau dengan cara lain menyediakan Perangkat Lunak
+kepada pihak ketiga;
+(c) menggunakan Perangkat Lunak untuk tujuan komersial;
+(d) menghapus, mengubah, atau mengaburkan pemberitahuan hak cipta, lisensi,
+atau kepemilikan; atau
+(e) melakukan rekayasa balik, dekompilasi, atau disassembly atas Perangkat
+Lunak, kecuali sejauh diizinkan oleh peraturan perundang-undangan yang
+berlaku.
+
+4. Repositori yang Dapat Dilihat Publik
+
+Perangkat Lunak dapat untuk sementara disimpan di repositori yang dapat
+dilihat publik, misalnya untuk keperluan analisis kualitas kode. Dapat
+dilihatnya kode sumber secara publik tidak memberikan lisensi atau hak apa pun
+di luar hak minimum yang secara wajib diberikan oleh ketentuan layanan platform
+penyimpanan tersebut. Lisensi ini tetap berlaku sepenuhnya atas setiap salinan,
+termasuk salinan hasil fork, unduhan, atau tembolok.
+
+5. Kerahasiaan
+
+Versi Perangkat Lunak yang tidak dipublikasikan merupakan informasi rahasia
+Pemegang Hak Cipta dan dilarang diungkapkan kepada pihak ketiga tanpa izin
+tertulis terlebih dahulu. Kewajiban ini tidak berlaku atas informasi yang telah
+menjadi publik secara sah sebelum tanggal berlakunya Lisensi ini, atau yang
+wajib diungkapkan berdasarkan hukum, dengan ketentuan Pemegang Hak Cipta segera
+diberi tahu secara tertulis sejauh diizinkan oleh hukum.
+
+6. Komponen Pihak Ketiga
+
+Perangkat Lunak dapat memuat komponen pihak ketiga yang tunduk pada lisensinya
+masing-masing, dan lisensi tersebut tetap berlaku. Lihat THIRD_PARTY_NOTICES.md.
+Jika lisensi pihak ketiga bertentangan dengan Lisensi ini, lisensi pihak ketiga
+yang berlaku untuk komponen yang bersangkutan.
+
+7. Merek
+
+Tidak ada hak yang diberikan untuk menggunakan nama, logo, atau merek Pemegang
+Hak Cipta maupun pihak ketiga.
+
+8. Kontribusi
+
+Kontribusi dari personel berwenang tunduk pada kebijakan kekayaan intelektual
+internal Pemegang Hak Cipta dan perjanjian tertulis antara kontributor dan
+Pemegang Hak Cipta. Kontribusi dari pihak eksternal memerlukan perjanjian
+tertulis yang mengalihkan hak yang diperlukan kepada Pemegang Hak Cipta.
+
+9. Tanpa Dukungan
+
+Tidak ada dukungan, pemeliharaan, pembaruan, atau jaminan yang diberikan
+kecuali disepakati secara terpisah secara tertulis.
+
+10. Penafian Jaminan
+
+SEJAUH DIIZINKAN OLEH PERATURAN PERUNDANG-UNDANGAN YANG BERLAKU, PERANGKAT LUNAK
+DISEDIAKAN "SEBAGAIMANA ADANYA", TANPA JAMINAN APA PUN, BAIK TERSURAT MAUPUN
+TERSIRAT, TERMASUK NAMUN TIDAK TERBATAS PADA JAMINAN KELAYAKAN UNTUK
+DIPERDAGANGKAN, KESESUAIAN UNTUK TUJUAN TERTENTU, DAN TIDAK MELANGGAR HAK PIHAK
+LAIN.
+
+11. Batasan Tanggung Jawab
+
+SEJAUH DIIZINKAN OLEH PERATURAN PERUNDANG-UNDANGAN YANG BERLAKU, PEMEGANG HAK
+CIPTA DALAM KEADAAN APA PUN TIDAK BERTANGGUNG JAWAB ATAS KLAIM, KERUGIAN, ATAU
+KEWAJIBAN LAIN, BAIK BERDASARKAN KONTRAK, PERBUATAN MELAWAN HUKUM, ATAU LAINNYA,
+YANG TIMBUL DARI ATAU BERKAITAN DENGAN PERANGKAT LUNAK ATAU PENGGUNAANNYA. Tidak
+ada ketentuan dalam Lisensi ini yang mengecualikan atau membatasi tanggung jawab
+yang menurut hukum tidak dapat dikecualikan atau dibatasi.
+
+12. Pengakhiran
+
+Setiap izin berdasarkan Lisensi ini berakhir secara otomatis, tanpa
+pemberitahuan, apabila ketentuan Lisensi ini dilanggar atau apabila wewenang
+personel berakhir. Setelah pengakhiran, seluruh penggunaan wajib dihentikan dan
+seluruh salinan Perangkat Lunak yang berada dalam penguasaan pihak tersebut
+wajib dimusnahkan atau dikembalikan. Pasal 1, 3, 5, 10, 11, 13, dan 14 tetap
+berlaku setelah pengakhiran.
+
+13. Hukum yang Berlaku dan Yurisdiksi
+
+Lisensi ini tunduk pada hukum Negara Republik Indonesia. Pengadilan di Jakarta,
+Indonesia, memiliki yurisdiksi eksklusif, kecuali ditentukan lain oleh
+ketentuan hukum yang bersifat memaksa.
+
+14. Ketentuan Umum
+
+Apabila suatu ketentuan Lisensi ini dinyatakan tidak sah atau tidak dapat
+dilaksanakan, ketentuan lainnya tetap berlaku sepenuhnya. Tidak dilaksanakannya
+suatu ketentuan tidak berarti pengesampingan atas ketentuan tersebut. Lisensi
+ini, bersama dengan perjanjian tertulis dan kebijakan yang dirujuk di dalamnya,
+merupakan keseluruhan kesepakatan mengenai Perangkat Lunak dan menggantikan
+pemahaman sebelumnya mengenai hal yang sama.
+
+15. Kontak
+
+Permohonan izin dan pertanyaan mengenai Lisensi ini wajib diajukan secara
+tertulis kepada Universitas Bio Scientia Internasional Indonesia (i3L
+University) melalui saluran kontak resmi yang tercantum di https://i3l.ac.id.
+
+==============================================================================
+ENGLISH
+==============================================================================
+
 This is not an open-source license. This software, including its source code,
-documentation, designs, data models, and associated materials (the "Software"),
-is the proprietary property of Universitas Bio Scientia Internasional Indonesia
-(i3L University) (the "Copyright Holder"). Non-public versions of the Software
-are confidential information of the Copyright Holder.
+documentation, designs, data models, and associated materials (the
+"Software"), is the property of Universitas Bio Scientia Internasional
+Indonesia (i3L University) (the "Copyright Holder").
 
 1. Ownership
 
@@ -43,46 +192,55 @@ the Software available to any third party;
 (e) reverse engineer, decompile, or disassemble the Software, except to the
 extent permitted by applicable law.
 
-4. Confidentiality
+4. Publicly Viewable Repositories
+
+The Software may be hosted temporarily in a publicly viewable repository, for
+example for code quality analysis. Public visibility of the source code grants
+no license or right beyond the minimum rights that the hosting platform's terms
+of service mandatorily grant. This License continues to apply in full to every
+copy, including forks, downloads, and caches.
+
+5. Confidentiality
 
 Non-public versions of the Software are confidential information of the
-Copyright Holder. You must not disclose them to any third party without prior
+Copyright Holder and must not be disclosed to any third party without prior
 written permission. This obligation does not apply to information that was
 lawfully made public before the effective date of this License, or that you are
 required to disclose by law, provided you give the Copyright Holder prompt
 written notice where legally permitted.
 
-5. Third-Party Components
+6. Third-Party Components
 
-The Software may include third-party components governed by their own licenses.
-Those licenses continue to apply. See THIRD_PARTY_NOTICES.md. If a third-party
-license conflicts with this License, the third-party license governs the
-relevant component.
+The Software may include third-party components governed by their own
+licenses. Those licenses continue to apply. See THIRD_PARTY_NOTICES.md. If a
+third-party license conflicts with this License, the third-party license
+governs the relevant component.
 
-6. Trademarks
+7. Trademarks
 
 No rights are granted to use the names, logos, or trademarks of the Copyright
 Holder or any third party.
 
-7. Contributions
+8. Contributions
 
 Contributions from authorized personnel are governed by the Copyright Holder's
-internal intellectual-property policies. External contributions require a
+internal intellectual-property policies and by the written agreement between
+the contributor and the Copyright Holder. External contributions require a
 written agreement assigning the necessary rights to the Copyright Holder.
 
-8. No Support
+9. No Support
 
 No support, maintenance, updates, or warranties are provided unless separately
 agreed in writing.
 
-9. Disclaimer of Warranties
+10. Disclaimer of Warranties
 
 TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE SOFTWARE IS PROVIDED "AS
 IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
 TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND
 NONINFRINGEMENT.
 
-10. Limitation of Liability
+11. Limitation of Liability
 
 TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT SHALL THE
 COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER
@@ -91,21 +249,30 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 Nothing in this License excludes or limits liability that cannot be excluded or
 limited under applicable law.
 
-11. Governing Law and Jurisdiction
+12. Termination
+
+Any permission under this License terminates automatically, without notice, if
+any term of this License is breached or when a person's authorization ends.
+Upon termination, all use must stop and every copy of the Software in that
+person's possession must be destroyed or returned. Sections 1, 3, 5, 10, 11,
+13, and 14 survive termination.
+
+13. Governing Law and Jurisdiction
 
 This License is governed by the laws of the Republic of Indonesia. The courts of
 Jakarta, Indonesia shall have exclusive jurisdiction, unless mandatory law
 provides otherwise.
 
-12. General
+14. General
 
-If any provision of this License is held invalid or unenforceable, the remaining
-provisions remain in full force and effect. A failure to enforce any provision
-is not a waiver. This License is the entire agreement regarding the Software and
+If any provision of this License is held invalid or unenforceable, the
+remaining provisions remain in full force and effect. A failure to enforce any
+provision is not a waiver. This License, together with the written agreements
+and policies it refers to, is the entire agreement regarding the Software and
 supersedes prior understandings on the same subject.
 
-13. Contact
+15. Contact
 
-Permission requests and questions about this License must be made in writing
-through the official contact channels of Universitas Bio Scientia Internasional
-Indonesia (i3L University).
+Permission requests and questions about this License must be made in writing to
+Universitas Bio Scientia Internasional Indonesia (i3L University) through the
+official contact channels listed at https://i3l.ac.id.

@@ -68,6 +68,10 @@ Version numbers follow the root `package.json`.
 
 ### Changed
 
+- `LICENSE` version 1.1 is bilingual (Indonesian prevails) and adds a
+  termination clause, a publicly viewable repository clause, a concrete contact
+  at https://i3l.ac.id, and an entire-agreement exception for referenced
+  written agreements and policies.
 - Clarified the proprietary license terms for ownership, internal use,
   confidentiality, third-party components, trademarks, contributions, support,
   and governing law.

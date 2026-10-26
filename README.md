@@ -293,9 +293,10 @@ Proprietary Software License — All Rights Reserved.
 Copyright © 2026 Universitas Bio Scientia Internasional Indonesia (i3L
 University). This software is proprietary; non-public versions are confidential.
 No license or right is granted except as expressly authorized in writing by the
-copyright holder.
+copyright holder. A publicly viewable copy of this repository grants no license
+to use, copy, or modify the code.
 
-See [LICENSE](LICENSE) for the full terms and
+[LICENSE](LICENSE) is bilingual; the Indonesian version prevails. See
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for third-party dependency
 licenses. Permission requests must be made in writing through the official
-contact channels of i3L University.
+contact channels listed at https://i3l.ac.id.
