@@ -1,6 +1,6 @@
 # TODO: Graduate Data — perhitungan, presentasi multi-filter, bug, dan pemisahan logika
 
-- Status: bug 1–11 dan 13 diperbaiki, Fase 0 selesai (2026-10-26). Fase 0–3 selesai (2026-10-26). Fase 4 belum.
+- Status: bug 1–11 dan 13 diperbaiki, Fase 0 selesai (2026-10-26). selesai (2026-10-26), Fase 0–4 dan bug 1–13.
 - Dibuat: 2026-10-26
 - Cakupan: card KPI, popup "Lihat Rincian", dan service di tab Graduate Data.
   Student Data dan MBKM hanya tersentuh lewat komponen bersama (reset filter,
@@ -162,7 +162,7 @@ Angka = AND semua filter dalam scope. Badge "Terfilter" = OR (dari `kpiFilterSco
 
 ### Fase 4 — Dokumentasi & verifikasi
 
-- [ ] `docs/ARCHITECTURE.md`: bagian "Graduate Data detail breakdowns under filters"
+- [x] `docs/ARCHITECTURE.md`: bagian "Graduate Data detail breakdowns under filters"
       (matriks + R1–R5 + batas studi). Juga `CHANGELOG.md` dan
       `task/graduate-data-filter-presentation.md` (format sama dengan task Student).
 

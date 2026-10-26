@@ -459,6 +459,57 @@ counts), `/students/intake-breakdown` (intake and decline per prodi, current
 status per intake year), and `/students/international-detail` (trend, per
 country, per prodi).
 
+### Graduate Data cards and detail breakdowns under filters
+
+The server owns every domain decision; the client only renders and phrases
+text. `GET /graduates/summary` returns `kpis.cards` from
+`services/graduates/graduateCards.js`, one object per card:
+`{ value, isEmpty, scope, byJenjang: [{ key, jenjang, label, value, … }] }`.
+Jenjang order and spelling are canonical (`CANONICAL_JENJANG`,
+`normalizeJenjang` in `@komet/shared`); a jenjang without data is never listed.
+
+| Filter                                        | Total Lulusan   | Rata-rata IPK | Tepat Waktu | Keberhasilan Studi          |
+| --------------------------------------------- | --------------- | ------------- | ----------- | --------------------------- |
+| Search, Fakultas, Prodi, Jenjang              | on              | on            | on          | on                          |
+| Angkatan                                      | on              | on            | on          | on (the evaluated angkatan) |
+| Tahun Ajaran without Tahun Lulus              | cumulative ≤ TA | cumulative    | cumulative  | on (anchor TA − maximum)    |
+| Tahun Lulus (explicit wins over Tahun Ajaran) | on              | on            | on          | off                         |
+| Predikat, Periode Lulus                       | on              | on            | on          | off                         |
+
+Card values:
+
+- Total is the sum over jenjang. Rata-rata IPK is weighted by graduates with an
+  IPK, not an average of averages. Tepat Waktu is the pooled rate over every
+  jenjang, each judged against its own limit.
+- Keberhasilan Studi reports the jenjang with the largest intake, because each
+  jenjang evaluates a different angkatan. Several selected angkatan are pooled
+  (Σ graduates within the limit ÷ Σ intake); angkatan still inside their
+  maximum study length are left out. `ignoredFilters` lists the active event
+  filters this card does not read, so the client can say so.
+- Study length is counted in semesters against `services/graduates/studyLimits.js`
+  (ADR 0004).
+
+Presentation rules:
+
+1. **Numbers:** a card counts the AND of every filter in its scope; the
+   "Terfilter" badge follows `kpiFilterScope`.
+2. **Single-category tabs are hidden:** one predikat, prodi, faculty, or IPK band
+   hides that tab (`components/common/modals/tabsWithData.js`). Jenjang tabs come
+   from the server's `jenjangs` list, so a jenjang without data has no tab.
+3. **Empty combinations:** `isEmpty` cards show "-" and a sentence explaining
+   that the filter combination has no graduates; detail popups show the same
+   message instead of empty charts. A real 0 stays 0.
+4. **Windows:** trend charts show five graduation years and the Tepat Waktu chart
+   five angkatan. The server applies the window when the Tahun Lulus selection is
+   still the default (`withoutDefaultTahunLulus`); any other selection is shown
+   as-is.
+
+Detail endpoints: `/graduates/total-lulusan` (`byYear`, `jenjangs`),
+`/graduates/distribution` (`byPredikat`, `byProdi`, `byFaculty`),
+`/graduates/ipk-trend` (`byYear`, `jenjangs`, `gpaCount`, bands, prodi,
+faculty), `/graduates/tepat-waktu` and `/graduates/keberhasilan-studi` (series
+per jenjang key plus `jenjangs` with `batas` and the evaluated angkatan).
+
 ## 6. Access Control (Zero-Trust)
 
 ### 6.1 Credential scopes
