@@ -162,9 +162,86 @@ Angka = AND semua filter dalam scope. Badge "Terfilter" = OR (dari `kpiFilterSco
 
 ### Fase 4 — Dokumentasi & verifikasi
 
-- [x] `docs/ARCHITECTURE.md`: bagian "Graduate Data detail breakdowns under filters"
-      (matriks + R1–R5 + batas studi). Juga `CHANGELOG.md` dan
-      `task/graduate-data-filter-presentation.md` (format sama dengan task Student).
+- [x] `docs/ARCHITECTURE.md`: bagian "Graduate Data cards and detail breakdowns
+      under filters" (kontrak `kpis.cards`, matriks filter, aturan nilai utama,
+      aturan presentasi, endpoint rincian). Juga `CHANGELOG.md` dan file task ini.
+
+#### Status bug 1–13 (semua diperbaiki)
+
+| #   | Bug                                                        | Commit               |
+| --- | ---------------------------------------------------------- | -------------------- |
+| 1   | Tepat Waktu off-by-one (semester ke-9 dihitung tepat)      | `8b8be2e`            |
+| 2   | Awal studi card ≠ modal                                    | `8b8be2e`            |
+| 3   | Keberhasilan tanpa batas waktu, kohort dari `periodeMasuk` | `8b8be2e`            |
+| 4   | D3/D4 tanpa batas, tab hantu                               | `8b8be2e`, `85f8d35` |
+| 5   | 0% dianggap kosong                                         | `8b8be2e`            |
+| 6   | Tab S1/S2 hantu, modal kosong untuk jenjang tanpa data     | `8b8be2e`, `85f8d35` |
+| 7   | Ejaan `PROFESI`                                            | `8b8be2e`            |
+| 8   | Sanitize TA memakai tahun kalender                         | `8b8be2e`            |
+| 9   | Tahun Lulus eksplisit tertimpa saat default bergeser       | `8b8be2e`            |
+| 10  | Reset menghapus TA header (semua halaman)                  | `8b8be2e`            |
+| 11  | Banner Keberhasilan mencampur dua sumber                   | `8b8be2e`            |
+| 12  | Dua sumber tahun default                                   | `85f8d35`            |
+| 13  | Pembulatan tidak konsisten                                 | `8b8be2e`            |
+
+Masih terbuka (butuh keputusan, tidak dikerjakan):
+
+- Penyebut Tepat Waktu: lulusan dalam scope vs seluruh intake angkatan
+  (FORMULA.md). Dicatat di ADR 0004.
+- Bukti "angkatan tutup" memajukan evaluasi Keberhasilan sebelum masa studi
+  maksimum habis (mis. S2 angkatan 2024/2025 = 100%).
+- `tanggal_keluar` tanpa periode lulus: tahun kalender + anggapan Genap.
+- Ambang predikat fallback S2 (konfirmasi BAAK), tahun kalender di hook MBKM,
+  performa `valuesByYearAndJenjang`.
+
+#### Checklist pengetesan lokal
+
+Persiapan:
+
+- [ ] Restart server (cache summary 5 menit masih berbentuk lama) dan hard
+      refresh browser (opsi filter di-cache 10 menit).
+- [ ] `pnpm test`, `pnpm lint`, `pnpm format:check`, `pnpm build`.
+- [ ] Opsional `RUN_DB_TESTS=1 pnpm --filter @komet/server test` (angka
+      hardcode di tes live mungkin perlu disesuaikan dengan definisi baru).
+
+Student Data:
+
+- [ ] Default Tahun Ajaran = tahun terbaru di data; Reset tidak mengubah TA.
+- [ ] Popup Total Mahasiswa: default (Aktif); Semua Status (Per Status di
+      depan, bar bertumpuk); 1 prodi + Semua Status (tab Fakultas/Prodi/Jenjang
+      hilang); 2 status sekaligus.
+- [ ] Per Angkatan hanya 5 tahun ajaran, juga dengan TA lama (mis. 2021/2022).
+- [ ] Popup Intake: tahun kartu disorot, tab Per Program Studi, tab Status
+      Saat Ini.
+- [ ] Kartu "Trend Intake Mahasiswa Baru (over a 5-year period)" + popup tab
+      Per Program Studi.
+- [ ] Popup Internasional: tooltip hover, tab Per Negara, tab Per Program Studi.
+- [ ] Semua chart: legend tidak menimpa bar saat popup pertama dibuka; ujung
+      bar membulat, termasuk bar bertumpuk.
+
+Graduate Data:
+
+- [ ] Angka default Tepat Waktu dan Keberhasilan dibandingkan dengan data BAAK
+      (acuan lokal: Tepat Waktu 92,0%, Keberhasilan S1 82,7% angkatan 2019/2020).
+- [ ] Label "Profesi" di kartu, tab, dan chart.
+- [ ] Jenjang = Profesi: hanya Profesi, tanpa tab S1/S2.
+- [ ] 1 prodi + 1 predikat: popup Total hanya tab Tren dan Tabel.
+- [ ] Angkatan 2024/2025 + Tahun Lulus 2021/2022: kartu "-" + penjelasan;
+      Keberhasilan tetap terhitung.
+- [ ] Beberapa angkatan: Keberhasilan = gabungan, angkatan berjalan dibuang.
+- [ ] Tahun Lulus "Semua Tahun" + TA lama: angka kumulatif sampai TA itu.
+- [ ] Pilih Tahun Lulus manual, lalu ganti TA: pilihan tidak tertimpa.
+- [ ] Filter Tahun Lulus/Predikat/Periode: subtitle Keberhasilan menyebut
+      filter yang tidak mengubah angkanya.
+- [ ] Popup Total: tab Per Program Studi dan Per Fakultas; popup IPK hanya
+      satu request (tab Network).
+- [ ] Tabel lulusan: IPK dua desimal.
+
+Sync dan Git:
+
+- [ ] Setelah sync, TA Student dan Tahun Lulus Graduate maju bila ada data
+      tahun baru.
+- [ ] Push ke `gitlab`, lalu GitHub ikut terbarui lewat mirror.
 
 ## File utama
 
