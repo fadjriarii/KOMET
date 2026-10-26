@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { formatDecimal, formatNumber, formatPercentage } from '@komet/shared/formatters';
 import { getDemographicContextLabel } from '../../../utils/uiHelpers';
 import { describeScope, searchSentence, studySuccessClause } from '../utils/filterScope';
+import { jenjangName } from '../components/modals/totalTrendBars';
 
 /**
  * Gabung rincian per jenjang tanpa bullet: dua bagian pakai "dan",
@@ -26,11 +27,11 @@ function withScope(sentence, scope) {
  * valid = jenjang itu saja; selain itu semua jenjang yang angkanya bisa
  * diceritakan (ada rate + label angkatan). Tanpa butir = fallback.
  * Satu butir = kalimat tunggal; lebih dari satu = rincian S1, S2, dst.
- * Ekor kalimat selalu menjelaskan kenapa angkatannya paten: yang dinilai
- * adalah kohort terbaru yang hasil akhirnya sudah pasti, jadi tidak
+ * Ekor kalimat menjelaskan kenapa angkatannya paten: yang dinilai adalah
+ * kohort terbaru yang masa studi maksimumnya sudah habis, jadi tidak
  * mengikuti filter tahun lulus.
  */
-const SUCCESS_TAIL = 'Dinilai dari kohort terbaru yang hasil akhirnya sudah pasti.';
+const SUCCESS_TAIL = 'Dinilai dari angkatan terbaru yang masa studi maksimumnya sudah habis.';
 
 function findSuccessAngkatan(ks, rateKey) {
   const direct = `angkatan${rateKey}`;
@@ -47,7 +48,7 @@ function buildSuccessItems(ks = {}, selectedJenjang = [], fallbackS1Rate = null)
   if (list.length === 1) {
     const rateKey = list[0].toLowerCase();
     const angkatan = findSuccessAngkatan(ks, rateKey);
-    if (rateKey in (ks ?? {}) && angkatan != null) {
+    if (ks?.[rateKey] != null && angkatan != null) {
       return [{ label: list[0].trim(), rate: ks[rateKey], angkatan }];
     }
     return [];
@@ -57,10 +58,7 @@ function buildSuccessItems(ks = {}, selectedJenjang = [], fallbackS1Rate = null)
   const requested = list.map((item) => item.trim().toLowerCase());
   const candidates = requested.length
     ? requested.map((key) => ({
-        label:
-          key === 's1' || key === 's2'
-            ? key.toUpperCase()
-            : key.charAt(0).toUpperCase() + key.slice(1),
+        label: jenjangName(key),
         rate: rateOf(key, key === 's1' ? fallbackS1Rate : null),
         angkatan: findSuccessAngkatan(ks, key),
       }))
@@ -74,16 +72,20 @@ function buildSuccessItems(ks = {}, selectedJenjang = [], fallbackS1Rate = null)
         ...Object.keys(ks ?? {})
           .filter(
             (key) =>
-              key !== 's1' && key !== 's2' && !key.toLowerCase().startsWith('angkatan') && ks[key],
+              key !== 's1' &&
+              key !== 's2' &&
+              !key.toLowerCase().startsWith('angkatan') &&
+              ks[key] != null,
           )
           .sort()
           .map((key) => ({
-            label: key.toUpperCase(),
+            label: jenjangName(key),
             rate: ks[key],
             angkatan: findSuccessAngkatan(ks, key),
           })),
       ];
-  return candidates.filter((item) => item.rate && item.angkatan);
+  // 0% adalah hasil ukur yang sah; hanya null (belum bisa dievaluasi) yang dibuang.
+  return candidates.filter((item) => item.rate != null && item.angkatan);
 }
 function withRest(sentence, rest) {
   if (!rest) return sentence;
@@ -93,10 +95,10 @@ function withRest(sentence, rest) {
 /**
  * Nilai utama kartu IPK/tepat waktu: S1 dulu; kalau scope tidak memuat S1
  * (mis. filter Profesi saja membuat S1 null), pakai jenjang lain yang ada
- * nilainya daripada menampilkan 0 padahal datanya ada.
+ * nilainya. 0 adalah nilai sah (mis. 0% tepat waktu), hanya null yang dilewati.
  */
 function firstPresent(values) {
-  return values.find((value) => value) ?? null;
+  return values.find((value) => value != null) ?? null;
 }
 
 export function useGraduateKpiDisplay(summaryData, isLoading, filterValues = {}) {
@@ -124,10 +126,10 @@ export function useGraduateKpiDisplay(summaryData, isLoading, filterValues = {})
     const withFallback = (parts, fallback) => (parts.length ? parts : [fallback]);
     const extraParts = extraJenjangs
       .filter((key) => byJenjang[key])
-      .map((key) => `${formatNumber(byJenjang[key])} lulusan ${key.toUpperCase()}`);
+      .map((key) => `${formatNumber(byJenjang[key])} lulusan ${jenjangName(key)}`);
     const extraOnTimeParts = extraOnTimeKeys
-      .filter((key) => onTimeByJenjang[key])
-      .map((key) => `${key.toUpperCase()}: ${formatPercentage(onTimeByJenjang[key], 1)}`);
+      .filter((key) => onTimeByJenjang[key] != null)
+      .map((key) => `${jenjangName(key)}: ${formatPercentage(onTimeByJenjang[key], 1)}`);
     // Nilai kartu: S1, kalau kosong S2, kalau kosong jenjang lain yang ada.
     const mainGpaRaw = firstPresent([
       kpis.averageGpaS1,
@@ -187,7 +189,7 @@ export function useGraduateKpiDisplay(summaryData, isLoading, filterValues = {})
       kpis.averageGpaS2 ? `${s2Gpa} (S2)` : null,
       ...extraGpaKeys
         .filter((key) => gpaByJenjang[key])
-        .map((key) => `${formatDecimal(gpaByJenjang[key], 2)} (${key.toUpperCase()})`),
+        .map((key) => `${formatDecimal(gpaByJenjang[key], 2)} (${jenjangName(key)})`),
     ].filter(Boolean);
     const gpaScopePhrase = summary.avgIpk?.tahunScope?.phrase || '';
     const baseGpa = `IPK rata-rata lulusan${scope.suffix} ${joinParts(
@@ -197,19 +199,19 @@ export function useGraduateKpiDisplay(summaryData, isLoading, filterValues = {})
     const onTimeScopePhrase = summary.tepatWaktu?.tahunScope?.phrase || '';
     const onTimeScopeTail = onTimeScopePhrase ? ` ${onTimeScopePhrase}` : '';
     const onTimeBreakdown = [
-      kpis.onTimeGraduationRateS1 ? { key: 'S1', text: `S1 ${s1OnTime}` } : null,
-      kpis.onTimeGraduationRateS2 ? { key: 'S2', text: `S2 ${s2OnTime}` } : null,
+      kpis.onTimeGraduationRateS1 != null ? { key: 'S1', text: `S1 ${s1OnTime}` } : null,
+      kpis.onTimeGraduationRateS2 != null ? { key: 'S2', text: `S2 ${s2OnTime}` } : null,
       ...extraOnTimeKeys
-        .filter((key) => onTimeByJenjang[key])
+        .filter((key) => onTimeByJenjang[key] != null)
         .map((key) => ({
-          key: key.toUpperCase(),
-          text: `${key.toUpperCase()} ${formatPercentage(onTimeByJenjang[key], 1)}`,
+          key: jenjangName(key),
+          text: `${jenjangName(key)} ${formatPercentage(onTimeByJenjang[key], 1)}`,
         })),
     ].filter(Boolean);
     // Backend lama tanpa angka keseluruhan: format ringkas lama supaya tetap terbaca.
     const legacyOnTimeParts = [
-      kpis.onTimeGraduationRateS1 ? `S1: ${s1OnTime}` : null,
-      kpis.onTimeGraduationRateS2 ? `S2: ${s2OnTime}` : null,
+      kpis.onTimeGraduationRateS1 != null ? `S1: ${s1OnTime}` : null,
+      kpis.onTimeGraduationRateS2 != null ? `S2: ${s2OnTime}` : null,
       ...extraOnTimeParts,
     ].filter(Boolean);
     let baseOnTime;
@@ -245,13 +247,13 @@ export function useGraduateKpiDisplay(summaryData, isLoading, filterValues = {})
       );
     } else if (successItems.length === 1) {
       const [item] = successItems;
-      const sentence = `${successRateFmt(item.rate)} mahasiswa Angkatan ${item.angkatan} (${item.label}) akhirnya lulus. ${SUCCESS_TAIL}`;
+      const sentence = `${successRateFmt(item.rate)} mahasiswa Angkatan ${item.angkatan} (${item.label}) lulus dalam masa studi maksimum. ${SUCCESS_TAIL}`;
       baseStudySuccess = successScope.label ? `${successScope.label}, ${sentence}` : sentence;
     } else {
       const parts = successItems.map(
         (item) => `${item.label} ${successRateFmt(item.rate)} (Angkatan ${item.angkatan})`,
       );
-      const sentence = `Yang akhirnya lulus: ${joinParts(parts)}. ${SUCCESS_TAIL}`;
+      const sentence = `Lulus dalam masa studi maksimum: ${joinParts(parts)}. ${SUCCESS_TAIL}`;
       baseStudySuccess = successScope.label ? `${successScope.label}, ${sentence}` : sentence;
     }
     const successClause = studySuccessClause({

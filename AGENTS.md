@@ -120,6 +120,10 @@ regression tests:
   or predicate.
 - On-time graduation is grouped by the student's actual intake cohort
   (`angkatan`), not by graduation year.
+- Study length is counted in semesters against the per-jenjang limits in
+  `services/graduates/studyLimits.js`; Keberhasilan Studi counts only graduates
+  within the maximum study length. See
+  `docs/adr/0004-graduate-study-length.md`.
 - Jenjang is dynamic. Do not hardcode S1/S2 only; `Profesi`, `S3`, `D3`, and
   `D4` must remain supported.
 - Canonical jenjang spelling is `S1`, `S2`, `S3`, `D3`, `D4`, `Profesi`.

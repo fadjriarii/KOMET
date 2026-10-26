@@ -8,6 +8,8 @@
  * inilah alasan card "belum ada data" pernah tampil sebagai "0%".
  */
 
+import { CANONICAL_JENJANG } from './constants.js';
+
 const NO_DATA = '-';
 
 const isBlank = (value) => value === null || value === undefined || value === '';
@@ -46,4 +48,13 @@ export function formatCompactNumber(value, fallback = NO_DATA) {
   const number = Number(value);
   if (!Number.isFinite(number)) return fallback;
   return number >= 1000 ? `${(number / 1000).toFixed(number % 1000 === 0 ? 0 : 1)}k` : number;
+}
+
+/**
+ * Nama jenjang kanonis dari nilai bebas huruf ("profesi", "s1", "Profesi").
+ * Nilai yang tidak dikenal dikembalikan apa adanya (sudah di-trim).
+ */
+export function normalizeJenjang(jenjang) {
+  const raw = String(jenjang ?? '').trim();
+  return CANONICAL_JENJANG[raw.toUpperCase()] ?? raw;
 }

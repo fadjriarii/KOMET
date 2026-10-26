@@ -5,6 +5,8 @@ import ModalTabNav from '../../../../components/common/modals/ModalTabNav';
 import ModalTabContent from '../../../../components/common/modals/ModalTabContent';
 import { useTabTransition } from '../../../../hooks/useTabTransition';
 import { formatPercentage } from '@komet/shared/formatters';
+import { BarChart3 } from 'lucide-react';
+import EmptyState from '../../../../components/common/feedback/EmptyState';
 import { useDetail } from '../../graduateQueries';
 import TrendBarChart from '../../../../components/common/charts/TrendBarChart';
 import TrendChartTooltip from '../../../../components/common/charts/TrendChartTooltip';
@@ -15,13 +17,11 @@ import {
   withBatas,
   withoutDefaultTahunLulus,
 } from './graduateTrendConfig';
-import { OUTCOME_COLORS } from './totalTrendBars';
+import { OUTCOME_COLORS, jenjangName } from './totalTrendBars';
 import { describeScope, searchSentence } from '../../utils/filterScope';
 
 // Satu builder dipakai tab S1 dan S2; angka batas datang dari server (batasS1/batasS2).
 function CohortTrendChart({ cohorts, batas, isLoading, error }) {
-  // Profesi satu tahun: durasi 0 dan 1 sama-sama tepat waktu.
-  const onTimeOperator = batas === 1 ? '≤' : '=';
   return (
     <div className="h-full flex flex-col pt-0.5 px-1">
       <div className="h-56 sm:h-64 md:h-72 w-full">
@@ -34,7 +34,7 @@ function CohortTrendChart({ cohorts, batas, isLoading, error }) {
           bars={[
             {
               dataKey: 'onTimeCount',
-              name: withBatas('Tepat Waktu', batas, onTimeOperator),
+              name: withBatas('Tepat Waktu', batas, '='),
               color: OUTCOME_COLORS.onTime,
               labelKey: 'onTimeCount',
             },
@@ -118,8 +118,9 @@ export default function OnTimeGraduationModal({ isOpen, onClose, originRect, dat
   const batasS2 = batasByJenjang.s2;
 
   const cohortsByJenjang = useMemo(() => {
+    // Jenjang tanpa kohort (mis. D3 tanpa data) tidak membentuk tab kosong.
     const entries = Object.entries(detailData ?? {}).filter(
-      ([key, value]) => !/^batas[A-Z]/.test(key) && Array.isArray(value),
+      ([key, value]) => !/^batas[A-Z]/.test(key) && Array.isArray(value) && value.length > 0,
     );
     return Object.fromEntries(entries);
   }, [detailData]);
@@ -138,7 +139,7 @@ export default function OnTimeGraduationModal({ isOpen, onClose, originRect, dat
       ),
     [batasByJenjang, cohortsByJenjang, selectedJenjang],
   );
-  const initialTab = selectedJenjang.length === 1 ? selectedJenjang[0].toLowerCase() : 's1';
+  const initialTab = selectedJenjang.length === 1 ? selectedJenjang[0].toLowerCase() : tabs[0]?.key;
   const { activeTab, handleTabChange, slideClass } = useTabTransition(tabs, initialTab);
 
   const kpis = data?.kpis || {};
@@ -158,20 +159,20 @@ export default function OnTimeGraduationModal({ isOpen, onClose, originRect, dat
   const onTimeS1 = formatPercentage(kpis.onTimeGraduationRateS1, 1, '0.0%');
   const onTimeS2 = formatPercentage(kpis.onTimeGraduationRateS2, 1, '0.0%');
   const onTimeOverall = formatPercentage(kpis.onTimeGraduationRateOverall, 1, '0.0%');
-  // Segmen jenjang bernilai 0 disembunyikan, hanya yang ada nilainya.
+  // Segmen jenjang tanpa data (null) disembunyikan; 0% tetap tampil.
   const onTimeSegments = [
-    ...(kpis.onTimeGraduationRateS1
+    ...(kpis.onTimeGraduationRateS1 != null
       ? [{ key: 's1', jenjang: 'S1', value: onTimeS1, batas: s1BatasPhrase }]
       : []),
-    ...(kpis.onTimeGraduationRateS2
+    ...(kpis.onTimeGraduationRateS2 != null
       ? [{ key: 's2', jenjang: 'S2', value: onTimeS2, batas: s2BatasPhrase }]
       : []),
     ...Object.entries(kpis.onTimeByJenjang || {})
-      .filter(([key, value]) => key !== 's1' && key !== 's2' && value)
+      .filter(([key, value]) => key !== 's1' && key !== 's2' && value != null)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([key, value]) => ({
         key,
-        jenjang: key.toUpperCase(),
+        jenjang: jenjangName(key),
         value: formatPercentage(value, 1),
         batas: batasByJenjang[key] ? ` (≤ ${batasByJenjang[key]} tahun)` : ' tepat waktu',
       })),
@@ -291,12 +292,22 @@ export default function OnTimeGraduationModal({ isOpen, onClose, originRect, dat
         />
 
         <div className="flex-1 flex flex-col min-h-0">
-          <ModalTabNav tabs={tabs} activeTab={activeTab} onTabChange={handleTabChange} />
-          <div className="flex-1 min-h-0 overflow-x-hidden w-full">
-            <div key={activeTab} className={`h-full ${slideClass}`}>
-              <ModalTabContent activeTab={activeTab} content={content} />
-            </div>
-          </div>
+          {!isLoading && !error && !tabs.length ? (
+            <EmptyState
+              icon={BarChart3}
+              title="Tidak Ada Data Tepat Waktu"
+              description="Tidak ada lulusan pada filter ini untuk dihitung masa studinya."
+            />
+          ) : (
+            <>
+              <ModalTabNav tabs={tabs} activeTab={activeTab} onTabChange={handleTabChange} />
+              <div className="flex-1 min-h-0 overflow-x-hidden w-full">
+                <div key={activeTab} className={`h-full ${slideClass}`}>
+                  <ModalTabContent activeTab={activeTab} content={content} />
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </Modal>

@@ -31,6 +31,19 @@ export const HTTP_STATUS = {
  * bukan dengan menyaring hasil di JavaScript. */
 export const JENJANGS = ['S1', 'S2'];
 
+/**
+ * Ejaan kanonis jenjang mengikuti data SEVIMA (`Profesi`, bukan `PROFESI`).
+ * Urutan kunci = urutan tampil jenjang di dashboard.
+ */
+export const CANONICAL_JENJANG = {
+  S1: 'S1',
+  S2: 'S2',
+  S3: 'S3',
+  PROFESI: 'Profesi',
+  D3: 'D3',
+  D4: 'D4',
+};
+
 /** Student status values */
 export const STUDENT_STATUS = {
   AKTIF: 'Aktif',

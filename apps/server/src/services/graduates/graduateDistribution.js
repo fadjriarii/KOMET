@@ -13,7 +13,7 @@
 
 const prisma = require('../../config/prisma');
 const { countByPredikat } = require('../../utils/graduateUtils');
-const { rate } = require('../../utils/percentageUtils');
+const { roundedRate } = require('../../utils/percentageUtils');
 const { resolveTahunAjaranScope } = require('./yearJenjangSeries');
 
 async function getGraduateDistribution(whereFilter) {
@@ -29,7 +29,7 @@ async function getGraduateDistribution(whereFilter) {
   const byPredikat = Object.entries(predikatCounts).map(([name, count]) => ({
     name,
     count,
-    percentage: rate(count, totalGraduates),
+    percentage: roundedRate(count, totalGraduates, null),
   }));
 
   return { total: totalGraduates, byPredikat };

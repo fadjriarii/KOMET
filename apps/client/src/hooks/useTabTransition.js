@@ -7,7 +7,11 @@ import { useState, useCallback } from 'react';
  * @returns {Object} { activeTab, slideDirection, handleTabChange, activeIndex }
  */
 export function useTabTransition(tabs = [], initialTabKey = '') {
-  const defaultKey = initialTabKey || (tabs[0]?.key ?? '');
+  // Tab awal yang tidak ada di daftar (mis. jenjang terpilih tanpa data) jatuh
+  // ke tab pertama, supaya isi modal tidak pernah kosong.
+  const defaultKey = tabs.some((tab) => tab.key === initialTabKey)
+    ? initialTabKey
+    : (tabs[0]?.key ?? '');
   const [selectedTab, setSelectedTab] = useState(defaultKey);
   const [slideDirection, setSlideDirection] = useState('forward'); // 'forward' | 'backward'
 

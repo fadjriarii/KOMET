@@ -123,6 +123,14 @@ describe('useDashboardFilters (keadaan di URL)', () => {
     expect(searchOf(result).toString()).toBe('');
   });
 
+  it('resetFilters tidak mengubah pemilih header (Tahun Ajaran)', () => {
+    const { result } = renderFilters('/?search=abc&tahunAjaran=2022/2023');
+    act(() => result.current.filters.resetFilters());
+    expect(result.current.filters.values.searchQuery).toBe('');
+    expect(result.current.filters.values.tahunAjaran).toBe('2022/2023');
+    expect(searchOf(result).get('tahunAjaran')).toBe('2022/2023');
+  });
+
   it('menghitung filter tanpa mempedulikan urutan pilihan, dan mengabaikan pemilih header', () => {
     // ['Cuti','Aktif'] sama saja dengan ['Aktif','Cuti']: keduanya menyimpang dari
     // default ['Aktif'] dan dihitung satu, bukan bergantung pada urutan penulisan URL.

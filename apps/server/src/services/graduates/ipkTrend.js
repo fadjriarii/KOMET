@@ -6,7 +6,7 @@
  */
 
 const prisma = require('../../config/prisma');
-const { rate } = require('../../utils/percentageUtils');
+const { roundedRate } = require('../../utils/percentageUtils');
 const { getScopeJenjangs } = require('./filterBuilder');
 const {
   valuesByYearAndJenjang,
@@ -146,7 +146,7 @@ async function getIpkOverview(whereFilter) {
   const gpaBandsData = Object.entries(bandsMap).map(([range, count]) => ({
     range,
     count,
-    percentage: rate(count, totalGraduates),
+    percentage: roundedRate(count, totalGraduates, null),
   }));
 
   return {

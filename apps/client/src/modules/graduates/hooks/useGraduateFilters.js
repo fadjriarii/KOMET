@@ -1,20 +1,20 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 import { Award, BookOpen, Building2, CalendarDays, UserCheck } from 'lucide-react';
-import { getCurrentAcademicYear, isValidAcademicYear } from '@komet/shared/academicYear';
+import { isValidAcademicYear } from '@komet/shared/academicYear';
 import { useDashboardFilters } from '../../../hooks/useDashboardFilters';
 import { sanitizeSearch } from '../../../utils/querySanitizer';
 
 /**
  * Label ajaran invalid dari URL = tanpa jangkar. Tahun ajaran TERBARU yang
  * ada di data (`defaultAcademicYear`, dari `filterOptions.academicYearOptions[0]`)
- * dan tahun berjalan (`getCurrentAcademicYear`) juga dinormalisasi ke '' —
+ * juga dinormalisasi ke '' (tahun kalender tidak dipakai, AGENTS §5.1) —
  * memilihnya sama dengan default ("lulus sampai sekarang", anchor terlemah),
  * jadi tidak boleh dihitung sebagai filter aktif dan menyalakan badge
  * "Terfilter" di kartu KPI.
  */
 const sanitizeAcademicYear = (value, defaultAcademicYear = '') => {
   if (!isValidAcademicYear(value)) return '';
-  if (value === defaultAcademicYear || value === getCurrentAcademicYear()) return '';
+  if (value === defaultAcademicYear) return '';
   return value;
 };
 
@@ -164,25 +164,8 @@ export function useGraduateFilters(defaultAcademicYear = '', defaultTahunLulus =
     }),
     [defaultAcademicYear, defaultTahunLulus],
   );
-  const { setters, ...rest } = useDashboardFilters({ fields });
-
-  // Pengikut: Tahun Lulus menyesuaikan saat tahun terbaru bergeser —
-  // user mengganti jangkar tahun ajaran, atau sync menambah tahun baru.
-  // Muatan pertama dilewati supaya pilihan URL eksplisit tidak
-  // diinjak; perubahan berikutnya langsung menulis nilai baru ke URL
-  // sehingga kartu & tabel ikut menampilkan tahun itu.
-  const prevDefaultRef = useRef(defaultTahunLulus);
-  const loadedRef = useRef(false);
-  useEffect(() => {
-    const changed = prevDefaultRef.current !== defaultTahunLulus;
-    prevDefaultRef.current = defaultTahunLulus;
-    if (!changed) return;
-    if (!loadedRef.current) {
-      loadedRef.current = true;
-      return;
-    }
-    if (defaultTahunLulus) setters.setSelectedTahunLulus([defaultTahunLulus]);
-  }, [defaultTahunLulus, setters]);
-
-  return { ...rest, setters };
+  // Tanpa pilihan di URL, Tahun Lulus = `initial` = default terbaru, jadi ikut
+  // bergeser sendiri saat jangkar TA diganti atau sync menambah tahun baru.
+  // Pilihan eksplisit user tidak pernah ditimpa (AGENTS §5.2).
+  return useDashboardFilters({ fields });
 }

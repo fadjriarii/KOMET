@@ -16,7 +16,7 @@ import {
   tabsForSelectedJenjang,
   withEvaluationLag,
 } from './graduateTrendConfig';
-import { JENJANG_COLORS } from './totalTrendBars';
+import { JENJANG_COLORS, jenjangName } from './totalTrendBars';
 import { describeScope, searchSentence, studySuccessClause } from '../../utils/filterScope';
 
 // Satu builder dipakai tab S1 dan S2; hanya kohortnya yang berbeda.
@@ -125,9 +125,14 @@ export default function StudySuccessModal({ isOpen, onClose, originRect, data, f
       ),
     [detailData],
   );
+  // Tab hanya untuk jenjang yang kohortnya bisa dievaluasi (ada intake/lulusan);
+  // S1/S2 tidak lagi dipaksa muncul tanpa data.
   const cohortKeys = useMemo(
-    () => ['s1', 's2', ...extraCohorts.map(([key]) => key)],
-    [extraCohorts],
+    () =>
+      [['s1', s1Cohorts], ['s2', s2Cohorts], ...extraCohorts]
+        .filter(([, cohorts]) => hasStudySuccessData(cohorts))
+        .map(([key]) => key),
+    [extraCohorts, s1Cohorts, s2Cohorts],
   );
   // Tab hanya untuk jenjang yang datanya benar ada (batas hanya melabeli
   // angka) — kunci batas yatim tidak bisa membentuk tab S3 hantu.
@@ -139,19 +144,14 @@ export default function StudySuccessModal({ isOpen, onClose, originRect, data, f
       ),
     [batasByJenjang, cohortKeys, selectedJenjang],
   );
-  const initialTab = selectedJenjang.length === 1 ? selectedJenjang[0].toLowerCase() : 's1';
+  const initialTab = selectedJenjang.length === 1 ? selectedJenjang[0].toLowerCase() : tabs[0]?.key;
   const { activeTab, handleTabChange, slideClass } = useTabTransition(tabs, initialTab);
 
   const kpis = data?.kpis || {};
-  // Satu jenjang terpilih = banner menceritakan jenjang itu; selain itu S1.
-  const bannerKey = selectedJenjang.length === 1 ? selectedJenjang[0].toLowerCase() : 's1';
-  const bannerCanon = bannerKey.charAt(0).toUpperCase() + bannerKey.slice(1);
-  const bannerRate =
-    bannerKey === 's1'
-      ? kpis.studySuccessRateS1
-      : (data?.summary?.keberhasilanStudi?.[bannerKey] ?? null);
-  const studySuccessRate = formatPercentage(bannerRate, 1, '0.0%');
-  const bannerLabel = bannerKey.toUpperCase();
+  // Banner menceritakan tab yang sedang dibuka (jenjang terpilih, atau tab pertama).
+  const bannerKey = activeTab || 's1';
+  const bannerCanon = jenjangName(bannerKey);
+  const bannerLabel = jenjangName(bannerKey);
   // Angkatan evaluasi dibaca dari payload chart yang sama, bukan dari cache
   // summary — dialog tidak boleh mencampur dua sumber untuk satu fakta.
   const angkatanEvaluasi =
@@ -180,8 +180,16 @@ export default function StudySuccessModal({ isOpen, onClose, originRect, data, f
   );
   const evaluatedIntake =
     typeof evaluatedCohort?.intake === 'number' ? evaluatedCohort.intake : null;
+  // Rate dan angkatan evaluasi dari baris kohort yang sama (satu sumber untuk satu
+  // fakta). Summary hanya cadangan selama payload rincian belum tiba.
+  const bannerRate =
+    evaluatedCohort?.rate ??
+    (bannerKey === 's1'
+      ? kpis.studySuccessRateS1
+      : (data?.summary?.keberhasilanStudi?.[bannerKey] ?? null));
+  const studySuccessRate = formatPercentage(bannerRate, 1, '0.0%');
   const lagPhrase =
-    batasByJenjang[bannerKey] != null ? ` setelah ${batasByJenjang[bannerKey]} tahun` : '';
+    batasByJenjang[bannerKey] != null ? ` dalam ${batasByJenjang[bannerKey]} tahun` : '';
 
   const content = useMemo(() => {
     const entries = {
@@ -212,8 +220,8 @@ export default function StudySuccessModal({ isOpen, onClose, originRect, data, f
       title="Rincian Keberhasilan Studi"
       subtitle={
         batasS1 && batasS2
-          ? `Evaluasi keberhasilan studi setelah masa evaluasi (S1: ${batasS1} tahun, S2: ${batasS2} tahun sejak angkatan masuk)`
-          : 'Evaluasi keberhasilan studi setelah masa evaluasi masing-masing jenjang'
+          ? `Kelulusan dalam masa studi maksimum (S1: ${batasS1} tahun, S2: ${batasS2} tahun sejak angkatan masuk)`
+          : 'Kelulusan dalam masa studi maksimum masing-masing jenjang'
       }
       maxWidth="max-w-4xl"
       originRect={originRect}
@@ -229,8 +237,8 @@ export default function StudySuccessModal({ isOpen, onClose, originRect, data, f
                   {angkatanEvaluasi || '-'}
                   {scopeSuffix},{' '}
                   <strong className="text-digital-blue-900 font-bold">{studySuccessRate}</strong>{' '}
-                  akhirnya lulus ({bannerLabel}). Penilaian dilakukan{lagPhrase} sejak masuk,
-                  sehingga mahasiswa yang belum lulus sampai batas itu tidak dihitung berhasil.
+                  lulus{lagPhrase} sejak masuk ({bannerLabel}). Mahasiswa yang lulus setelah masa
+                  studi maksimum, atau belum lulus, tidak dihitung berhasil.
                   {clauseSuffix}
                   {searchSuffix}
                 </p>
@@ -239,8 +247,8 @@ export default function StudySuccessModal({ isOpen, onClose, originRect, data, f
                   Tingkat keberhasilan studi jenjang {bannerLabel} tercatat sebesar{' '}
                   <strong className="text-digital-blue-900 font-bold">{studySuccessRate}</strong>{' '}
                   untuk angkatan evaluasi {angkatanEvaluasi || '-'}
-                  {scopeSuffix}. Penilaian dilakukan{lagPhrase} sejak masuk, sehingga mahasiswa yang
-                  belum lulus sampai batas itu tidak dihitung berhasil.
+                  {scopeSuffix}: lulus{lagPhrase} sejak masuk. Mahasiswa yang lulus setelah masa
+                  studi maksimum, atau belum lulus, tidak dihitung berhasil.
                   {clauseSuffix}
                   {searchSuffix}
                 </p>
@@ -253,12 +261,22 @@ export default function StudySuccessModal({ isOpen, onClose, originRect, data, f
         />
 
         <div className="flex-1 flex flex-col min-h-0">
-          <ModalTabNav tabs={tabs} activeTab={activeTab} onTabChange={handleTabChange} />
-          <div className="flex-1 min-h-0 overflow-x-hidden w-full">
-            <div key={activeTab} className={`h-full ${slideClass}`}>
-              <ModalTabContent activeTab={activeTab} content={content} />
-            </div>
-          </div>
+          {!isLoading && !error && !tabs.length ? (
+            <EmptyState
+              icon={BookOpenCheck}
+              title="Belum Ada Kohort yang Dievaluasi"
+              description="Tidak ada jenjang pada filter ini yang kohortnya sudah bisa dinilai."
+            />
+          ) : (
+            <>
+              <ModalTabNav tabs={tabs} activeTab={activeTab} onTabChange={handleTabChange} />
+              <div className="flex-1 min-h-0 overflow-x-hidden w-full">
+                <div key={activeTab} className={`h-full ${slideClass}`}>
+                  <ModalTabContent activeTab={activeTab} content={content} />
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </Modal>

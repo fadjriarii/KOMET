@@ -12,7 +12,7 @@ import TrendBarChart from '../../../../components/common/charts/TrendBarChart';
 import DistributionChart from '../../../../components/common/charts/DistributionChart';
 import TrendChartTooltip from '../../../../components/common/charts/TrendChartTooltip';
 import { GPA_OVERVIEW_TABS, withoutDefaultTahunLulus } from './graduateTrendConfig';
-import { JENJANG_COLORS } from './totalTrendBars';
+import { JENJANG_COLORS, jenjangName } from './totalTrendBars';
 
 const EMPTY_ITEMS = [];
 
@@ -84,9 +84,9 @@ export default function GpaOverviewModal({ isOpen, onClose, originRect, data, fi
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([key, value]) => ({
           key,
-          label: key.toUpperCase(),
+          label: jenjangName(key),
           value: formatDecimal(value, 2, '0.00'),
-          text: `${formatDecimal(value, 2, '0.00')} (Jenjang ${key.toUpperCase()})`,
+          text: `${formatDecimal(value, 2, '0.00')} (Jenjang ${jenjangName(key)})`,
         })),
     ],
     [gpaByJenjang, gpaS1, gpaS2, kpis.averageGpaS1, kpis.averageGpaS2],
@@ -109,7 +109,7 @@ export default function GpaOverviewModal({ isOpen, onClose, originRect, data, fi
       .sort((a, b) => (a === 's1AvgIpk' ? -1 : b === 's1AvgIpk' ? 1 : a.localeCompare(b)));
     return keys.map((key, index) => ({
       dataKey: key,
-      name: `IPK ${key.replace(/AvgIpk$/, '').toUpperCase()}`,
+      name: `IPK ${jenjangName(key.replace(/AvgIpk$/, ''))}`,
       color: JENJANG_COLORS[index % JENJANG_COLORS.length],
       labelKey: key,
       labelFormatter: (value) => formatDecimal(value, 2),

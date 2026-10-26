@@ -12,28 +12,20 @@
  */
 
 const prisma = require('../../config/prisma');
-const { getStudyStartYear, getAcademicYearStart } = require('../../utils/academicUtils');
+const {
+  getStudyStartYear,
+  getAcademicYearStart,
+  studySemesters,
+} = require('../../utils/academicUtils');
 const { formatAcademicYearLabel } = require('@komet/shared/academicYear');
 const { resolveTahunAjaranScope } = require('./yearJenjangSeries');
 const { getRequestedJenjang, getScopeJenjangs } = require('./filterBuilder');
-const { rate, roundedRate } = require('../../utils/percentageUtils');
+const { roundedRate } = require('../../utils/percentageUtils');
+const { studyLimitsFor } = require('./studyLimits');
 
-/**
- * Batas masa studi agar sebuah kelulusan dihitung "tepat waktu", dalam tahun.
- * `Profesi` = pendidikan profesi 1 tahun pasca-S1 (Apoteker). `S3` disiapkan
- * dulu (aturan umum doktor 3 tahun, konfirmasi BAAK) supaya saat datanya
- * masuk dari sync, rate dan tab-nya langsung terhitung tanpa ubah kode.
- * Beda makna dengan `COHORT_EVALUATION_LAG` pada keberhasilanStudi.js
- * (tahun mundur kohort yang hasil akhirnya sudah diketahui), jadi keduanya
- * sengaja memakai nama dan nilai yang berbeda.
- */
-const BATAS_STUDI_TEPAT_WAKTU = { S1: 4, S2: 2, PROFESI: 1, S3: 3 };
-
-const lamaStudi = (student, tahunLulusLabel) => {
-  const tahunMasuk = getStudyStartYear(student);
-  const tahunLulusStart = getAcademicYearStart(String(tahunLulusLabel ?? '').trim());
-  return tahunMasuk === null || tahunLulusStart === null ? null : tahunLulusStart - tahunMasuk;
-};
+// Masa studi dalam semester, dari periode masuk sampai periode lulus (ADR 0004).
+// Tepat waktu = ≤ batas `onTime` × 2 semester (S1 ≤ 8, S2 ≤ 4, Profesi ≤ 2).
+const lamaStudi = (student) => studySemesters(student, student.graduate);
 
 // Kohort chart = angkatan riil yang difilter user. `getStudyStartYear` dipanggil
 // dengan angkatan saja supaya `periodeMasuk` tidak menggeser label; periode
@@ -41,7 +33,8 @@ const lamaStudi = (student, tahunLulusLabel) => {
 const cohortStartFor = (student) =>
   getStudyStartYear({ angkatan: student.angkatan }) ?? getStudyStartYear(student);
 
-const batasFor = (jenjang) => BATAS_STUDI_TEPAT_WAKTU[String(jenjang ?? '').toUpperCase()] ?? null;
+// Batas tepat waktu dalam tahun (dipakai label "≤ 4 Thn"); null = aturan belum ada.
+const batasFor = (jenjang) => studyLimitsFor(jenjang)?.onTime ?? null;
 
 async function getTepatWaktu(whereFilter) {
   // Kartu memakai tahun terbaru dari scope (pilihan user atau default jendela);
@@ -53,8 +46,9 @@ async function getTepatWaktu(whereFilter) {
     select: {
       jenjang: true,
       periodeMasuk: true,
+      periodeMasukAwal: true,
       angkatan: true,
-      graduate: { select: { tahunLulus: true } },
+      graduate: { select: { tahunLulus: true, periodeWisuda: true } },
     },
   });
 
@@ -72,16 +66,15 @@ async function getTepatWaktu(whereFilter) {
     if (batas === null) return null;
     const durations = students
       .filter((s) => s.jenjang === jenjang)
-      .map((s) => lamaStudi(s, s.graduate?.tahunLulus))
+      .map(lamaStudi)
       .filter((duration) => duration !== null);
     if (durations.length === 0) return null;
-    const tepatWaktu = durations.filter((duration) => duration <= batas).length;
+    const tepatWaktu = durations.filter((duration) => duration <= batas * 2).length;
     return roundedRate(tepatWaktu, durations.length);
   };
 
   // Headline gabungan: tiap lulusan dinilai dengan batas jenjangnya
-  // sendiri (S1 ≤ 4, S2 ≤ 2, Profesi ≤ 1, S3 ≤ 3 — dan jenjang baru yang
-  // aturannya ditambahkan nanti), lalu digabung. Bukan rata-rata dari rate
+  // sendiri (studyLimits.js), lalu digabung. Bukan rata-rata dari rate
   // per jenjang — jenjang kecil tidak boleh berbobot sama dengan S1.
   // Tanpa nama jenjang yang disebut eksplisit: jenjang baru otomatis ikut
   // selama batasnya dikenal; yang belum ada aturannya dilewati.
@@ -89,11 +82,11 @@ async function getTepatWaktu(whereFilter) {
     const durations = students
       .map((s) => ({
         batas: batasFor(s.jenjang),
-        duration: lamaStudi(s, s.graduate?.tahunLulus),
+        duration: lamaStudi(s),
       }))
       .filter(({ batas, duration }) => batas !== null && duration !== null);
     if (durations.length === 0) return null;
-    const tepatWaktu = durations.filter(({ batas, duration }) => duration <= batas).length;
+    const tepatWaktu = durations.filter(({ batas, duration }) => duration <= batas * 2).length;
     return roundedRate(tepatWaktu, durations.length);
   };
 
@@ -117,11 +110,11 @@ async function getTepatWaktu(whereFilter) {
  * Baris dikelompokkan menurut `angkatan` riil, bukan `tahunLulus`: filter
  * angkatan harus menghasilkan satu bar, sedangkan filter tahun lulus boleh
  * menghasilkan beberapa angkatan yang lulus pada tahun itu. `tahunLulusTepat`
- * adalah tahun lulus standar (`cohort + batas`), bukan tahun lulus aktual.
+ * adalah tahun lulus standar (`cohort + batas − 1`), bukan tahun lulus aktual.
  *
- * `rate` dihitung atas kohort yang lama studinya bisa ditentukan; baris tanpa
- * `periodeMasuk`/`angkatan` dilaporkan sebagai `unknownCount`, tidak dihitung
- * sebagai "tepat waktu" secara diam-diam.
+ * `rate` dihitung atas kohort yang lama studinya bisa ditentukan; baris dengan
+ * angkatan tetapi tanpa durasi (periode/tahun lulus tak terbaca) dilaporkan
+ * sebagai `unknownCount`, tidak dihitung "tepat waktu" secara diam-diam.
  */
 async function getTepatWaktuByYear(whereFilter) {
   const { cleanFilter, where } = await resolveTahunAjaranScope(whereFilter);
@@ -130,8 +123,9 @@ async function getTepatWaktuByYear(whereFilter) {
     select: {
       jenjang: true,
       periodeMasuk: true,
+      periodeMasukAwal: true,
       angkatan: true,
-      graduate: { select: { tahunLulus: true } },
+      graduate: { select: { tahunLulus: true, periodeWisuda: true } },
     },
   });
   // Tanpa pilihan jenjang, tab hanya untuk jenjang yang punya baris dalam
@@ -162,25 +156,26 @@ async function getTepatWaktuByYear(whereFilter) {
         lateCount: 0,
         unknownCount: 0,
       };
-      const duration = lamaStudi(s, s.graduate?.tahunLulus);
+      // Semester ke-(batas×2) = tepat; sebelumnya lebih cepat; sesudahnya lewat.
+      const duration = lamaStudi(s);
       if (duration === null) group.unknownCount++;
-      // Program satu tahun selesai di tahun ajaran yang sama menghasilkan
-      // selisih 0; itu tepat waktu, bukan lebih cepat.
-      else if (duration > batas) group.lateCount++;
-      else if (batas <= 1 || duration === batas) group.onTimeCount++;
+      else if (duration > batas * 2) group.lateCount++;
+      else if (duration === batas * 2) group.onTimeCount++;
       else group.fastCount++;
       groups.set(cohortStart, group);
     });
 
+    // Tahun ajaran lulus standar: angkatan 2020 S1 (4 thn) lulus tepat di
+    // 2023/2024, jadi start = angkatan + batas − 1.
+    const standardGraduationStart = (cohort) => cohort + batas - 1;
     // Tanpa filter angkatan/tahun lulus, sembunyikan kohort yang tahun lulus
     // standarnya belum tercapai supaya kohort berjalan tidak tampil parsial.
-    // Program satu tahun bisa selesai di tahun angkatannya (selisih 0).
     return [...groups.values()]
       .filter(
         (group) =>
           explicitCohort ||
           latestGraduation === null ||
-          (batas <= 1 ? group.cohort : group.cohort + batas) <= latestGraduation,
+          standardGraduationStart(group.cohort) <= latestGraduation,
       )
       .sort((a, b) => a.cohort - b.cohort)
       .map((group) => {
@@ -188,8 +183,8 @@ async function getTepatWaktuByYear(whereFilter) {
         return {
           ...group,
           cohortLabel: `Angkatan ${formatAcademicYearLabel(group.cohort)}`,
-          tahunLulusTepat: group.cohort + batas,
-          rate: rate(group.fastCount + group.onTimeCount, total, null),
+          tahunLulusTepat: standardGraduationStart(group.cohort),
+          rate: roundedRate(group.fastCount + group.onTimeCount, total, null),
           total,
         };
       });
@@ -212,4 +207,4 @@ async function getTepatWaktuByYear(whereFilter) {
   return result;
 }
 
-module.exports = { getTepatWaktu, getTepatWaktuByYear, BATAS_STUDI_TEPAT_WAKTU };
+module.exports = { getTepatWaktu, getTepatWaktuByYear };

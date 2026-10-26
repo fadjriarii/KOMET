@@ -381,7 +381,7 @@ describe('useGraduateKpiDisplay', () => {
     );
     expect(displaySubtitles.onTime).toBe('S1: 85.5% dan S2: 90.0%');
     expect(displaySubtitles.studySuccess).toBe(
-      '92.0% mahasiswa Angkatan 2019/2020 (S1) akhirnya lulus. Dinilai dari kohort terbaru yang hasil akhirnya sudah pasti.',
+      '92.0% mahasiswa Angkatan 2019/2020 (S1) lulus dalam masa studi maksimum. Dinilai dari angkatan terbaru yang masa studi maksimumnya sudah habis.',
     );
   });
 
@@ -441,7 +441,7 @@ describe('useGraduateKpiDisplay', () => {
     );
     expect(displaySubtitles.onTime).toBe('S1: 85.5% dan S2: 90.0%');
     expect(displaySubtitles.studySuccess).toBe(
-      'Fakultas FST, Prodi Sistem Informasi, 92.0% mahasiswa Angkatan 2019/2020 (S1) akhirnya lulus. Dinilai dari kohort terbaru yang hasil akhirnya sudah pasti.',
+      'Fakultas FST, Prodi Sistem Informasi, 92.0% mahasiswa Angkatan 2019/2020 (S1) lulus dalam masa studi maksimum. Dinilai dari angkatan terbaru yang masa studi maksimumnya sudah habis.',
     );
   });
 
@@ -487,7 +487,7 @@ describe('useGraduateKpiDisplay', () => {
 
     expect(kpis.studySuccessDisplay).toBe('75.5%');
     expect(displaySubtitles.studySuccess).toBe(
-      '75.5% mahasiswa Angkatan 2021/2022 (S2) akhirnya lulus. Dinilai dari kohort terbaru yang hasil akhirnya sudah pasti.',
+      '75.5% mahasiswa Angkatan 2021/2022 (S2) lulus dalam masa studi maksimum. Dinilai dari angkatan terbaru yang masa studi maksimumnya sudah habis.',
     );
   });
 
@@ -510,7 +510,7 @@ describe('useGraduateKpiDisplay', () => {
 
     expect(kpis.studySuccessDisplay).toBe('90.0%');
     expect(displaySubtitles.studySuccess).toBe(
-      '90.0% mahasiswa Angkatan 2023/2024 (Profesi) akhirnya lulus. Dinilai dari kohort terbaru yang hasil akhirnya sudah pasti.',
+      '90.0% mahasiswa Angkatan 2023/2024 (Profesi) lulus dalam masa studi maksimum. Dinilai dari angkatan terbaru yang masa studi maksimumnya sudah habis.',
     );
   });
 
@@ -528,7 +528,7 @@ describe('useGraduateKpiDisplay', () => {
 
     expect(kpis.studySuccessDisplay).toBe('92.0%');
     expect(displaySubtitles.studySuccess).toBe(
-      'Yang akhirnya lulus: S1 92.0% (Angkatan 2019/2020) dan S2 75.5% (Angkatan 2021/2022). Dinilai dari kohort terbaru yang hasil akhirnya sudah pasti.',
+      'Lulus dalam masa studi maksimum: S1 92.0% (Angkatan 2019/2020) dan S2 75.5% (Angkatan 2021/2022). Dinilai dari angkatan terbaru yang masa studi maksimumnya sudah habis.',
     );
   });
 
@@ -556,7 +556,7 @@ describe('useGraduateKpiDisplay', () => {
 
     expect(result.current.kpis.studySuccessDisplay).toBe('75.5%');
     expect(result.current.displaySubtitles.studySuccess).toBe(
-      'Yang akhirnya lulus: S2 75.5% (Angkatan 2021/2022) dan Profesi 90.0% (Angkatan 2023/2024). Dinilai dari kohort terbaru yang hasil akhirnya sudah pasti.',
+      'Lulus dalam masa studi maksimum: S2 75.5% (Angkatan 2021/2022) dan Profesi 90.0% (Angkatan 2023/2024). Dinilai dari angkatan terbaru yang masa studi maksimumnya sudah habis.',
     );
   });
 
@@ -576,7 +576,7 @@ describe('useGraduateKpiDisplay', () => {
     };
     const { result } = renderHook(() => useGraduateKpiDisplay(scope, false, {}));
     expect(result.current.displaySubtitles.studySuccess).toBe(
-      'Yang akhirnya lulus: S1 92.0% (Angkatan 2019/2020) dan PROFESI 90.0% (Angkatan 2023/2024). Dinilai dari kohort terbaru yang hasil akhirnya sudah pasti.',
+      'Lulus dalam masa studi maksimum: S1 92.0% (Angkatan 2019/2020) dan Profesi 90.0% (Angkatan 2023/2024). Dinilai dari angkatan terbaru yang masa studi maksimumnya sudah habis.',
     );
   });
 
@@ -597,7 +597,7 @@ describe('useGraduateKpiDisplay', () => {
       'IPK rata-rata lulusan Angkatan 2020/2021 3.65 (S1) dan 3.80 (S2) dari skala 4.00.',
     );
     expect(displaySubtitles.studySuccess).toBe(
-      'Angkatan 2020/2021, 92.0% mahasiswa Angkatan 2019/2020 (S1) akhirnya lulus. Dinilai dari kohort terbaru yang hasil akhirnya sudah pasti.',
+      'Angkatan 2020/2021, 92.0% mahasiswa Angkatan 2019/2020 (S1) lulus dalam masa studi maksimum. Dinilai dari angkatan terbaru yang masa studi maksimumnya sudah habis.',
     );
   });
 
@@ -632,7 +632,7 @@ describe('useGraduateKpiDisplay', () => {
     };
     const { result } = renderHook(() => useGraduateKpiDisplay(summary, false, filters));
     expect(result.current.displaySubtitles.studySuccess).toBe(
-      '92.0% mahasiswa Angkatan 2019/2020 (S1) akhirnya lulus. Dinilai dari kohort terbaru yang hasil akhirnya sudah pasti. Filter tahun lulus tidak mengubah angka ini.',
+      '92.0% mahasiswa Angkatan 2019/2020 (S1) lulus dalam masa studi maksimum. Dinilai dari angkatan terbaru yang masa studi maksimumnya sudah habis. Filter tahun lulus tidak mengubah angka ini.',
     );
   });
 
@@ -651,7 +651,7 @@ describe('useGraduateKpiDisplay', () => {
     };
     const { result } = renderHook(() => useGraduateKpiDisplay(summary, false, filters));
     expect(result.current.displaySubtitles.studySuccess).toBe(
-      '92.0% mahasiswa Angkatan 2019/2020 (S1) akhirnya lulus. Dinilai dari kohort terbaru yang hasil akhirnya sudah pasti.',
+      '92.0% mahasiswa Angkatan 2019/2020 (S1) lulus dalam masa studi maksimum. Dinilai dari angkatan terbaru yang masa studi maksimumnya sudah habis.',
     );
   });
 
@@ -670,7 +670,7 @@ describe('useGraduateKpiDisplay', () => {
     };
     const { result } = renderHook(() => useGraduateKpiDisplay(summary, false, filters));
     expect(result.current.displaySubtitles.studySuccess).toBe(
-      '92.0% mahasiswa Angkatan 2019/2020 (S1) akhirnya lulus. Dinilai dari kohort terbaru yang hasil akhirnya sudah pasti. Filter tahun lulus, periode lulus, dan status kelulusan tidak mengubah angka ini.',
+      '92.0% mahasiswa Angkatan 2019/2020 (S1) lulus dalam masa studi maksimum. Dinilai dari angkatan terbaru yang masa studi maksimumnya sudah habis. Filter tahun lulus, periode lulus, dan status kelulusan tidak mengubah angka ini.',
     );
   });
 
@@ -782,10 +782,10 @@ describe('useGraduateKpiDisplay', () => {
     expect(kpis.gpaDisplay).toBe('3.70');
     expect(kpis.onTimeDisplay).toBe('95.0%');
     expect(displaySubtitles.total).toBe(
-      'Menampilkan 37 lulusan pada tahun ajaran 2025/2026. Terdiri dari 37 lulusan PROFESI.',
+      'Menampilkan 37 lulusan pada tahun ajaran 2025/2026. Terdiri dari 37 lulusan Profesi.',
     );
-    expect(displaySubtitles.gpa).toBe('IPK rata-rata lulusan 3.70 (PROFESI) dari skala 4.00.');
-    expect(displaySubtitles.onTime).toBe('95.0% lulusan lulus tepat waktu (dari jenjang PROFESI).');
+    expect(displaySubtitles.gpa).toBe('IPK rata-rata lulusan 3.70 (Profesi) dari skala 4.00.');
+    expect(displaySubtitles.onTime).toBe('95.0% lulusan lulus tepat waktu (dari jenjang Profesi).');
   });
 
   it('menjelaskan satu prodi S1 saja dengan kalimat penuh (kasus Bio Teknologi)', () => {
@@ -820,7 +820,7 @@ describe('useGraduateKpiDisplay', () => {
       'IPK rata-rata lulusan Prodi Bio Teknologi 3.53 (S1) dari skala 4.00.',
     );
     expect(displaySubtitles.studySuccess).toBe(
-      'Prodi Bio Teknologi, 88.2% mahasiswa Angkatan 2018/2019 (S1) akhirnya lulus. Dinilai dari kohort terbaru yang hasil akhirnya sudah pasti.',
+      'Prodi Bio Teknologi, 88.2% mahasiswa Angkatan 2018/2019 (S1) lulus dalam masa studi maksimum. Dinilai dari angkatan terbaru yang masa studi maksimumnya sudah habis.',
     );
   });
 
@@ -845,7 +845,8 @@ describe('useGraduateKpiDisplay', () => {
         ...mockGraduateSummary.kpis,
         totalGraduatesS2: 0,
         averageGpaS2: null,
-        onTimeGraduationRateS2: 0,
+        // Tanpa lulusan S2 server mengirim null (tidak ada data), bukan 0%.
+        onTimeGraduationRateS2: null,
       },
     };
     const { result } = renderHook(() => useGraduateKpiDisplay(s2Empty, false, {}));
@@ -879,7 +880,22 @@ describe('useGraduateKpiDisplay', () => {
     expect(displaySubtitles.gpa).toBe(
       'IPK rata-rata lulusan 0.00 (S1) dan 0.00 (S2) dari skala 4.00.',
     );
-    expect(displaySubtitles.onTime).toBe('S1: 0.0% dan S2: 0.0%');
+    expect(displaySubtitles.onTime).toBe('S1: 0.0%');
+  });
+
+  it('0% tepat waktu adalah hasil ukur sah: tetap tampil dan jadi nilai kartu', () => {
+    const zeroOnTime = {
+      ...mockGraduateSummary,
+      kpis: {
+        ...mockGraduateSummary.kpis,
+        onTimeGraduationRateOverall: 0,
+        onTimeGraduationRateS1: 0,
+        onTimeGraduationRateS2: null,
+      },
+    };
+    const { result } = renderHook(() => useGraduateKpiDisplay(zeroOnTime, false, {}));
+    expect(result.current.kpis.onTimeDisplay).toBe('0.0%');
+    expect(result.current.displaySubtitles.onTime).toContain('0.0%');
   });
 
   it('menampilkan 0 saat datanya kosong, bukan strip', () => {

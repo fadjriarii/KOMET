@@ -10,14 +10,15 @@ const {
   getKeberhasilanStudiByAngkatan,
   getEvaluationWindow,
   getAngkatanEvaluasiStart,
-  COHORT_EVALUATION_LAG,
 } = require('../../../src/services/graduates/keberhasilanStudi');
+const { STUDY_LIMITS } = require('../../../src/services/graduates/studyLimits');
 
-// Jenjang dinamis: Profesi ikut populasi (lag 2 — profesi 1 tahun + 1 tenggang).
+// Jenjang dinamis: Profesi ikut populasi (masa studi maksimum 2 tahun).
 const JENJANGS = ['S1', 'S2', 'Profesi'];
 
 const originalAggregate = prisma.graduate.aggregate;
 const originalGroupBy = prisma.student.groupBy;
+const originalFindMany = prisma.student.findMany;
 
 const REF_START = getReferenceYear();
 
@@ -27,9 +28,12 @@ prisma.graduate.aggregate = async () => ({
 
 const windowYears = (jenjang) => getEvaluationWindow(jenjang, REF_START);
 
+/** Periode lulus tepat di semester terakhir masa studi standar jenjangnya. */
+const onTimeWisuda = (jenjang, year) => `${year + STUDY_LIMITS[jenjang].onTime - 1}2`;
+
 // Data sintetis dengan komposisi berbeda per tahun dan per jenjang, supaya
-// salah pengelompokan tahun langsung terlihat. Pembilang kohort kini dibaca
-// dari relasi `graduate` (baris `/kelulusan`), bukan status mahasiswa.
+// salah pengelompokan tahun langsung terlihat. Tiap tahun juga punya satu
+// lulusan S1 yang lewat masa studi maksimum: ia lulus, tapi tidak "berhasil".
 function buildDataset() {
   const ref = getReferenceYear();
   const rows = [];
@@ -39,25 +43,50 @@ function buildDataset() {
       const aktif = year % 3;
       const angkatan = formatAcademicYearLabel(year);
       for (let index = 0; index < lulus; index += 1) {
-        rows.push({ jenjang, fakultas: 'FT', angkatan, periodeMasuk: `${year}1`, graduate: true });
+        rows.push({
+          jenjang,
+          fakultas: 'FT',
+          angkatan,
+          periodeMasuk: `${year}1`,
+          graduate: { periodeWisuda: onTimeWisuda(jenjang, year) },
+        });
       }
       for (let index = 0; index < aktif; index += 1) {
-        rows.push({ jenjang, fakultas: 'FT', angkatan, periodeMasuk: `${year}2`, graduate: false });
+        rows.push({ jenjang, fakultas: 'FT', angkatan, periodeMasuk: `${year}2`, graduate: null });
       }
     }
+    rows.push({
+      jenjang: 'S1',
+      fakultas: 'FT',
+      angkatan: formatAcademicYearLabel(year),
+      periodeMasuk: `${year}1`,
+      graduate: { periodeWisuda: `${year + 8}1` }, // semester ke-17 > 16
+    });
   }
-  // Periode tanpa suffix Ganjil/Genap: menguji batas range leksikografis.
-  rows.push({
-    jenjang: 'S1',
-    fakultas: 'FT',
-    angkatan: formatAcademicYearLabel(ref - 7),
-    periodeMasuk: String(ref - 7),
-    graduate: true,
-  });
   return rows;
 }
 
-/** Kelompok periodeMasuk sesuai where yang diminta service (dua query/jenjang). */
+const angkatanListOf = (where) => {
+  const fromAnd = (where.AND || []).find((clause) => clause.angkatan)?.angkatan?.in;
+  return fromAnd ?? null;
+};
+
+/** Baris dataset yang cocok dengan where kohort dari service. */
+function matchRows(dataset, where) {
+  const { jenjang, fakultas, angkatan } = where;
+  const list = angkatanListOf(where);
+  const userAngkatan =
+    angkatan?.in ?? (Array.isArray(angkatan) ? angkatan : angkatan ? [angkatan] : null);
+  return dataset.filter(
+    (row) =>
+      row.jenjang === jenjang &&
+      (!fakultas || row.fakultas === fakultas) &&
+      (!list || list.includes(row.angkatan)) &&
+      (!userAngkatan || userAngkatan.includes(row.angkatan)),
+  );
+}
+
+/** Penyebut lewat groupBy angkatan, pembilang lewat findMany (durasi per baris). */
 function stubGroupBy(dataset, jenjangs = JENJANGS) {
   const calls = [];
   prisma.student.groupBy = vi.fn(async (args) => {
@@ -68,43 +97,34 @@ function stubGroupBy(dataset, jenjangs = JENJANGS) {
     // Bukti tutup kohort (angkatan × status): dataset sintetis tak punya
     // kolom statusKeaktifan, jadi tak ada yang tutup → lag murni.
     if (args.by.includes('statusKeaktifan')) return [];
-    const { jenjang, fakultas, angkatan, periodeMasuk, NOT } = args.where;
-    const angkatanLabels =
-      angkatan?.in ?? (Array.isArray(angkatan) ? angkatan : angkatan ? [angkatan] : null);
-    let matched = dataset.filter(
-      (row) =>
-        row.jenjang === jenjang &&
-        (!fakultas || row.fakultas === fakultas) &&
-        (!angkatanLabels || angkatanLabels.includes(row.angkatan)) &&
-        row.periodeMasuk >= periodeMasuk.gte &&
-        row.periodeMasuk < periodeMasuk.lt,
-    );
-    // Query dengan `NOT: { graduate: null }` = pembilang (punya baris
-    // kelulusan); tanpa itu = penyebut seluruh angkatan.
-    if (NOT) matched = matched.filter((row) => row.graduate);
     const groups = new Map();
-    for (const row of matched) {
-      const group = groups.get(row.periodeMasuk) || {
-        periodeMasuk: row.periodeMasuk,
-        _count: { periodeMasuk: 0 },
-      };
-      group._count.periodeMasuk += 1;
-      groups.set(row.periodeMasuk, group);
+    for (const row of matchRows(dataset, args.where)) {
+      const group = groups.get(row.angkatan) || { angkatan: row.angkatan, _count: { angkatan: 0 } };
+      group._count.angkatan += 1;
+      groups.set(row.angkatan, group);
     }
     return [...groups.values()];
+  });
+  prisma.student.findMany = vi.fn(async (args) => {
+    calls.push({ ...args, findMany: true });
+    return matchRows(dataset, args.where).filter((row) => row.graduate);
   });
   return calls;
 }
 
-/** Rumus independen: dua hitung per angkatan (periodeMasuk + punya graduate). */
-function expectedCohort(dataset, jenjang, angkatan, fakultas) {
+/** Rumus independen: intake per angkatan, berhasil = lulus ≤ max × 2 semester. */
+function expectedCohort(dataset, jenjang, startYear, fakultas) {
+  const angkatan = formatAcademicYearLabel(Number(startYear));
   const rows = dataset.filter(
     (row) =>
       row.jenjang === jenjang &&
-      row.periodeMasuk.startsWith(angkatan) &&
+      row.angkatan === angkatan &&
       (!fakultas || row.fakultas === fakultas),
   );
-  const lulus = rows.filter((row) => row.graduate).length;
+  const maxEnd = Number(startYear) + STUDY_LIMITS[jenjang].max - 1;
+  const lulus = rows.filter(
+    (row) => row.graduate && Number(row.graduate.periodeWisuda.slice(0, 4)) <= maxEnd,
+  ).length;
   return {
     intake: rows.length,
     successCount: lulus,
@@ -115,6 +135,7 @@ function expectedCohort(dataset, jenjang, angkatan, fakultas) {
 describe('keberhasilan studi agregasi cohort', () => {
   afterAll(() => {
     prisma.student.groupBy = originalGroupBy;
+    prisma.student.findMany = originalFindMany;
     prisma.graduate.aggregate = originalAggregate;
   });
 
@@ -138,8 +159,20 @@ describe('keberhasilan studi agregasi cohort', () => {
   it('jenjang baru hanya menampilkan cohort yang sudah punya data', async () => {
     const target = REF_START - 2;
     const dataset = [
-      { jenjang: 'Profesi', fakultas: 'FT', periodeMasuk: `${target}1`, graduate: true },
-      { jenjang: 'Profesi', fakultas: 'FT', periodeMasuk: `${target}1`, graduate: false },
+      {
+        jenjang: 'Profesi',
+        fakultas: 'FT',
+        angkatan: formatAcademicYearLabel(target),
+        periodeMasuk: `${target}1`,
+        graduate: { periodeWisuda: `${target}2` },
+      },
+      {
+        jenjang: 'Profesi',
+        fakultas: 'FT',
+        angkatan: formatAcademicYearLabel(target),
+        periodeMasuk: `${target}1`,
+        graduate: null,
+      },
     ];
     stubGroupBy(dataset, ['Profesi']);
 
@@ -279,7 +312,7 @@ describe('keberhasilan studi agregasi cohort', () => {
     });
 
     const cohortCalls = calls.filter(
-      (call) => call.by.length === 1 && call.by[0] === 'periodeMasuk',
+      (call) => call.findMany || (call.by.length === 1 && call.by[0] === 'angkatan'),
     );
     // Dua query per jenjang (penyebut tanpa NOT, pembilang dengan NOT).
     expect(cohortCalls).toHaveLength(6);
@@ -310,8 +343,9 @@ describe('keberhasilan studi agregasi cohort', () => {
         dataset.push({
           jenjang: 'Profesi',
           fakultas: 'FT',
+          angkatan: formatAcademicYearLabel(year),
           periodeMasuk: `${year}1`,
-          graduate: true,
+          graduate: { periodeWisuda: `${year}2` },
         });
       }
       stubGroupBy(dataset, ['Profesi']);
@@ -326,7 +360,35 @@ describe('keberhasilan studi agregasi cohort', () => {
     }
   });
 
-  it('lag evaluasi Profesi = 2 (profesi 1 tahun + 1 tenggang)', () => {
-    expect(COHORT_EVALUATION_LAG.PROFESI).toBe(2);
+  it('lag evaluasi = masa studi maksimum (S1 8, S2 4, Profesi 2)', () => {
+    expect(getAngkatanEvaluasiStart('S1', 2026)).toBe(2018);
+    expect(getAngkatanEvaluasiStart('S2', 2026)).toBe(2022);
+    expect(getAngkatanEvaluasiStart('Profesi', 2026)).toBe(2024);
+  });
+
+  it('lulusan yang melewati masa studi maksimum tidak dihitung berhasil', async () => {
+    const start = REF_START - 8;
+    const angkatan = formatAcademicYearLabel(start);
+    const dataset = [
+      {
+        jenjang: 'S1',
+        fakultas: 'FT',
+        angkatan,
+        periodeMasuk: `${start}1`,
+        graduate: { periodeWisuda: `${start + 7}2` },
+      },
+      {
+        jenjang: 'S1',
+        fakultas: 'FT',
+        angkatan,
+        periodeMasuk: `${start}1`,
+        graduate: { periodeWisuda: `${start + 8}1` },
+      },
+    ];
+    stubGroupBy(dataset, ['S1']);
+    const cards = await getKeberhasilanStudi({ jenjang: 'S1' });
+    // Semester ke-16 masih berhasil; semester ke-17 lulus tapi lewat batas.
+    expect(cards.angkatanS1).toBe(angkatan);
+    expect(cards.s1).toBe(50);
   });
 });

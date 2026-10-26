@@ -29,6 +29,7 @@ const {
   parsePeriode,
   getPeriodeYear,
   getStudyStartYear,
+  studySemesters,
   toAcademicYear,
 } = require('./academic/period');
 const { parseAcademicYear: getAcademicYearStart } = require('@komet/shared/academicYear');
@@ -49,5 +50,6 @@ module.exports = {
   parsePeriode,
   getPeriodeYear,
   getStudyStartYear,
+  studySemesters,
   toAcademicYear,
 };

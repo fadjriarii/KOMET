@@ -1,4 +1,5 @@
 import { DIGITAL_BLUE } from '../../../../utils/theme';
+import { normalizeJenjang } from '@komet/shared/formatters';
 
 // Warna bar per jenjang — S1/S2 tetap seperti semula, jenjang tambahan (Profesi,
 // S3, …) memakai warna berikutnya dari palet yang sama.
@@ -18,8 +19,8 @@ export const OUTCOME_COLORS = {
   late: JENJANG_COLORS[2],
 };
 
-const JENJANG_LABEL = { s1: 'S1', s2: 'S2' };
-export const jenjangName = (key) => JENJANG_LABEL[key] ?? key.toUpperCase();
+// Ejaan kanonis satu sumber (@komet/shared): `profesi` → `Profesi`, bukan `PROFESI`.
+export const jenjangName = (key) => normalizeJenjang(key);
 
 /**
  * Satu batang per jenjang, berdampingan dalam kelompok tahun ajaran yang sama.

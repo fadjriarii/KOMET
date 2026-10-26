@@ -128,7 +128,11 @@ export function useDashboardFilters({ fields }) {
       setSearchParams(
         (previous) => {
           const params = new URLSearchParams(previous);
-          for (const [key, config] of Object.entries(fields)) params.delete(config.param || key);
+          // Hanya field form (punya `control`); pemilih header seperti Tahun Ajaran
+          // bukan bagian form filter, jadi Reset tidak mengubah jangkarnya.
+          for (const [key, config] of Object.entries(fields)) {
+            if (config.control) params.delete(config.param || key);
+          }
           params.delete(PAGE_PARAM);
           return params;
         },

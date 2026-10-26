@@ -6,12 +6,11 @@ const prisma = require('../../../src/config/prisma');
 const {
   getTepatWaktu,
   getTepatWaktuByYear,
-  BATAS_STUDI_TEPAT_WAKTU,
 } = require('../../../src/services/graduates/tepatWaktu');
 const {
   getKeberhasilanStudiByAngkatan,
-  COHORT_EVALUATION_LAG,
 } = require('../../../src/services/graduates/keberhasilanStudi');
+const { STUDY_LIMITS } = require('../../../src/services/graduates/studyLimits');
 
 const originalFindMany = prisma.student.findMany;
 const originalGroupBy = prisma.student.groupBy;
@@ -23,19 +22,19 @@ afterAll(() => {
   prisma.graduate.aggregate = originalAggregate;
 });
 
-// S3 sintetis: masuk 2020 lulus 2023 (3 tahun = tepat waktu, batas 3),
-// masuk 2019 lulus 2023 (4 tahun = terlambat).
+// S3 sintetis (tanpa periode lulus = dianggap Genap): masuk 20211 lulus
+// 2023/2024 = 6 semester (tepat, batas 3 tahun); masuk 20201 = 8 semester (lewat).
 const S3_ROWS = [
   {
     jenjang: 'S3',
-    periodeMasuk: '20201',
-    angkatan: '2020/2021',
+    periodeMasuk: '20211',
+    angkatan: '2021/2022',
     graduate: { tahunLulus: '2023/2024' },
   },
   {
     jenjang: 'S3',
-    periodeMasuk: '20191',
-    angkatan: '2019/2020',
+    periodeMasuk: '20201',
+    angkatan: '2020/2021',
     graduate: { tahunLulus: '2023/2024' },
   },
 ];
@@ -57,8 +56,7 @@ function stubDataset(rows, jenjangs) {
 
 describe('kesiapan S3', () => {
   it('aturan S3 terdaftar: batas 3 tahun, lag evaluasi 6 tahun', () => {
-    expect(BATAS_STUDI_TEPAT_WAKTU.S3).toBe(3);
-    expect(COHORT_EVALUATION_LAG.S3).toBe(6);
+    expect(STUDY_LIMITS.S3).toEqual({ onTime: 3, max: 6 });
   });
 
   it('tepat waktu S3 terhitung saat datanya ada', async () => {
@@ -68,12 +66,12 @@ describe('kesiapan S3', () => {
     const detail = await getTepatWaktuByYear({ jenjang: { in: ['S3'] } });
     expect(detail.batasS3).toBe(3);
     expect(detail.s3).toHaveLength(2);
-    expect(detail.s3.find((row) => row.cohortLabel === 'Angkatan 2020/2021')).toMatchObject({
+    expect(detail.s3.find((row) => row.cohortLabel === 'Angkatan 2021/2022')).toMatchObject({
       onTimeCount: 1,
       lateCount: 0,
       rate: 100,
     });
-    expect(detail.s3.find((row) => row.cohortLabel === 'Angkatan 2019/2020')).toMatchObject({
+    expect(detail.s3.find((row) => row.cohortLabel === 'Angkatan 2020/2021')).toMatchObject({
       onTimeCount: 0,
       lateCount: 1,
       rate: 0,
@@ -81,17 +79,24 @@ describe('kesiapan S3', () => {
   });
 
   it('keberhasilan studi S3 memakai lag 6 (evaluasi angkatan 2019/2020)', async () => {
-    stubDataset([], ['S3']);
-    // countCohorts memakai dua groupBy (penyebut + pembilang) per jenjang.
-    // Kohort evaluasi S3 = 2025 − 6 = 2019: intake 10, lulus 7.
+    // countCohorts: penyebut lewat groupBy angkatan, pembilang lewat findMany.
+    // Kohort evaluasi S3 = 2025 − 6 = 2019: intake 10, lulus dalam batas 7 dari 8.
     let calls = 0;
-    prisma.student.groupBy = async ({ by, where }) => {
+    prisma.graduate.aggregate = async () => ({ _max: { tahunLulus: '2025/2026' } });
+    prisma.student.groupBy = async ({ by }) => {
       if (by[0] === 'jenjang') return [{ jenjang: 'S3' }];
+      if (by.includes('statusKeaktifan')) return [];
       calls += 1;
-      const isNumerator = where?.NOT?.graduate === null;
-      return isNumerator
-        ? [{ periodeMasuk: '20191', _count: { periodeMasuk: 7 } }]
-        : [{ periodeMasuk: '20191', _count: { periodeMasuk: 10 } }];
+      return [{ angkatan: '2019/2020', _count: { angkatan: 10 } }];
+    };
+    const graduate = (periodeWisuda) => ({
+      angkatan: '2019/2020',
+      periodeMasuk: '20191',
+      graduate: { periodeWisuda },
+    });
+    prisma.student.findMany = async () => {
+      calls += 1;
+      return [...Array.from({ length: 7 }, () => graduate('20242')), graduate('20251')];
     };
     const detail = await getKeberhasilanStudiByAngkatan({ jenjang: { in: ['S3'] } });
     expect(calls).toBe(2);
@@ -122,18 +127,18 @@ describe('kesiapan S3', () => {
           jenjang: 'S1',
           periodeMasuk: '20201',
           angkatan: '2020/2021',
-          graduate: { tahunLulus: '2024/2025' },
+          graduate: { tahunLulus: '2023/2024' },
         },
         {
           jenjang: 'S1',
           periodeMasuk: '20201',
           angkatan: '2020/2021',
-          graduate: { tahunLulus: '2025/2026' },
+          graduate: { tahunLulus: '2024/2025' },
         },
         {
           jenjang: 'S3',
-          periodeMasuk: '20201',
-          angkatan: '2020/2021',
+          periodeMasuk: '20211',
+          angkatan: '2021/2022',
           graduate: { tahunLulus: '2023/2024' },
         },
       ],

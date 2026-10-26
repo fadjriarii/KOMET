@@ -108,6 +108,14 @@ Version numbers follow the root `package.json`.
 
 ### Fixed
 
+- Graduate Data counts study length in semesters (ADR 0004). An S1 graduate in
+  the ninth semester is no longer on time, and Keberhasilan Studi counts only
+  graduates within the maximum study length (S1 8, S2 4, Profesi 2 years),
+  grouped by `angkatan`. D3 and D4 get limits instead of null.
+- Graduate Data client: 0% rates show as values instead of being skipped,
+  `Profesi` is spelled canonically, S1/S2 tabs no longer appear without data,
+  an explicit Tahun Lulus is no longer overwritten when the default moves, and
+  Reset keeps the header academic year.
 - The international trend chart shows its hover tooltip again; the tooltip
   wrapper now forwards Recharts' hover props.
 - Stacked bars keep a rounded end even when the last segment is very thin

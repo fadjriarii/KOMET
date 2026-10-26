@@ -18,6 +18,7 @@
 const prisma = require('../../config/prisma');
 const { addInFilter, addSearchFilter, hasFilters, toArray } = require('@komet/shared/filterUtils');
 const { PREDIKAT, UNCLASSIFIED_PREDIKAT } = require('@komet/shared/constants');
+const { normalizeJenjang } = require('@komet/shared/formatters');
 const {
   IPK_THRESHOLD_CUM_LAUDE,
   IPK_THRESHOLD_SANGAT_MEMUASKAN,
@@ -32,14 +33,8 @@ const {
  * Tanpa filter jenjang: null = seluruh populasi (pemanggil tidak menyaring).
  * Nilai tak dikenal dikembalikan apa adanya — server tidak menebak maksud user.
  */
-// Nilai kanonis mengikuti ejaan yang dipakai data SEVIMA (`Profesi`, bukan
-// `PROFESI`). URL bebas mengirim huruf kecil; jangan sampai filter cocok
-// dengan nol baris hanya karena beda kapitalisasi.
-const CANONICAL_JENJANG = { S1: 'S1', S2: 'S2', S3: 'S3', PROFESI: 'Profesi', D3: 'D3', D4: 'D4' };
-const normalizeJenjang = (jenjang) => {
-  const raw = String(jenjang ?? '').trim();
-  return CANONICAL_JENJANG[raw.toUpperCase()] ?? raw;
-};
+// Nilai kanonis (`normalizeJenjang`, @komet/shared): URL bebas mengirim huruf
+// kecil; jangan sampai filter cocok dengan nol baris hanya karena beda kapitalisasi.
 
 function getRequestedJenjang(whereFilter = {}) {
   const requested = toArray(whereFilter.jenjang?.in ?? whereFilter.jenjang) || [];

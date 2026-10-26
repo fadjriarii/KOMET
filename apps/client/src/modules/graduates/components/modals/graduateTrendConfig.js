@@ -1,4 +1,6 @@
 import { BarChart3, Table, Building2, BookOpen, Award, PieChart } from 'lucide-react';
+import { CANONICAL_JENJANG } from '@komet/shared/constants';
+import { jenjangName } from './totalTrendBars';
 
 export const TOTAL_GRADUATE_TABS = [
   { key: 'tren', label: 'Tren Tahunan', icon: BarChart3 },
@@ -19,9 +21,8 @@ export const GPA_OVERVIEW_TABS = [
 export const withBatas = (label, batas, operator) =>
   batas ? `${label} (${operator} ${batas} Thn)` : label;
 
-// Keberhasilan studi dievaluasi SETELAH lag kohort, bukan dibatasi olehnya.
-// Jangan pakai kata "maks" yang membuat angka terbaca sebagai batas studi.
-export const withEvaluationLag = (label, lag) => (lag ? `${label} (Evaluasi +${lag} Thn)` : label);
+// Keberhasilan studi = lulus dalam masa studi maksimum (ADR 0004); angka dari server.
+export const withEvaluationLag = (label, lag) => (lag ? `${label} (Maks. ${lag} Thn)` : label);
 
 // Satu pilihan jenjang = cukup tab itu; tanpa pilihan = semua tab yang
 // tersedia. Dipakai modal agar filter `Profesi` tidak menyisakan tab S1/S2 hantu.
@@ -45,35 +46,29 @@ export const withoutDefaultTahunLulus = (filters, defaultTahunLulus) => {
   return rest;
 };
 
-export const onTimeTabs = (batas = {}) => {
-  const jenjangTabs = Object.entries(batas)
-    .filter(([key]) => key !== 's1' && key !== 's2')
-    .map(([key, value]) => ({
-      key,
-      label: withBatas(`Jenjang ${key.toUpperCase()}`, value, '≤'),
-      icon: BarChart3,
-    }));
-  return [
-    { key: 's1', label: withBatas('Jenjang S1', batas.s1, '≤'), icon: BarChart3 },
-    { key: 's2', label: withBatas('Jenjang S2', batas.s2, '≤'), icon: BarChart3 },
-    ...jenjangTabs,
-  ];
+// Urutan tab = urutan jenjang kanonis (S1, S2, S3, Profesi, D3, D4), lalu sisanya abjad.
+const JENJANG_ORDER = Object.values(CANONICAL_JENJANG);
+const byJenjangOrder = ([a], [b]) => {
+  const ia = JENJANG_ORDER.indexOf(jenjangName(a));
+  const ib = JENJANG_ORDER.indexOf(jenjangName(b));
+  return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b);
 };
 
-export const studySuccessTabs = (batas = {}) => {
-  const jenjangTabs = Object.entries(batas)
-    .filter(([key]) => key !== 's1' && key !== 's2')
+// Tab hanya untuk jenjang yang dikirim pemanggil (yang datanya ada) — tidak ada
+// tab S1/S2 hantu saat scope hanya memuat Profesi.
+const jenjangTabs = (batas, labelFor) =>
+  Object.entries(batas)
+    .sort(byJenjangOrder)
     .map(([key, value]) => ({
       key,
-      label: withEvaluationLag(`Jenjang ${key.toUpperCase()}`, value),
+      label: labelFor(`Jenjang ${jenjangName(key)}`, value),
       icon: BarChart3,
     }));
-  return [
-    { key: 's1', label: withEvaluationLag('Jenjang S1', batas.s1), icon: BarChart3 },
-    { key: 's2', label: withEvaluationLag('Jenjang S2', batas.s2), icon: BarChart3 },
-    ...jenjangTabs,
-  ];
-};
+
+export const onTimeTabs = (batas = {}) =>
+  jenjangTabs(batas, (label, value) => withBatas(label, value, '≤'));
+
+export const studySuccessTabs = (batas = {}) => jenjangTabs(batas, withEvaluationLag);
 
 // Chart tren cohort cukup 5 data terakhir; filter tahun eksplisit user tidak dipotong.
 export const selectChartCohorts = (cohorts, explicitYear) =>

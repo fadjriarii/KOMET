@@ -25,13 +25,18 @@ const YEARS = [
   '2025/2026',
 ];
 
+/**
+ * Lulusan dengan masa studi `duration` tahun penuh: masuk Ganjil, lulus Genap
+ * tahun ke-`duration` (S1 4 tahun = 8 semester = tepat waktu).
+ */
 function row(jenjang, tahunLulus, duration) {
-  const start = Number(tahunLulus.slice(0, 4)) - duration;
+  const lulusStart = Number(tahunLulus.slice(0, 4));
+  const start = lulusStart - duration + 1;
   return {
     jenjang,
     periodeMasuk: `${start}1`,
     angkatan: `${start}/${start + 1}`,
-    graduate: { tahunLulus },
+    graduate: { tahunLulus, periodeWisuda: `${lulusStart}2` },
   };
 }
 
@@ -74,14 +79,15 @@ describe('cohort tepat waktu per jenjang', () => {
     expect(detail.s2).toHaveLength(3);
     expect(detail.profesi).toHaveLength(1);
     expect(detail.profesi[0]).toMatchObject({
-      cohortLabel: 'Angkatan 2024/2025',
+      // Profesi 1 tahun: masuk Ganjil 2025, lulus Genap 2025 = 2 semester.
+      cohortLabel: 'Angkatan 2025/2026',
       tahunLulusTepat: 2025,
       onTimeCount: 1,
     });
   });
 
   it('Profesi yang selesai di tahun ajaran yang sama dihitung tepat waktu', async () => {
-    stub([row('Profesi', '2025/2026', 0)]);
+    stub([row('Profesi', '2025/2026', 1)]);
     const detail = await getTepatWaktuByYear({});
 
     expect(detail.profesi[0]).toMatchObject({
@@ -148,13 +154,14 @@ describe('cohort tepat waktu per jenjang', () => {
   });
 
   it('filter angkatan memakai angkatan riil, bukan tahun lulus', async () => {
+    // Ketiganya masuk 2022: 4 dan 6 semester = lebih cepat, 8 semester = tepat.
     stub([row('S1', '2023/2024', 2), row('S1', '2024/2025', 3), row('S1', '2025/2026', 4)]);
-    const detail = await getTepatWaktuByYear({ angkatan: { in: ['2021/2022'] } });
+    const detail = await getTepatWaktuByYear({ angkatan: { in: ['2022/2023'] } });
 
     expect(detail.s1).toEqual([
       expect.objectContaining({
-        cohort: 2021,
-        cohortLabel: 'Angkatan 2021/2022',
+        cohort: 2022,
+        cohortLabel: 'Angkatan 2022/2023',
         tahunLulusTepat: 2025,
         fastCount: 2,
         onTimeCount: 1,
@@ -184,10 +191,10 @@ describe('cohort tepat waktu per jenjang', () => {
         lateCount,
       })),
     ).toEqual([
-      { cohortLabel: 'Angkatan 2016/2017', fastCount: 0, onTimeCount: 0, lateCount: 1 },
-      { cohortLabel: 'Angkatan 2017/2018', fastCount: 0, onTimeCount: 1, lateCount: 0 },
-      { cohortLabel: 'Angkatan 2018/2019', fastCount: 1, onTimeCount: 0, lateCount: 0 },
+      { cohortLabel: 'Angkatan 2017/2018', fastCount: 0, onTimeCount: 0, lateCount: 1 },
+      { cohortLabel: 'Angkatan 2018/2019', fastCount: 0, onTimeCount: 1, lateCount: 0 },
       { cohortLabel: 'Angkatan 2019/2020', fastCount: 1, onTimeCount: 0, lateCount: 0 },
+      { cohortLabel: 'Angkatan 2020/2021', fastCount: 1, onTimeCount: 0, lateCount: 0 },
     ]);
   });
 
@@ -195,6 +202,44 @@ describe('cohort tepat waktu per jenjang', () => {
     stub([row('S1', '2025/2026', 2), row('S1', '2025/2026', 4)]);
     const detail = await getTepatWaktuByYear({});
 
-    expect(detail.s1.map((item) => item.cohortLabel)).toEqual(['Angkatan 2021/2022']);
+    // Angkatan 2022 (standar lulus 2025/2026) tampil; angkatan 2024 masih berjalan.
+    expect(detail.s1.map((item) => item.cohortLabel)).toEqual(['Angkatan 2022/2023']);
+  });
+
+  it('semester ke-8 S1 tepat waktu, semester ke-9 lewat (bukan off-by-one)', async () => {
+    const graduate = (periodeWisuda) => ({
+      jenjang: 'S1',
+      periodeMasuk: '20201',
+      angkatan: '2020/2021',
+      graduate: {
+        tahunLulus: `${periodeWisuda.slice(0, 4)}/${Number(periodeWisuda.slice(0, 4)) + 1}`,
+        periodeWisuda,
+      },
+    });
+    stub([graduate('20232'), graduate('20241')]);
+    const card = await getTepatWaktu({ jenjang: { in: ['S1'] } });
+    expect(card.s1).toBe(50);
+
+    const detail = await getTepatWaktuByYear({ angkatan: { in: ['2020/2021'] } });
+    expect(detail.s1[0]).toMatchObject({ onTimeCount: 1, lateCount: 1, fastCount: 0 });
+  });
+
+  it('tanpa periode lulus, tahun lulus dianggap Genap', async () => {
+    stub([
+      {
+        jenjang: 'S1',
+        periodeMasuk: '20201',
+        angkatan: '2020/2021',
+        graduate: { tahunLulus: '2023/2024' },
+      },
+      {
+        jenjang: 'S1',
+        periodeMasuk: '20201',
+        angkatan: '2020/2021',
+        graduate: { tahunLulus: '2024/2025' },
+      },
+    ]);
+    const card = await getTepatWaktu({ jenjang: { in: ['S1'] } });
+    expect(card.s1).toBe(50);
   });
 });

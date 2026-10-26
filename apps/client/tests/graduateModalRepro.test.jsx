@@ -178,6 +178,16 @@ describe('chart OnTime 5 cohort terakhir', () => {
     expect(withoutDefaultTahunLulus(filters, '2022/2023').selectedTahunLulus).toBeUndefined();
   });
 
+  it('tab hanya untuk jenjang berdata, berurutan kanonis, label Profesi', () => {
+    expect(onTimeTabs({ profesi: 1 }).map((tab) => tab.key)).toEqual(['profesi']);
+    expect(onTimeTabs({ profesi: 1 })[0].label).toBe('Jenjang Profesi (≤ 1 Thn)');
+    expect(studySuccessTabs({ profesi: 2, s2: 4, s1: 7 }).map((tab) => tab.key)).toEqual([
+      's1',
+      's2',
+      'profesi',
+    ]);
+  });
+
   it('tab jenjang mengikuti pilihan filter', () => {
     const tabs = [{ key: 's1' }, { key: 's2' }, { key: 'profesi' }];
     expect(tabsForSelectedJenjang(tabs, ['Profesi']).map((tab) => tab.key)).toEqual(['profesi']);

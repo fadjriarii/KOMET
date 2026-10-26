@@ -3,6 +3,7 @@ import {
   formatCompactNumber,
   formatDecimal,
   formatNumber,
+  normalizeJenjang,
   formatPercentage,
   formatSignedPercentage,
 } from '../src/formatters.js';
@@ -63,5 +64,18 @@ describe('formatSignedPercentage / formatDecimal / formatCompactNumber', () => {
       expect(format(undefined)).toBe('-');
       expect(format('')).toBe('-');
     }
+  });
+});
+
+describe('normalizeJenjang', () => {
+  it('mengembalikan ejaan kanonis dari nilai bebas huruf', () => {
+    expect(normalizeJenjang('profesi')).toBe('Profesi');
+    expect(normalizeJenjang(' s1 ')).toBe('S1');
+    expect(normalizeJenjang('D4')).toBe('D4');
+  });
+
+  it('nilai yang tidak dikenal dikembalikan apa adanya', () => {
+    expect(normalizeJenjang('Sp1')).toBe('Sp1');
+    expect(normalizeJenjang(null)).toBe('');
   });
 });

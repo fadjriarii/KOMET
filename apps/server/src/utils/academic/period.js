@@ -47,4 +47,42 @@ function toAcademicYear(periodeMasuk) {
   return parsePeriode(periodeMasuk)?.academicYear ?? null;
 }
 
-module.exports = { parsePeriode, getPeriodeYear, getStudyStartYear, toAcademicYear };
+/**
+ * Titik awal studi sebagai {year, term}: periode masuk awal rantai transfer bila
+ * ada, lalu `periodeMasuk`, lalu label `angkatan` (dianggap mulai Ganjil).
+ */
+function studyStartPoint(student) {
+  const periode = parsePeriode(student?.periodeMasukAwal) ?? parsePeriode(student?.periodeMasuk);
+  if (periode) return { year: periode.year, term: Number(periode.term) };
+  const labelStart = getAcademicYearStart(String(student?.angkatan ?? '').trim());
+  return labelStart === null ? null : { year: labelStart, term: 1 };
+}
+
+/**
+ * Jumlah semester yang ditempuh sampai lulus, inklusif: masuk 20201 → lulus
+ * 20232 = 8 semester. Tanpa `periodeWisuda`, label `tahunLulus` dipakai dengan
+ * anggapan lulus di Genap (batas atas tahun itu). Data tak lengkap atau periode
+ * lulus sebelum periode masuk = null, bukan durasi palsu.
+ *
+ * @param {{periodeMasukAwal?: string, periodeMasuk?: string, angkatan?: string}} student
+ * @param {{periodeWisuda?: string, tahunLulus?: string}} graduate
+ * @returns {number|null}
+ */
+function studySemesters(student, graduate) {
+  const start = studyStartPoint(student);
+  if (!start) return null;
+  const lulus = parsePeriode(graduate?.periodeWisuda);
+  const endYear = lulus?.year ?? getAcademicYearStart(String(graduate?.tahunLulus ?? '').trim());
+  if (endYear === null || endYear === undefined) return null;
+  const endTerm = lulus ? Number(lulus.term) : 2;
+  const semesters = (endYear - start.year) * 2 + (endTerm - start.term) + 1;
+  return semesters >= 1 ? semesters : null;
+}
+
+module.exports = {
+  parsePeriode,
+  getPeriodeYear,
+  getStudyStartYear,
+  studySemesters,
+  toAcademicYear,
+};

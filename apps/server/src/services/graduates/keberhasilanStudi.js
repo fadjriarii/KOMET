@@ -5,12 +5,17 @@
  */
 
 const prisma = require('../../config/prisma');
-const { getAcademicYearStart, getReferenceLabelStart } = require('../../utils/academicUtils');
+const {
+  getAcademicYearStart,
+  getReferenceLabelStart,
+  studySemesters,
+} = require('../../utils/academicUtils');
 const { formatAcademicYearLabel } = require('@komet/shared/academicYear');
 const { toArray } = require('@komet/shared/filterUtils');
 const { roundedRate } = require('../../utils/percentageUtils');
 const { getRequestedJenjang, includesJenjang } = require('./filterBuilder');
 const { getTahunAjaranLabel, tahunAjaranStart } = require('./tahunAjaran');
+const { studyLimitsFor } = require('./studyLimits');
 
 /**
  * Kohort yang dievaluasi = yang terbaru dari dua sumber: (a) lag di bawah,
@@ -21,15 +26,10 @@ const { getTahunAjaranLabel, tahunAjaranStart } = require('./tahunAjaran');
  * Jangkar `tahunAjaran` mematikan (b): tampilan "sampai tahun X" tak boleh
  * menampilkan kohort yang lebih muda dari jangkar.
  *
- * Ini BUKAN batas masa studi "tepat waktu" (`BATAS_STUDI_TEPAT_WAKTU` pada
- * tepatWaktu.js); keduanya sengaja bernilai dan bernama berbeda.
- *
- * `Profesi` = pendidikan profesi 1 tahun: lag evaluasi 2 (masuk → lulus 1 tahun,
- * +1 tahun tenggang hasil akhir). `S3` disiapkan dulu (lag 6 = standar 3 tahun
- * + 3 tenggang mengikuti pola S1, konfirmasi BAAK) supaya saat datanya masuk
- * dari sync, rate dan tab-nya langsung terhitung tanpa ubah kode.
+ * Lag = masa studi maksimum jenjang (`max` di studyLimits.js, ADR 0004):
+ * angkatan TA − max adalah yang paling baru yang batas waktunya sudah habis.
+ * Pembilang hanya lulusan yang selesai dalam ≤ max × 2 semester.
  */
-const COHORT_EVALUATION_LAG = { S1: 7, S2: 4, PROFESI: 2, S3: 6 };
 const EVALUATION_WINDOW_YEARS = 5;
 const CORE_JENJANG = new Set(['S1', 'S2']);
 
@@ -56,14 +56,12 @@ async function resolveRefStart(whereFilter = {}) {
 
 function getAngkatanEvaluasiStart(jenjang, refStart) {
   const lag = cohortLagFor(jenjang);
-  return lag === undefined ? null : refStart - lag;
+  return lag === null ? null : refStart - lag;
 }
 
-// Satu titik baca lag per jenjang: normalisasi sekali (null-safe),
-// bukan pola ganda `peta[x] ?? peta[x?.toUpperCase()]` yang memicu
-// peringatan null-check analyzer di tiap pemakaian.
+/** Lag evaluasi (tahun) satu jenjang, null bila aturannya belum ada. */
 function cohortLagFor(jenjang) {
-  return COHORT_EVALUATION_LAG[String(jenjang ?? '').toUpperCase()];
+  return studyLimitsFor(jenjang)?.max ?? null;
 }
 
 /** Angkatan yang dievaluasi + 4 tahun sebelumnya, sebagai label ajaran urut naik. */
@@ -157,44 +155,44 @@ function resolveEvaluatedStart(jenjang, { refStart, closedStart, selectedStarts 
 }
 
 /**
- * Satu agregat menutupi seluruh angkatan yang diminta: dua `groupBy` —
- * penyebut (semua status) dan pembilang (punya baris graduate, asal
- * `/kelulusan`). Sebelumnya satu query `groupBy(['periodeMasuk',
- * 'statusKeaktifan'])` memakai status mahasiswa sebagai pembilang; populasi
- * tab ini kini ditentukan relasi `graduate`, dan `groupBy` tak bisa
- * mengelompokkan kolom relasi.
+ * Penyebut = seluruh mahasiswa angkatan itu (semua status); pembilang = yang
+ * punya baris graduate DAN lulus dalam ≤ max × 2 semester. Keanggotaan kohort
+ * dibaca dari kolom `angkatan` — kolom yang sama dengan filter Angkatan dan
+ * pengelompokan Tepat Waktu. Filter angkatan user tetap di-AND-kan.
  */
 async function countCohorts(jenjang, studentWhere, angkatanList) {
-  const firstYear = getAcademicYearStart(angkatanList[0]);
-  const lastYear = getAcademicYearStart(angkatanList[angkatanList.length - 1]);
-  // Batas leksikografis: '2020' <= v < '2021' mengambil seluruh periode tahun 2020.
-  const periodeMasuk = { gte: String(firstYear), lt: String(lastYear + 1) };
-  const base = { ...studentWhere, jenjang, periodeMasuk };
-  const [totalRows, lulusRows] = await Promise.all([
+  const base = {
+    ...studentWhere,
+    jenjang,
+    AND: [...(studentWhere.AND || []), { angkatan: { in: angkatanList } }],
+  };
+  const maxSemesters = (cohortLagFor(jenjang) ?? 0) * 2;
+  const [totalRows, graduates] = await Promise.all([
     prisma.student.groupBy({
-      by: ['periodeMasuk'],
+      by: ['angkatan'],
       where: base,
-      _count: { periodeMasuk: true },
+      _count: { angkatan: true },
     }),
-    prisma.student.groupBy({
-      by: ['periodeMasuk'],
+    prisma.student.findMany({
       where: { ...base, NOT: { graduate: null } },
-      _count: { periodeMasuk: true },
+      select: {
+        angkatan: true,
+        periodeMasuk: true,
+        periodeMasukAwal: true,
+        graduate: { select: { periodeWisuda: true, tahunLulus: true } },
+      },
     }),
   ]);
 
-  const starts = angkatanList.map((label) => String(getAcademicYearStart(label)));
-  const indexFor = (value) => starts.findIndex((year) => String(value).startsWith(year));
   const cohorts = new Map(angkatanList.map((angkatan) => [angkatan, { total: 0, lulus: 0 }]));
-  for (const [key, rows] of [
-    ['total', totalRows],
-    ['lulus', lulusRows],
-  ]) {
-    for (const row of rows) {
-      const index = indexFor(row.periodeMasuk);
-      if (index === -1) continue;
-      cohorts.get(angkatanList[index])[key] += row._count.periodeMasuk;
-    }
+  for (const row of totalRows) {
+    const cohort = cohorts.get(row.angkatan);
+    if (cohort) cohort.total += row._count.angkatan;
+  }
+  for (const student of graduates) {
+    const cohort = cohorts.get(student.angkatan);
+    const semesters = studySemesters(student, student.graduate);
+    if (cohort && semesters !== null && semesters <= maxSemesters) cohort.lulus += 1;
   }
   return cohorts;
 }
@@ -205,7 +203,7 @@ function toPercentage({ total, lulus }) {
 
 /**
  * Kontrak filter metrik kohort. Pertanyaannya "dari yang masuk angkatan X,
- * berapa yang akhirnya lulus?" — penyebutnya seluruh kohort, jadi atribut satu
+ * berapa yang lulus dalam masa studi maksimum?" — penyebutnya seluruh kohort, jadi atribut satu
  * peristiwa kelulusan (`tahunLulus`, `periodeWisuda`, `predikat`) sengaja
  * tidak berpengaruh: memakainya akan memaksa pembilang metrik mendekati 100%.
  * Builder baru flat (kolom student top-level); nesting `student` lama tetap
@@ -344,7 +342,7 @@ async function getKeberhasilanStudiByAngkatan(whereFilter) {
     if (!CORE_JENJANG.has(upper) && (!Array.isArray(series) || series.length === 0)) return;
     result[jenjang.toLowerCase()] = series;
     const lag = cohortLagFor(jenjang);
-    if (lag === undefined) return;
+    if (lag === null) return;
     const canon = `${upper.charAt(0)}${upper.slice(1).toLowerCase()}`;
     result[`batasStudi${canon}`] = lag;
     result[`angkatanEvaluasi${canon}`] = angkatanLabelFromStart(evalStart(jenjang));
@@ -359,5 +357,4 @@ module.exports = {
   getKeberhasilanStudiByAngkatan,
   getEvaluationWindow,
   getAngkatanEvaluasiStart,
-  COHORT_EVALUATION_LAG,
 };

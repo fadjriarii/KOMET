@@ -87,4 +87,15 @@ describe('useGraduateFilters (default Tahun Lulus = tahun terbaru)', () => {
     expect(result.current.filters.activeFilterCount).toBe(0);
     expect(searchOf(result).has('tahunLulus')).toBe(false);
   });
+
+  it('pilihan Tahun Lulus eksplisit tidak ditimpa saat default bergeser', async () => {
+    const { result, rerender } = renderFilters();
+    rerender({ defaultAcademicYear: '', defaultTahunLulus: '2025/2026' });
+    await act(async () => {
+      result.current.filters.setters.setSelectedTahunLulus(['2021/2022']);
+    });
+    rerender({ defaultAcademicYear: '', defaultTahunLulus: '2023/2024' });
+    rerender({ defaultAcademicYear: '', defaultTahunLulus: '2022/2023' });
+    expect(result.current.filters.values.selectedTahunLulus).toEqual(['2021/2022']);
+  });
 });
