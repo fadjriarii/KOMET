@@ -76,7 +76,6 @@ describe('getTotalLulusan', () => {
   it('filter jenjang tidak membuat satu level dihitung dua kali', async () => {
     expect(await getTotalLulusan(buildGraduateFilter({ jenjang: 'S1' }))).toEqual({
       s1: 1046,
-      s2: null,
       tahunScope: ALL_SCOPE,
     });
   });

@@ -1,7 +1,6 @@
 import { DIGITAL_BLUE } from '../../../../utils/theme';
-import { normalizeJenjang } from '@komet/shared/formatters';
 
-// Warna bar per jenjang — S1/S2 tetap seperti semula, jenjang tambahan (Profesi,
+// Warna bar per jenjang mengikuti urutan dari server (jenjangs); jenjang tambahan (Profesi,
 // S3, …) memakai warna berikutnya dari palet yang sama.
 export const JENJANG_COLORS = [
   DIGITAL_BLUE[600],
@@ -19,24 +18,16 @@ export const OUTCOME_COLORS = {
   late: JENJANG_COLORS[2],
 };
 
-// Ejaan kanonis satu sumber (@komet/shared): `profesi` → `Profesi`, bukan `PROFESI`.
-export const jenjangName = (key) => normalizeJenjang(key);
-
 /**
- * Satu batang per jenjang, berdampingan dalam kelompok tahun ajaran yang sama.
- * Kunci dinamis sehingga jenjang baru otomatis jadi batang berikutnya. S1 selalu
- * dulu, sisanya alfabetis. Label di atas batang, total di tooltip + tab Tabel.
+ * Satu batang per jenjang dari daftar server (`jenjangs`: urutan + label +
+ * `dataKey`), berdampingan dalam kelompok tahun ajaran. Warna mengikuti urutan.
  */
-export function trendBars(rows) {
-  const jenjangKeys = Object.keys(rows[0] ?? {})
-    .filter((key) => key !== 'tahun' && key !== 'total' && key.endsWith('Count'))
-    .filter((key) => rows.some((row) => Number(row?.[key]) > 0))
-    .sort((a, b) => (a === 's1Count' ? -1 : b === 's1Count' ? 1 : a.localeCompare(b)));
-  return jenjangKeys.map((key, index) => ({
-    dataKey: key,
-    name: `Lulusan ${jenjangName(key.replace(/Count$/, ''))}`,
+export function trendBars(jenjangs = [], namePrefix = 'Lulusan') {
+  return jenjangs.map((entry, index) => ({
+    dataKey: entry.dataKey,
+    name: `${namePrefix} ${entry.label}`,
     color: JENJANG_COLORS[index % JENJANG_COLORS.length],
-    labelKey: key,
+    labelKey: entry.dataKey,
     labelPosition: 'top',
   }));
 }

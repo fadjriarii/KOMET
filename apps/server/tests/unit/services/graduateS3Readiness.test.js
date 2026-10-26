@@ -64,7 +64,7 @@ describe('kesiapan S3', () => {
     const card = await getTepatWaktu({ jenjang: { in: ['S3'] } });
     expect(card.s3).toBe(50);
     const detail = await getTepatWaktuByYear({ jenjang: { in: ['S3'] } });
-    expect(detail.batasS3).toBe(3);
+    expect(detail.jenjangs.find((entry) => entry.key === 's3')?.batas).toBe(3);
     expect(detail.s3).toHaveLength(2);
     expect(detail.s3.find((row) => row.cohortLabel === 'Angkatan 2021/2022')).toMatchObject({
       onTimeCount: 1,
@@ -100,8 +100,8 @@ describe('kesiapan S3', () => {
     };
     const detail = await getKeberhasilanStudiByAngkatan({ jenjang: { in: ['S3'] } });
     expect(calls).toBe(2);
-    expect(detail.batasStudiS3).toBe(6);
-    expect(detail.angkatanEvaluasiS3).toBe('2019/2020');
+    expect(detail.jenjangs.find((entry) => entry.key === 's3')?.batas).toBe(6);
+    expect(detail.jenjangs.find((entry) => entry.key === 's3')?.angkatanEvaluasi).toBe('2019/2020');
     const evaluated = detail.s3.find((row) => row.cohortLabel === 'Angkatan 2019/2020');
     expect(evaluated).toMatchObject({ intake: 10, successCount: 7, rate: 70 });
   });

@@ -74,25 +74,20 @@ describe('getGraduateSummary', () => {
 
     const result = await getGraduateSummary({});
 
-    const { cards, ...legacyKpis } = result.kpis;
-    expect(Object.keys(cards)).toEqual(['total', 'gpa', 'onTime', 'studySuccess']);
-    expect(legacyKpis).toEqual({
-      // Total = seluruh jenjang populasi (incl Profesi), bukan S1+S2 saja.
-      totalGraduates: 125,
-      totalGraduatesS1: 100,
-      totalGraduatesS2: 20,
-      totalGraduatesByJenjang: { s1: 100, s2: 20, profesi: 5 },
-      totalScopeLabel: '2023/2024',
-      totalScopePhrase: 'pada tahun ajaran 2023/2024',
-      onTimeGraduationRateS1: 80,
-      onTimeGraduationRateS2: 70,
-      onTimeGraduationRateOverall: null,
-      onTimeByJenjang: { s1: 80, s2: 70, profesi: 100 },
-      studySuccessRateS1: 90,
-      averageGpaS1: 3.4,
-      averageGpaS2: 3.6,
-      averageGpaByJenjang: { s1: 3.4, s2: 3.6, profesi: 3.8 },
-    });
+    // `kpis` hanya berisi kartu bentuk server; tidak ada lagi field S1/S2 datar.
+    expect(Object.keys(result.kpis)).toEqual(['cards']);
+    const { cards } = result.kpis;
+    // Total = seluruh jenjang populasi (incl Profesi), bukan S1+S2 saja.
+    expect(cards.total).toMatchObject({ value: 125, isEmpty: false });
+    expect(cards.total.byJenjang.map((entry) => [entry.label, entry.value])).toEqual([
+      ['S1', 100],
+      ['S2', 20],
+      ['Profesi', 5],
+    ]);
+    expect(cards.total.scope).toMatchObject({ label: '2023/2024' });
+    expect(cards.onTime.byJenjang.map((entry) => entry.value)).toEqual([80, 70, 100]);
+    expect(cards.gpa.byJenjang.map((entry) => entry.value)).toEqual([3.4, 3.6, 3.8]);
+    expect(cards.studySuccess.ignoredFilters).toEqual([]);
   });
 
   it('"tidak ada data" tetap null, bukan 0 yang terlihat seperti angka', async () => {
@@ -114,8 +109,9 @@ describe('getGraduateSummary', () => {
 
     const result = await getGraduateSummary({});
 
-    expect(result.kpis.totalGraduates).toBeNull();
-    expect(result.kpis.averageGpaS1).toBeNull();
+    expect(result.kpis.cards.total).toMatchObject({ value: null, isEmpty: true });
+    expect(result.kpis.cards.gpa).toMatchObject({ value: null, isEmpty: true });
+    expect(result.kpis.cards.onTime).toMatchObject({ value: null, isEmpty: true });
   });
 
   it('mengumumkan scope untuk setiap kartu yang ada', async () => {

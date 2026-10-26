@@ -1,6 +1,6 @@
 # TODO: Graduate Data — perhitungan, presentasi multi-filter, bug, dan pemisahan logika
 
-- Status: bug 1–11 dan 13 diperbaiki, Fase 0 selesai (2026-10-26). Fase 1 selesai (kontrak baru ditambahkan berdampingan). Bug 12 tuntas di Fase 2 saat client berhenti memotong jendela sendiri.
+- Status: bug 1–11 dan 13 diperbaiki, Fase 0 selesai (2026-10-26). Fase 0–2 selesai (2026-10-26); bug 12 tuntas. Fase 3–4 belum.
 - Dibuat: 2026-10-26
 - Cakupan: card KPI, popup "Lihat Rincian", dan service di tab Graduate Data.
   Student Data dan MBKM hanya tersentuh lewat komponen bersama (reset filter,
@@ -133,20 +133,23 @@ Angka = AND semua filter dalam scope. Badge "Terfilter" = OR (dari `kpiFilterSco
 
 ### Fase 2 — Client hanya render
 
-- [ ] `useGraduateKpiDisplay`, modal, dan `graduateTrendConfig` membaca `byJenjang` / `jenjangs` dari server.
+- [x] `useGraduateKpiDisplay`, modal, dan `graduateTrendConfig` membaca `byJenjang` / `jenjangs` dari server.
       Hapus hardcode s1/s2, `jenjangName`, `JENJANG_LABEL`, sort S1-dulu, `firstPresent`,
       parsing `batas*`, operator `≤/=`, `hasStudySuccessData`.
-- [ ] Teks tetap di client (hanya tata bahasa). Pemisah daftar "A, B, dan C" memakai
+- [x] Teks tetap di client (hanya tata bahasa). Pemisah daftar "A, B, dan C" memakai
       satu helper `Intl.ListFormat` di `utils/kpiLabels.js:8` (gantikan 3 salinan).
       `studySuccessClause` membaca `kpiFilterScope.studySuccess`, bukan daftar sendiri.
-- [ ] DRY:
+- [x] DRY:
   - `CohortTrendChart` (2 salinan) → satu komponen di `components/common/charts`;
   - `describeScope` ×3 → satu pemanggilan;
   - `toFixed` → `formatDecimal`;
   - `'Lulus'` → `STUDENT_STATUS.LULUS`.
-- [ ] Bug 5–12: sanitize TA tanpa tahun kalender. Efek TA hanya mengikuti bila nilai
+- [x] Bug 5–12: sanitize TA tanpa tahun kalender. Efek TA hanya mengikuti bila nilai
       Tahun Lulus masih default. Reset hanya mengosongkan field yang punya `control`
       (berlaku juga untuk Students/MBKM).
+      Selesai: field lama (`totalGraduatesS1`, `s1Gpa`, `batasStudiS1`, kunci
+      paksa `s1`/`s2`, perlakuan khusus S1/S2) dihapus dari server dan kontrak;
+      `summary` graduate kini `{}` dan `kpis` hanya `{ cards }`.
 
 ### Fase 3 — Presentasi multi-filter
 

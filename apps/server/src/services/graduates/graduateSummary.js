@@ -15,11 +15,6 @@ const { getKeberhasilanStudi } = require('./keberhasilanStudi');
 const { getGraduateLabelWindow } = require('./yearJenjangSeries');
 const { buildGraduateCards } = require('./graduateCards');
 
-const sumOrNull = (values) => {
-  const known = values.filter((value) => typeof value === 'number');
-  return known.length ? known.reduce((acc, value) => acc + value, 0) : null;
-};
-
 /**
  * Param query yang dibaca tiap agregasi — dasar badge "Terfilter" di client.
  * Keberhasilan studi menghitung kohort angkatan, jadi `tahunLulus`,
@@ -47,7 +42,24 @@ const COHORT_PARAMS = [
   'tahunAjaran',
 ];
 
-async function getGraduateSummary(whereFilter) {
+/**
+ * Filter event yang aktif tetapi tidak dibaca Keberhasilan Studi — client
+ * menyebutnya di subtitle supaya tidak dikira bug. Tahun Lulus default (tahun
+ * terbaru dalam jangkar) bukan pilihan user, jadi tidak disebut.
+ */
+function ignoredStudySuccessFilters(query = {}, defaultTahunLulus = null) {
+  const list = (value) => (Array.isArray(value) ? value : value ? [value] : []).filter(Boolean);
+  const tahunLulus = list(query.tahunLulus);
+  const ignored = [];
+  if (tahunLulus.length && !(tahunLulus.length === 1 && tahunLulus[0] === defaultTahunLulus)) {
+    ignored.push('tahunLulus');
+  }
+  if (list(query.periodeWisuda).length) ignored.push('periodeWisuda');
+  if (list(query.predikat).length) ignored.push('predikat');
+  return ignored;
+}
+
+async function getGraduateSummary(whereFilter, query = {}) {
   const [filterOptions, totalLulusan, avgIpk, tepatWaktu, keberhasilanStudi, labelRange] =
     await Promise.all([
       getGraduateFilterOptions(getTahunAjaran(whereFilter)),
@@ -58,46 +70,21 @@ async function getGraduateSummary(whereFilter) {
       getGraduateLabelWindow(),
     ]);
 
-  // Total = seluruh jenjang populasi (dinamis incl `Profesi`) — bukan S1+S2 saja.
-  const jenjangCounts = Object.entries(totalLulusan).filter(
-    ([key, value]) => key !== 'tahunScope' && typeof value === 'number',
+  const cards = buildGraduateCards({ totalLulusan, avgIpk, tepatWaktu, keberhasilanStudi });
+  cards.total.scope = totalLulusan.tahunScope ?? null;
+  cards.gpa.scope = avgIpk.tahunScope ?? null;
+  cards.onTime.scope = tepatWaktu.tahunScope ?? null;
+  cards.studySuccess.ignoredFilters = ignoredStudySuccessFilters(
+    query,
+    filterOptions.rollingYears?.[0] ?? null,
   );
 
   return {
     referenceLabel: labelRange[labelRange.length - 1],
     labelRange,
-    summary: { totalLulusan, avgIpk, tepatWaktu, keberhasilanStudi },
-    kpis: {
-      // Bentuk baru satu-satunya yang perlu dibaca client: nilai utama, scope
-      // kosong, dan rincian per jenjang yang sudah diurutkan/dilabeli server.
-      cards: buildGraduateCards({ totalLulusan, avgIpk, tepatWaktu, keberhasilanStudi }),
-      totalGraduates: sumOrNull(jenjangCounts.map(([, value]) => value)),
-      totalGraduatesS1: totalLulusan.s1 ?? null,
-      totalGraduatesS2: totalLulusan.s2 ?? null,
-      totalGraduatesByJenjang: Object.fromEntries(jenjangCounts),
-      onTimeGraduationRateS1: tepatWaktu.s1 ?? null,
-      onTimeGraduationRateS2: tepatWaktu.s2 ?? null,
-      onTimeGraduationRateOverall: tepatWaktu.overall ?? null,
-      onTimeByJenjang: Object.fromEntries(
-        Object.entries(tepatWaktu).filter(
-          ([key, value]) =>
-            key !== 'referenceLabel' &&
-            key !== 'tahunScope' &&
-            key !== 'overall' &&
-            (typeof value === 'number' || value === null),
-        ),
-      ),
-      studySuccessRateS1: keberhasilanStudi.s1 ?? null,
-      averageGpaS1: avgIpk.s1?.average ?? null,
-      averageGpaS2: avgIpk.s2?.average ?? null,
-      averageGpaByJenjang: Object.fromEntries(
-        Object.entries(avgIpk)
-          .filter(([key, value]) => key !== 'tahunScope' && value && typeof value === 'object')
-          .map(([key, value]) => [key, value.average ?? null]),
-      ),
-      totalScopeLabel: totalLulusan.tahunScope?.label ?? null,
-      totalScopePhrase: totalLulusan.tahunScope?.phrase ?? null,
-    },
+    summary: {},
+    // Satu bentuk kartu (nilai utama, scope kosong, rincian per jenjang terurut).
+    kpis: { cards },
     kpiFilterScope: {
       total: GRADUATE_PARAMS,
       gpa: GRADUATE_PARAMS,
@@ -108,4 +95,4 @@ async function getGraduateSummary(whereFilter) {
   };
 }
 
-module.exports = { getGraduateSummary };
+module.exports = { getGraduateSummary, ignoredStudySuccessFilters };

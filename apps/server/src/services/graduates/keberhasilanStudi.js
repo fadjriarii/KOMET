@@ -9,7 +9,7 @@ const { getAcademicYearStart, studySemesters } = require('../../utils/academicUt
 const { formatAcademicYearLabel } = require('@komet/shared/academicYear');
 const { toArray } = require('@komet/shared/filterUtils');
 const { roundedRate } = require('../../utils/percentageUtils');
-const { getRequestedJenjang, includesJenjang } = require('./filterBuilder');
+const { getRequestedJenjang } = require('./filterBuilder');
 const { getTahunAjaranLabel, tahunAjaranStart } = require('./tahunAjaran');
 const { studyLimitsFor } = require('./studyLimits');
 const { getGraduateReferenceStart } = require('./yearJenjangSeries');
@@ -29,7 +29,6 @@ const { jenjangTabs } = require('./graduateCards');
  * Pembilang hanya lulusan yang selesai dalam ≤ max × 2 semester.
  */
 const EVALUATION_WINDOW_YEARS = 5;
-const CORE_JENJANG = new Set(['S1', 'S2']);
 
 // Status yang berarti masih kuliah: kohort yang masih punya satu pun ini
 // belum boleh dinilai final.
@@ -258,29 +257,11 @@ async function getKeberhasilanStudi(whereFilter) {
 
   const values = await forJenjangs(jenjangs, calcCohort);
 
-  // `cohorts` = fakta lengkap per jenjang (rate + intake + angkatan dari satu
-  // agregat) untuk kartu server-side; kunci rate datar tetap untuk client lama.
+  // Fakta lengkap per jenjang (rate + intake + angkatan dari satu agregat).
   const result = { cohorts: {} };
   jenjangs.forEach((jenjang, index) => {
-    result[jenjang.toLowerCase()] = values[index]?.rate ?? null;
     if (values[index]) result.cohorts[jenjang.toLowerCase()] = values[index];
   });
-  // Kunci lama untuk kompatibilitas kartu S1/S2 yang sudah ada — hanya
-  // diisi bila jenjang itu memang ada dalam scope filter.
-  result.s1 = includesJenjang(whereFilter, 'S1') ? (result.s1 ?? null) : null;
-  result.s2 = includesJenjang(whereFilter, 'S2') ? (result.s2 ?? null) : null;
-  if (includesJenjang(whereFilter, 'S1')) {
-    result.angkatanS1 = result.angkatanS1 ?? angkatanLabelFromStart(evalStart('S1'));
-  }
-  if (includesJenjang(whereFilter, 'S2')) {
-    result.angkatanS2 = result.angkatanS2 ?? angkatanLabelFromStart(evalStart('S2'));
-  }
-  // Label angkatan per jenjang dalam scope (S2/Profesi/S3, ...) supaya kartu
-  // bisa menceritakan jenjang terpilih, bukan selalu S1.
-  for (const jenjang of jenjangs) {
-    const canon = `angkatan${jenjang.charAt(0).toUpperCase()}${jenjang.slice(1)}`;
-    if (!(canon in result)) result[canon] = angkatanLabelFromStart(evalStart(jenjang));
-  }
   return result;
 }
 
@@ -317,30 +298,17 @@ async function getKeberhasilanStudiByAngkatan(whereFilter) {
         intake: total,
       };
     });
-    // S1/S2 tetap menampilkan konteks lima tahun; jenjang baru (Profesi/S3)
-    // tumbuh dari cohort pertama yang punya data sampai maksimal lima cohort.
-    if (CORE_JENJANG.has(String(jenjang).toUpperCase())) return rows;
+    // Sama untuk semua jenjang: hanya angkatan dalam jendela yang punya data.
     return rows.filter((row) => row.intake > 0 || row.successCount > 0);
   };
 
   const values = await forJenjangs(jenjangs, calcSeries);
 
-  // Kunci batas/angkatan hanya untuk jenjang dalam scope yang lag-nya
-  // dikenal — tanpa baris S3 di DB, tidak ada kunci s3/batasStudiS3 yang
-  // keluar dari sini, jadi teks S3 tidak bisa bocor ke UI.
+  // Deret per jenjang; jenjang non-inti tanpa baris tidak dikirim sama sekali.
   const result = {};
   jenjangs.forEach((jenjang, index) => {
     const series = values[index];
-    const upper = String(jenjang).toUpperCase();
-    // Jenjang non-inti tanpa baris tidak boleh mengirim array kosong: client
-    // membangun tab dari kunci array dan akan menampilkan tab hantu.
-    if (!CORE_JENJANG.has(upper) && (!Array.isArray(series) || series.length === 0)) return;
-    result[jenjang.toLowerCase()] = series;
-    const lag = cohortLagFor(jenjang);
-    if (lag === null) return;
-    const canon = `${upper.charAt(0)}${upper.slice(1).toLowerCase()}`;
-    result[`batasStudi${canon}`] = lag;
-    result[`angkatanEvaluasi${canon}`] = angkatanLabelFromStart(evalStart(jenjang));
+    if (Array.isArray(series) && series.length) result[jenjang.toLowerCase()] = series;
   });
   // Daftar tab dari server: jenjang yang kohortnya punya intake/lulusan.
   result.jenjangs = jenjangTabs(
@@ -355,8 +323,6 @@ async function getKeberhasilanStudiByAngkatan(whereFilter) {
       angkatanEvaluasi: angkatanLabelFromStart(evalStart(jenjang)),
     }),
   );
-  result.s1 = result.s1 ?? null;
-  result.s2 = result.s2 ?? null;
   return result;
 }
 

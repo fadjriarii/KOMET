@@ -156,16 +156,20 @@ const ROUTES = {
     summaryPath: '/graduates/summary',
     listPath: '/graduates/list',
     summaryPayload: summary({
-      totalGraduates: 1234,
-      totalGraduatesS1: 1000,
-      totalGraduatesS2: 234,
-      totalScopeLabel: 'Semua Tahun',
-      totalScopePhrase: 'di seluruh tahun akademik tercatat',
-      averageGpaS1: 3.45,
-      averageGpaS2: null,
-      onTimeGraduationRateS1: 78.9,
-      onTimeGraduationRateS2: 80,
-      studySuccessRateS1: 91.2,
+      cards: {
+        total: {
+          value: 1234,
+          isEmpty: false,
+          scope: { label: 'Semua Tahun', phrase: 'di seluruh tahun akademik tercatat' },
+          byJenjang: [
+            { key: 's1', jenjang: 'S1', label: 'S1', value: 1000 },
+            { key: 's2', jenjang: 'S2', label: 'S2', value: 234 },
+          ],
+        },
+        gpa: { value: 3.45, count: 1000, isEmpty: false, byJenjang: [] },
+        onTime: { value: 79.1, isEmpty: false, byJenjang: [] },
+        studySuccess: { value: 91.2, isEmpty: false, ignoredFilters: [], byJenjang: [] },
+      },
     }),
     listPayload: listPayload([GRADUATE_ROW]),
     extraPaths: {
@@ -479,23 +483,19 @@ describe('kartu KPI Graduates', () => {
     ).toEqual(['2025/2026']);
   });
 
-  it('data kosong tampil sebagai 0, bukan strip', async () => {
+  it('kombinasi tanpa lulusan tampil "-" dan dijelaskan; 0 asli tetap 0', async () => {
     respondWith((url) => {
       if (url.startsWith('/graduates/filter-options')) {
         return ROUTES.graduates.extraPaths['/graduates/filter-options'];
       }
       if (url.startsWith('/graduates/summary')) {
         return summary({
-          totalGraduates: null,
-          totalGraduatesS1: 0,
-          totalGraduatesS2: 0,
-          totalScopeLabel: null,
-          totalScopePhrase: null,
-          averageGpaS1: 0,
-          averageGpaS2: null,
-          onTimeGraduationRateS1: null,
-          onTimeGraduationRateS2: 0,
-          studySuccessRateS1: 100,
+          cards: {
+            total: { value: null, isEmpty: true, byJenjang: [] },
+            gpa: { value: null, isEmpty: true, byJenjang: [] },
+            onTime: { value: 0, isEmpty: false, byJenjang: [] },
+            studySuccess: { value: null, isEmpty: true, ignoredFilters: [], byJenjang: [] },
+          },
         });
       }
       return listPayload([GRADUATE_ROW]);
@@ -503,10 +503,10 @@ describe('kartu KPI Graduates', () => {
     renderPage(GraduatesPage);
 
     await cardsReady(ROUTES.graduates);
-    // Keputusan tampilan tab ini: `null` maupun 0 asli sama-sama terbaca 0.
-    expect(cardOf('Total Lulusan').textContent).toContain('0');
-    expect(cardOf('Total Lulusan').textContent).not.toContain('-');
-    expect(cardOf('Rata-rata IPK Lulusan').textContent).toContain('0.00');
+    expect(cardOf('Total Lulusan').textContent).toContain(
+      'Tidak ada lulusan untuk kombinasi filter ini.',
+    );
+    expect(cardOf('Rata-rata IPK Lulusan').textContent).toContain('-');
     expect(cardOf('Kelulusan Tepat Waktu').textContent).toContain('0.0%');
   });
 

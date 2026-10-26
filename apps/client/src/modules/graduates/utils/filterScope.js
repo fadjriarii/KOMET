@@ -1,3 +1,5 @@
+import { formatList } from '../../../utils/kpiLabels';
+
 /**
  * Frasa cakupan filter untuk subtitle kartu dan banner modal tab Lulusan.
  * Satu pilihan = sebut namanya; lebih dari satu = "pada ... terpilih"
@@ -55,34 +57,20 @@ export function searchSentence(search = '', maxLength = 30) {
   return `Hasil pencarian "${shown}".`;
 }
 
+const IGNORED_FILTER_NAMES = {
+  tahunLulus: 'tahun lulus',
+  periodeWisuda: 'periode lulus',
+  predikat: 'status kelulusan',
+};
+
 /**
- * Klausa jujur kartu Keberhasilan Studi: filter tahun lulus, periode lulus,
- * dan status kelulusan tidak mempersempit angka kohort ini (penyebutnya
- * angkatan masuk, bukan peristiwa lulus). Hanya disebut yang aktif:
- * tahun lulus aktif bila beda dari default (tahun terbaru), sisanya bila isi.
- * Tanpa filter aktif = tanpa klausa.
+ * Klausa jujur kartu Keberhasilan Studi: filter event yang aktif tetapi tidak
+ * mempersempit angka kohort. Daftarnya diputuskan server
+ * (`cards.studySuccess.ignoredFilters`); di sini hanya tata bahasa.
  */
-export function studySuccessClause({
-  tahunLulus = [],
-  periodeWisuda = '',
-  predikat = [],
-  defaultTahunLulus = '',
-} = {}) {
-  const names = [];
-  const years = cleanList(tahunLulus);
-  if (years.length && !(years.length === 1 && years[0] === defaultTahunLulus)) {
-    names.push('tahun lulus');
-  }
-  if (typeof periodeWisuda === 'string' && periodeWisuda.trim() !== '') {
-    names.push('periode lulus');
-  }
-  if (cleanList(predikat).length) names.push('status kelulusan');
-  if (!names.length) return '';
-  const joined =
-    names.length > 2
-      ? `${names.slice(0, -1).join(', ')}, dan ${names[names.length - 1]}`
-      : names.join(' dan ');
-  return `Filter ${joined} tidak mengubah angka ini.`;
+export function ignoredFiltersClause(ignored = []) {
+  const names = (ignored || []).map((key) => IGNORED_FILTER_NAMES[key]).filter(Boolean);
+  return names.length ? `Filter ${formatList(names)} tidak mengubah angka ini.` : '';
 }
 
 export function describeScope(selected = {}) {
@@ -92,11 +80,7 @@ export function describeScope(selected = {}) {
   if (!active.length) return { label: '', suffix: '' };
   // Semua bagian multi = gabung nama kategorinya, bukan daftar nilainya.
   if (active.every((def) => def.values.length > 1)) {
-    const names = active.map((def) => def.name);
-    const joined =
-      names.length > 2
-        ? `${names.slice(0, -1).join(', ')}, dan ${names[names.length - 1]}`
-        : names.join(' dan ');
+    const joined = formatList(active.map((def) => def.name));
     return { label: `Pada ${joined} terpilih`, suffix: ` pada ${joined} terpilih` };
   }
   const parts = active.map((def) =>
@@ -104,4 +88,24 @@ export function describeScope(selected = {}) {
   );
   const label = parts.join(', ');
   return { label: label.charAt(0).toUpperCase() + label.slice(1), suffix: ` ${parts.join(' ')}` };
+}
+
+/**
+ * Frasa cakupan + pencarian untuk banner/subtitle dari nilai filter halaman.
+ * `cohort` = hanya filter pembentuk kohort (untuk Keberhasilan Studi).
+ */
+export function scopeTexts(filters = {}, { cohort = false } = {}) {
+  const scope = describeScope({
+    faculty: filters.faculty ?? filters.selectedFaculty,
+    prodi: filters.prodi ?? filters.selectedProdi,
+    angkatan: filters.selectedAngkatan,
+    ...(cohort
+      ? {}
+      : {
+          status: filters.predikat ?? filters.selectedStatusKelulusan,
+          periode: filters.periodeWisuda ?? filters.selectedPeriodeWisuda,
+        }),
+  });
+  const search = searchSentence(filters.search ?? filters.searchQuery);
+  return { ...scope, searchSuffix: search ? ` ${search}` : '' };
 }

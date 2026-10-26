@@ -71,3 +71,32 @@ describe('buildGraduateCards', () => {
     expect(empty.studySuccess).toMatchObject({ value: null, isEmpty: true });
   });
 });
+
+describe('ignoredStudySuccessFilters', () => {
+  const { ignoredStudySuccessFilters } = require('../../../src/services/graduates/graduateSummary');
+
+  it('menyebut filter event aktif, kecuali Tahun Lulus default', () => {
+    expect(ignoredStudySuccessFilters({ tahunLulus: '2025/2026' }, '2025/2026')).toEqual([]);
+    expect(
+      ignoredStudySuccessFilters(
+        { tahunLulus: ['2022/2023'], periodeWisuda: 'Ganjil', predikat: ['Memuaskan'] },
+        '2025/2026',
+      ),
+    ).toEqual(['tahunLulus', 'periodeWisuda', 'predikat']);
+  });
+});
+
+describe('seriesJenjangs', () => {
+  const { seriesJenjangs } = require('../../../src/services/graduates/graduateCards');
+
+  it('jenjang deret per tahun yang berisi data, berurutan kanonis', () => {
+    const rows = [
+      { tahun: '2024/2025', profesiCount: 3, s1Count: 10, s2Count: 0, total: 13 },
+      { tahun: '2025/2026', profesiCount: 0, s1Count: 12, s2Count: 0, total: 12 },
+    ];
+    expect(seriesJenjangs(rows, 'Count')).toEqual([
+      { key: 's1', jenjang: 'S1', label: 'S1', dataKey: 's1Count' },
+      { key: 'profesi', jenjang: 'Profesi', label: 'Profesi', dataKey: 'profesiCount' },
+    ]);
+  });
+});

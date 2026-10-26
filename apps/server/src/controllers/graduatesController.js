@@ -18,6 +18,7 @@ const { getTepatWaktuByYear } = require('../services/graduates/tepatWaktu');
 const { getKeberhasilanStudiByAngkatan } = require('../services/graduates/keberhasilanStudi');
 const { getGraduateDistribution } = require('../services/graduates/graduateDistribution');
 const { getGraduateList } = require('../services/graduates/graduateList');
+const { seriesJenjangs } = require('../services/graduates/graduateCards');
 const { sendServerError } = require('../utils/errorHandler');
 
 // GET /api/graduates/filter-options — opsi ringan sebelum summary, supaya
@@ -35,7 +36,9 @@ const getFilterOptions = async (req, res) => {
 const getSummary = async (req, res) => {
   try {
     const whereFilter = buildGraduateFilter(req.query);
-    const data = await getOrLoad('graduates', req.query, () => getGraduateSummary(whereFilter));
+    const data = await getOrLoad('graduates', req.query, () =>
+      getGraduateSummary(whereFilter, req.query),
+    );
     return res.json({ success: true, ...data });
   } catch (error) {
     return sendServerError(res, 'DATA_READ_FAILED', error, 'graduates/getSummary');
@@ -71,14 +74,12 @@ const getIpkTrendDetail = async (req, res) => {
     return res.json({
       success: true,
       data: {
-        s1Gpa: avgIpk.s1,
-        s2Gpa: avgIpk.s2,
-        gpaByJenjang: Object.fromEntries(
-          Object.entries(avgIpk).filter(
-            ([key]) => key !== 's1' && key !== 's2' && key !== 'tahunScope',
-          ),
-        ),
         byYear,
+        jenjangs: seriesJenjangs(byYear, 'AvgIpk'),
+        gpaCount: Object.values(avgIpk)
+          .map((entry) => entry?.count)
+          .filter((count) => typeof count === 'number')
+          .reduce((sum, count) => sum + count, 0),
         prodiGpaData: overview.prodiGpaData,
         facultyGpaData: overview.facultyGpaData,
         gpaBandsData: overview.gpaBandsData,

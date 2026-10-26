@@ -4,14 +4,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import TotalGraduatesModal from '../src/modules/graduates/components/modals/TotalGraduatesModal';
 import GpaOverviewModal from '../src/modules/graduates/components/modals/GpaOverviewModal';
 import OnTimeGraduationModal from '../src/modules/graduates/components/modals/OnTimeGraduationModal';
-import {
-  hasStudySuccessData,
-  onTimeTabs,
-  selectChartCohorts,
-  studySuccessTabs,
-  tabsForSelectedJenjang,
-  withoutDefaultTahunLulus,
-} from '../src/modules/graduates/components/modals/graduateTrendConfig';
+import CohortTrendChart from '../src/components/common/charts/CohortTrendChart';
 import StudySuccessModal from '../src/modules/graduates/components/modals/StudySuccessModal';
 import { compactBarLayout } from '../src/components/common/charts/compactBarLayout';
 import { useDetail } from '../src/modules/graduates/graduateQueries';
@@ -20,36 +13,32 @@ vi.mock('../src/modules/graduates/graduateQueries', () => ({
   useDetail: vi.fn(),
 }));
 
+const S1 = (value, extra = {}) => ({ key: 's1', jenjang: 'S1', label: 'S1', value, ...extra });
+const SCOPE = { label: '2025/2026', phrase: 'pada tahun ajaran 2025/2026' };
+
 const SUMMARY = {
   success: true,
   kpis: {
-    totalGraduates: 271,
-    totalGraduatesS1: 271,
-    totalGraduatesS2: null,
-    totalGraduatesByJenjang: { s1: 271 },
-    averageGpaS1: 3.53,
-    averageGpaS2: null,
-    averageGpaByJenjang: { s1: 3.53 },
-    onTimeGraduationRateS1: 75.5,
-    onTimeGraduationRateS2: null,
-    onTimeByJenjang: { s1: 75.5 },
-    studySuccessRateS1: 88.2,
-    totalScopeLabel: '2025/2026',
-    totalScopePhrase: 'pada tahun ajaran 2025/2026',
+    cards: {
+      total: { value: 271, isEmpty: false, scope: SCOPE, byJenjang: [S1(271)] },
+      gpa: { value: 3.53, count: 271, isEmpty: false, scope: SCOPE, byJenjang: [S1(3.53)] },
+      onTime: { value: 75.5, isEmpty: false, scope: SCOPE, byJenjang: [S1(75.5, { batas: 4 })] },
+      studySuccess: {
+        value: 88.2,
+        headlineJenjang: 'S1',
+        isEmpty: false,
+        ignoredFilters: [],
+        byJenjang: [S1(88.2, { angkatan: '2018/2019', batas: 8 })],
+      },
+    },
   },
-  summary: {
-    avgIpk: { tahunScope: { phrase: 'pada tahun ajaran 2025/2026' } },
-    tepatWaktu: { tahunScope: { phrase: 'pada tahun ajaran 2025/2026' } },
-    keberhasilanStudi: { angkatanS1: '2018/2019' },
-  },
-  filterOptions: {
-    rollingYears: ['2025/2026', '2024/2025'],
-  },
+  summary: {},
 };
 
 const DETAILS = {
   'total-lulusan': {
     byYear: [{ tahun: '2023/2024', s1Count: 46, total: 46 }],
+    jenjangs: [{ key: 's1', jenjang: 'S1', label: 'S1', dataKey: 's1Count' }],
   },
   distribution: {
     total: 271,
@@ -57,6 +46,7 @@ const DETAILS = {
   },
   'ipk-trend': {
     byYear: [{ tahun: '2023/2024', s1AvgIpk: 3.69 }],
+    jenjangs: [{ key: 's1', jenjang: 'S1', label: 'S1', dataKey: 's1AvgIpk' }],
     prodiGpaData: [{ name: 'Bio Medis dan Rekayasa Hayati', gpaValue: 3.6, count: 100 }],
     facultyGpaData: [{ name: 'Ilmu Kesehatan dan Biosains', gpaValue: 3.55, count: 271 }],
     gpaBandsData: [{ range: '3.51 - 3.75', count: 100, percentage: 36.9 }],
@@ -73,8 +63,6 @@ const DETAILS = {
         rate: 75,
       },
     ],
-    batasS1: 4,
-    s2: [],
     jenjangs: [{ key: 's1', jenjang: 'S1', label: 'S1', batas: 4 }],
   },
   'keberhasilan-studi': {
@@ -87,9 +75,6 @@ const DETAILS = {
         intake: 10,
       },
     ],
-    batasStudiS1: 7,
-    angkatanEvaluasiS1: '2018/2019',
-    s2: null,
     jenjangs: [{ key: 's1', jenjang: 'S1', label: 'S1', batas: 8, angkatanEvaluasi: '2018/2019' }],
   },
 };
@@ -132,84 +117,60 @@ it.each([
   expect(queryByText(/Jenjangs/i)).toBeNull();
 });
 
-describe('chart OnTime 5 cohort terakhir', () => {
-  it('tidak punya tab tabel riwayat', () => {
-    expect(onTimeTabs({ s1: 4, s2: 2, profesi: 1 }).map((tab) => tab.key)).not.toContain('tabel');
-  });
+describe('jendela dan tab diputuskan server', () => {
+  it.each([['2025/2026'], ['2022/2023']])(
+    'Tahun Lulus %s dikirim apa adanya; server yang memutuskan jendela',
+    async (year) => {
+      renderModal(OnTimeGraduationModal, { selectedTahunLulus: [year] });
+      await waitFor(() => expect(useDetail).toHaveBeenCalled());
+      expect(vi.mocked(useDetail).mock.calls.at(-1)[0].filters.selectedTahunLulus).toEqual([year]);
+    },
+  );
 
-  it('memotong ke 5 data terakhir saat tanpa filter tahun eksplisit', () => {
-    const cohorts = Array.from({ length: 8 }, (_, index) => ({
-      cohortLabel: `Angkatan ${2018 + index}`,
-    }));
-
-    expect(selectChartCohorts(cohorts, false)).toHaveLength(5);
-    expect(selectChartCohorts(cohorts, false)[0].cohortLabel).toBe('Angkatan 2021');
-    expect(selectChartCohorts(cohorts, true)).toBe(cohorts);
-  });
-
-  it('tahun lulus default tidak dikirim sebagai filter detail', async () => {
-    renderModal(OnTimeGraduationModal, { selectedTahunLulus: ['2025/2026'] });
-    await waitFor(() => expect(useDetail).toHaveBeenCalled());
-
-    const { filters } = vi.mocked(useDetail).mock.calls.at(-1)[0];
-    expect(filters.selectedTahunLulus).toBeUndefined();
-  });
-
-  it('pilihan tahun manual tetap dikirim apa adanya', async () => {
-    renderModal(OnTimeGraduationModal, { selectedTahunLulus: ['2022/2023'] });
-    await waitFor(() => expect(useDetail).toHaveBeenCalled());
-
-    const { filters } = vi.mocked(useDetail).mock.calls.at(-1)[0];
-    expect(filters.selectedTahunLulus).toEqual(['2022/2023']);
-  });
-
-  it('Total dan GPA memakai jendela tahun untuk chart, tetapi kartu tetap default', async () => {
-    renderModal(TotalGraduatesModal, { selectedTahunLulus: ['2025/2026'] });
-    await waitFor(() => expect(useDetail).toHaveBeenCalled());
-    const totalCall = vi
-      .mocked(useDetail)
-      .mock.calls.find(([config]) => config.resourceKey === 'total-lulusan');
-    expect(totalCall[0].filters.selectedTahunLulus).toBeUndefined();
-
-    vi.mocked(useDetail).mockClear();
+  it('modal IPK cukup satu request', async () => {
     renderModal(GpaOverviewModal, { selectedTahunLulus: ['2025/2026'] });
     await waitFor(() => expect(useDetail).toHaveBeenCalled());
-    const ipkCalls = vi
-      .mocked(useDetail)
-      .mock.calls.filter(([config]) => config.resourceKey === 'ipk-trend')
-      .map(([config]) => config.filters.selectedTahunLulus);
-    expect(ipkCalls).toContain(undefined);
-    expect(ipkCalls).toContainEqual(['2025/2026']);
+    const keys = new Set(
+      vi.mocked(useDetail).mock.calls.map(([config]) => JSON.stringify(config.filters)),
+    );
+    expect(keys.size).toBe(1);
   });
 
-  it('helper menghormati pilihan tahun eksplisit', () => {
-    const filters = { selectedTahunLulus: ['2022/2023'], faculty: ['FST'] };
-    expect(withoutDefaultTahunLulus(filters, '2025/2026')).toBe(filters);
-    expect(withoutDefaultTahunLulus(filters, '2022/2023').selectedTahunLulus).toBeUndefined();
-  });
-
-  it('tab hanya untuk jenjang berdata, berurutan kanonis, label Profesi', () => {
-    expect(onTimeTabs({ profesi: 1 }).map((tab) => tab.key)).toEqual(['profesi']);
-    expect(onTimeTabs({ profesi: 1 })[0].label).toBe('Jenjang Profesi (≤ 1 Thn)');
-    expect(studySuccessTabs({ profesi: 2, s2: 4, s1: 7 }).map((tab) => tab.key)).toEqual([
-      's1',
-      's2',
-      'profesi',
-    ]);
-  });
-
-  it('tab jenjang mengikuti pilihan filter', () => {
-    const tabs = [{ key: 's1' }, { key: 's2' }, { key: 'profesi' }];
-    expect(tabsForSelectedJenjang(tabs, ['Profesi']).map((tab) => tab.key)).toEqual(['profesi']);
-    expect(tabsForSelectedJenjang(tabs, [])).toHaveLength(3);
+  it('tab hanya dari jenjangs server: Profesi saja tanpa tab S1/S2 hantu', async () => {
+    vi.mocked(useDetail).mockImplementation(({ resourceKey }) => ({
+      data:
+        resourceKey === 'tepat-waktu'
+          ? {
+              profesi: [
+                { cohortLabel: 'Angkatan 2025/2026', onTimeCount: 3, fastCount: 0, lateCount: 0 },
+              ],
+              jenjangs: [{ key: 'profesi', jenjang: 'Profesi', label: 'Profesi', batas: 1 }],
+            }
+          : null,
+      isLoading: false,
+      error: null,
+    }));
+    renderModal(OnTimeGraduationModal);
+    // Modal dirender lewat portal ke document.body, bukan ke container render.
+    await waitFor(() => expect(document.body.textContent).toContain('Jenjang Profesi (≤ 1 Thn)'));
+    expect(document.body.textContent).not.toContain('Jenjang S1');
   });
 });
 
-it('banner studySuccess menyebut filter non-kohort yang aktif tanpa memasukkannya ke cakupan', async () => {
-  renderModal(StudySuccessModal, {
-    selectedTahunLulus: ['2022/2023'],
-    predikat: ['Cum Laude'],
-  });
+it('banner studySuccess menyebut filter event dari server tanpa memasukkannya ke cakupan', async () => {
+  const summary = structuredClone(SUMMARY);
+  summary.kpis.cards.studySuccess.ignoredFilters = ['tahunLulus', 'predikat'];
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <StudySuccessModal
+        isOpen
+        onClose={() => {}}
+        originRect={null}
+        data={summary}
+        filters={{ predikat: ['Cum Laude'] }}
+      />
+    </QueryClientProvider>,
+  );
   await waitFor(() =>
     expect(document.body.textContent).toContain(
       'Filter tahun lulus dan status kelulusan tidak mengubah angka ini.',
@@ -218,48 +179,31 @@ it('banner studySuccess menyebut filter non-kohort yang aktif tanpa memasukkanny
   expect(document.body.textContent).not.toContain('Status Cum Laude,');
 });
 
-describe('trendBars Total Lulusan (grouped)', () => {
-  it('satu batang per jenjang, S1 dulu, warna beda, tanpa stackId', async () => {
+describe('trendBars dari jenjangs server', () => {
+  it('urutan, label, dan dataKey mengikuti server; warna beda; tanpa stackId', async () => {
     const { trendBars } = await import('../src/modules/graduates/components/modals/totalTrendBars');
     const bars = trendBars([
-      { tahun: '2025/2026', s1Count: 40, s2Count: 20, profesiCount: 5, total: 65 },
+      { key: 's1', label: 'S1', dataKey: 's1Count' },
+      { key: 'profesi', label: 'Profesi', dataKey: 'profesiCount' },
+      { key: 's3', label: 'S3', dataKey: 's3Count' },
     ]);
-    expect(bars.map((bar) => bar.dataKey)).toEqual(['s1Count', 'profesiCount', 's2Count']);
+    expect(bars.map((bar) => bar.dataKey)).toEqual(['s1Count', 'profesiCount', 's3Count']);
+    expect(bars.map((bar) => bar.name)).toEqual(['Lulusan S1', 'Lulusan Profesi', 'Lulusan S3']);
     expect(new Set(bars.map((bar) => bar.color)).size).toBe(3);
-    for (const bar of bars) {
-      expect(bar.stackId).toBeUndefined();
-      expect(bar.labelPosition).toBe('top');
-    }
-  });
-
-  it('jenjang baru (S3) otomatis jadi batang keempat', async () => {
-    const { trendBars } = await import('../src/modules/graduates/components/modals/totalTrendBars');
-    const bars = trendBars([{ tahun: '2026/2027', s1Count: 1, s3Count: 2, total: 3 }]);
-    expect(bars.map((bar) => bar.dataKey)).toEqual(['s1Count', 's3Count']);
-    expect(bars.at(-1).name).toContain('S3');
     expect(bars.every((bar) => bar.stackId === undefined)).toBe(true);
-  });
-
-  it('jenjang yang seluruh periode nol tidak membuat seri kosong', async () => {
-    const { trendBars } = await import('../src/modules/graduates/components/modals/totalTrendBars');
-    const bars = trendBars([
-      { tahun: '2021/2022', s1Count: 10, s2Count: 2, profesiCount: 0, total: 12 },
-      { tahun: '2022/2023', s1Count: 12, s2Count: 3, profesiCount: 0, total: 15 },
-    ]);
-    expect(bars.map((bar) => bar.dataKey)).toEqual(['s1Count', 's2Count']);
   });
 });
 
-describe('chart StudySuccess', () => {
-  it('tidak punya tab tabel riwayat', () => {
-    expect(studySuccessTabs({ s1: 7, s2: 4, profesi: 2 }).map((tab) => tab.key)).not.toContain(
-      'tabel',
+describe('CohortTrendChart', () => {
+  it('angkatan tanpa nilai > 0 menampilkan pesan kosong, bukan chart kosong', () => {
+    const { getByText } = render(
+      <CohortTrendChart
+        cohorts={[{ cohortLabel: 'Angkatan 2020/2021', intake: 0, successCount: 0 }]}
+        bars={[{ dataKey: 'intake', name: 'Intake', color: '#000' }]}
+        emptyTitle="Belum Ada Kohort"
+      />,
     );
-  });
-
-  it('membedakan kohort kosong dari kohort yang sudah punya data', () => {
-    expect(hasStudySuccessData([{ intake: 0, successCount: 0 }])).toBe(false);
-    expect(hasStudySuccessData([{ intake: 80, successCount: 37 }])).toBe(true);
+    expect(getByText('Belum Ada Kohort')).toBeTruthy();
   });
 });
 

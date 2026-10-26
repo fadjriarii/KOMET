@@ -7,6 +7,7 @@
  */
 
 const prisma = require('../../config/prisma');
+const { seriesJenjangs } = require('./graduateCards');
 const { getRequestedJenjang } = require('./filterBuilder');
 const {
   valuesByYearAndJenjang,
@@ -40,9 +41,6 @@ async function getTotalLulusan(whereFilter = {}) {
 
   const result = { tahunScope };
   for (const jenjang of known) result[jenjang.toLowerCase()] = pick(jenjang);
-  // Kunci lama untuk kompatibilitas kartu S1/S2 yang sudah ada.
-  result.s1 = result.s1 ?? null;
-  result.s2 = result.s2 ?? null;
   return result;
 }
 
@@ -54,18 +52,18 @@ async function getTotalLulusanByYear(whereFilter) {
 
   // Chart tren = 5 tahun terbaru dari data; jangkar tahun ajaran sudah
   // memotong deretnya, pilihan tahun lulus eksplisit tetap menang apa adanya.
-  return {
-    byYear: windowGraduateTrend(series, whereFilter).map(({ tahun, ...counts }) => {
-      const entry = { tahun };
-      let total = 0;
-      for (const [key, value] of Object.entries(counts)) {
-        entry[`${key}Count`] = value ?? 0;
-        total += value ?? 0;
-      }
-      entry.total = total;
-      return entry;
-    }),
-  };
+  const byYear = windowGraduateTrend(series, whereFilter).map(({ tahun, ...counts }) => {
+    const entry = { tahun };
+    let total = 0;
+    for (const [key, value] of Object.entries(counts)) {
+      entry[`${key}Count`] = value ?? 0;
+      total += value ?? 0;
+    }
+    entry.total = total;
+    return entry;
+  });
+  // Seri chart + kolom tabel dari server: urutan dan label jenjang kanonis.
+  return { byYear, jenjangs: seriesJenjangs(byYear, 'Count') };
 }
 
 module.exports = { getTotalLulusan, getTotalLulusanByYear };

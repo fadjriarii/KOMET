@@ -221,20 +221,20 @@ describe('keberhasilan studi agregasi cohort', () => {
 
     // 1 query jenjang dinamis + 1 bukti tutup + 6 agregat kohort (3 jenjang × penyebut+pembilang).
     expect(calls).toHaveLength(8);
-    expect(cards.s1).toBe(
+    expect(cards.cohorts.s1?.rate).toBe(
       expectedCohort(dataset, 'S1', String(getAngkatanEvaluasiStart('S1', REF_START))).rate,
     );
-    expect(cards.s2).toBe(
+    expect(cards.cohorts.s2?.rate).toBe(
       expectedCohort(dataset, 'S2', String(getAngkatanEvaluasiStart('S2', REF_START))).rate,
     );
-    expect(cards.profesi).toBe(
+    expect(cards.cohorts.profesi?.rate).toBe(
       expectedCohort(dataset, 'Profesi', String(getAngkatanEvaluasiStart('Profesi', REF_START)))
         .rate,
     );
-    expect(cards).toMatchObject({
-      angkatanS1: windowYears('S1').at(-1),
-      angkatanS2: windowYears('S2').at(-1),
-      angkatanProfesi: windowYears('Profesi').at(-1),
+    expect(cards.cohorts).toMatchObject({
+      s1: { angkatan: windowYears('S1').at(-1) },
+      s2: { angkatan: windowYears('S2').at(-1) },
+      profesi: { angkatan: windowYears('Profesi').at(-1) },
     });
   });
 
@@ -245,11 +245,11 @@ describe('keberhasilan studi agregasi cohort', () => {
     const selected = formatAcademicYearLabel(selectedStart);
 
     const cards = await getKeberhasilanStudi({ angkatan: { in: [selected] } });
-    expect(cards.s1).toBe(expectedCohort(dataset, 'S1', String(selectedStart)).rate);
-    expect(cards.angkatanS1).toBe(selected);
+    expect(cards.cohorts.s1?.rate).toBe(expectedCohort(dataset, 'S1', String(selectedStart)).rate);
+    expect(cards.cohorts.s1?.angkatan).toBe(selected);
 
     const series = await getKeberhasilanStudiByAngkatan({ angkatan: { in: [selected] } });
-    expect(series.angkatanEvaluasiS1).toBe(selected);
+    expect(series.jenjangs.find((entry) => entry.key === 's1')?.angkatanEvaluasi).toBe(selected);
     expect(series.s1.at(-1).cohortLabel).toBe(`Angkatan ${selected}`);
   });
 
@@ -264,8 +264,8 @@ describe('keberhasilan studi agregasi cohort', () => {
         in: [formatAcademicYearLabel(olderStart), formatAcademicYearLabel(newerStart)],
       },
     });
-    expect(cards.angkatanS1).toBe(formatAcademicYearLabel(newerStart));
-    expect(cards.s1).toBe(expectedCohort(dataset, 'S1', String(newerStart)).rate);
+    expect(cards.cohorts.s1?.angkatan).toBe(formatAcademicYearLabel(newerStart));
+    expect(cards.cohorts.s1?.rate).toBe(expectedCohort(dataset, 'S1', String(newerStart)).rate);
   });
 
   it('filter jenjang S2 membatalkan perhitungan lain tanpa mengirim query', async () => {
@@ -276,12 +276,12 @@ describe('keberhasilan studi agregasi cohort', () => {
     const series = await getKeberhasilanStudiByAngkatan({ jenjang: 'S2' });
 
     // Jenjang yang tidak diminta → null (bukan undefined/0%).
-    expect(cards.s1).toBeNull();
-    expect(cards.s2).not.toBeNull();
+    expect(cards.cohorts.s1).toBeUndefined();
+    expect(cards.cohorts.s2).toBeDefined();
     // Kartu S2 + series S2: 2 agregat kohort (penyebut + pembilang) masing-masing +
     // 1 bukti tutup masing-masing — tanpa query jenjang, karena `jenjang` diminta eksplisit.
     expect(calls).toHaveLength(6);
-    expect(series.s1).toBeNull();
+    expect(series.s1).toBeUndefined();
     expect(series.s2.map((row) => row.cohortLabel)).toEqual(
       windowYears('S2').map((label) => `Angkatan ${label}`),
     );
@@ -294,8 +294,8 @@ describe('keberhasilan studi agregasi cohort', () => {
     // `buildGraduateFilter()` menghasilkan `{ in: [...] }`, bukan string.
     const cards = await getKeberhasilanStudi({ jenjang: { in: ['S2'] } });
 
-    expect(cards.s1).toBeNull();
-    expect(cards.s2).not.toBeNull();
+    expect(cards.cohorts.s1).toBeUndefined();
+    expect(cards.cohorts.s2).toBeDefined();
     // 2 agregat kohort (penyebut + pembilang) untuk S2 + 1 bukti tutup, tanpa query jenjang.
     expect(calls).toHaveLength(3);
   });
@@ -388,7 +388,7 @@ describe('keberhasilan studi agregasi cohort', () => {
     stubGroupBy(dataset, ['S1']);
     const cards = await getKeberhasilanStudi({ jenjang: 'S1' });
     // Semester ke-16 masih berhasil; semester ke-17 lulus tapi lewat batas.
-    expect(cards.angkatanS1).toBe(angkatan);
-    expect(cards.s1).toBe(50);
+    expect(cards.cohorts.s1?.angkatan).toBe(angkatan);
+    expect(cards.cohorts.s1?.rate).toBe(50);
   });
 });

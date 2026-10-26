@@ -69,12 +69,13 @@ describe('evaluasi mengikuti bukti tutup, lag sebagai batas bawah', () => {
     stubAll({ closureRows: closed2019, cohortRows: rows2019 });
 
     const card = await getKeberhasilanStudi({});
-    expect(card.s1).toBe(70);
-    expect(card.angkatanS1).toBe('2019/2020');
+    expect(card.cohorts.s1?.rate).toBe(70);
+    expect(card.cohorts.s1?.angkatan).toBe('2019/2020');
 
     const detail = await getKeberhasilanStudiByAngkatan({});
-    expect(detail.angkatanEvaluasiS1).toBe('2019/2020');
-    expect(detail.s1).toHaveLength(5);
+    expect(detail.jenjangs.find((entry) => entry.key === 's1')?.angkatanEvaluasi).toBe('2019/2020');
+    // Hanya angkatan berdata yang dikirim; jendela berakhir di angkatan evaluasi.
+    expect(detail.s1).toHaveLength(1);
     expect(detail.s1.at(-1)).toMatchObject({
       cohortLabel: 'Angkatan 2019/2020',
       intake: 10,
@@ -92,13 +93,13 @@ describe('evaluasi mengikuti bukti tutup, lag sebagai batas bawah', () => {
     });
 
     const card = await getKeberhasilanStudi({});
-    expect(card.angkatanS1).toBe('2017/2018');
+    expect(card.cohorts.s1?.angkatan).toBe('2017/2018');
   });
 
   it('jangkar tahunAjaran mematikan promosi (tampilan sampai tahun X)', async () => {
     stubAll({ closureRows: closed2019, cohortRows: rows2019 });
 
     const card = await getKeberhasilanStudi({ tahunAjaran: '2020/2021' });
-    expect(card.angkatanS1).toBe('2012/2013');
+    expect(card.cohorts.s1?.angkatan).toBe('2012/2013');
   });
 });

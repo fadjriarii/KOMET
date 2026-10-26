@@ -12,6 +12,9 @@ const cleanStrings = (values) =>
     (item) => typeof item === 'string' && item.trim() !== '',
   );
 
+/** Gabung daftar gaya Indonesia: "A", "A dan B", "A, B, dan C". */
+export const formatList = (values = []) => listFormatter.format(cleanStrings(values));
+
 /**
  * Daftar ber-prefix: "Prodi A dan B", >maxListed menjadi "Prodi Terpilih".
  * `smartPrefix` untuk fakultas yang nilainya kadang sudah berprefix.

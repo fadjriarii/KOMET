@@ -18,6 +18,11 @@ Version numbers follow the root `package.json`.
   Intake "Status Saat Ini" tab that splits each intake year by current status.
   The intake chart highlights the year behind the card number. Data comes from
   `GET /api/students/intake-breakdown`.
+- Graduate Data client renders only: cards, tabs, bars, and table columns come
+  from `kpis.cards` and server `jenjangs`; one `CohortTrendChart`, one list
+  formatter, and one scope-text helper replace the duplicated copies. Removed
+  the S1/S2 flat fields (`totalGraduatesS1`, `averageGpaS1`, `s1Gpa`,
+  `batasStudiS1`, …) from the graduate API.
 - Graduate summary `kpis.cards` (value, `isEmpty`, ordered `byJenjang`) and
   `jenjangs` tab lists on the on-time and study success details. The server now
   decides the default Tahun Lulus trend window and the 5-cohort window.

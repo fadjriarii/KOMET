@@ -116,4 +116,20 @@ function jenjangTabs(series = {}, extra = () => ({})) {
     .sort(byJenjangOrder);
 }
 
-module.exports = { buildGraduateCards, jenjangTabs };
+/**
+ * Jenjang sebuah deret per tahun (`[{ tahun, s1Count, profesiCount }]`): kunci
+ * ber-akhiran `suffix` yang punya nilai > 0 di salah satu tahun.
+ */
+function seriesJenjangs(rows = [], suffix) {
+  const keys = new Set();
+  for (const row of rows) {
+    for (const [field, value] of Object.entries(row)) {
+      if (field.endsWith(suffix) && Number(value) > 0) keys.add(field.slice(0, -suffix.length));
+    }
+  }
+  return jenjangTabs(Object.fromEntries([...keys].map((key) => [key, [true]])), (jenjang, key) => ({
+    dataKey: `${key}${suffix}`,
+  }));
+}
+
+module.exports = { buildGraduateCards, jenjangTabs, seriesJenjangs };

@@ -98,9 +98,6 @@ async function getTepatWaktu(whereFilter) {
     overall: calcOverall(),
   };
   for (const jenjang of jenjangs) result[jenjang.toLowerCase()] = calcPct(jenjang);
-  // Kunci lama untuk kompatibilitas kartu S1/S2 yang sudah ada.
-  result.s1 = result.s1 ?? null;
-  result.s2 = result.s2 ?? null;
   return result;
 }
 
@@ -196,18 +193,8 @@ async function getTepatWaktuByYear(whereFilter) {
     );
   };
 
-  // Kunci batas hanya untuk jenjang dalam scope yang aturannya dikenal —
-  // tanpa baris S3 di DB, tidak ada kunci s3/batasS3 yang keluar dari sini,
-  // jadi teks S3 tidak bisa bocor ke UI.
   const result = {};
-  for (const jenjang of jenjangs) {
-    result[jenjang.toLowerCase()] = buildCohortData(jenjang);
-    const batas = batasFor(jenjang);
-    // Kapitalisasi sekali supaya filter URL huruf kecil (`?jenjang=s1`)
-    // tetap menghasilkan kunci kanonis `batasS1` seperti sebelumnya.
-    if (batas !== null)
-      result[`batas${jenjang.charAt(0).toUpperCase()}${jenjang.slice(1)}`] = batas;
-  }
+  for (const jenjang of jenjangs) result[jenjang.toLowerCase()] = buildCohortData(jenjang);
   // Daftar tab dari server: hanya jenjang yang punya kohort, berurutan.
   result.jenjangs = jenjangTabs(
     Object.fromEntries(
@@ -215,8 +202,6 @@ async function getTepatWaktuByYear(whereFilter) {
     ),
     (jenjang) => ({ batas: batasFor(jenjang) }),
   );
-  result.s1 = result.s1 ?? [];
-  result.s2 = result.s2 ?? [];
   return result;
 }
 

@@ -102,23 +102,7 @@ const STUDENT_SUMMARY_KPIS = [
   'hasEnoughDeclineData',
 ];
 
-const GRADUATE_SUMMARY_KPIS = [
-  'cards',
-  'totalGraduates',
-  'totalGraduatesS1',
-  'totalGraduatesS2',
-  'totalGraduatesByJenjang',
-  'totalScopeLabel',
-  'totalScopePhrase',
-  'onTimeGraduationRateS1',
-  'onTimeGraduationRateS2',
-  'onTimeGraduationRateOverall',
-  'onTimeByJenjang',
-  'studySuccessRateS1',
-  'averageGpaS1',
-  'averageGpaS2',
-  'averageGpaByJenjang',
-];
+const GRADUATE_SUMMARY_KPIS = ['cards'];
 
 const MBKM_SUMMARY_KPIS = [
   'totalParticipants',

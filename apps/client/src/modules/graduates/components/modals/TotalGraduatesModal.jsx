@@ -7,24 +7,19 @@ import ModalTable from '../../../../components/common/modals/ModalTable';
 import ModalTabContent from '../../../../components/common/modals/ModalTabContent';
 import { useTabTransition } from '../../../../hooks/useTabTransition';
 import { formatNumber } from '@komet/shared/formatters';
-import { describeScope, searchSentence } from '../../utils/filterScope';
+import { formatList } from '../../../../utils/kpiLabels';
+import { scopeTexts } from '../../utils/filterScope';
 import { useDetail } from '../../graduateQueries';
-import { jenjangName, trendBars } from './totalTrendBars';
+import { trendBars } from './totalTrendBars';
 import TrendBarChart from '../../../../components/common/charts/TrendBarChart';
 import DistributionChart from '../../../../components/common/charts/DistributionChart';
 import TrendChartTooltip from '../../../../components/common/charts/TrendChartTooltip';
-import { TOTAL_GRADUATE_TABS, withoutDefaultTahunLulus } from './graduateTrendConfig';
+import { TOTAL_GRADUATE_TABS } from './graduateTrendConfig';
 
 const EMPTY_ITEMS = [];
 
-const JENJANG_TONE = { s1Count: 'text-digital-blue-900', s2Count: 'text-gray-800' };
-
-// Kolom jenjang dinamis dari baris pertama: S1/S2 tampil seperti semula,
-// jenjang tambahan (Profesi) memakai kolom yang sama polanya.
-function totalTableColumns(rows) {
-  const jenjangKeys = Object.keys(rows[0] ?? {})
-    .filter((key) => key !== 'tahun' && key !== 'total' && key.endsWith('Count'))
-    .sort((a, b) => (a === 's1Count' ? -1 : b === 's1Count' ? 1 : a.localeCompare(b)));
+// Kolom jenjang dari daftar server, urutan sama dengan batang chart.
+function totalTableColumns(jenjangs) {
   return [
     {
       key: 'tahun',
@@ -37,13 +32,13 @@ function totalTableColumns(rows) {
         </div>
       ),
     },
-    ...jenjangKeys.map((key) => ({
-      key,
-      label: `Lulusan Jenjang ${jenjangName(key.replace(/Count$/, ''))}`,
+    ...jenjangs.map((entry, index) => ({
+      key: entry.dataKey,
+      label: `Lulusan Jenjang ${entry.label}`,
       icon: GraduationCap,
       headerClassName: 'text-right',
-      cellClassName: `text-right font-medium ${JENJANG_TONE[key] ?? 'text-gray-800'}`,
-      render: (row) => `${formatNumber(row[key])} lulusan`,
+      cellClassName: `text-right font-medium ${index === 0 ? 'text-digital-blue-900' : 'text-gray-800'}`,
+      render: (row) => `${formatNumber(row[entry.dataKey])} lulusan`,
     })),
     {
       key: 'total',
@@ -58,11 +53,6 @@ function totalTableColumns(rows) {
 
 export default function TotalGraduatesModal({ isOpen, onClose, originRect, data, filters }) {
   const { activeTab, handleTabChange, slideClass } = useTabTransition(TOTAL_GRADUATE_TABS, 'tren');
-  const defaultTahunLulus = data?.filterOptions?.rollingYears?.[0];
-  const chartFilters = useMemo(
-    () => withoutDefaultTahunLulus(filters, defaultTahunLulus),
-    [filters, defaultTahunLulus],
-  );
 
   const {
     data: totalData,
@@ -71,7 +61,7 @@ export default function TotalGraduatesModal({ isOpen, onClose, originRect, data,
   } = useDetail({
     isOpen,
     resourceKey: 'total-lulusan',
-    filters: chartFilters,
+    filters,
     method: 'getTotalLulusanDetail',
     errorMessage: 'Gagal memuat tren total lulusan',
   });
@@ -88,20 +78,14 @@ export default function TotalGraduatesModal({ isOpen, onClose, originRect, data,
     errorMessage: 'Gagal memuat distribusi lulusan',
   });
 
-  const kpis = data?.kpis || {};
-  const { suffix: scopeSuffix } = describeScope({
-    faculty: filters?.faculty,
-    prodi: filters?.prodi,
-    angkatan: filters?.selectedAngkatan,
-    status: filters?.predikat,
-    periode: filters?.periodeWisuda,
-  });
-  const searchTail = searchSentence(filters?.search);
-  const searchSuffix = searchTail ? ` ${searchTail}` : '';
+  const card = data?.kpis?.cards?.total || {};
+  const { suffix: scopeSuffix, searchSuffix } = scopeTexts(filters);
 
+  // Server sudah menjendela deret (5 tahun bila Tahun Lulus masih default).
   const combinedTrend = totalData?.byYear || EMPTY_ITEMS;
-  const bars = useMemo(() => trendBars(combinedTrend), [combinedTrend]);
-  const columns = useMemo(() => totalTableColumns(combinedTrend), [combinedTrend]);
+  const trendJenjangs = totalData?.jenjangs || EMPTY_ITEMS;
+  const bars = useMemo(() => trendBars(trendJenjangs), [trendJenjangs]);
+  const columns = useMemo(() => totalTableColumns(trendJenjangs), [trendJenjangs]);
   const tooltipRows = useMemo(
     () =>
       bars.map((bar) => ({
@@ -111,20 +95,10 @@ export default function TotalGraduatesModal({ isOpen, onClose, originRect, data,
       })),
     [bars],
   );
-  // Identitas stabil untuk dep useMemo di bawah: `|| {}` inline membuat
-  // objek baru tiap render dan membatalkan memo.
-  const byJenjang = useMemo(
-    () => kpis.totalGraduatesByJenjang || {},
-    [kpis.totalGraduatesByJenjang],
-  );
-  const composition = useMemo(
-    () =>
-      Object.entries(byJenjang)
-        .filter(([, value]) => value)
-        .sort(([a], [b]) => (a === 's1' ? -1 : b === 's1' ? 1 : a.localeCompare(b)))
-        .map(([key, value]) => `${formatNumber(value)} lulusan ${jenjangName(key)}`)
-        .join(', '),
-    [byJenjang],
+  const composition = formatList(
+    (card.byJenjang || EMPTY_ITEMS).map(
+      (entry) => `${formatNumber(entry.value)} lulusan ${entry.label}`,
+    ),
   );
 
   const predikatList = useMemo(() => distData?.byPredikat || [], [distData]);
@@ -215,17 +189,17 @@ export default function TotalGraduatesModal({ isOpen, onClose, originRect, data,
               <p>
                 Menampilkan{' '}
                 <strong className="text-digital-blue-900 font-bold">
-                  {formatNumber(kpis.totalGraduates ?? 0)} lulusan{scopeSuffix}
+                  {formatNumber(card.value)} lulusan{scopeSuffix}
                 </strong>{' '}
                 yang menyelesaikan studi{' '}
-                {kpis.totalScopePhrase || 'di seluruh tahun akademik tercatat'}. Terdiri dari{' '}
+                {card.scope?.phrase || 'di seluruh tahun akademik tercatat'}. Terdiri dari{' '}
                 <strong>{composition || '0 lulusan'}</strong>. Ringkasan ini mengikuti filter yang
                 sedang aktif dan mencakup seluruh jenjang pada cakupan tersebut.{searchSuffix}
               </p>
             </div>
           }
           label="Total Lulusan"
-          value={formatNumber(kpis.totalGraduates ?? 0)}
+          value={formatNumber(card.value)}
           sublabel={`Per jenjang: ${composition || '0 lulusan'}`}
         />
 

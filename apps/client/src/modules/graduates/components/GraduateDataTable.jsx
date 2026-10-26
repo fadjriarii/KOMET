@@ -1,6 +1,7 @@
 import DataTable from '../../../components/common/tables/DataTable';
 import Badge from '../../../components/common/ui/Badge';
-import { formatNumber } from '@komet/shared/formatters';
+import { formatDecimal, formatNumber } from '@komet/shared/formatters';
+import { STUDENT_STATUS } from '@komet/shared/constants';
 import { badgeVariantForPredikat } from '../utils/predikatBadge';
 
 const COLUMNS = [
@@ -80,15 +81,11 @@ const COLUMNS = [
     label: 'IPK',
     headerClassName: 'w-[7%] text-center',
     cellClassName: 'text-center',
-    render: (row) => {
-      const ipk =
-        row.ipk === null || row.ipk === undefined || row.ipk === '' ? NaN : Number(row.ipk);
-      return (
-        <Badge size="sm" variant={badgeVariantForPredikat(row.predikatLulus)} className="font-bold">
-          {Number.isFinite(ipk) ? ipk.toFixed(2) : '-'}
-        </Badge>
-      );
-    },
+    render: (row) => (
+      <Badge size="sm" variant={badgeVariantForPredikat(row.predikatLulus)} className="font-bold">
+        {formatDecimal(row.ipk, 2)}
+      </Badge>
+    ),
   },
   {
     key: 'sksLulus',
@@ -123,7 +120,7 @@ const COLUMNS = [
     render: (row) => (
       <Badge
         size="sm"
-        variant={row.statusKelulusan === 'Lulus' ? 'success' : 'default'}
+        variant={row.statusKelulusan === STUDENT_STATUS.LULUS ? 'success' : 'default'}
         className="justify-center text-xs"
       >
         <span>{row.statusKelulusan || '-'}</span>
