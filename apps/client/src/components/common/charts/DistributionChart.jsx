@@ -9,7 +9,7 @@ const OPTIONAL_ROWS = [
   { key: 'percentage', label: 'Persentase', format: formatPercentage },
 ];
 
-function DistributionTooltip({ active, payload, nameKey, countLabel, countUnit }) {
+function DistributionTooltip({ active, payload, nameKey, countLabel, countUnit, series }) {
   if (!active || !payload?.length) return null;
   const data = getTooltipPayloadItem(payload);
   if (!data) return null;
@@ -22,6 +22,17 @@ function DistributionTooltip({ active, payload, nameKey, countLabel, countUnit }
           {formatNumber(data.count)} {countUnit}
         </span>
       </div>
+      {series?.map(({ key, label, color }) =>
+        data.byStatus?.[key] ? (
+          <div key={key} className="flex items-center justify-between gap-3 text-gray-600 mb-1">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
+              {label}:
+            </span>
+            <span className="font-semibold text-gray-900">{formatNumber(data.byStatus[key])}</span>
+          </div>
+        ) : null,
+      )}
       {OPTIONAL_ROWS.filter(({ key }) => data[key] !== undefined).map(
         ({ key, label, format = (value) => value }) => (
           <div
@@ -48,6 +59,7 @@ export default function DistributionChart({
   countLabel = 'Jumlah',
   countUnit = 'mhs',
   barColor = DIGITAL_BLUE[600],
+  series,
   ...props
 }) {
   return (
@@ -55,8 +67,14 @@ export default function DistributionChart({
       {...props}
       nameKey={nameKey}
       barColor={barColor}
+      series={series}
       tooltipContent={
-        <DistributionTooltip nameKey={nameKey} countLabel={countLabel} countUnit={countUnit} />
+        <DistributionTooltip
+          nameKey={nameKey}
+          countLabel={countLabel}
+          countUnit={countUnit}
+          series={series}
+        />
       }
     />
   );

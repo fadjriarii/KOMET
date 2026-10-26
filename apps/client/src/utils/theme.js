@@ -36,6 +36,24 @@ export const SEMANTIC_COLORS = {
   info: DIGITAL_BLUE[600],
 };
 
+/**
+ * Warna seri status keaktifan di chart bertumpuk, tetap per nama supaya status
+ * yang sama berwarna sama di setiap filter. Makna mengikuti warna semantik:
+ * Aktif = warna utama, Lulus = selesai, Cuti = jeda, keluar/DO = merah.
+ * Status baru yang belum terdaftar jatuh ke abu-abu netral.
+ */
+export const STATUS_COLORS = {
+  Aktif: DIGITAL_BLUE[600],
+  Lulus: SEMANTIC_COLORS.success,
+  Cuti: SEMANTIC_COLORS.warning,
+  'Drop Out / Dikeluarkan': SEMANTIC_COLORS.danger,
+  'Mengundurkan Diri / Keluar': '#FCA5A5',
+  Transfer: DIGITAL_BLUE[300],
+  'Selesai Pendidikan Non Gelar': DIGITAL_BLUE[800],
+  Lainnya: '#d1d5db',
+};
+export const STATUS_FALLBACK_COLOR = '#6b7280';
+
 /** Warna dan label visual untuk indikator tren KPI. */
 export const TREND_STYLES = {
   positive: {

@@ -21,24 +21,25 @@ const WNI_NATIONALITY = 'indonesia';
  * tren per tahun butuh 1 query, bukan 2 `count`. Asing ditentukan per kode
  * negara (`idNegara` terisi dan bukan IDN); baris tanpa kode jatuh ke nama.
  */
+function isForeignStudent(row) {
+  const code = String(row.idNegara || '')
+    .trim()
+    .toUpperCase();
+  if (code) return code !== 'IDN';
+  const nationality = String(row.kewarganegaraan || '')
+    .trim()
+    .toLowerCase();
+  // Kewarganegaraan kosong = tidak diketahui, bukan mahasiswa internasional.
+  return Boolean(nationality) && nationality !== WNI_NATIONALITY;
+}
+
 function sumNationalityRows(rows) {
   let total = 0;
   let foreign = 0;
   for (const row of rows) {
     const count = row._count.kewarganegaraan;
     total += count;
-    const code = String(row.idNegara || '')
-      .trim()
-      .toUpperCase();
-    if (code) {
-      if (code !== 'IDN') foreign += count;
-      continue;
-    }
-    const nationality = String(row.kewarganegaraan || '')
-      .trim()
-      .toLowerCase();
-    // Kewarganegaraan kosong = tidak diketahui, bukan mahasiswa internasional.
-    if (nationality && nationality !== WNI_NATIONALITY) foreign += count;
+    if (isForeignStudent(row)) foreign += count;
   }
   return { total, foreign };
 }
@@ -67,4 +68,10 @@ function toTrendRow(academicYear, { total, foreign }) {
   };
 }
 
-module.exports = { getInternationalWhere, sumNationalityRows, countByNationality, toTrendRow };
+module.exports = {
+  getInternationalWhere,
+  isForeignStudent,
+  sumNationalityRows,
+  countByNationality,
+  toTrendRow,
+};

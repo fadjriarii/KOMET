@@ -22,19 +22,23 @@ describe('getStudentStatusPresentation (hanya tata bahasa)', () => {
     expect(
       getStudentStatusPresentation({ statuses: ['Cuti', 'Lulus'], isCumulative: true }),
     ).toMatchObject({
-      cardTitle: 'Mahasiswa Status Terpilih',
+      cardTitle: 'Total Mahasiswa (Cuti, Lulus)',
+      modalTitle: 'Rincian Total Mahasiswa (Cuti, Lulus)',
       summaryLabel: 'Total Status Terpilih',
       statusLabel: 'Cuti, Lulus',
     });
     expect(
       getStudentStatusPresentation({ isAll: true, statuses: [], isCumulative: true }),
     ).toMatchObject({
-      cardTitle: 'Mahasiswa Semua Status',
+      cardTitle: 'Total Mahasiswa (Semua Status)',
       cardBadge: 'Semua Status',
       modalSubtitle: 'Informasi total student body untuk seluruh status keaktifan',
       statusLabel: 'semua status',
       isCumulative: true,
     });
+    expect(
+      getStudentStatusPresentation({ statuses: ['Aktif', 'Cuti', 'Lulus', 'Keluar'] }).cardTitle,
+    ).toBe('Total Mahasiswa (Status Terpilih)');
   });
 });
 

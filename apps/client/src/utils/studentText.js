@@ -50,16 +50,26 @@ export function getStudentStatusPresentation(selection = {}) {
   // dipilih lebih dari satu.
   const statusLabel = isAll ? 'semua status' : isMultiple ? statuses.join(', ') : single;
 
+  // Lebih dari satu status = gabungan populasi, jadi judulnya "Total Mahasiswa (…)";
+  // nama status disebut langsung selama masih terbaca (≤ 3).
+  const combined = isAll
+    ? 'Semua Status'
+    : isMultiple && statuses.length <= 3
+      ? statuses.join(', ')
+      : title;
+  const cardTitle = isAll || isMultiple ? `Total Mahasiswa (${combined})` : `Mahasiswa ${title}`;
+
   return {
-    cardTitle: `Mahasiswa ${title}`,
+    cardTitle,
     cardBadge: isAll ? 'Semua Status' : `Status ${title}`,
-    modalTitle: `Rincian Mahasiswa ${title}`,
+    modalTitle: `Rincian ${cardTitle}`,
     modalSubtitle: isAll
       ? 'Informasi total student body untuk seluruh status keaktifan'
       : isMultiple
         ? 'Informasi total student body dengan status yang dipilih'
         : `Informasi total student body dengan status ${title.toLowerCase()}`,
     summaryLabel: `Total ${title}`,
+    statusTitle: title,
     statusLabel,
     isCumulative,
   };
@@ -73,7 +83,7 @@ export function getStudentActiveDescription(
   const periodLabel = isCumulative
     ? `sampai tahun akademik ${year}`
     : `pada tahun akademik ${year}`;
-  return `Menampilkan seluruh student body dengan status ${statusLabel} ${periodLabel} dengan total ${count} mahasiswa yang terdistribusi ke dalam fakultas, program studi, dan jenjang pendidikan.`;
+  return `Menampilkan seluruh student body dengan status ${statusLabel} ${periodLabel} dengan total ${count} mahasiswa. Rincian hanya menampilkan pengelompokan yang berisi lebih dari satu kategori.`;
 }
 export function getStatusBadgeVariant(status) {
   if (status === STUDENT_STATUS.AKTIF) return 'success';

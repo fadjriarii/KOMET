@@ -26,7 +26,9 @@ export default function StudentsPage() {
   // Tahun ajaran dibaca dari URL (sumber yang sama dipakai filter) supaya
   // daftar opsi angkatan mengikuti tahun yang sedang dipilih.
   const [searchParams] = useSearchParams();
-  const { filterOptions } = useStudentFilterOptions(searchParams.get('tahunAjaran'));
+  const { filterOptions, isLoading: isFilterOptionsLoading } = useStudentFilterOptions(
+    searchParams.get('tahunAjaran'),
+  );
 
   return (
     <DashboardPage
@@ -41,6 +43,7 @@ export default function StudentsPage() {
       Table={StudentDataTable}
       DetailModal={StudentDetailModal}
       filterOptions={filterOptions}
+      waitForFilterOptions={isFilterOptionsLoading}
       headerExtra={AcademicYearHeaderFilter}
     />
   );

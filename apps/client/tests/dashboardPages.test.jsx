@@ -354,6 +354,37 @@ describe.each(Object.keys(ROUTES))('halaman %s', (name) => {
   );
 });
 
+describe('tahun ajaran default Students', () => {
+  it('memakai tahun ajaran terbaru dari data, bukan tahun kalender', async () => {
+    const route = mockModule('students', {
+      '/students/filter-options': {
+        success: true,
+        data: { ...OPTIONS, academicYearOptions: ['2020/2021', '2019/2020'] },
+      },
+    });
+    renderPage(StudentsPage, ['/students']);
+
+    await cardsReady(route);
+    expect(callsFor(route.summaryPath)).toHaveLength(1);
+    expect(lastQuery(route.summaryPath).get('tahunAjaran')).toBe('2020/2021');
+    // Tahun terbaru = default, jadi tidak menyalakan badge "Terfilter".
+    for (const { title } of route.cards) expect(badgesOf(title), title).toHaveLength(0);
+  });
+
+  it('pilihan tahun ajaran di URL tetap menang', async () => {
+    const route = mockModule('students', {
+      '/students/filter-options': {
+        success: true,
+        data: { ...OPTIONS, academicYearOptions: ['2020/2021', '2019/2020'] },
+      },
+    });
+    renderPage(StudentsPage, ['/students?tahunAjaran=2019/2020']);
+
+    await cardsReady(route);
+    expect(lastQuery(route.summaryPath).get('tahunAjaran')).toBe('2019/2020');
+  });
+});
+
 describe('kartu MBKM', () => {
   it('menampilkan empat kartu MBKM dalam urutan partisipan, eligible, persentase, mitra', async () => {
     const route = mockModule('mbkm');

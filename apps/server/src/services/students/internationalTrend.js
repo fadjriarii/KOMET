@@ -1,4 +1,6 @@
 /** Aggregates international-student trends directly in MariaDB. */
+const prisma = require('../../config/prisma');
+const { resolveSnapshotSemesterWhere } = require('./studentSnapshot');
 const { FILTER_SCOPES, buildStudentFilter, getAcademicYear } = require('./filterBuilder');
 const { buildAcademicYearFilter } = require('./snapshotConditions');
 const { resolveTrendYears } = require('./international/trendYears');
@@ -18,7 +20,12 @@ async function getInternationalStudentsTrend(query = {}) {
 
   // Dua populasi, dua scope — dinyatakan saat filter dibangun, bukan dengan
   // membuang kondisi dari filter yang sudah jadi.
-  const populationFilter = buildStudentFilter(baseQuery);
+  // Semester diproyeksikan seperti penyebut kartu (activeStudentsCount).
+  const populationFilter = await resolveSnapshotSemesterWhere(
+    prisma,
+    buildStudentFilter(baseQuery),
+    baseQuery,
+  );
   const windowFilter = buildStudentFilter(baseQuery, { scope: FILTER_SCOPES.ALL_YEARS });
 
   const { selectedAcademicYear, rollingYears } = await resolveTrendYears(query);

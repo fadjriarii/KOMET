@@ -51,7 +51,7 @@ export function useStudentKpiDisplay(summaryData, isLoading, filterValues = {}) 
 
     const activeSubtitle = buildActiveSubtitle(
       baseSubtitles.activeSubtitle,
-      activeStudentPresentation.cardTitle.replace('Mahasiswa ', ''),
+      activeStudentPresentation.statusTitle,
       labels.demographic,
     );
     const foreignSubtitle = buildForeignSubtitle(

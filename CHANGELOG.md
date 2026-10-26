@@ -9,6 +9,11 @@ Version numbers follow the root `package.json`.
 
 ### Added
 
+- Student Data Total Mahasiswa detail: Per Status, Per Angkatan, Per Semester
+  and Per Kewarganegaraan tabs. Tabs with a single category are hidden, and
+  bars stack by status when the selection holds more than one status. Per
+  Angkatan shows only the five academic years up to the selected one, like the
+  other per-year charts.
 - Canonical AI-agent guidance in `AGENTS.md`, with `CLAUDE.md` and
   `.cursorrules` as tool-specific pointers.
 - Engineering standards in `docs/ENGINEERING.md`.
@@ -96,6 +101,14 @@ Version numbers follow the root `package.json`.
 
 ### Fixed
 
+- Chart legends no longer overlap the bars the first time a detail popup
+  opens. Legends now render as HTML above the chart (`ChartLegend`) instead of
+  the Recharts legend, which measured itself while the popup was still zoomed.
+- Student Data defaults `Tahun Ajaran` to the latest academic year in student
+  data instead of the calendar year (ADR 0001).
+- The Total Mahasiswa detail and the international numerator now project the
+  semester filter to the selected academic year, matching the card count.
+- The decline detail endpoint honours selected Angkatan years, like the card.
 - Redis-backed rate limiting now uses Redis. Routes load after the Redis client
   connects, so the limiter no longer captures the in-memory store at import.
 - Graduate Data filter and visualization behavior for anchored and unanchored

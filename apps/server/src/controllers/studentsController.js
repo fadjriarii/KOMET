@@ -8,6 +8,9 @@ const { getInternationalStudentsTrend } = require('../services/students/internat
 const { getIntakeTrend, getIntakeYearCounts } = require('../services/students/intakeTrend');
 const { getNewStudentDecline } = require('../services/students/declineTrend');
 const { getStudentSummary } = require('../services/students/studentSummary');
+const { resolveSnapshotSemesterWhere } = require('../services/students/studentSnapshot');
+const { parseSelectedCohortYears } = require('../services/students/intakeCard');
+const prisma = require('../config/prisma');
 const { getStudentList } = require('../services/students/studentList');
 const { getOrLoad } = require('../services/summaryCache');
 const { getPaginationParams } = require('../utils/paginationUtils');
@@ -36,7 +39,13 @@ const getInternationalDetail = async (req, res) => {
 // GET /api/students/active-students — Detail chart totalActiveStudents (multisector breakdown)
 const getActiveStudentsDetail = async (req, res) => {
   try {
-    const data = await getActiveStudentsMultisector(buildStudentFilter(req.query));
+    // Semester diproyeksikan ke tahun terpilih, sama seperti kartu di summary.
+    const where = await resolveSnapshotSemesterWhere(
+      prisma,
+      buildStudentFilter(req.query),
+      req.query,
+    );
+    const data = await getActiveStudentsMultisector(where, req.query);
     return res.json({ success: true, data });
   } catch (error) {
     return sendServerError(res, 'DATA_READ_FAILED', error, 'students/getActiveStudentsDetail');
@@ -62,7 +71,11 @@ const getDeclineTrendDetail = async (req, res) => {
     const yearCounts = await getIntakeYearCounts(req.query);
     return res.json({
       success: true,
-      data: getNewStudentDecline(getSelectedAcademicYear(req.query), yearCounts),
+      data: getNewStudentDecline(
+        getSelectedAcademicYear(req.query),
+        yearCounts,
+        parseSelectedCohortYears(req.query),
+      ),
     });
   } catch (error) {
     return sendServerError(res, 'DATA_READ_FAILED', error, 'students/getDeclineTrendDetail');

@@ -7,7 +7,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   LabelList,
 } from 'recharts';
 import { AlertCircle } from 'lucide-react';
@@ -17,6 +16,7 @@ import Skeleton from '../feedback/Skeleton';
 import EmptyState from '../feedback/EmptyState';
 import { humanizeErrorMessage } from '../../../modules/errors/errorStates';
 import { compactBarLayout } from './compactBarLayout';
+import ChartLegend from './ChartLegend';
 
 function CompactBarShape({
   x,
@@ -57,7 +57,6 @@ export default function TrendBarChart({
   height = '100%',
   xAngle = -25,
   tooltipContent,
-  legendHeight = 36,
   barGap = 4,
   compactZeroBars = false,
   isLoading = false,
@@ -91,94 +90,96 @@ export default function TrendBarChart({
     );
 
   return (
-    <ResponsiveContainer width="100%" height={height}>
-      <BarChart
-        data={data}
-        barGap={compactZeroBars ? 0 : barGap}
-        margin={{ top: 12, right: 24, left: 4, bottom: 44 }}
-      >
-        <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
-        <XAxis
-          dataKey={xDataKey}
-          tick={{ fontSize: 10, fill: '#6b7280' }}
-          angle={xAngle}
-          textAnchor="end"
-          interval={0}
-          tickLine={false}
-          axisLine={{ stroke: '#e5e7eb' }}
-          dy={6}
-        />
-        <YAxis
-          tick={{ fontSize: 10, fill: '#9ca3af' }}
-          tickFormatter={formatCompactNumber}
-          tickLine={false}
-          axisLine={false}
-          width={44}
-        />
-        {tooltipContent && (
-          <Tooltip content={tooltipContent} cursor={{ fill: 'rgba(219,234,254,0.3)' }} />
-        )}
-        <Legend
-          verticalAlign="top"
-          height={legendHeight}
-          iconType="square"
-          wrapperStyle={{ fontSize: '11px', color: '#6b7280', paddingBottom: '20px' }}
-        />
-        {bars.map((bar) => (
-          <Bar
-            key={bar.dataKey}
-            dataKey={bar.dataKey}
-            name={bar.name}
-            fill={bar.color || DIGITAL_BLUE[600]}
-            radius={bar.stackId ? [0, 0, 0, 0] : [4, 4, 0, 0]}
-            maxBarSize={bar.maxBarSize || 44}
-            animationDuration={800}
-            shape={
-              compactZeroBars && !bar.stackId
-                ? (props) => (
-                    <CompactBarShape
-                      {...props}
-                      bars={bars}
-                      dataKey={bar.dataKey}
-                      labelKey={bar.labelKey || bar.dataKey}
-                      labelFormatter={bar.labelFormatter}
-                      color={bar.color || DIGITAL_BLUE[600]}
-                    />
-                  )
-                : bar.shape
-            }
-            {...(bar.stackId ? { stackId: bar.stackId } : null)}
+    <div className="flex flex-col w-full" style={{ height }}>
+      <ChartLegend
+        items={bars.map((bar) => ({ label: bar.name, color: bar.color || DIGITAL_BLUE[600] }))}
+      />
+      <div className="flex-1 min-h-0">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            data={data}
+            barGap={compactZeroBars ? 0 : barGap}
+            margin={{ top: 12, right: 24, left: 4, bottom: 44 }}
           >
-            {bar.stackId
-              ? data.map((entry, index) => {
-                  // Segmen teratas tiap baris (nilai > 0 terakhir dalam tumpukan
-                  // yang sama) menjaga sudut rounded luar; sambungan antar
-                  // warna tetap menyatu tanpa radius.
-                  const topKey = [...bars]
-                    .reverse()
-                    .find(
-                      (stacked) =>
-                        stacked.stackId === bar.stackId && Number(entry?.[stacked.dataKey]) > 0,
-                    )?.dataKey;
-                  return (
-                    <Cell
-                      key={`cell-${index}`}
-                      radius={bar.dataKey === topKey ? [4, 4, 0, 0] : [0, 0, 0, 0]}
-                    />
-                  );
-                })
-              : null}
-            {bar.labelKey && !compactZeroBars && (
-              <LabelList
-                dataKey={bar.labelKey}
-                formatter={bar.labelFormatter}
-                position={bar.labelPosition || 'top'}
-                style={{ fill: DIGITAL_BLUE[800], fontSize: 10, fontWeight: 700 }}
-              />
+            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+            <XAxis
+              dataKey={xDataKey}
+              tick={{ fontSize: 10, fill: '#6b7280' }}
+              angle={xAngle}
+              textAnchor="end"
+              interval={0}
+              tickLine={false}
+              axisLine={{ stroke: '#e5e7eb' }}
+              dy={6}
+            />
+            <YAxis
+              tick={{ fontSize: 10, fill: '#9ca3af' }}
+              tickFormatter={formatCompactNumber}
+              tickLine={false}
+              axisLine={false}
+              width={44}
+            />
+            {tooltipContent && (
+              <Tooltip content={tooltipContent} cursor={{ fill: 'rgba(219,234,254,0.3)' }} />
             )}
-          </Bar>
-        ))}
-      </BarChart>
-    </ResponsiveContainer>
+
+            {bars.map((bar) => (
+              <Bar
+                key={bar.dataKey}
+                dataKey={bar.dataKey}
+                name={bar.name}
+                fill={bar.color || DIGITAL_BLUE[600]}
+                radius={bar.stackId ? [0, 0, 0, 0] : [4, 4, 0, 0]}
+                maxBarSize={bar.maxBarSize || 44}
+                animationDuration={800}
+                shape={
+                  compactZeroBars && !bar.stackId
+                    ? (props) => (
+                        <CompactBarShape
+                          {...props}
+                          bars={bars}
+                          dataKey={bar.dataKey}
+                          labelKey={bar.labelKey || bar.dataKey}
+                          labelFormatter={bar.labelFormatter}
+                          color={bar.color || DIGITAL_BLUE[600]}
+                        />
+                      )
+                    : bar.shape
+                }
+                {...(bar.stackId ? { stackId: bar.stackId } : null)}
+              >
+                {bar.stackId
+                  ? data.map((entry, index) => {
+                      // Segmen teratas tiap baris (nilai > 0 terakhir dalam tumpukan
+                      // yang sama) menjaga sudut rounded luar; sambungan antar
+                      // warna tetap menyatu tanpa radius.
+                      const topKey = [...bars]
+                        .reverse()
+                        .find(
+                          (stacked) =>
+                            stacked.stackId === bar.stackId && Number(entry?.[stacked.dataKey]) > 0,
+                        )?.dataKey;
+                      return (
+                        <Cell
+                          key={`cell-${index}`}
+                          radius={bar.dataKey === topKey ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                        />
+                      );
+                    })
+                  : null}
+                {bar.labelKey && !compactZeroBars && (
+                  <LabelList
+                    dataKey={bar.labelKey}
+                    formatter={bar.labelFormatter}
+                    position={bar.labelPosition || 'top'}
+                    style={{ fill: DIGITAL_BLUE[800], fontSize: 10, fontWeight: 700 }}
+                  />
+                )}
+              </Bar>
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
   );
 }

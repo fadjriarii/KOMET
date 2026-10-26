@@ -8,17 +8,54 @@ import {
   getStudentActiveDescription,
   getStudentStatusPresentation,
 } from '../../../../utils/uiHelpers';
-import { activeDistributions } from './activeDistributions';
+import { activeDistributions, statusSeries } from './activeDistributions';
 import { formatNumber } from '@komet/shared/formatters';
 import { getCurrentAcademicYear } from '@komet/shared/academicYear';
 import { useDetail } from '../../studentQueries';
-import { STUDENT_DISTRIBUTION_TABS } from '../../../../components/common/modals/modalTabs';
+
+/**
+ * Tab rincian. Di-key dengan susunan tab supaya tab awal selalu tab pertama
+ * yang layak (Per Status saat populasi memuat lebih dari satu status).
+ */
+function DistributionTabs({ tabs, series, isLoading, error }) {
+  const { activeTab, handleTabChange, slideClass } = useTabTransition(tabs, tabs[0]?.key);
+
+  const content = Object.fromEntries(
+    tabs.map(({ key, items, emptyIcon, emptyTitle, yAxisWidth, caption }) => [
+      key,
+      <div className="pt-1">
+        {caption && <p className="text-xs text-gray-500 mb-1">{caption}</p>}
+        <DistributionChart
+          items={items}
+          countLabel="Jumlah Mahasiswa"
+          isLoading={isLoading}
+          error={error}
+          emptyIcon={emptyIcon}
+          emptyTitle={emptyTitle}
+          yAxisWidth={yAxisWidth}
+          series={series}
+        />
+      </div>,
+    ]),
+  );
+
+  return (
+    <div className="flex-1 flex flex-col min-h-0">
+      <ModalTabNav tabs={tabs} activeTab={activeTab} onTabChange={handleTabChange} />
+
+      {/* Tab content area */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar scroll-smooth pr-1">
+        <div className="overflow-x-hidden w-full">
+          <div key={activeTab} className={`w-full ${slideClass}`}>
+            <ModalTabContent activeTab={activeTab} content={content} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function ActiveStudentsModal({ isOpen, onClose, originRect, data, filters }) {
-  const { activeTab, handleTabChange, slideClass } = useTabTransition(
-    STUDENT_DISTRIBUTION_TABS,
-    'fakultas',
-  );
   const {
     data: activeDetailData,
     isLoading: isLoadingDetail,
@@ -35,28 +72,15 @@ export default function ActiveStudentsModal({ isOpen, onClose, originRect, data,
   const activeCount = formatNumber(kpis.activeStudentsCount);
   const statusPresentation = getStudentStatusPresentation(kpis.activeStudentStatus);
   const currentAcademicYear = filters?.tahunAjaran || getCurrentAcademicYear();
-  const facultyList = activeDetailData?.byFaculty || [];
-  const prodiList = activeDetailData?.byProdi || [];
-  const jenjangList = activeDetailData?.byJenjang || [];
-
-  const distributions = activeDistributions({ facultyList, prodiList, jenjangList });
-
-  const content = Object.fromEntries(
-    distributions.map(({ key, items, emptyIcon, emptyTitle, yAxisWidth }) => [
-      key,
-      <div className="pt-1">
-        <DistributionChart
-          items={items}
-          countLabel="Jumlah Mahasiswa"
-          isLoading={isLoadingDetail}
-          error={detailError}
-          emptyIcon={emptyIcon}
-          emptyTitle={emptyTitle}
-          yAxisWidth={yAxisWidth}
-        />
-      </div>,
-    ]),
+  const tabs = activeDistributions(isLoadingDetail || detailError ? null : activeDetailData).map(
+    (tab) =>
+      tab.key === 'angkatan'
+        ? { ...tab, caption: `5 tahun ajaran terakhir sampai ${currentAcademicYear}` }
+        : tab,
   );
+  // Bar bertumpuk hanya bila populasi memuat lebih dari satu status.
+  const statuses = activeDetailData?.statuses || [];
+  const series = statuses.length > 1 ? statusSeries(statuses) : undefined;
 
   return (
     <Modal
@@ -82,23 +106,20 @@ export default function ActiveStudentsModal({ isOpen, onClose, originRect, data,
           sublabel="Mahasiswa"
         />
 
-        {/* TABS: Per Fakultas | Per Program Studi | Per Jenjang */}
-        <div className="flex-1 flex flex-col min-h-0">
-          <ModalTabNav
-            tabs={STUDENT_DISTRIBUTION_TABS}
-            activeTab={activeTab}
-            onTabChange={handleTabChange}
+        {tabs.length ? (
+          <DistributionTabs
+            key={tabs.map((tab) => tab.key).join('|')}
+            tabs={tabs}
+            series={series}
+            isLoading={isLoadingDetail}
+            error={detailError}
           />
-
-          {/* Tab content area */}
-          <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar scroll-smooth pr-1">
-            <div className="overflow-x-hidden w-full">
-              <div key={activeTab} className={`w-full ${slideClass}`}>
-                <ModalTabContent activeTab={activeTab} content={content} />
-              </div>
-            </div>
-          </div>
-        </div>
+        ) : (
+          <p className="text-sm text-gray-500 text-center py-8">
+            Semua mahasiswa pada filter ini berada di satu kategori, jadi tidak ada rincian
+            pengelompokan. Lihat tabel Daftar Mahasiswa untuk datanya.
+          </p>
+        )}
       </div>
     </Modal>
   );

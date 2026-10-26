@@ -1,11 +1,31 @@
-import { BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  LabelList,
+  Rectangle,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import { DIGITAL_BLUE } from '../../../../utils/theme';
 import { getDistributionChartHeight } from '../../../../utils/uiHelpers';
-import { formatCompactNumber } from '@komet/shared/formatters';
+import { formatCompactNumber, formatPercentage } from '@komet/shared/formatters';
 import { DistributionStates } from './DistributionStates';
 import { DistributionSeries } from './DistributionSeries';
+import ChartLegend from '../ChartLegend';
 
-/** Shared horizontal distribution chart; modules provide only their data contract and tooltip. */
+/** Seri terakhir yang terisi pada satu baris = ujung tumpukan. */
+function lastFilledKey(series, row) {
+  return series.findLast(({ key }) => row?.byStatus?.[key] > 0)?.key;
+}
+
+/**
+ * Shared horizontal distribution chart; modules provide only their data contract and tooltip.
+ * `series` ([{ key, label, color }]) menumpuk bar per `item.byStatus[key]`; label
+ * persentase tetap satu per baris, di ujung tumpukan.
+ */
 export default function DistributionBarChart({
   items = [],
   dataKey = 'count',
@@ -20,6 +40,7 @@ export default function DistributionBarChart({
   barColor = DIGITAL_BLUE[600],
   tooltipContent,
   labelFormatter,
+  series,
 }) {
   // Kategori bernilai 0 tidak perlu memakan baris: chart distribusi hanya
   // menampilkan kelompok yang benar-benar punya data.
@@ -41,6 +62,7 @@ export default function DistributionBarChart({
 
   return (
     <div className="w-full">
+      {series?.length > 0 && <ChartLegend items={series} shape="circle" />}
       <div
         style={{ height: `${getDistributionChartHeight(chartItems.length)}px` }}
         className="w-full"
@@ -71,13 +93,54 @@ export default function DistributionBarChart({
               content={tooltipContent}
               cursor={{ fill: 'rgba(219, 234, 254, 0.25)', radius: 6 }}
             />
-            <DistributionSeries
-              chartItems={chartItems}
-              dataKey={dataKey}
-              labelKey={labelKey}
-              barColor={barColor}
-              labelFormatter={labelFormatter}
-            />
+            {series?.length ? (
+              <>
+                {series.map(({ key, label, color }) => (
+                  <Bar
+                    key={key}
+                    name={label}
+                    dataKey={(item) => item.byStatus?.[key] ?? 0}
+                    stackId="series"
+                    fill={color}
+                    maxBarSize={22}
+                    animationDuration={800}
+                    // Sudut bulat hanya di ujung tumpukan, sama seperti bar tunggal.
+                    shape={(props) => (
+                      <Rectangle
+                        {...props}
+                        radius={lastFilledKey(series, props.payload) === key ? [0, 6, 6, 0] : 0}
+                      />
+                    )}
+                  >
+                    {labelKey && (
+                      <LabelList
+                        position="right"
+                        style={{ fill: DIGITAL_BLUE[700], fontSize: 11, fontWeight: 700 }}
+                        // Satu label per baris, di segmen terisi terakhir (ujung tumpukan).
+                        valueAccessor={(entry) => {
+                          const row = entry.payload ?? entry;
+                          if (lastFilledKey(series, row) !== key) return null;
+                          const value = row[labelKey];
+                          return labelFormatter
+                            ? labelFormatter(value)
+                            : labelKey === 'percentage'
+                              ? formatPercentage(value)
+                              : value;
+                        }}
+                      />
+                    )}
+                  </Bar>
+                ))}
+              </>
+            ) : (
+              <DistributionSeries
+                chartItems={chartItems}
+                dataKey={dataKey}
+                labelKey={labelKey}
+                barColor={barColor}
+                labelFormatter={labelFormatter}
+              />
+            )}
           </BarChart>
         </ResponsiveContainer>
       </div>

@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Award, BookOpen, Building2, CalendarDays, Flag, Layers, UserCheck } from 'lucide-react';
 import { getCurrentAcademicYear, isValidAcademicYear } from '@komet/shared/academicYear';
 import { STUDENT_STATUS } from '@komet/shared/constants';
@@ -6,9 +7,9 @@ import { sanitizeSearch } from '../../../utils/querySanitizer';
 
 const DEFAULT_ACADEMIC_YEAR = getCurrentAcademicYear();
 
-/** Tahun ajaran dari URL yang bentuknya bukan "YYYY/YYYY" dikembalikan ke tahun berjalan. */
-const sanitizeAcademicYear = (value) =>
-  isValidAcademicYear(value) ? value : DEFAULT_ACADEMIC_YEAR;
+/** Tahun ajaran dari URL yang bentuknya bukan "YYYY/YYYY" dikembalikan ke default. */
+const sanitizeAcademicYear = (value, defaultAcademicYear = DEFAULT_ACADEMIC_YEAR) =>
+  isValidAcademicYear(value) ? value : defaultAcademicYear;
 
 /**
  * Satu daftar field untuk seluruh siklus filter mahasiswa: nama state, param URL,
@@ -136,8 +137,22 @@ export const studentFilterForm = {
   fields: studentFilterFields,
 };
 
-export function useStudentFilters() {
-  return useDashboardFilters({
-    fields: studentFilterFields,
-  });
+/**
+ * Default tahun ajaran = tahun terbaru yang ada di data mahasiswa
+ * (`filterOptions.academicYearOptions[0]`, ADR 0001). Tahun kalender hanya
+ * cadangan selama opsi belum ada atau gagal dimuat; pilihan URL tetap menang.
+ */
+export function useStudentFilters(defaultAcademicYear = '') {
+  const fields = useMemo(() => {
+    const initial = defaultAcademicYear || DEFAULT_ACADEMIC_YEAR;
+    return {
+      ...studentFilterFields,
+      tahunAjaran: {
+        ...studentFilterFields.tahunAjaran,
+        initial,
+        sanitize: (value) => sanitizeAcademicYear(value, initial),
+      },
+    };
+  }, [defaultAcademicYear]);
+  return useDashboardFilters({ fields });
 }
