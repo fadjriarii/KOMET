@@ -13,3 +13,9 @@ minimumReleaseAgeExclude:
   - '@turbo/windows-64@2.11.10'
   - '@turbo/windows-arm64@2.11.10'
   - turbo@2.11.10
+# Security patches for transitive dependencies (pnpm audit):
+# body-parser < 2.4.0 DoS via trailing bytes after a compressed body (express),
+# ip-address <= 10.7.3 quadratic Address6 zone parsing (express-rate-limit).
+overrides:
+  body-parser: ^2.4.0
+  ip-address: ^10.7.5

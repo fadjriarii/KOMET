@@ -278,6 +278,8 @@ and the SEVIMA keys belong only in `apps/server/.env`.
 | `docs/ARCHITECTURE.md`   | System design, module boundaries, data flow |
 | `docs/ENGINEERING.md`    | Engineering standards and review checklist  |
 | `docs/adr/`              | Accepted technical decisions                |
+| `CONTRIBUTING.md`        | Setup, branch and merge request workflow    |
+| `SECURITY.md`            | Vulnerability reporting and personal data   |
 | `CHANGELOG.md`           | User-visible changes                        |
 | `THIRD_PARTY_NOTICES.md` | Third-party dependency licenses             |
 

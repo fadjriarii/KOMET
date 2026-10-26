@@ -5,6 +5,10 @@
   "license": "SEE LICENSE IN LICENSE",
   "description": "KPI Observation, Monitoring and Evaluation Tool",
   "packageManager": "pnpm@12.14.0",
+  "engines": {
+    "node": ">=24",
+    "pnpm": ">=12"
+  },
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",

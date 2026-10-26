@@ -40,7 +40,11 @@ Version numbers follow the root `package.json`.
 - Route-chunk prefetch on sidebar hover/focus, idle prefetch for detail modal
   chunks, gzip compression for API and static responses, and WebP logos in place
   of the two ~400 KB PNGs.
-- `pnpm verify` and a CI workflow that runs it on every push and pull request.
+- `pnpm verify`, run by CI on every push and merge request. `.gitlab-ci.yml`
+  also runs GitLab Secret Detection and `pnpm audit --prod --audit-level high`.
+- `CONTRIBUTING.md`, `SECURITY.md` (vulnerability reporting and personal data
+  rules under UU PDP), and a default GitLab merge request template.
+- `engines` (Node 24, pnpm 12) in the root `package.json` and `.nvmrc`.
 - Contributor documentation: `AGENTS.md` (with `CLAUDE.md` and `.cursorrules`
   as pointers), `docs/ENGINEERING.md`, `DESIGN.md`, `docs/SKILLS.md`, and the
   documentation map in `README.md`.
@@ -147,5 +151,8 @@ Version numbers follow the root `package.json`.
 
 ### Security
 
+- Patched transitive dependencies through `pnpm-workspace.yaml` overrides:
+  `body-parser` 2.4.0 (denial of service via trailing bytes after a compressed
+  body) and `ip-address` 10.7.5 (quadratic IPv6 zone parsing).
 - Redis-backed rate limiting now uses Redis. Routes load after the Redis client
   connects, so the limiter no longer captures the in-memory store at import.

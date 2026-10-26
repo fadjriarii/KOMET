@@ -1,0 +1,68 @@
+# KOMET CI on GitLab, the source of truth. GitHub only receives the push mirror.
+# Jobs: `verify` (format, lint, test, build), `audit` (production dependency
+# vulnerabilities), and GitLab Secret Detection (available on every tier).
+
+workflow:
+  rules:
+    # One pipeline per change: merge request pipelines, and branch pipelines only
+    # when no merge request is open for that branch.
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_BRANCH
+
+stages:
+  - test
+
+include:
+  - template: Jobs/Secret-Detection.gitlab-ci.yml
+
+default:
+  image: node:24
+  interruptible: true
+
+.pnpm:
+  variables:
+    PNPM_STORE_DIR: .pnpm-store
+  cache:
+    key:
+      files:
+        - pnpm-lock.yaml
+    paths:
+      - .pnpm-store
+  before_script:
+    - corepack enable
+    - pnpm config set store-dir "$PNPM_STORE_DIR"
+    - pnpm install --frozen-lockfile
+
+verify:
+  extends: .pnpm
+  stage: test
+  script:
+    - pnpm verify
+
+audit:
+  extends: .pnpm
+  stage: test
+  script:
+    # Blocks on high or critical advisories in production dependencies.
+    - pnpm audit --prod --audit-level high
+
+# On GitLab Free, Secret Detection only writes a report and never fails the
+# pipeline. This gate fails when the report lists any finding.
+secret_detection_gate:
+  stage: test
+  needs:
+    - job: secret_detection
+      artifacts: true
+  script:
+    - |
+      node -e "
+        const fs = require('fs');
+        const file = 'gl-secret-detection-report.json';
+        if (!fs.existsSync(file)) { console.warn('No secret detection report found.'); process.exit(0); }
+        const findings = JSON.parse(fs.readFileSync(file, 'utf8')).vulnerabilities || [];
+        for (const f of findings) console.error('- ' + (f.location?.file || '?') + ':' + (f.location?.start_line || '?') + ' ' + (f.name || f.description || 'secret'));
+        if (findings.length) { console.error(findings.length + ' potential secret(s) found. Rotate the secret, then remove it.'); process.exit(1); }
+        console.log('No secrets found.');
+      "
