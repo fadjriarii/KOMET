@@ -209,8 +209,9 @@ Do not guess API field names. Check the controller, service, and tests.
 - Commit messages are English, one subject line of 15-30 words that says what
   changed and where. No multi-paragraph body; required trailers such as
   `Co-Authored-By` go on their own line and do not count.
-- When a push is requested, push to both remotes: `origin` (GitHub) and
-  `gitlab` (GitLab).
+- When a push is requested, push only to `gitlab` (GitLab). GitLab push-mirrors
+  to `origin` (GitHub) automatically; never push to GitHub directly, or the
+  mirror diverges and stops.
 
 ## 8. AI tool compatibility
 
