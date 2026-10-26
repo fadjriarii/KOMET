@@ -206,6 +206,11 @@ Do not guess API field names. Check the controller, service, and tests.
   `README.md`, `docs/ARCHITECTURE.md`, `docs/ENGINEERING.md`, or the relevant ADR in
   the same change.
 - Commit only after verification. Push only when explicitly asked.
+- Commit messages are English, one subject line of 15-30 words that says what
+  changed and where. No multi-paragraph body; required trailers such as
+  `Co-Authored-By` go on their own line and do not count.
+- When a push is requested, push to both remotes: `origin` (GitHub) and
+  `gitlab` (GitLab).
 
 ## 8. AI tool compatibility
 
