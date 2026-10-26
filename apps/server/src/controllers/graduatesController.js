@@ -6,7 +6,10 @@
 
 const { buildGraduateFilter } = require('../services/graduates/filterBuilder');
 const { getPaginationParams } = require('../utils/paginationUtils');
-const { getGraduateFilterOptions } = require('../services/graduates/filterOptions');
+const {
+  getGraduateFilterOptions,
+  withoutDefaultTahunLulus,
+} = require('../services/graduates/filterOptions');
 const { getGraduateSummary } = require('../services/graduates/graduateSummary');
 const { getOrLoad } = require('../services/summaryCache');
 const { getTotalLulusanByYear } = require('../services/graduates/totalLulusan');
@@ -42,7 +45,8 @@ const getSummary = async (req, res) => {
 // GET /api/graduates/total-lulusan — Detail chart Card 1
 const getTotalLulusanDetail = async (req, res) => {
   try {
-    const whereFilter = buildGraduateFilter(req.query);
+    // Tren memakai jendela 5 tahun bila Tahun Lulus masih default.
+    const whereFilter = await withoutDefaultTahunLulus(buildGraduateFilter(req.query));
     const data = await getTotalLulusanByYear(whereFilter);
     return res.json({ success: true, data });
   } catch (error) {
@@ -54,9 +58,11 @@ const getTotalLulusanDetail = async (req, res) => {
 const getIpkTrendDetail = async (req, res) => {
   try {
     const whereFilter = buildGraduateFilter(req.query);
+    // Deret per tahun = jendela tren; rata-rata, rentang, prodi, fakultas = scope kartu.
+    const trendFilter = await withoutDefaultTahunLulus(whereFilter);
     const [avgIpk, byYear, overview] = await Promise.all([
       getAvgIpk(whereFilter),
-      getIpkByYear(whereFilter),
+      getIpkByYear(trendFilter),
       getIpkOverview(whereFilter),
     ]);
     // Key disebut satu-satu: spread tidak bisa menimpa key dari sumber lain secara diam-diam.
@@ -87,7 +93,7 @@ const getIpkTrendDetail = async (req, res) => {
 // GET /api/graduates/tepat-waktu — Detail chart Card 3
 const getTepatWaktuDetail = async (req, res) => {
   try {
-    const whereFilter = buildGraduateFilter(req.query);
+    const whereFilter = await withoutDefaultTahunLulus(buildGraduateFilter(req.query));
     const data = await getTepatWaktuByYear(whereFilter);
     return res.json({ success: true, data });
   } catch (error) {

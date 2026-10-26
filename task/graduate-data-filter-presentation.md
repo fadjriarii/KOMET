@@ -1,6 +1,6 @@
 # TODO: Graduate Data — perhitungan, presentasi multi-filter, bug, dan pemisahan logika
 
-- Status: bug 1–11 dan 13 diperbaiki, Fase 0 selesai (2026-10-26). Bug 12 menunggu Fase 1.
+- Status: bug 1–11 dan 13 diperbaiki, Fase 0 selesai (2026-10-26). Fase 1 selesai (kontrak baru ditambahkan berdampingan). Bug 12 tuntas di Fase 2 saat client berhenti memotong jendela sendiri.
 - Dibuat: 2026-10-26
 - Cakupan: card KPI, popup "Lihat Rincian", dan service di tab Graduate Data.
   Student Data dan MBKM hanya tersentuh lewat komponen bersama (reset filter,
@@ -111,22 +111,25 @@ Angka = AND semua filter dalam scope. Badge "Terfilter" = OR (dari `kpiFilterSco
 
 ### Fase 1 — Kontrak API dinamis + DRY di server
 
-- [ ] Summary `kpis` per card: `{ value, isEmpty, headlineJenjang, byJenjang: [{ jenjang, label, value, count }] }`.
+- [x] Summary `kpis` per card: `{ value, isEmpty, headlineJenjang, byJenjang: [{ jenjang, label, value, count }] }`.
       Urutan dan label (`Sarjana (S1)`, `Profesi`, …) ditentukan server. Hapus `totalGraduatesS1/S2`,
       `averageGpaS1/S2`, `onTimeGraduationRateS1/S2`, `studySuccessRateS1`.
       Update `packages/shared/src/contracts.js`.
-- [ ] Detail endpoint mengirim:
+- [x] Detail endpoint mengirim:
   - `jenjangs: [{ jenjang, label, batas }]` (daftar tab, hanya yang berdata);
   - deret yang **sudah dijendela**;
   - `ipkCount`, dan `angkatanEvaluasi` + rate dari sumber yang sama.
-- [ ] Server memutuskan "Tahun Lulus = default" (sama dengan `rollingYears[0]`) untuk
+- [x] Server memutuskan "Tahun Lulus = default" (sama dengan `rollingYears[0]`) untuk
       jendela tren. Hapus `withoutDefaultTahunLulus` dan `selectChartCohorts` di client.
-- [ ] Satukan:
+- [x] Satukan:
   - aturan jangkar TA: `tahunAjaran.js:51` dan `yearJenjangSeries.js:253` → satu fungsi;
   - query `MAX(tahunLulus)` (dipakai 2×) → satu helper;
   - daftar jenjang (4 cara) → `getScopeJenjangs`;
   - pembulatan → `roundedRate` di semua tempat; penyebut 0 → `null`.
-- [ ] Tes: snapshot kontrak, card = total modal untuk filter yang sama, Profesi-only tanpa kunci s1/s2.
+- [x] Tes: snapshot kontrak, card = total modal untuk filter yang sama, Profesi-only tanpa kunci s1/s2.
+      Catatan: field lama (`totalGraduatesS1`, `averageGpaS1`, …) dan kunci
+      `s1`/`s2` di payload popup masih dikirim berdampingan supaya client tetap
+      jalan; dihapus di Fase 2 setelah client membaca `kpis.cards` dan `jenjangs`.
 
 ### Fase 2 — Client hanya render
 

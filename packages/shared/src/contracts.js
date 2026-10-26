@@ -103,6 +103,7 @@ const STUDENT_SUMMARY_KPIS = [
 ];
 
 const GRADUATE_SUMMARY_KPIS = [
+  'cards',
   'totalGraduates',
   'totalGraduatesS1',
   'totalGraduatesS2',

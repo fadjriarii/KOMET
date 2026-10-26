@@ -119,6 +119,7 @@ export default function StudySuccessModal({ isOpen, onClose, originRect, data, f
         ([key, value]) =>
           key !== 's1' &&
           key !== 's2' &&
+          key !== 'jenjangs' &&
           !/^batasStudi[A-Z]/.test(key) &&
           !/^angkatanEvaluasi[A-Z]/.test(key) &&
           Array.isArray(value),

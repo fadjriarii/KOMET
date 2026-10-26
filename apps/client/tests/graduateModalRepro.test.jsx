@@ -75,6 +75,7 @@ const DETAILS = {
     ],
     batasS1: 4,
     s2: [],
+    jenjangs: [{ key: 's1', jenjang: 'S1', label: 'S1', batas: 4 }],
   },
   'keberhasilan-studi': {
     s1: [
@@ -89,6 +90,7 @@ const DETAILS = {
     batasStudiS1: 7,
     angkatanEvaluasiS1: '2018/2019',
     s2: null,
+    jenjangs: [{ key: 's1', jenjang: 'S1', label: 'S1', batas: 8, angkatanEvaluasi: '2018/2019' }],
   },
 };
 
@@ -120,6 +122,14 @@ describe.each([
     renderModal(Modal);
     await waitFor(() => expect(document.body.textContent).toContain(phrase));
   });
+});
+
+it.each([
+  ['onTime', OnTimeGraduationModal],
+  ['studySuccess', StudySuccessModal],
+])('modal %s tidak menjadikan daftar `jenjangs` sebagai tab', (_name, Modal) => {
+  const { queryByText } = renderModal(Modal);
+  expect(queryByText(/Jenjangs/i)).toBeNull();
 });
 
 describe('chart OnTime 5 cohort terakhir', () => {

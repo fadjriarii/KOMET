@@ -13,6 +13,7 @@ const { getAvgIpk } = require('./ipkTrend');
 const { getTepatWaktu } = require('./tepatWaktu');
 const { getKeberhasilanStudi } = require('./keberhasilanStudi');
 const { getGraduateLabelWindow } = require('./yearJenjangSeries');
+const { buildGraduateCards } = require('./graduateCards');
 
 const sumOrNull = (values) => {
   const known = values.filter((value) => typeof value === 'number');
@@ -67,6 +68,9 @@ async function getGraduateSummary(whereFilter) {
     labelRange,
     summary: { totalLulusan, avgIpk, tepatWaktu, keberhasilanStudi },
     kpis: {
+      // Bentuk baru satu-satunya yang perlu dibaca client: nilai utama, scope
+      // kosong, dan rincian per jenjang yang sudah diurutkan/dilabeli server.
+      cards: buildGraduateCards({ totalLulusan, avgIpk, tepatWaktu, keberhasilanStudi }),
       totalGraduates: sumOrNull(jenjangCounts.map(([, value]) => value)),
       totalGraduatesS1: totalLulusan.s1 ?? null,
       totalGraduatesS2: totalLulusan.s2 ?? null,

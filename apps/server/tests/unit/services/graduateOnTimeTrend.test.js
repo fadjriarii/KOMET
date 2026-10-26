@@ -75,7 +75,8 @@ describe('cohort tepat waktu per jenjang', () => {
     stub(defaultRows());
     const detail = await getTepatWaktuByYear({});
 
-    expect(detail.s1).toHaveLength(8);
+    // Tanpa pilihan eksplisit server mengirim jendela 5 angkatan terbaru.
+    expect(detail.s1).toHaveLength(5);
     expect(detail.s2).toHaveLength(3);
     expect(detail.profesi).toHaveLength(1);
     expect(detail.profesi[0]).toMatchObject({
@@ -112,9 +113,7 @@ describe('cohort tepat waktu per jenjang', () => {
     stub(defaultRows());
     const detail = await getTepatWaktuByYear({ tahunAjaran: '2023/2024' });
 
-    expect(detail.s1.map((item) => item.tahunLulusTepat)).toEqual([
-      2018, 2019, 2020, 2021, 2022, 2023,
-    ]);
+    expect(detail.s1.map((item) => item.tahunLulusTepat)).toEqual([2019, 2020, 2021, 2022, 2023]);
     expect(detail.profesi).toBeUndefined();
   });
 

@@ -2,7 +2,8 @@ const { createFilterOptionsSource } = require('../filterOptionsSource');
 const { PREDIKAT, UNCLASSIFIED_PREDIKAT } = require('@komet/shared/constants');
 const { getRollingYears, getCustomYearMeta } = require('../students/filterOptions');
 const { get5YearRollingAcademicYears } = require('../../utils/academicUtils');
-const { getTahunAjaranLabel, tahunAjaranStart } = require('./tahunAjaran');
+const { getTahunAjaranLabel, tahunAjaranStart, getTahunAjaran } = require('./tahunAjaran');
+const { toArray } = require('@komet/shared/filterUtils');
 
 // Populasi tab lulusan = baris graduate (asal `/kelulusan`); opsi dibaca dari
 // populasi yang sama dengan data supaya pilihan UI tak pernah menunjuk populasi
@@ -89,8 +90,33 @@ async function getGraduateFilterOptions(anchorLabel = null) {
   return withAcademicYearWindow(base, anchorLabel);
 }
 
+/**
+ * Tahun Lulus default (tahun terbaru dalam jangkar) adalah nilai awal UI, bukan
+ * permintaan user. Chart tren butuh jendela 5 tahun, jadi pilihan yang masih
+ * sama dengan default dibuang dari filter tren; kartu tetap memakainya.
+ * Pilihan lain (termasuk beberapa tahun) diteruskan apa adanya.
+ */
+function stripDefaultTahunLulus(whereFilter = {}, defaultTahunLulus = null) {
+  const tahunLulus = whereFilter.graduate?.tahunLulus;
+  const selected = toArray(tahunLulus?.in ?? tahunLulus) || [];
+  if (!defaultTahunLulus || selected.length !== 1 || selected[0] !== defaultTahunLulus) {
+    return whereFilter;
+  }
+  const graduate = { ...whereFilter.graduate };
+  delete graduate.tahunLulus;
+  return { ...whereFilter, graduate };
+}
+
+async function withoutDefaultTahunLulus(whereFilter = {}) {
+  if (!whereFilter.graduate?.tahunLulus) return whereFilter;
+  const { rollingYears } = await getGraduateFilterOptions(getTahunAjaran(whereFilter));
+  return stripDefaultTahunLulus(whereFilter, rollingYears?.[0] ?? null);
+}
+
 module.exports = {
   getGraduateFilterOptions,
+  stripDefaultTahunLulus,
+  withoutDefaultTahunLulus,
   withAcademicYearWindow,
   clearGraduateFilterCache: graduateFilterOptions.clearFilterCache,
 };

@@ -120,7 +120,8 @@ export default function OnTimeGraduationModal({ isOpen, onClose, originRect, dat
   const cohortsByJenjang = useMemo(() => {
     // Jenjang tanpa kohort (mis. D3 tanpa data) tidak membentuk tab kosong.
     const entries = Object.entries(detailData ?? {}).filter(
-      ([key, value]) => !/^batas[A-Z]/.test(key) && Array.isArray(value) && value.length > 0,
+      ([key, value]) =>
+        key !== 'jenjangs' && !/^batas[A-Z]/.test(key) && Array.isArray(value) && value.length > 0,
     );
     return Object.fromEntries(entries);
   }, [detailData]);

@@ -74,7 +74,9 @@ describe('getGraduateSummary', () => {
 
     const result = await getGraduateSummary({});
 
-    expect(result.kpis).toEqual({
+    const { cards, ...legacyKpis } = result.kpis;
+    expect(Object.keys(cards)).toEqual(['total', 'gpa', 'onTime', 'studySuccess']);
+    expect(legacyKpis).toEqual({
       // Total = seluruh jenjang populasi (incl Profesi), bukan S1+S2 saja.
       totalGraduates: 125,
       totalGraduatesS1: 100,

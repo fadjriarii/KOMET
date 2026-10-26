@@ -13,6 +13,7 @@
 
 const prisma = require('../../config/prisma');
 const {
+  TREND_WINDOW_YEARS,
   getStudyStartYear,
   getAcademicYearStart,
   studySemesters,
@@ -22,6 +23,7 @@ const { resolveTahunAjaranScope } = require('./yearJenjangSeries');
 const { getRequestedJenjang, getScopeJenjangs } = require('./filterBuilder');
 const { roundedRate } = require('../../utils/percentageUtils');
 const { studyLimitsFor } = require('./studyLimits');
+const { jenjangTabs } = require('./graduateCards');
 
 // Masa studi dalam semester, dari periode masuk sampai periode lulus (ADR 0004).
 // Tepat waktu = ≤ batas `onTime` × 2 semester (S1 ≤ 8, S2 ≤ 4, Profesi ≤ 2).
@@ -170,24 +172,28 @@ async function getTepatWaktuByYear(whereFilter) {
     const standardGraduationStart = (cohort) => cohort + batas - 1;
     // Tanpa filter angkatan/tahun lulus, sembunyikan kohort yang tahun lulus
     // standarnya belum tercapai supaya kohort berjalan tidak tampil parsial.
-    return [...groups.values()]
-      .filter(
-        (group) =>
-          explicitCohort ||
-          latestGraduation === null ||
-          standardGraduationStart(group.cohort) <= latestGraduation,
-      )
-      .sort((a, b) => a.cohort - b.cohort)
-      .map((group) => {
-        const total = group.fastCount + group.onTimeCount + group.lateCount;
-        return {
-          ...group,
-          cohortLabel: `Angkatan ${formatAcademicYearLabel(group.cohort)}`,
-          tahunLulusTepat: standardGraduationStart(group.cohort),
-          rate: roundedRate(group.fastCount + group.onTimeCount, total, null),
-          total,
-        };
-      });
+    return (
+      [...groups.values()]
+        .filter(
+          (group) =>
+            explicitCohort ||
+            latestGraduation === null ||
+            standardGraduationStart(group.cohort) <= latestGraduation,
+        )
+        .sort((a, b) => a.cohort - b.cohort)
+        // Jendela chart: 5 angkatan terbaru; pilihan angkatan/tahun eksplisit utuh.
+        .slice(explicitCohort ? 0 : -TREND_WINDOW_YEARS)
+        .map((group) => {
+          const total = group.fastCount + group.onTimeCount + group.lateCount;
+          return {
+            ...group,
+            cohortLabel: `Angkatan ${formatAcademicYearLabel(group.cohort)}`,
+            tahunLulusTepat: standardGraduationStart(group.cohort),
+            rate: roundedRate(group.fastCount + group.onTimeCount, total, null),
+            total,
+          };
+        })
+    );
   };
 
   // Kunci batas hanya untuk jenjang dalam scope yang aturannya dikenal —
@@ -202,6 +208,13 @@ async function getTepatWaktuByYear(whereFilter) {
     if (batas !== null)
       result[`batas${jenjang.charAt(0).toUpperCase()}${jenjang.slice(1)}`] = batas;
   }
+  // Daftar tab dari server: hanya jenjang yang punya kohort, berurutan.
+  result.jenjangs = jenjangTabs(
+    Object.fromEntries(
+      jenjangs.map((jenjang) => [jenjang.toLowerCase(), result[jenjang.toLowerCase()]]),
+    ),
+    (jenjang) => ({ batas: batasFor(jenjang) }),
+  );
   result.s1 = result.s1 ?? [];
   result.s2 = result.s2 ?? [];
   return result;

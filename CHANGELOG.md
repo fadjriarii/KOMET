@@ -18,6 +18,9 @@ Version numbers follow the root `package.json`.
   Intake "Status Saat Ini" tab that splits each intake year by current status.
   The intake chart highlights the year behind the card number. Data comes from
   `GET /api/students/intake-breakdown`.
+- Graduate summary `kpis.cards` (value, `isEmpty`, ordered `byJenjang`) and
+  `jenjangs` tab lists on the on-time and study success details. The server now
+  decides the default Tahun Lulus trend window and the 5-cohort window.
 - Student Data international detail: Per Negara and Per Program Studi tabs.
 - The Student Data decline card is titled "Trend Intake Mahasiswa Baru (over a
   5-year period)" (1-year and N-year variants follow the same wording).

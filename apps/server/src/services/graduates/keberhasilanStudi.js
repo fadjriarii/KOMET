@@ -5,17 +5,15 @@
  */
 
 const prisma = require('../../config/prisma');
-const {
-  getAcademicYearStart,
-  getReferenceLabelStart,
-  studySemesters,
-} = require('../../utils/academicUtils');
+const { getAcademicYearStart, studySemesters } = require('../../utils/academicUtils');
 const { formatAcademicYearLabel } = require('@komet/shared/academicYear');
 const { toArray } = require('@komet/shared/filterUtils');
 const { roundedRate } = require('../../utils/percentageUtils');
 const { getRequestedJenjang, includesJenjang } = require('./filterBuilder');
 const { getTahunAjaranLabel, tahunAjaranStart } = require('./tahunAjaran');
 const { studyLimitsFor } = require('./studyLimits');
+const { getGraduateReferenceStart } = require('./yearJenjangSeries');
+const { jenjangTabs } = require('./graduateCards');
 
 /**
  * Kohort yang dievaluasi = yang terbaru dari dua sumber: (a) lag di bawah,
@@ -36,13 +34,6 @@ const CORE_JENJANG = new Set(['S1', 'S2']);
 // Status yang berarti masih kuliah: kohort yang masih punya satu pun ini
 // belum boleh dinilai final.
 const ENROLLED_STATUS = new Set(['aktif', 'cuti']);
-
-/** Referensi = MAX(tahunLulus) DB; fallback kalender bila tabel kosong. */
-async function getGraduateReferenceStart() {
-  const latest = await prisma.graduate.aggregate({ _max: { tahunLulus: true } });
-  const maxLabel = latest._max?.tahunLulus;
-  return getReferenceLabelStart(maxLabel ? [maxLabel] : []);
-}
 
 /**
  * refStart jendela kohort: jangkar `tahunAjaran` (Opsi A, meta dari
@@ -256,19 +247,23 @@ async function getKeberhasilanStudi(whereFilter) {
       selectedStarts,
     });
 
-  const calcPercentage = async (jenjang) => {
+  const calcCohort = async (jenjang) => {
     const start = evalStart(jenjang);
     if (start === null) return null;
     const angkatan = formatAcademicYearLabel(start);
     const cohorts = await countCohorts(jenjang, studentWhere, [angkatan]);
-    return toPercentage(cohorts.get(angkatan));
+    const cohort = cohorts.get(angkatan);
+    return { rate: toPercentage(cohort), intake: cohort.total, angkatan };
   };
 
-  const values = await forJenjangs(jenjangs, calcPercentage);
+  const values = await forJenjangs(jenjangs, calcCohort);
 
-  const result = {};
+  // `cohorts` = fakta lengkap per jenjang (rate + intake + angkatan dari satu
+  // agregat) untuk kartu server-side; kunci rate datar tetap untuk client lama.
+  const result = { cohorts: {} };
   jenjangs.forEach((jenjang, index) => {
-    result[jenjang.toLowerCase()] = values[index];
+    result[jenjang.toLowerCase()] = values[index]?.rate ?? null;
+    if (values[index]) result.cohorts[jenjang.toLowerCase()] = values[index];
   });
   // Kunci lama untuk kompatibilitas kartu S1/S2 yang sudah ada — hanya
   // diisi bila jenjang itu memang ada dalam scope filter.
@@ -347,6 +342,19 @@ async function getKeberhasilanStudiByAngkatan(whereFilter) {
     result[`batasStudi${canon}`] = lag;
     result[`angkatanEvaluasi${canon}`] = angkatanLabelFromStart(evalStart(jenjang));
   });
+  // Daftar tab dari server: jenjang yang kohortnya punya intake/lulusan.
+  result.jenjangs = jenjangTabs(
+    Object.fromEntries(
+      jenjangs.map((jenjang, index) => [
+        jenjang.toLowerCase(),
+        (values[index] || []).filter((row) => row.intake > 0 || row.successCount > 0),
+      ]),
+    ),
+    (jenjang) => ({
+      batas: cohortLagFor(jenjang),
+      angkatanEvaluasi: angkatanLabelFromStart(evalStart(jenjang)),
+    }),
+  );
   result.s1 = result.s1 ?? null;
   result.s2 = result.s2 ?? null;
   return result;

@@ -22,7 +22,12 @@ const {
 const { toArray } = require('@komet/shared/filterUtils');
 const { formatAcademicYearLabel } = require('@komet/shared/academicYear');
 const { getRequestedJenjang } = require('./filterBuilder');
-const { getTahunAjaran, getTahunAjaranLabel, tahunAjaranStart } = require('./tahunAjaran');
+const {
+  getTahunAjaran,
+  getTahunAjaranLabel,
+  tahunAjaranStart,
+  withTahunAjaranAnchor,
+} = require('./tahunAjaran');
 
 /**
  * Lima label ajaran ke belakang dari label terbaru di DB — hanya untuk opsi
@@ -30,10 +35,17 @@ const { getTahunAjaran, getTahunAjaranLabel, tahunAjaranStart } = require('./tah
  * jadi satu agregat `_max` cukup.
  */
 async function getGraduateLabelWindow() {
+  return getLabelYearRange(formatAcademicYearLabel(await getGraduateReferenceStart()));
+}
+
+/**
+ * Tahun mulai tahun lulus terbaru di DB (satu agregat `_max`; label ajaran
+ * leksikografis = kronologis). Fallback kalender hanya bila tabel kosong.
+ */
+async function getGraduateReferenceStart() {
   const latest = await prisma.graduate.aggregate({ _max: { tahunLulus: true } });
   const maxLabel = latest._max?.tahunLulus;
-  const refStart = getReferenceLabelStart(maxLabel ? [maxLabel] : []);
-  return getLabelYearRange(formatAcademicYearLabel(refStart));
+  return getReferenceLabelStart(maxLabel ? [maxLabel] : []);
 }
 
 /**
@@ -93,10 +105,10 @@ function describeTahunAnchor(anchor) {
 async function resolveTahunAjaranScope(whereFilter = {}) {
   const { tahunAjaran, ...cleanFilter } = whereFilter;
   const { scope, isDefault } = await resolveTahunScope(cleanFilter);
-  const where = withTahunScope(cleanFilter, scope);
+  // Satu aturan jangkar (`withTahunAjaranAnchor`), dipakai juga oleh tabel.
+  const where = withTahunAjaranAnchor({ ...withTahunScope(cleanFilter, scope), tahunAjaran });
   const explicitTahun = cleanFilter.graduate?.tahunLulus ?? cleanFilter.tahunLulus;
   const anchor = explicitTahun ? null : getTahunAjaranLabel(tahunAjaran);
-  if (anchor) where.graduate = { ...(where.graduate || {}), tahunLulus: { lte: anchor, not: '' } };
   return {
     cleanFilter,
     where,
@@ -187,6 +199,7 @@ module.exports = {
   valuesByYearAndJenjang,
   windowGraduateTrend,
   getGraduateLabelWindow,
+  getGraduateReferenceStart,
   resolveTahunScope,
   resolveTahunAjaranScope,
   describeTahunScope,
