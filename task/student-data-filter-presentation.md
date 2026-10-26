@@ -1,6 +1,6 @@
 # TODO: Presentasi data Student Data saat filter tunggal dan kombinasi
 
-- Status: Fase 0–2 selesai (2026-10-26); Fase 3–4 belum.
+- Status: selesai (2026-10-26), Fase 0–4.
 - Dibuat: 2026-10-26
 - Cakupan: card KPI, popup "Lihat Rincian", dan endpoint rincian di tab
   Student Data. Graduates dan MBKM tidak disentuh.
@@ -150,13 +150,13 @@ Tidak perlu menulis cabang untuk setiap kombinasi filter. Tiga aturan menghasilk
 
 ### Fase 3 — Popup Internasional
 
-- [ ] Tab Per Negara (pakai `byCountry` yang ada).
-- [ ] Tab Per Program Studi (WNA & %), ikut R2.
+- [x] Tab Per Negara (pakai `byCountry` yang ada).
+- [x] Tab Per Program Studi (WNA & %), ikut R2.
 
 ### Fase 4 — Dokumentasi & penutup
 
-- [ ] Tulis matriks scope + aturan R1–R3 ke `docs/ARCHITECTURE.md` (bagian student) agar tidak bertentangan lagi dengan `ai-context/`.
-- [ ] `CHANGELOG.md` bagian Unreleased.
+- [x] Tulis matriks scope + aturan R1–R3 ke `docs/ARCHITECTURE.md` (bagian student) agar tidak bertentangan lagi dengan `ai-context/`.
+- [x] `CHANGELOG.md` bagian Unreleased.
 
 ## Verifikasi
 

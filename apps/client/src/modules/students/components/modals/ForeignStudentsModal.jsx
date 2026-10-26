@@ -9,9 +9,9 @@ import { formatNumber, formatPercentage } from '@komet/shared/formatters';
 import { useDetail } from '../../studentQueries';
 import ForeignTrendComposedChart from './ForeignTrendComposedChart';
 import { TREND_TABS } from '../../../../components/common/modals/modalTabs';
+import { foreignExtraTabs } from './foreignExtraTabs';
 
 export default function ForeignStudentsModal({ isOpen, onClose, originRect, data, filters }) {
-  const { activeTab, handleTabChange, slideClass } = useTabTransition(TREND_TABS, 'chart');
   const {
     data: detailData,
     isLoading,
@@ -25,6 +25,9 @@ export default function ForeignStudentsModal({ isOpen, onClose, originRect, data
     summaryData: data,
     summaryKey: 'internationalStudentsTrend',
   });
+  const extra = useMemo(() => foreignExtraTabs(detailData), [detailData]);
+  const tabs = useMemo(() => [...TREND_TABS, ...extra.tabs], [extra]);
+  const { activeTab, handleTabChange, slideClass } = useTabTransition(tabs, 'chart');
   const kpis = data?.kpis || {};
   const trendData = useMemo(() => detailData?.trendData || [], [detailData]);
   // Baris mana yang mewakili tahun terpilih sudah ditentukan server; klien tinggal
@@ -76,12 +79,13 @@ export default function ForeignStudentsModal({ isOpen, onClose, originRect, data
           statusLabel={statusLabel}
         />
       }
-      tabs={TREND_TABS}
+      tabs={tabs}
       activeTab={activeTab}
       onTabChange={handleTabChange}
       slideClass={slideClass}
       chart={content.chart}
       table={content.table}
+      extraContent={extra.content}
     />
   );
 }

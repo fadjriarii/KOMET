@@ -1,12 +1,19 @@
 /** Aggregates international-student trends directly in MariaDB. */
 const prisma = require('../../config/prisma');
 const { resolveSnapshotSemesterWhere } = require('./studentSnapshot');
-const { FILTER_SCOPES, buildStudentFilter, getAcademicYear } = require('./filterBuilder');
+const {
+  FILTER_SCOPES,
+  buildStudentFilter,
+  ensurePopulationFilter,
+  getAcademicYear,
+} = require('./filterBuilder');
 const { buildAcademicYearFilter } = require('./snapshotConditions');
 const { resolveTrendYears } = require('./international/trendYears');
+const { roundedRate } = require('../../utils/percentageUtils');
 const {
   getInternationalWhere,
   sumNationalityRows,
+  foreignByProdi,
   countByNationality,
   toTrendRow,
 } = require('./international/nationality');
@@ -57,7 +64,15 @@ async function getInternationalStudentsTrend(query = {}) {
 
   // `getInternationalWhere` sudah membuang WNI dan nilai kosong, jadi total WNA
   // adalah jumlah baris pemetaaan negara — tidak perlu `count` terpisah.
-  const wnaCountryRows = await countByNationality(getInternationalWhere(populationFilter));
+  const [wnaCountryRows, prodiRows] = await Promise.all([
+    countByNationality(getInternationalWhere(populationFilter)),
+    // Penyebut per prodi = populasi yang sama dengan kartu, dipecah per prodi.
+    prisma.student.groupBy({
+      by: ['programStudi', 'idNegara', 'kewarganegaraan'],
+      where: ensurePopulationFilter(populationFilter),
+      _count: { kewarganegaraan: true },
+    }),
+  ]);
 
   const countryMap = [];
   const countryIndex = new Map();
@@ -81,9 +96,16 @@ async function getInternationalStudentsTrend(query = {}) {
     trendData[trendData.length - 1] ||
     null;
 
+  const total = countryMap.reduce((sum, row) => sum + row.count, 0);
+  for (const row of countryMap) row.percentage = roundedRate(row.count, total);
+  countryMap.sort(
+    (a, b) => b.count - a.count || a.kewarganegaraan.localeCompare(b.kewarganegaraan),
+  );
+
   return {
-    total: countryMap.reduce((sum, row) => sum + row.count, 0),
+    total,
     byCountry: countryMap,
+    byProdi: foreignByProdi(prodiRows),
     trendData,
     selected,
   };

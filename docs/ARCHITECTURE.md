@@ -425,6 +425,40 @@ yang pertama. Upgrade path yang disepakati: tabel snapshot per tahun akademik ya
 diisi pada akhir sync (`apps/server/src/controllers/sync/`), dibaca oleh service tren,
 dengan backfill eksplisit satu kali.
 
+### Student Data detail breakdowns under filters
+
+Card numbers and detail popups follow three rules, so filter combinations need
+no per-combination code:
+
+1. **Numbers:** a card counts the AND of every filter in its scope
+   (`services/students/kpiScopes.js`). The "Terfilter" badge lights when any
+   in-scope filter differs from its default.
+2. **Remaining dimensions:** a detail tab is hidden when its breakdown holds one
+   category or fewer. One prodi selected hides Per Fakultas, Per Program Studi,
+   and Per Jenjang automatically.
+3. **Status cross-tab:** when the population holds more than one status, the
+   Total Mahasiswa detail opens on Per Status and stacks every other tab by
+   status. Statuses for past academic years are projected in memory
+   (`projectSnapshotStudent`), because SQL only holds the current status.
+
+| Filter                                        | Total Mahasiswa | Internasional      | Intake | Trend Intake (decline) |
+| --------------------------------------------- | --------------- | ------------------ | ------ | ---------------------- |
+| Fakultas, Prodi, Jenjang, Search, Periode, TA | on              | on                 | on     | on                     |
+| Angkatan                                      | on              | on                 | on     | on                     |
+| Semester                                      | on              | on                 | on     | off                    |
+| Kewarganegaraan                               | on              | off (measures WNA) | on     | on                     |
+| Status Keaktifan                              | on              | on (denominator)   | off    | off                    |
+
+Per-year charts (Per Angkatan, intake, decline, international) show the five
+academic years up to the selected one (`getBounded5YearRollingAcademicYears`).
+The default academic year is the latest entry year in student data (ADR 0001),
+so a sync that adds a newer year moves the default and every per-year window.
+
+Detail endpoints: `/students/active-students` (dimensions with per-status
+counts), `/students/intake-breakdown` (intake and decline per prodi, current
+status per intake year), and `/students/international-detail` (trend, per
+country, per prodi).
+
 ## 6. Access Control (Zero-Trust)
 
 ### 6.1 Credential scopes

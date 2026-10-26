@@ -18,6 +18,7 @@ Version numbers follow the root `package.json`.
   Intake "Status Saat Ini" tab that splits each intake year by current status.
   The intake chart highlights the year behind the card number. Data comes from
   `GET /api/students/intake-breakdown`.
+- Student Data international detail: Per Negara and Per Program Studi tabs.
 - The Student Data decline card is titled "Trend Intake Mahasiswa Baru (over a
   5-year period)" (1-year and N-year variants follow the same wording).
 - Canonical AI-agent guidance in `AGENTS.md`, with `CLAUDE.md` and

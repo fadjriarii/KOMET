@@ -1,7 +1,4 @@
-import {
-  INTAKE_PRODI_TAB,
-  INTAKE_STATUS_TAB,
-} from '../../../../components/common/modals/modalTabs';
+import { PRODI_TAB, CURRENT_STATUS_TAB } from '../../../../components/common/modals/modalTabs';
 import { DeclineProdiTable, IntakeProdiView, IntakeStatusChart } from './IntakeBreakdownViews';
 
 /**
@@ -14,7 +11,7 @@ export function intakeExtraTabs(breakdown, { withStatus = false } = {}) {
   const tabs = [];
   const content = {};
   if (breakdown.byProdi.length > 1) {
-    tabs.push(INTAKE_PRODI_TAB);
+    tabs.push(PRODI_TAB);
     content.prodi = withStatus ? (
       <IntakeProdiView breakdown={breakdown} />
     ) : (
@@ -22,7 +19,7 @@ export function intakeExtraTabs(breakdown, { withStatus = false } = {}) {
     );
   }
   if (withStatus && breakdown.statuses.length > 1) {
-    tabs.push(INTAKE_STATUS_TAB);
+    tabs.push(CURRENT_STATUS_TAB);
     content.status = <IntakeStatusChart breakdown={breakdown} />;
   }
   return { tabs, content };

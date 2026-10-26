@@ -44,6 +44,27 @@ function sumNationalityRows(rows) {
   return { total, foreign };
 }
 
+/**
+ * WNA per prodi dari baris `groupBy [programStudi, idNegara, kewarganegaraan]`:
+ * jumlah WNA (`count`), total populasi prodi, dan persentase WNA di prodi itu.
+ */
+function foreignByProdi(rows) {
+  const groups = new Map();
+  for (const row of rows) {
+    const name = row.programStudi || 'Lainnya';
+    const group = groups.get(name) || { name, count: 0, total: 0 };
+    const count = row._count.kewarganegaraan;
+    group.total += count;
+    if (isForeignStudent(row)) group.count += count;
+    groups.set(name, group);
+  }
+  return [...groups.values()]
+    .map((group) => ({ ...group, percentage: roundedRate(group.count, group.total) }))
+    .sort(
+      (a, b) => b.count - a.count || b.percentage - a.percentage || a.name.localeCompare(b.name),
+    );
+}
+
 function countByNationality(where) {
   return prisma.student.groupBy({
     by: ['idNegara', 'kewarganegaraan'],
@@ -72,6 +93,7 @@ module.exports = {
   getInternationalWhere,
   isForeignStudent,
   sumNationalityRows,
+  foreignByProdi,
   countByNationality,
   toTrendRow,
 };
