@@ -1,6 +1,6 @@
 # TODO: MBKM Data — definisi KPI, sync yang andal, data-driven, logika di server
 
-- Status: Fase 0 selesai; kode Fase 1 selesai, menunggu `db push` + sync. Fase S ditunda ke akhir (keputusan user, 2026-10-27).
+- Status: Fase 0–1 selesai dan terverifikasi; Fase 2 berikutnya. Fase S ditunda ke akhir (keputusan user, 2026-10-27).
 - Dibuat: 2026-10-27
 - Cakupan: card KPI, popup, tabel, sync SEVIMA, dan service MBKM. UI/UX tidak
   didesain ulang.
@@ -251,9 +251,12 @@ aktivitas dengan dua mahasiswa, SKS tidak wajar (106, 182, 251).
       `studentDeduplicationService.js:26-31`) dan semua perhitungan.
 - [x] Tes: mapping baris, transaksi gagal tidak mengosongkan tabel, status baru
       → `unclassified`, NIM yatim tidak membuat mahasiswa.
-- [ ] **Terapkan skema ke database** (`npx prisma db push --accept-data-loss &&
-npx prisma generate` di `apps/server`, dijalankan user), lalu sync MBKM
-      dua kali dan bandingkan dengan baseline.
+- [x] **Terapkan skema ke database** (`npx prisma db push --accept-data-loss &&
+npx prisma generate`, disetujui user 2026-10-27), lalu sync MBKM beberapa
+      kali. Hasil stabil: 603 baris feed − 32 duplikat = 571 ditulis − 15
+      duplikat isi = 556 tersimpan; semua punya `idAktivitas` dan `raw`, 400
+      dengan SKS, 426 dengan tanggal; 0 yatim, 0 mahasiswa palsu, mahasiswa
+      tetap 2.022.
 
 ### Fase 2 — Perhitungan server (`services/mbkm/`)
 
