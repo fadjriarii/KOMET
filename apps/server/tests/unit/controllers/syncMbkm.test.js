@@ -9,6 +9,7 @@ const {
   dedupeMbkmRows,
   sumSksByActivity,
 } = require('../../../src/controllers/sync/mapMbkmRow');
+const { dedupeMbkmByIdentity } = require('../../../src/services/mbkm/dedupeActivities');
 const { buildMbkmRows } = require('../../../src/controllers/sync/writeMbkmPage');
 const { replaceMbkmActivities } = require('../../../src/controllers/sync/bulkWrite');
 const { statusRuleOf } = require('../../../src/services/mbkm/statusRules');
@@ -87,6 +88,75 @@ describe('dedupeMbkmRows dan sumSksByActivity', () => {
     ]);
     expect(totals.get(9)).toBe(20);
     expect(totals.has(10)).toBe(false);
+  });
+});
+
+describe('dedupeMbkmByIdentity', () => {
+  const row = (overrides = {}) => ({
+    idAktivitas: 1,
+    nim: '2101001',
+    periode: '20241',
+    programStudi: 'Bio Teknologi',
+    fakultas: 'Fakultas',
+    jenjang: 'S1',
+    statusKeaktifan: 'Aktif',
+    jenisAktivitas: 'Magang/Praktik Kerja (Kampus Merdeka)',
+    idJenisKegiatan: 'A03',
+    judulAktivitas: 'Magang',
+    mitra: 'PT Mitra',
+    statusAktivitas: 'Disetujui',
+    idStatusAktivitas: '2',
+    tanggalMulai: '2024-01-01',
+    tanggalSelesai: '2024-06-30',
+    sksKonversi: 20,
+    raw: { program_studi: 'Bio Teknologi' },
+    ...overrides,
+  });
+
+  it('membersihkan NIM xx dan teks akun lama, termasuk di raw', () => {
+    const result = dedupeMbkmByIdentity([
+      row({
+        nim: 'XX2101001',
+        programStudi: 'Bio Teknologi (Akun Lama)',
+        raw: { program_studi: 'Bio Teknologi (Akun Lama)', catatan: 'akun lama' },
+      }),
+    ]);
+
+    expect(result).toMatchObject({ total: 1, kept: 1, discarded: 0, oldAccountRows: 1 });
+    expect(result.rows[0].nim).toBe('2101001');
+    expect(result.rows[0].programStudi).toBe('Bio Teknologi');
+    expect(JSON.stringify(result.rows)).not.toMatch(/akun lama/i);
+  });
+
+  it('satu NIM + BKP + Mitra sama: pilih data paling lengkap', () => {
+    const result = dedupeMbkmByIdentity([
+      row({ idAktivitas: 1, nim: 'XX2101001', sksKonversi: null, judulAktivitas: '' }),
+      row({ idAktivitas: 2, nim: '2101001', sksKonversi: 20 }),
+    ]);
+
+    expect(result).toMatchObject({ total: 2, kept: 1, discarded: 1 });
+    expect(result.rows[0].idAktivitas).toBe(2);
+  });
+
+  it('kelengkapan sama: pilih tanggal selesai terbaru', () => {
+    const result = dedupeMbkmByIdentity([
+      row({ idAktivitas: 1, tanggalSelesai: '2024-06-30' }),
+      row({ idAktivitas: 2, tanggalSelesai: '2025-06-30' }),
+    ]);
+
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].idAktivitas).toBe(2);
+  });
+
+  it('BKP atau Mitra berbeda: pertahankan semua sub-group', () => {
+    const result = dedupeMbkmByIdentity([
+      row({ idAktivitas: 1, mitra: 'PT A' }),
+      row({ idAktivitas: 2, mitra: 'PT B' }),
+      row({ idAktivitas: 3, jenisAktivitas: 'Studi Independen' }),
+    ]);
+
+    expect(result).toMatchObject({ total: 3, kept: 3, discarded: 0 });
+    expect(result.rows.map((item) => item.idAktivitas).sort()).toEqual([1, 2, 3]);
   });
 });
 

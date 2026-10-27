@@ -6,7 +6,6 @@ const {
   isSamePerson,
   isLegacyGraduatedTwin,
   survivorFirst,
-  mbkmSurvivorFirst,
 } = require('../../../src/services/studentDeduplicationService');
 
 describe('student deduplication identity matching', () => {
@@ -128,20 +127,5 @@ describe('survivor ordering (aturan A)', () => {
   it('tanpa-x yang sama-sama bersih mendahulukan bukan akun-lama', () => {
     const ordered = [row('23020019', true), row('23020018', false)].sort(survivorFirst);
     expect(ordered[0].nim).toBe('23020018');
-  });
-});
-
-describe('MBKM duplicate ordering', () => {
-  it('menyimpan status terkuat, bukan baris pertama yang kebetulan batal', () => {
-    const ordered = [
-      { id: 1, statusAktivitas: 'Dibatalkan' },
-      { id: 2, statusAktivitas: 'Selesai' },
-      { id: 3, statusAktivitas: 'Disetujui' },
-    ].sort(mbkmSurvivorFirst);
-    expect(ordered.map((row) => row.statusAktivitas)).toEqual([
-      'Selesai',
-      'Disetujui',
-      'Dibatalkan',
-    ]);
   });
 });

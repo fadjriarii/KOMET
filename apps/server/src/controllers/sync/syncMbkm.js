@@ -3,6 +3,7 @@ const syncJobTracker = require('../../utils/syncJobTracker');
 const createSyncHandler = require('./createSyncHandler');
 const { deduplicateStudents } = require('../../services/studentDeduplicationService');
 const { mapMbkmRow, dedupeMbkmRows, sumSksByActivity } = require('./mapMbkmRow');
+const { dedupeMbkmByIdentity } = require('../../services/mbkm/dedupeActivities');
 const { buildMbkmRows } = require('./writeMbkmPage');
 const { replaceMbkmActivities } = require('./bulkWrite');
 const { getProdiFakultasMap, paginateSevimaPages } = require('./sevimaLookup');
@@ -40,7 +41,9 @@ const executeSyncMbkm = async ({ runDedup = true } = {}) => {
   const { rows: uniqueRows, duplicates: feedDuplicates } = dedupeMbkmRows(mapped.filter(Boolean));
 
   const sksByActivity = sumSksByActivity(await fetchAllAttributes(KONVERSI_ENDPOINT));
-  const { rows, orphans } = await buildMbkmRows(uniqueRows, sksByActivity);
+  const { rows: builtRows, orphans } = await buildMbkmRows(uniqueRows, sksByActivity);
+  const identity = dedupeMbkmByIdentity(builtRows);
+  const rows = identity.rows;
   const totalSynced = await replaceMbkmActivities(rows);
 
   let deduplicationResult = null;
@@ -50,6 +53,8 @@ const executeSyncMbkm = async ({ runDedup = true } = {}) => {
     totalSynced,
     totalSkipped,
     feedDuplicates,
+    identityDuplicates: identity.discarded,
+    oldAccountRows: identity.oldAccountRows,
     orphanActivities: orphans,
     activitiesWithSks: rows.filter((row) => row.sksKonversi !== null).length,
   };
@@ -57,10 +62,10 @@ const executeSyncMbkm = async ({ runDedup = true } = {}) => {
     status: 'completed',
     synced: totalSynced,
     skipped: totalSkipped,
-    report: { feedDuplicates, orphanActivities: orphans },
   });
   logger.success(
     `[MBKM] Selesai! ${totalSynced} aktivitas ditulis, ${feedDuplicates} duplikat feed dibuang, ` +
+      `${identity.discarded} duplikat identitas dibuang, ${identity.oldAccountRows} baris akun lama dibersihkan, ` +
       `${orphans} aktivitas tanpa mahasiswa dilewati, ${deduplicationResult?.deletedMbkmCount || 0} duplikat isi dibersihkan.`,
   );
   return { ...report, deduplication: deduplicationResult };

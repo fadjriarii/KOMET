@@ -1,6 +1,6 @@
 const prisma = require('../config/prisma');
 const logger = require('../utils/logger');
-const { statusRuleOf } = require('./mbkm/statusRules');
+const { dedupeMbkmByIdentity } = require('./mbkm/dedupeActivities');
 const { STUDENT_STATUS } = require('@komet/shared/constants');
 
 /**
@@ -22,15 +22,6 @@ const { STUDENT_STATUS } = require('@komet/shared/constants');
  *    lewat nama + jenjang + kode prodi dan periode wisuda yang sama. NIK/tanggal
  *    lahir lama sering berbeda, jadi tidak bisa mengandalkan tahap B.
  */
-/** Survivor duplikat MBKM: status terkuat dulu, lalu id terlama. */
-function mbkmSurvivorFirst(a, b) {
-  // Urutan status dari satu tabel aturan (statusRules): final/aktif tidak kalah oleh batal.
-  const rankA = statusRuleOf(a).rank;
-  const rankB = statusRuleOf(b).rank;
-  if (rankA !== rankB) return rankB - rankA;
-  return (a.id ?? 0) - (b.id ?? 0);
-}
-
 function normNama(value) {
   return (value || '').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim().toLowerCase();
 }
@@ -340,23 +331,10 @@ async function deduplicateStudents({ pruneNims = null } = {}) {
 
   // 5. Pembersihan Duplikat pada Aktivitas MBKM
   const mbkmActivities = await prisma.mbkmActivity.findMany();
-  const mbkmGroupMap = new Map();
-
-  for (const act of mbkmActivities) {
-    const key = `${nimBersih(act.nim)}_${act.periode}_${(act.jenisAktivitas || '').toLowerCase().trim()}_${(act.judulAktivitas || '').toLowerCase().trim()}`;
-
-    if (!mbkmGroupMap.has(key)) {
-      mbkmGroupMap.set(key, []);
-    }
-    mbkmGroupMap.get(key).push(act);
-  }
-
-  const mbkmIdsToDelete = [];
-  for (const [, group] of mbkmGroupMap) {
-    if (group.length < 2) continue;
-    const ordered = [...group].sort(mbkmSurvivorFirst);
-    for (const duplicate of ordered.slice(1)) mbkmIdsToDelete.push(duplicate.id);
-  }
+  const keptMbkmIds = new Set(dedupeMbkmByIdentity(mbkmActivities).rows.map((row) => row.id));
+  const mbkmIdsToDelete = mbkmActivities
+    .filter((act) => !keptMbkmIds.has(act.id))
+    .map((act) => act.id);
 
   let deletedMbkmCount = 0;
   if (mbkmIdsToDelete.length > 0) {
@@ -398,7 +376,6 @@ module.exports = {
   deduplicateStudents,
   isSamePerson,
   survivorFirst,
-  mbkmSurvivorFirst,
   personKeys,
   isStatusPindah,
   isLegacyGraduatedTwin,
