@@ -1,6 +1,6 @@
 # TODO: MBKM Data — definisi KPI, sync yang andal, data-driven, logika di server
 
-- Status: belum dikerjakan. Dikerjakan bertahap per fase; Fase S (keamanan) lebih dulu.
+- Status: Fase 0 selesai; kode Fase 1 selesai, menunggu `db push` + sync. Fase S ditunda ke akhir (keputusan user, 2026-10-27).
 - Dibuat: 2026-10-27
 - Cakupan: card KPI, popup, tabel, sync SEVIMA, dan service MBKM. UI/UX tidak
   didesain ulang.
@@ -229,28 +229,31 @@ aktivitas dengan dua mahasiswa, SKS tidak wajar (106, 182, 251).
 
 ### Fase 1 — Sync yang andal (`controllers/sync/`, `prisma/schema.prisma`)
 
-- [ ] Kolom MbkmActivity baru: `idAktivitas`, `idStatusAktivitas`,
+- [x] Kolom MbkmActivity baru: `idAktivitas`, `idStatusAktivitas`,
       `idJenisKegiatan`, `tanggalMulai`, `tanggalSelesai`, `sksKonversi`, dan
       `raw` (JSON baris asli; field baru SEVIMA otomatis tersimpan di sini).
       Kunci unik = (`idAktivitas`, `nim`): satu aktivitas bisa punya beberapa
       mahasiswa. Terapkan dengan `db push` (ADR 0002).
-- [ ] Buang duplikat dari feed API sebelum menulis (603 baris, 570 aktivitas
+- [x] Buang duplikat dari feed API sebelum menulis (603 baris, 570 aktivitas
       unik; 31 duplikat identik). Tulis dalam satu transaksi (hapus + isi
       atomik); tidak ada jendela tabel kosong.
-- [ ] Normalisasi saat menulis: trim status/jenis/mitra, periode tidak valid
+- [x] Normalisasi saat menulis: trim status/jenis/mitra, periode tidak valid
       ditandai (tidak dibuang diam-diam), `jenjang` kosong = '' (bukan dipaksa
       S1).
-- [ ] Hentikan pembuatan mahasiswa palsu untuk MBKM; aktivitas yatim dihitung
+- [x] Hentikan pembuatan mahasiswa palsu untuk MBKM; aktivitas yatim dihitung
       di laporan sync/kualitas data. Perbaiki juga kunci `id_periode` yang
       salah. Cek pemanggil `nimResolver` di modul lain dulu.
-- [ ] Ambil SKS konversi dari endpoint list `mata-kuliah-konversi-mbkm`
+- [x] Ambil SKS konversi dari endpoint list `mata-kuliah-konversi-mbkm`
       (±7 halaman, sudah dicek), jumlahkan `sks_mata_kuliah` per
       `id_aktivitas`, simpan di `sksKonversi` (null = tidak ada data).
-- [ ] `mbkm/statusRules.js`: tabel kategori status (kode dan label) +
+- [x] `mbkm/statusRules.js`: tabel kategori status (kode dan label) +
       `unclassified`. Dipakai sync dedup (gantikan rank hardcode di
       `studentDeduplicationService.js:26-31`) dan semua perhitungan.
-- [ ] Tes: mapping baris, transaksi gagal tidak mengosongkan tabel, status baru
+- [x] Tes: mapping baris, transaksi gagal tidak mengosongkan tabel, status baru
       → `unclassified`, NIM yatim tidak membuat mahasiswa.
+- [ ] **Terapkan skema ke database** (`npx prisma db push --accept-data-loss &&
+npx prisma generate` di `apps/server`, dijalankan user), lalu sync MBKM
+      dua kali dan bandingkan dengan baseline.
 
 ### Fase 2 — Perhitungan server (`services/mbkm/`)
 

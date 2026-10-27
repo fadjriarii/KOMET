@@ -1,6 +1,6 @@
 const prisma = require('../config/prisma');
 const logger = require('../utils/logger');
-const { MBKM_STATUS } = require('./mbkm/filterBuilder');
+const { statusRuleOf } = require('./mbkm/statusRules');
 const { STUDENT_STATUS } = require('@komet/shared/constants');
 
 /**
@@ -22,19 +22,11 @@ const { STUDENT_STATUS } = require('@komet/shared/constants');
  *    lewat nama + jenjang + kode prodi dan periode wisuda yang sama. NIK/tanggal
  *    lahir lama sering berbeda, jadi tidak bisa mengandalkan tahap B.
  */
-/** Urutan status MBKM: baris final/aktif tidak boleh kalah oleh baris batal. */
-const MBKM_STATUS_RANK = new Map([
-  [MBKM_STATUS.SELESAI, 5],
-  [MBKM_STATUS.DISSETUJUI, 4],
-  [MBKM_STATUS.DIAJUKAN, 3],
-  [MBKM_STATUS.DITOLAK, 2],
-  [MBKM_STATUS.DIBATALKAN, 1],
-]);
-
 /** Survivor duplikat MBKM: status terkuat dulu, lalu id terlama. */
 function mbkmSurvivorFirst(a, b) {
-  const rankA = MBKM_STATUS_RANK.get((a.statusAktivitas || '').trim()) ?? 0;
-  const rankB = MBKM_STATUS_RANK.get((b.statusAktivitas || '').trim()) ?? 0;
+  // Urutan status dari satu tabel aturan (statusRules): final/aktif tidak kalah oleh batal.
+  const rankA = statusRuleOf(a).rank;
+  const rankB = statusRuleOf(b).rank;
   if (rankA !== rankB) return rankB - rankA;
   return (a.id ?? 0) - (b.id ?? 0);
 }

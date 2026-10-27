@@ -5,11 +5,23 @@ const { formatAngkatan, extractPeriode, hitungSemester } = require('../academicP
 const { getProdiFakultasMap } = require('./prodiMap');
 
 // Helper Resolver NIM Bulk (Pre-fetch In-Memory Map) untuk Batch Sync tanpa N+1 Query
-async function resolveTargetNimBatch(items, extractNimFn, extractNamaFn, extraDataFn = () => ({})) {
+/**
+ * `createMissing: false` (MBKM): NIM yang tidak ada tidak dibuatkan mahasiswa
+ * baru dan tidak masuk peta hasil; pemanggil menghitungnya sebagai yatim.
+ * Mahasiswa buatan berstatus "Aktif" ikut menaikkan angka Student Data.
+ */
+async function resolveTargetNimBatch(
+  items,
+  extractNimFn,
+  extractNamaFn,
+  extraDataFn = () => ({}),
+  { createMissing = true } = {},
+) {
   if (!items || items.length === 0) return new Map();
 
-  // Resolver batch saat sync: peta terbaru (paksa refresh) seperti pemanggil sync lain.
-  const prodiFakultasMap = await getProdiFakultasMap(true);
+  // Peta prodi→fakultas hanya dibutuhkan untuk membuat mahasiswa baru; dimuat
+  // sekali saat pertama dibutuhkan (paksa refresh, seperti pemanggil sync lain).
+  let prodiFakultasMap = null;
 
   const nimsToLookup = new Set();
   items.forEach((item) => {
@@ -40,12 +52,15 @@ async function resolveTargetNimBatch(items, extractNimFn, extractNamaFn, extraDa
       resolvedMap.set(item, rawNim);
     } else if (cleanNim && existingNimSet.has(cleanNim)) {
       resolvedMap.set(item, cleanNim);
+    } else if (!createMissing) {
+      continue;
     } else {
       const targetNim = cleanNim || rawNim;
       resolvedMap.set(item, targetNim);
 
       if (!existingNimSet.has(targetNim)) {
         existingNimSet.add(targetNim); // Hindari duplikat create dalam batch yang sama
+        prodiFakultasMap ??= await getProdiFakultasMap(true);
         const extraData = extraDataFn(item) || {};
         const idPeriode = extraData.id_periode_akademik || extraData.id_periode || '';
         const rawProdi = extraData.programStudi || extraData.prodiName || '';

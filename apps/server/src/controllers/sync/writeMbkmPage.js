@@ -1,49 +1,56 @@
 const prisma = require('../../config/prisma');
 const { resolveTargetNimBatch } = require('./sevimaLookup');
-const { bulkCreateMbkmActivities } = require('./bulkWrite');
 
 /**
- * Tulis satu halaman aktivitas: resolusi NIM tanpa N+1 query, denormalisasi
- * statusKeaktifan dari baris mahasiswa terkait (bukan dari judul aktivitas —
- * value lama membuat kolom ini tidak pernah cocok dengan status apa pun),
- * lalu bulk insert.
+ * Siapkan baris aktivitas untuk ditulis: resolusi NIM (termasuk varian tanpa
+ * "x") tanpa N+1 query dan TANPA membuat mahasiswa baru, denormalisasi
+ * statusKeaktifan dari baris mahasiswa, dan SKS konversi per aktivitas.
+ * Aktivitas yang NIM-nya tidak dikenal tidak bisa ditulis (relasi ke Student)
+ * dan dihitung sebagai yatim untuk laporan sync.
  *
- * @returns jumlah baris yang ditulis
+ * @returns {{ rows: object[], orphans: number }}
  */
-async function writeMbkmPage(validItems) {
-  // Bulk pre-fetch NIM Resolution (Menghilangkan N+1 Query)
+async function buildMbkmRows(validItems, sksByActivity = new Map()) {
   const nimMap = await resolveTargetNimBatch(
     validItems,
     (item) => item.nim,
     (item) => item.nama_mahasiswa,
-    (item) => item,
+    () => ({}),
+    { createMissing: false },
   );
 
-  const targetNims = [...new Set(validItems.map((item) => nimMap.get(item) || item.nim))];
+  const targetNims = [...new Set([...nimMap.values()])];
   const studentRows = await prisma.student.findMany({
     where: { nim: { in: targetNims } },
     select: { nim: true, statusKeaktifan: true },
   });
   const statusByNim = new Map(studentRows.map((row) => [row.nim, row.statusKeaktifan]));
 
-  await bulkCreateMbkmActivities(
-    validItems.map((item) => {
-      const nim = nimMap.get(item) || item.nim;
-      return {
-        nim,
-        periode: item.periode,
-        programStudi: item.programStudi,
-        fakultas: item.fakultas,
-        jenjang: item.jenjang,
-        statusKeaktifan: statusByNim.get(nim) || '',
-        jenisAktivitas: item.jenisAktivitas,
-        judulAktivitas: item.judulAktivitas,
-        mitra: item.mitra,
-        statusAktivitas: item.statusAktivitas,
-      };
-    }),
-  );
-  return validItems.length;
+  const rows = [];
+  for (const item of validItems) {
+    const nim = nimMap.get(item);
+    if (!nim) continue;
+    rows.push({
+      idAktivitas: item.idAktivitas,
+      nim,
+      periode: item.periode,
+      programStudi: item.programStudi,
+      fakultas: item.fakultas,
+      jenjang: item.jenjang,
+      statusKeaktifan: statusByNim.get(nim) || '',
+      jenisAktivitas: item.jenisAktivitas,
+      idJenisKegiatan: item.idJenisKegiatan,
+      judulAktivitas: item.judulAktivitas,
+      mitra: item.mitra,
+      statusAktivitas: item.statusAktivitas,
+      idStatusAktivitas: item.idStatusAktivitas,
+      tanggalMulai: item.tanggalMulai,
+      tanggalSelesai: item.tanggalSelesai,
+      sksKonversi: item.idAktivitas === null ? null : (sksByActivity.get(item.idAktivitas) ?? null),
+      raw: item.raw,
+    });
+  }
+  return { rows, orphans: validItems.length - rows.length };
 }
 
-module.exports = { writeMbkmPage };
+module.exports = { buildMbkmRows };

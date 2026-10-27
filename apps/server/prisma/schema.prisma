@@ -88,6 +88,9 @@ model Graduate {
 
 model MbkmActivity {
   id              Int      @id @default(autoincrement())
+  /// `id_aktivitas` SEVIMA. Satu aktivitas bisa dimiliki beberapa mahasiswa,
+  /// jadi kuncinya (idAktivitas, nim). Null hanya untuk baris lama sebelum ADR 0005.
+  idAktivitas     Int?
   nim             String
   periode         String
   programStudi    String
@@ -98,7 +101,16 @@ model MbkmActivity {
   judulAktivitas  String   @db.Text
   mitra           String   @db.Text
   statusAktivitas String
-  
+  idStatusAktivitas String @default("")
+  idJenisKegiatan String   @default("")
+  /// Tanggal SEVIMA `YYYY-MM-DD`; kosong bila SEVIMA tidak mengisinya (periode < 2024/2025).
+  tanggalMulai    String   @default("")
+  tanggalSelesai  String   @default("")
+  /// Total SKS konversi (mata-kuliah-konversi-mbkm); null = SEVIMA tidak punya datanya.
+  sksKonversi     Int?
+  /// Baris SEVIMA asli: field baru dari SEVIMA tersimpan tanpa perubahan kode.
+  raw             Json?
+
   // Relasi ke Student
   student         Student  @relation(fields: [nim], references: [nim], onDelete: Cascade)
 
@@ -111,6 +123,7 @@ model MbkmActivity {
   @@index([mitra(length: 100)])
   @@index([periode, fakultas])
   @@index([periode, programStudi])
+  @@unique([idAktivitas, nim])
   @@map("mbkm_activities")
 }
 
