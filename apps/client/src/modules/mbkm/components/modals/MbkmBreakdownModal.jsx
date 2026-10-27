@@ -23,9 +23,9 @@ import { useTabTransition } from '../../../../hooks/useTabTransition';
 import { useDetail } from '../../mbkmQueries';
 import {
   eligibleSubtitle,
+  mitraSubtitle,
   participantsSubtitle,
   rateSubtitle,
-  recognitionSubtitle,
 } from '../../hooks/useMbkmKpiDisplay';
 
 const EMPTY = [];
@@ -39,7 +39,6 @@ const TAB_ICONS = {
   jenis: Briefcase,
   status: CheckCircle2,
   mitra: Building2,
-  kelompok: Layers,
 };
 
 /** Isi tetap per kartu: endpoint, judul, dan cara membaca nilai banner. */
@@ -71,14 +70,14 @@ const CARD_DETAILS = {
     value: (card) => formatNumber(card.value),
     describe: eligibleSubtitle,
   },
-  recognition: {
-    method: 'getRecognitionDetail',
-    title: 'Rincian Rekognisi SKS',
-    subtitle: 'Partisipan menurut total SKS konversi pada periode terpilih',
-    label: 'Rekognisi SKS',
-    sublabel: 'Partisipan',
+  mitra: {
+    method: 'getMitraDetail',
+    title: 'Rincian Mitra MBKM',
+    subtitle: 'Mitra dari aktivitas Disetujui dan Selesai pada periode terpilih',
+    label: 'Mitra MBKM',
+    sublabel: 'Mitra unik',
     value: (card) => formatNumber(card.value),
-    describe: recognitionSubtitle,
+    describe: mitraSubtitle,
   },
 };
 

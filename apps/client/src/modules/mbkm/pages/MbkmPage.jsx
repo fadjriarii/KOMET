@@ -1,9 +1,9 @@
-import { Award, GraduationCap, UserCheck, Users } from 'lucide-react';
+import { Award, Building2, UserCheck, Users } from 'lucide-react';
 import DashboardPage from '../../../components/common/dashboard/DashboardPage';
+import HeaderAcademicYearFilter from '../../../components/common/filters/HeaderAcademicYearFilter';
 import { formatKpiDisplay } from '../../../utils/uiHelpers';
 import MbkmDataTable from '../components/MbkmDataTable';
 import MbkmDetailModal from '../components/MbkmDetailModal';
-import MbkmHeaderExtra from '../components/MbkmHeaderExtra';
 import { mbkmFilterForm, useMbkmFilters } from '../hooks/useMbkmFilters';
 import { useMbkmKpiDisplay } from '../hooks/useMbkmKpiDisplay';
 import { useSummary, useList } from '../mbkmQueries';
@@ -38,13 +38,13 @@ function buildCards({ kpis, displaySubtitles, kpiScope, isReady, openModal }) {
       isFiltered: kpiScope.rate && isReady,
     },
     {
-      key: 'recognition',
-      title: 'Rekognisi ≥ 20 SKS',
-      value: formatKpiDisplay(kpis.recognition),
-      subtitle: displaySubtitles.recognition,
-      icon: GraduationCap,
-      onViewDetails: (event) => openModal('recognition', event),
-      isFiltered: kpiScope.recognition && isReady,
+      key: 'mitra',
+      title: 'Mitra MBKM',
+      value: formatKpiDisplay(kpis.totalMitra),
+      subtitle: displaySubtitles.mitra,
+      icon: Building2,
+      onViewDetails: (event) => openModal('mitra', event),
+      isFiltered: kpiScope.mitra && isReady,
     },
   ];
 }
@@ -53,7 +53,7 @@ export default function MbkmPage() {
   return (
     <DashboardPage
       title="MBKM Data"
-      description="Partisipasi Merdeka Belajar Kampus Merdeka mahasiswa semester 7 pada periode terpilih: siapa yang sudah dan belum berpartisipasi, serta rekognisi SKS konversinya."
+      description="Partisipasi MBKM mahasiswa semester 7 dan mitranya pada periode terpilih."
       useFilters={useMbkmFilters}
       filterForm={mbkmFilterForm}
       useSummary={useSummary}
@@ -62,7 +62,7 @@ export default function MbkmPage() {
       buildCards={buildCards}
       Table={MbkmDataTable}
       DetailModal={MbkmDetailModal}
-      headerExtra={MbkmHeaderExtra}
+      headerExtra={HeaderAcademicYearFilter}
     />
   );
 }

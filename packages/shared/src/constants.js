@@ -45,17 +45,6 @@ export const CANONICAL_JENJANG = {
 };
 
 /** Student status values */
-/**
- * Filter tabel MBKM "Status Partisipasi" (ADR 0005). Nilai divalidasi server dan
- * diterapkan di `services/mbkm/mbkmList.js`; opsinya dikirim lewat filterOptions.
- */
-export const MBKM_STATUS_PARTISIPASI_OPTIONS = [
-  { value: 'participating', label: 'Berpartisipasi' },
-  { value: 'notParticipating', label: 'Belum berpartisipasi' },
-  { value: 'pending', label: 'Menunggu persetujuan' },
-  { value: 'belowSks', label: 'Belum 20 SKS' },
-];
-
 export const STUDENT_STATUS = {
   AKTIF: 'Aktif',
   CUTI: 'Cuti',

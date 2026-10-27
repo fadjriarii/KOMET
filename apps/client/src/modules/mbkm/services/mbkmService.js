@@ -3,7 +3,7 @@ import { createQueryParams } from '../../../services/queryParams';
 import { createQuerySanitizer } from '../../../utils/querySanitizer';
 
 const sanitizeMbkmQuery = createQuerySanitizer({
-  single: ['periode', 'tahunAjaran', 'topN', 'statusPartisipasi'],
+  single: ['periode', 'tahunAjaran', 'topN'],
   multi: ['faculty', 'prodi', 'jenisAktivitas', 'statusAktivitas'],
 });
 
@@ -18,7 +18,6 @@ function toQueryParams(filters = {}, pagination = {}) {
   append('periode', sanitized.periode);
   append('tahunAjaran', sanitized.tahunAjaran);
   append('topN', sanitized.topN);
-  append('statusPartisipasi', sanitized.statusPartisipasi);
   append('search', sanitized.search);
   append('page', pagination.page);
   append('limit', pagination.limit);
@@ -35,8 +34,7 @@ export const mbkmService = createFilterService({
     getRateDetail: '/mbkm/analytics/rate',
     getParticipantsDetail: '/mbkm/analytics/participants',
     getEligibleDetail: '/mbkm/analytics/eligible',
-    getRecognitionDetail: '/mbkm/analytics/recognition',
-    getDataQuality: '/mbkm/data-quality',
+    getMitraDetail: '/mbkm/analytics/mitra',
   },
 });
 

@@ -34,13 +34,12 @@ One population serves every card, detail, and the table:
   activity filters (type, status, search).
 - **Participant:** an eligible student with at least one counted activity.
 - **Participation rate:** participants ÷ eligible × 100. No target is shown.
-- **Recognition ≥ 20 SKS:** participants whose converted credits in the selected
-  periods total at least 20. Credits are the sum of `sks_mata_kuliah` from
-  `mata-kuliah-konversi-mbkm` per activity. 20 SKS is a criterion, not a target.
-  SEVIMA has credit data from 2024/2025; earlier periods report "no SKS data",
-  not 0.
-- **Partners:** distinct normalized partner names of counted activities. They
-  are shown in the participant detail, not as a card.
+- **Partners:** distinct normalized partner names of counted activities, shown
+  as the fourth card. Rejected and cancelled activities do not add partners.
+- **Converted credits:** the sum of `sks_mata_kuliah` from
+  `mata-kuliah-konversi-mbkm` per activity, shown in the table only. There is
+  no credit threshold: a valid activity can convert 3 or 14 SKS. SEVIMA has
+  credit data from 2024/2025.
 
 Status categories live in one server table (`services/mbkm/statusRules.js`),
 matched by SEVIMA code first and normalized label second:
@@ -54,7 +53,7 @@ matched by SEVIMA code first and normalized label second:
 | `unclassified`  | any new SEVIMA value | no      |
 
 A new status appears in filters, details, and the table automatically and is
-reported in the data quality panel until a rule assigns it a category.
+not counted until a rule assigns it a category.
 
 The sync keys activities by (`idAktivitas`, `nim`), because one activity can
 belong to several students. It removes duplicate rows from the SEVIMA feed,

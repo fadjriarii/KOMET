@@ -1,9 +1,9 @@
 /**
  * population.js
  *
- * Satu populasi MBKM (ADR 0005) untuk kartu, popup, tabel, dan panel kualitas
- * data: periode terpilih P, mahasiswa eligible E, aktivitas dengan tanda
- * "dihitung" beserta alasannya, dan partisipan. Fakultas, prodi, jenjang, dan
+ * Satu populasi MBKM (ADR 0005) untuk kartu, popup, dan tabel: periode
+ * terpilih P, mahasiswa eligible E, aktivitas dengan tanda `counted`, dan
+ * partisipan. Fakultas, prodi, jenjang, dan
  * angkatan selalu dibaca dari kolom Student, baik untuk pembilang maupun
  * penyebut.
  *
@@ -17,19 +17,6 @@ const { buildStudentFilterFromMbkmQuery } = require('./filterBuilder');
 const { getEligibleStudentsAtPeriodes } = require('./mbkmEligibility');
 const { statusRuleOf } = require('./statusRules');
 
-/** Kriteria rekognisi SKS konversi (bukan target). */
-const RECOGNITION_SKS = 20;
-
-/** Alasan aktivitas tidak dihitung, per kategori status atau syarat lain. */
-const NOT_COUNTED_REASONS = {
-  notEligible: 'Bukan mahasiswa eligible semester 7',
-  noJenis: 'Jenis aktivitas kosong',
-  pending: 'Menunggu persetujuan',
-  rejected: 'Ditolak',
-  cancelled: 'Dibatalkan',
-  unclassified: 'Status belum diklasifikasi',
-};
-
 const ACTIVITY_SELECT = {
   id: true,
   idAktivitas: true,
@@ -41,8 +28,6 @@ const ACTIVITY_SELECT = {
   statusAktivitas: true,
   idStatusAktivitas: true,
   sksKonversi: true,
-  tanggalMulai: true,
-  tanggalSelesai: true,
   programStudi: true,
   fakultas: true,
   student: {
@@ -98,12 +83,11 @@ function activityWhere(query, periods) {
   return where;
 }
 
-function countedReasonOf(activity, rule, isEligible) {
-  if (!isEligible) return NOT_COUNTED_REASONS.notEligible;
-  if (rule.category !== 'participating') return NOT_COUNTED_REASONS[rule.category];
-  if (!String(activity.jenisAktivitas ?? '').trim()) return NOT_COUNTED_REASONS.noJenis;
-  return null;
-}
+/** Terhitung = mahasiswa eligible, kategori `participating`, dan jenis terisi. */
+const isCounted = (activity, rule, isEligible) =>
+  isEligible &&
+  rule.category === 'participating' &&
+  Boolean(String(activity.jenisAktivitas ?? '').trim());
 
 /**
  * @param {object} query query MBKM yang sudah divalidasi
@@ -134,8 +118,7 @@ async function loadMbkmPopulation(query, periods) {
   const activities = rawActivities.map((activity) => {
     const rule = statusRuleOf(activity);
     const student = eligibleByNim.get(activity.nim);
-    const countedReason = countedReasonOf(activity, rule, Boolean(student));
-    const row = { ...activity, rule, counted: countedReason === null, countedReason };
+    const row = { ...activity, rule, counted: isCounted(activity, rule, Boolean(student)) };
 
     if (student && rule.category === 'pending') pendingNims.add(activity.nim);
     if (row.counted) {
@@ -163,19 +146,9 @@ async function loadMbkmPopulation(query, periods) {
   return { periods, eligible, activities, participants, pendingNims };
 }
 
-/** Kelompok SKS seorang partisipan: memenuhi kriteria, di bawahnya, atau tanpa data. */
-function sksGroupOf(participant) {
-  if (!participant.sksKnown) return 'noData';
-  return participant.sks >= RECOGNITION_SKS ? 'met' : 'below';
-}
-
 module.exports = {
-  RECOGNITION_SKS,
-  NOT_COUNTED_REASONS,
   loadMbkmPopulation,
   periodeLabel,
   periodsLabel,
   mitraKey,
-  sksGroupOf,
-  searchTerm,
 };

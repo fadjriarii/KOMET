@@ -33,19 +33,10 @@ Version numbers follow the root `package.json`.
 - `GET /api/graduates/filter-options`, so the Graduate page resolves the latest
   Tahun Lulus before the first summary request.
 - MBKM filter for activity type (BKP).
-- MBKM Data "Rekognisi ≥ 20 SKS" card: participants whose converted credits
-  (`mata-kuliah-konversi-mbkm`) total at least 20 in the selected periods.
-  Periods without credit data say so instead of showing 0.
-- MBKM Data "Kualitas Data" panel (`GET /api/mbkm/data-quality`): feed
-  duplicates, unknown NIMs, unclassified statuses, invalid periods, similar
-  partner names, unusual credits, and the last sync time.
-- MBKM "Status Partisipasi" table filter: participating, not participating
-  (eligible students without a counted activity), pending, and below 20 SKS.
-- MBKM table columns: activity title, converted credits, start and end dates,
-  and "Dihitung" with the reason a row is not counted.
+- MBKM table columns: activity title and converted credits
+  (`mata-kuliah-konversi-mbkm`).
 - The MBKM sync stores the SEVIMA activity id, status and type codes, dates,
-  converted credits, and the raw row (ADR 0005), and records its feed duplicate
-  and unknown NIM counts in the sync history.
+  converted credits, and the raw row (ADR 0005).
 - Single-origin presentation mode (`SERVE_CLIENT=true`) and a
   `build:presentation` client script, so a temporary tunnel exposes one port.
 - In-process summary response cache, cleared after sync, plus a production
@@ -67,6 +58,9 @@ Version numbers follow the root `package.json`.
 
 ### Changed
 
+- MBKM sync cleans NIM `xx` and `(Akun Lama)` before insert, then keeps one
+  row per cleaned NIM + BKP + partner and chooses the most complete, newest
+  row. Different BKP or partner pairs are kept.
 - Graduate Data study length is counted in semesters (ADR 0004). Tepat Waktu
   counts a graduate as on time within the standard length, and Keberhasilan
   Studi counts only graduates within the maximum length (S1 8, S2 4, Profesi
@@ -92,9 +86,9 @@ Version numbers follow the root `package.json`.
 - MBKM Data follows one population (ADR 0005). Participants are Disetujui and
   Selesai only; Diajukan shows as "menunggu persetujuan". Status and
   distribution counts are per student, faculty and program filters read Student
-  columns, and popup rates are participants ÷ eligible per group. Partners moved
-  from a card to the participant popup and exclude rejected and cancelled
-  activities. The table uses the same periods as the cards.
+  columns, and popup rates are participants ÷ eligible per group. The Mitra
+  card counts normalized partner names of approved and completed activities
+  only, and follows every filter. The table uses the same periods as the cards.
 - MBKM defaults to the latest academic year in MBKM data, in the client and in
   the server warm-up, instead of the calendar year.
 - Dashboard query data stays fresh for five minutes; sync still invalidates the
@@ -134,7 +128,7 @@ Version numbers follow the root `package.json`.
   `kpis.cards` and `jenjangs` instead.
 - **BREAKING:** the flat MBKM API fields. `kpis` on `GET /api/mbkm/summary` now
   holds only `cards`, `summary` is empty, and `kpiFilterScope` keys are `rate`,
-  `participants`, `eligible`, and `recognition`. The six
+  `participants`, `eligible`, and `mitra`. The six
   `/api/mbkm/analytics/*-distribution`, `rate`, and `eligible-students`
   endpoints are replaced by `GET /api/mbkm/analytics/:card`, and list rows drop
   `tahun` in favour of `periodeLabel`.

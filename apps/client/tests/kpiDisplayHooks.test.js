@@ -537,15 +537,12 @@ describe('useMbkmKpiDisplay', () => {
       notParticipating: 18,
       ignoredFilters: ['search', 'jenisAktivitas'],
     },
-    recognition: {
-      value: 55,
+    mitra: {
+      value: 68,
       isEmpty: false,
-      emptyReason: null,
-      threshold: 20,
-      percentage: 47.83,
-      participants: 115,
-      below: 60,
-      noData: 0,
+      totalPartners: 68,
+      withPartner: 110,
+      top: { name: 'PT Mitra', count: 12 },
       ignoredFilters: [],
     },
   };
@@ -560,7 +557,7 @@ describe('useMbkmKpiDisplay', () => {
     const { kpis, displaySubtitles } = result.current;
 
     expect(kpis.participationRate).toBe('86.5%');
-    expect(kpis.recognition).toBe('55');
+    expect(kpis.totalMitra).toBe('68');
     expect(displaySubtitles.rate).toBe(
       'Tahun Ajaran 2025/2026. 115 dari 133 mahasiswa eligible berpartisipasi.',
     );
@@ -570,8 +567,9 @@ describe('useMbkmKpiDisplay', () => {
     expect(displaySubtitles.eligible).toBe(
       'Tahun Ajaran 2025/2026. Mahasiswa aktif semester 7. 18 belum berpartisipasi. Filter pencarian dan jenis aktivitas tidak mengubah angka ini.',
     );
-    expect(displaySubtitles.recognition).toContain('minimal 20 SKS');
-    expect(displaySubtitles.recognition).toContain('60 di bawah 20 SKS');
+    expect(displaySubtitles.mitra).toBe(
+      'Tahun Ajaran 2025/2026. Mitra unik dari aktivitas 110 partisipan. Terbanyak: PT Mitra (12 partisipan).',
+    );
   });
 
   it('cakupan fakultas tampil di depan kalimat', () => {
@@ -583,16 +581,11 @@ describe('useMbkmKpiDisplay', () => {
     );
   });
 
-  it('periode tanpa data SKS menjelaskan alasannya, bukan menampilkan 0', () => {
-    const recognition = {
-      ...cards.recognition,
-      value: null,
-      isEmpty: true,
-      emptyReason: 'noSksData',
-    };
-    const { result } = renderHook(() => useMbkmKpiDisplay(summary({ recognition }), false, {}));
-    expect(result.current.kpis.recognition).toBe('-');
-    expect(result.current.displaySubtitles.recognition).toContain('Belum ada data SKS konversi');
+  it('mitra 0 tetap 0 dengan kalimat yang menjelaskan', () => {
+    const mitra = { ...cards.mitra, value: 0, totalPartners: 0, withPartner: 0, top: null };
+    const { result } = renderHook(() => useMbkmKpiDisplay(summary({ mitra }), false, {}));
+    expect(result.current.kpis.totalMitra).toBe('0');
+    expect(result.current.displaySubtitles.mitra).toContain('Belum ada mitra');
   });
 
   it('tanpa eligible: persentase "-" dan kalimat kosong yang jujur', () => {

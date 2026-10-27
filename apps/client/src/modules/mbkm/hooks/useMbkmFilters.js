@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { BookOpen, Briefcase, Building2, CalendarDays, ListChecks, UserCheck } from 'lucide-react';
+import { BookOpen, Briefcase, Building2, CalendarDays, UserCheck } from 'lucide-react';
 import { isValidAcademicYear } from '@komet/shared/academicYear';
 import { useDashboardFilters } from '../../../hooks/useDashboardFilters';
 import { sanitizeSearch } from '../../../utils/querySanitizer';
@@ -74,17 +74,6 @@ export const mbkmFilterFields = {
     optionsKey: 'statusAktivitasOptions',
     placeholder: 'Semua Status Aktivitas',
   },
-  // Hanya mengubah tabel; kartu menyebutnya lewat `ignoredFilters` dari server.
-  selectedStatusPartisipasi: {
-    initial: '',
-    param: 'statusPartisipasi',
-    setter: 'setSelectedStatusPartisipasi',
-    control: 'single',
-    label: 'Status Partisipasi',
-    icon: ListChecks,
-    optionsKey: 'statusPartisipasiOptions',
-    placeholder: 'Semua Mahasiswa',
-  },
   selectedPeriode: {
     initial: '',
     param: 'periode',
@@ -100,7 +89,7 @@ export const mbkmFilterFields = {
 export const mbkmFilterForm = {
   title: 'Filter & Pencarian MBKM',
   firstRowColumns: 4,
-  secondRowColumns: 4,
+  secondRowColumns: 3,
   fields: mbkmFilterFields,
 };
 

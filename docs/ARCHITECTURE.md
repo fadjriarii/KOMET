@@ -514,7 +514,7 @@ per jenjang key plus `jenjangs` with `batas` and the evaluated angkatan).
 
 One population (ADR 0005) serves every MBKM card, popup, and the table:
 `services/mbkm/population.js` loads the selected periods, the eligible students,
-and the activities, and marks each activity `counted` with a reason. Status
+and the activities, and marks each activity `counted`. Status
 categories come from `services/mbkm/statusRules.js`. The page is an early
 warning system: it shows no targets.
 
@@ -528,40 +528,36 @@ warning system: it shows no targets.
   type filled, student eligible. Faculty, program, jenjang, and angkatan filters
   read Student columns for both numerator and denominator.
 
-| Filter                                           | Persentase | Partisipan | Eligible | Rekognisi ≥ 20 SKS | Table |
-| ------------------------------------------------ | ---------- | ---------- | -------- | ------------------ | ----- |
-| Tahun Ajaran, Periode                            | on         | on         | on       | on                 | on    |
-| Fakultas, Prodi (and API-only Jenjang, Angkatan) | on         | on         | on       | on                 | on    |
-| Jenis Aktivitas, Status Aktivitas, Search        | on         | on         | off      | on                 | on    |
-| Status Partisipasi                               | off        | off        | off      | off                | on    |
+| Filter                                           | Persentase | Partisipan | Eligible | Mitra | Table |
+| ------------------------------------------------ | ---------- | ---------- | -------- | ----- | ----- |
+| Tahun Ajaran, Periode                            | on         | on         | on       | on    | on    |
+| Fakultas, Prodi (and API-only Jenjang, Angkatan) | on         | on         | on       | on    | on    |
+| Jenis Aktivitas, Status Aktivitas, Search        | on         | on         | off      | on    | on    |
 
 `GET /mbkm/summary` returns `kpis.cards` from `services/mbkm/mbkmCards.js`:
 `rate`, `participants` (`byStatus` per student by best status, `pending`),
-`eligible` (`notParticipating`), and `recognition` (`threshold`, `below`,
-`noData`, `emptyReason` `noParticipants` or `noSksData`). Each card lists the
+`eligible` (`notParticipating`), and `mitra` (`totalPartners`, `withPartner`,
+`top`). Each card lists the
 active filters it ignores in `ignoredFilters`; `kpiFilterScope` drives the
 "Terfilter" badge. `periodLabel` is the selected period in words.
 
 `GET /mbkm/analytics/:card` (`rate`, `participants`, `eligible`,
-`recognition`) returns `{ card, periodLabel, breakdowns }`. Each breakdown is
+`mitra`) returns `{ card, periodLabel, breakdowns }`. Each breakdown is
 `{ key, label, kind, items }`: `kind: 'share'` items carry a share of the card
 total, `kind: 'rate'` items carry `count ÷ total` within the group, so a faculty
-rate never exceeds 100%. The rate card adds a five-year trend. Partners appear
-as the `mitra` breakdown of the participant card: normalized names, top N plus
-"Lainnya" decided by the server. The client renders breakdowns generically
+rate never exceeds 100%. The rate card adds a five-year trend. The mitra card
+lists top partners by participants (normalized names, top N plus "Lainnya"
+decided by the server) and partners per activity type. The client renders breakdowns generically
 (`MbkmBreakdownModal`) and hides single-category tabs (`tabsWithData`); `rate`
 breakdowns render as a table so 0% groups stay visible.
 
 `GET /mbkm/list` uses the same periods and population. Rows carry
-`periodeLabel`, `statusCategory`, `sksKonversi`, `totalSks`, dates, `counted`,
-and `countedReason`; `statusPartisipasi=notParticipating` returns eligible
-students without a counted activity.
+`periodeLabel`, `statusCategory`, `sksKonversi`, and `totalSks`.
 
-`GET /mbkm/data-quality` returns `lastSyncAt` and `checks: [{ key, label,
-count, items }]`: feed duplicates and unknown NIMs from the last MBKM sync
-report (`sync_runs.modules[].report`), unclassified statuses, invalid periods,
-empty types, similar partner names, converted credits above 40, counted
-activities without credits, and non-active students without an exit period.
+The MBKM sync cleans NIM `xx` and `(Akun Lama)` text before insert. For each
+cleaned NIM, activities with the same BKP (`jenis_kegiatan`) and partner
+(`nama_mitra`) collapse to the most complete row, then the newest activity.
+Different BKP or partner pairs are kept.
 
 ## 6. Access Control (Zero-Trust)
 

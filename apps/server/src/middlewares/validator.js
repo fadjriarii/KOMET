@@ -2,9 +2,6 @@ const { z } = require('zod');
 const { sendRejected } = require('../utils/errorHandler');
 const { HTTP_STATUS } = require('@komet/shared/constants');
 const { isValidAcademicYear } = require('@komet/shared/academicYear');
-const { MBKM_STATUS_PARTISIPASI_OPTIONS } = require('@komet/shared/constants');
-
-const STATUS_PARTISIPASI_VALUES = MBKM_STATUS_PARTISIPASI_OPTIONS.map((option) => option.value);
 
 // Schema pembantu untuk mengizinkan string tunggal atau array of string
 // Byte kontrol (0x00-0x1F, 0x7F) ditolak: string ini lanjut ke LIKE/IN di MariaDB dan
@@ -127,7 +124,6 @@ const mbkmQuerySchema = z.object({
     .regex(/^\d{4}[12]$/)
     .optional(),
   topN: topNParam,
-  statusPartisipasi: z.enum(STATUS_PARTISIPASI_VALUES).optional(),
 });
 
 // Parameter berbentuk `fakultas[]` / `fakultas[0]` adalah pola client yang salah

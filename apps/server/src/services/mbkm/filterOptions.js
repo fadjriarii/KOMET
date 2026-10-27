@@ -4,7 +4,6 @@ const {
   getAcademicYearStart,
   toAcademicYear,
 } = require('../../utils/academicUtils');
-const { MBKM_STATUS_PARTISIPASI_OPTIONS } = require('@komet/shared/constants');
 const { statusRuleOf } = require('./statusRules');
 
 const hasMbkmActivity = { mbkmActivities: { some: {} } };
@@ -50,7 +49,6 @@ function deriveMbkmOptions(
       .map((label) => ({ value: label, label, ...statusRuleOf({ statusAktivitas: label }) }))
       .sort((a, b) => b.rank - a.rank || a.label.localeCompare(b.label))
       .map(({ value, label, category }) => ({ value, label, category })),
-    statusPartisipasiOptions: MBKM_STATUS_PARTISIPASI_OPTIONS,
     periodeOptions:
       selectedStart === null
         ? []

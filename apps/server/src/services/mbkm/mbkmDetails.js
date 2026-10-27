@@ -13,10 +13,10 @@ const {
   rateBreakdowns,
   participantBreakdowns,
   eligibleBreakdowns,
-  recognitionBreakdowns,
+  mitraBreakdowns,
 } = require('./mbkmBreakdowns');
 
-const MBKM_DETAIL_CARDS = ['rate', 'participants', 'eligible', 'recognition'];
+const MBKM_DETAIL_CARDS = ['rate', 'participants', 'eligible', 'mitra'];
 
 /** Tingkat partisipasi per tahun ajaran (5 tahun data terakhir), urut kronologis. */
 async function rateTrend(query) {
@@ -47,9 +47,9 @@ async function rateTrend(query) {
 async function breakdownsFor(card, population, query) {
   if (card === 'rate')
     return { breakdowns: [...rateBreakdowns(population), await rateTrend(query)] };
-  if (card === 'participants') return participantBreakdowns(population, query.topN);
+  if (card === 'participants') return { breakdowns: participantBreakdowns(population) };
   if (card === 'eligible') return { breakdowns: eligibleBreakdowns(population) };
-  return { breakdowns: recognitionBreakdowns(population) };
+  return { breakdowns: mitraBreakdowns(population, query.topN) };
 }
 
 async function getMbkmDetail(card, query = {}) {

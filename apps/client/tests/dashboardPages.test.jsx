@@ -59,10 +59,6 @@ const MBKM_ROW = {
   statusCategory: 'participating',
   sksKonversi: 20,
   totalSks: 20,
-  tanggalMulai: '2025-09-01',
-  tanggalSelesai: '2026-01-15',
-  counted: true,
-  countedReason: null,
 };
 
 const MBKM_CARDS = {
@@ -78,15 +74,12 @@ const MBKM_CARDS = {
     ignoredFilters: [],
   },
   eligible: { value: 1176, isEmpty: false, notParticipating: 876, ignoredFilters: [] },
-  recognition: {
+  mitra: {
     value: 42,
     isEmpty: false,
-    emptyReason: null,
-    threshold: 20,
-    percentage: 14,
-    participants: 300,
-    below: 250,
-    noData: 8,
+    totalPartners: 42,
+    withPartner: 290,
+    top: { name: 'PT Mitra', count: 30 },
     ignoredFilters: [],
   },
 };
@@ -261,10 +254,6 @@ const ROUTES = {
           statusAktivitasOptions: [
             { value: 'Selesai', label: 'Selesai', category: 'participating' },
           ],
-          statusPartisipasiOptions: [
-            { value: 'participating', label: 'Berpartisipasi' },
-            { value: 'notParticipating', label: 'Belum berpartisipasi' },
-          ],
         },
       },
     ),
@@ -274,13 +263,13 @@ const ROUTES = {
       { key: 'participants', title: 'Partisipan MBKM' },
       { key: 'eligible', title: 'Mahasiswa Eligible' },
       { key: 'rate', title: 'Persentase Partisipasi' },
-      { key: 'recognition', title: 'Rekognisi ≥ 20 SKS' },
+      { key: 'mitra', title: 'Mitra MBKM' },
     ],
     scope: {
       rate: ACTIVITY_PARAMS,
       participants: ACTIVITY_PARAMS,
       eligible: ['fakultas', 'programStudi', 'angkatan', 'jenjang', 'periode', 'tahunAjaran'],
-      recognition: ACTIVITY_PARAMS,
+      mitra: ACTIVITY_PARAMS,
     },
     filterCases: [
       { url: '/mbkm?faculty=FST', api: 'fakultas', value: 'FST' },
@@ -423,7 +412,7 @@ describe('tahun ajaran default Students', () => {
 });
 
 describe('kartu MBKM', () => {
-  it('menampilkan empat kartu MBKM dalam urutan partisipan, eligible, persentase, rekognisi', async () => {
+  it('menampilkan empat kartu MBKM dalam urutan partisipan, eligible, persentase, mitra', async () => {
     const route = mockModule('mbkm');
     renderPage(MbkmPage);
 
@@ -432,14 +421,15 @@ describe('kartu MBKM', () => {
       'Partisipan MBKM',
       'Mahasiswa Eligible',
       'Persentase Partisipasi',
-      'Rekognisi ≥ 20 SKS',
+      'Mitra MBKM',
     ];
     const grid = cardOf(titles[0]).parentElement;
     expect([...grid.children].map((card) => card.querySelector('p').textContent)).toEqual(titles);
-    expect(within(cardOf('Rekognisi ≥ 20 SKS')).getByText('42')).toBeTruthy();
+    expect(within(cardOf('Mitra MBKM')).getByText('42')).toBeTruthy();
     expect(within(cardOf('Mahasiswa Eligible')).getByText(/876 belum berpartisipasi/)).toBeTruthy();
     expect(screen.queryByText(/Target IKU-2/)).toBeNull();
-    expect(screen.queryByText('Mitra MBKM')).toBeNull();
+    expect(within(cardOf('Mitra MBKM')).getByText(/Terbanyak: PT Mitra/)).toBeTruthy();
+    expect(screen.queryByText(/Rekognisi/)).toBeNull();
   });
 
   it('tanpa tahun ajaran di URL, request pertama membiarkan server memilih tahun terbaru di data', async () => {
@@ -451,16 +441,27 @@ describe('kartu MBKM', () => {
     expect(new URLSearchParams(first.split('?')[1] || '').get('tahunAjaran')).toBeNull();
   });
 
-  it('tabel menampilkan label periode, badge status, SKS, dan kolom Dihitung dari server', async () => {
+  it('tabel menampilkan label periode, judul, dan SKS tanpa kolom tanggal atau Dihitung', async () => {
     const route = mockModule('mbkm');
     renderPage(MbkmPage);
 
     await cardsReady(route);
     await screen.findByText('Peserta Tiga');
     expect(screen.getByText('Ganjil 2025/2026')).toBeTruthy();
-    expect(screen.getByRole('columnheader', { name: 'Dihitung' })).toBeTruthy();
     expect(screen.getByRole('columnheader', { name: 'Judul Aktivitas' })).toBeTruthy();
-    expect(screen.queryByRole('columnheader', { name: 'Pembimbing' })).toBeNull();
+    expect(screen.getByRole('columnheader', { name: 'SKS Konversi' })).toBeTruthy();
+    for (const removed of ['Dihitung', 'Tanggal Mulai s.d. Selesai', 'Pembimbing']) {
+      expect(screen.queryByRole('columnheader', { name: removed })).toBeNull();
+    }
+  });
+
+  it('header hanya berisi pemilih tahun ajaran, sama dengan halaman lain', async () => {
+    const route = mockModule('mbkm');
+    renderPage(MbkmPage);
+
+    await cardsReady(route);
+    expect(screen.getByRole('button', { name: /Tahun Ajaran/i })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Kualitas Data' })).toBeNull();
   });
 
   it('meneruskan tahun ajaran header ke summary dan membatalkan periode spesifik', async () => {
@@ -477,7 +478,7 @@ describe('kartu MBKM', () => {
     expect(lastQuery(route.summaryPath).get('periode')).toBeNull();
   });
 
-  it('memakai filter BKP tanpa angkatan dan mitra di grid empat kolom penuh', async () => {
+  it('memakai filter BKP tanpa angkatan dan mitra di grid tiga kolom penuh', async () => {
     const route = mockModule('mbkm');
     renderPage(MbkmPage);
 
@@ -495,9 +496,9 @@ describe('kartu MBKM', () => {
     expect(firstRow.className).toContain('md:grid-cols-4');
 
     const secondRow = firstRow.nextElementSibling;
-    expect(secondRow.className).toContain('md:grid-cols-4');
-    expect(secondRow.children).toHaveLength(4);
-    expect(screen.getByLabelText('Status Partisipasi')).toBeTruthy();
+    expect(secondRow.className).toContain('md:grid-cols-3');
+    expect(secondRow.children).toHaveLength(3);
+    expect(screen.queryByLabelText('Status Partisipasi')).toBeNull();
   });
 
   it('tidak menampilkan kolom jenjang di tabel MBKM', async () => {

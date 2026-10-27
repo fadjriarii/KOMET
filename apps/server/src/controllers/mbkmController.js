@@ -6,7 +6,6 @@
  * hidup di `services/mbkm/`.
  */
 const { getPaginationParams } = require('../utils/paginationUtils');
-const { getMbkmDataQuality } = require('../services/mbkm/mbkmDataQuality');
 const { MBKM_DETAIL_CARDS, getMbkmDetail } = require('../services/mbkm/mbkmDetails');
 const { getMbkmList } = require('../services/mbkm/mbkmList');
 const { getMbkmSummary } = require('../services/mbkm/mbkmSummary');
@@ -34,7 +33,7 @@ const getMbkmData = async (req, res) => {
   }
 };
 
-// GET /api/mbkm/analytics/:card — popup kartu (rate | participants | eligible | recognition)
+// GET /api/mbkm/analytics/:card — popup kartu (rate | participants | eligible | mitra)
 const getDetail = async (req, res) => {
   if (!MBKM_DETAIL_CARDS.includes(req.params.card)) {
     return res.status(404).json({ success: false, message: 'Rincian kartu tidak ditemukan' });
@@ -47,13 +46,4 @@ const getDetail = async (req, res) => {
   }
 };
 
-// GET /api/mbkm/data-quality — panel kualitas data
-const getDataQuality = async (req, res) => {
-  try {
-    return res.json({ success: true, data: await getMbkmDataQuality() });
-  } catch (error) {
-    return sendServerError(res, 'DATA_READ_FAILED', error, 'mbkm/getDataQuality');
-  }
-};
-
-module.exports = { getSummary, getMbkmData, getDetail, getDataQuality };
+module.exports = { getSummary, getMbkmData, getDetail };

@@ -63,10 +63,6 @@ export const MBKM_ROW_FIELDS = [
   'statusCategory',
   'sksKonversi',
   'totalSks',
-  'tanggalMulai',
-  'tanggalSelesai',
-  'counted',
-  'countedReason',
 ];
 
 /**

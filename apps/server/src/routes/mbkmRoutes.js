@@ -6,12 +6,7 @@ const router = express.Router();
 const { studentSessionAuth } = require('../middlewares/studentSession');
 const { statsLimiter, summaryLimiter } = require('../middlewares/rateLimiter');
 const { mbkmQuerySchema, validateQuery } = require('../middlewares/validator');
-const {
-  getSummary,
-  getMbkmData,
-  getDetail,
-  getDataQuality,
-} = require('../controllers/mbkmController');
+const { getSummary, getMbkmData, getDetail } = require('../controllers/mbkmController');
 
 // Route data MBKM: sesi siswa + rate limiter + validasi query. SYNC_API_KEY tidak berlaku di sini.
 router.use(statsLimiter);
@@ -26,8 +21,5 @@ router.get('/list', getMbkmData);
 
 // Popup kartu: satu endpoint, isi `breakdowns` ditentukan service
 router.get('/analytics/:card', getDetail);
-
-// Panel kualitas data
-router.get('/data-quality', getDataQuality);
 
 module.exports = router;

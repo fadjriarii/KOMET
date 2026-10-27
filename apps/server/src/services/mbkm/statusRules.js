@@ -2,8 +2,8 @@
  * Kategori status aktivitas MBKM (ADR 0005), satu tabel untuk sync, dedup,
  * dan semua perhitungan. Dicocokkan lewat kode SEVIMA (`id_status_aktivitas`)
  * dulu, label yang dinormalisasi sebagai cadangan. Status baru dari SEVIMA
- * menjadi `unclassified`: tetap tampil, tidak dihitung partisipan, dan
- * dilaporkan di panel kualitas data sampai diberi aturan di sini.
+ * menjadi `unclassified`: tetap tampil di filter dan tabel, tetapi tidak
+ * dihitung partisipan sampai diberi aturan di sini.
  */
 const MBKM_STATUS_RULES = [
   { code: '5', label: 'Selesai', category: 'participating', rank: 5 },

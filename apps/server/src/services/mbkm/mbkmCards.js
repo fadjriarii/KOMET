@@ -7,7 +7,7 @@
  * halaman ini early warning system.
  */
 const { roundedRate } = require('../../utils/percentageUtils');
-const { RECOGNITION_SKS, sksGroupOf } = require('./population');
+const { partnerSummary } = require('./mbkmBreakdowns');
 
 /** Param yang dibaca kartu partisipasi (pembilang ikut filter aktivitas). */
 const PARTICIPATION_PARAMS = [
@@ -35,15 +35,15 @@ const KPI_FILTER_SCOPE = {
   rate: PARTICIPATION_PARAMS,
   participants: PARTICIPATION_PARAMS,
   eligible: ELIGIBLE_PARAMS,
-  recognition: PARTICIPATION_PARAMS,
+  mitra: PARTICIPATION_PARAMS,
 };
 
 const isActive = (value) =>
   Array.isArray(value) ? value.length > 0 : typeof value === 'string' && value.trim() !== '';
 
-/** Filter aktif yang tidak dibaca sebuah kartu; `statusPartisipasi` hanya untuk tabel. */
+/** Filter aktif yang tidak dibaca sebuah kartu. */
 function ignoredFilters(query, scope) {
-  return ['search', 'jenisAktivitas', 'statusAktivitas', 'statusPartisipasi'].filter(
+  return ['search', 'jenisAktivitas', 'statusAktivitas'].filter(
     (key) => isActive(query[key]) && !scope.includes(key),
   );
 }
@@ -61,28 +61,11 @@ function participantsByStatus(participants) {
     .map(({ key, label, value }) => ({ key, label, value }));
 }
 
-function recognitionCard(participants) {
-  const groups = { met: 0, below: 0, noData: 0 };
-  for (const participant of participants.values()) groups[sksGroupOf(participant)] += 1;
-  const total = participants.size;
-  // Periode tanpa data SKS sama sekali = tidak terukur, bukan 0 mahasiswa.
-  const emptyReason = !total ? 'noParticipants' : groups.noData === total ? 'noSksData' : null;
-  return {
-    value: emptyReason ? null : groups.met,
-    isEmpty: Boolean(emptyReason),
-    emptyReason,
-    threshold: RECOGNITION_SKS,
-    percentage: emptyReason ? null : roundedRate(groups.met, total, null),
-    participants: total,
-    below: groups.below,
-    noData: groups.noData,
-  };
-}
-
 function buildMbkmCards(population, query = {}) {
   const eligible = population.eligible.length;
   const participants = population.participants.size;
   const noEligible = eligible === 0;
+  const partners = partnerSummary(population.participants);
 
   return {
     rate: {
@@ -105,9 +88,12 @@ function buildMbkmCards(population, query = {}) {
       notParticipating: eligible - participants,
       ignoredFilters: ignoredFilters(query, KPI_FILTER_SCOPE.eligible),
     },
-    recognition: {
-      ...recognitionCard(population.participants),
-      ignoredFilters: ignoredFilters(query, KPI_FILTER_SCOPE.recognition),
+    // Mitra unik dari aktivitas terhitung (Disetujui/Selesai), bukan semua status.
+    mitra: {
+      ...partners,
+      value: noEligible ? null : partners.totalPartners,
+      isEmpty: noEligible,
+      ignoredFilters: ignoredFilters(query, KPI_FILTER_SCOPE.mitra),
     },
   };
 }

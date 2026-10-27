@@ -33,8 +33,7 @@ function semesterAtPeriode(startPeriode, selectedPeriode) {
  * Aktif pada periode P = sudah masuk, belum keluar, dan bukan cuti yang sudah
  * berjalan pada P. Cuti baru berlaku sejak `periodeTerakhir`-nya, jadi periode
  * sebelum cuti tetap dihitung aktif. Status keluar tanpa periode akhir tidak
- * diketahui kapan keluarnya, jadi tidak dihitung aktif (dilaporkan di panel
- * kualitas data), bukan aktif selamanya.
+ * diketahui kapan keluarnya, jadi tidak dihitung aktif, bukan aktif selamanya.
  */
 function isActiveAtPeriode(student = {}, selectedPeriode) {
   const start = getStartPeriode(student);

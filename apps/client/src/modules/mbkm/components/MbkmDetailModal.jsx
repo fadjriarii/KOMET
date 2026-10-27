@@ -6,7 +6,7 @@ const MbkmBreakdownModal = lazy(loadBreakdownModal);
 
 /** Satu modal generik untuk keempat kartu; kunci = `modalType` yang sah. */
 const MODAL_MAP = Object.fromEntries(
-  ['rate', 'participants', 'eligible', 'recognition'].map((cardKey) => [
+  ['rate', 'participants', 'eligible', 'mitra'].map((cardKey) => [
     cardKey,
     function MbkmCardModal(props) {
       return <MbkmBreakdownModal {...props} cardKey={cardKey} />;

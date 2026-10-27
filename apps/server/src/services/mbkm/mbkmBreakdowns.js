@@ -8,7 +8,7 @@
  * secara generik; pengelompokan baru cukup ditambah di sini.
  */
 const { roundedRate } = require('../../utils/percentageUtils');
-const { RECOGNITION_SKS, mitraKey, sksGroupOf } = require('./population');
+const { mitraKey } = require('./population');
 
 const UNKNOWN = 'Tidak diketahui';
 const DEFAULT_MITRA_TOP_N = 10;
@@ -71,29 +71,41 @@ function rateBreakdowns({ eligible, participants }) {
 }
 
 /**
- * Mitra teratas berdasarkan jumlah partisipan; ejaan kembar digabung lewat
- * `mitraKey` dan diberi nama ejaan yang paling sering. Sisanya jadi "Lainnya".
+ * Mitra unik dari aktivitas terhitung, urut jumlah partisipan. Ejaan kembar
+ * digabung lewat `mitraKey` dan diberi nama ejaan yang paling sering.
  */
-function mitraItems(participants, topN) {
+function rankPartners(participants) {
   const groups = new Map();
   for (const [nim, { activities }] of participants) {
-    for (const { mitra } of activities) {
+    for (const { mitra, jenisAktivitas } of activities) {
       const key = mitraKey(mitra);
       if (!key) continue;
-      const entry = groups.get(key) || { nims: new Set(), spellings: new Map() };
+      const entry = groups.get(key) || { nims: new Set(), spellings: new Map(), jenis: new Set() };
       entry.nims.add(nim);
+      entry.jenis.add(nameOf(jenisAktivitas));
       entry.spellings.set(mitra.trim(), (entry.spellings.get(mitra.trim()) || 0) + 1);
       groups.set(key, entry);
     }
   }
-  const ranked = [...groups.values()]
-    .map(({ nims, spellings }) => ({
+  return [...groups.values()]
+    .map(({ nims, spellings, jenis }) => ({
       name: [...spellings].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0][0],
       nims,
+      jenis,
     }))
     .sort((a, b) => b.nims.size - a.nims.size || a.name.localeCompare(b.name));
+}
 
-  const total = participants.size;
+/** Angka kartu Mitra: jumlah mitra, partisipan bermitra, dan mitra teratas. */
+function partnerSummary(participants) {
+  const ranked = rankPartners(participants);
+  const withPartner = new Set(ranked.flatMap(({ nims }) => [...nims])).size;
+  const top = ranked[0] ? { name: ranked[0].name, count: ranked[0].nims.size } : null;
+  return { totalPartners: ranked.length, withPartner, top };
+}
+
+/** Mitra teratas (top N dari server) dan sisanya digabung menjadi "Lainnya". */
+function mitraItems(ranked, total, topN) {
   const items = ranked.slice(0, topN).map(({ name, nims }) => ({
     name,
     count: nims.size,
@@ -107,10 +119,21 @@ function mitraItems(participants, topN) {
       percentage: roundedRate(rest.size, total, null),
     });
   }
-  return { items, totalPartners: ranked.length };
+  return items;
 }
 
-function participantBreakdowns({ participants }, topN = DEFAULT_MITRA_TOP_N) {
+/** Popup Mitra: mitra teratas per partisipan dan jumlah mitra per jenis aktivitas. */
+function mitraBreakdowns({ participants }, topN = DEFAULT_MITRA_TOP_N) {
+  const ranked = rankPartners(participants);
+  const jenis = new Map();
+  ranked.forEach(({ jenis: names }, index) => names.forEach((name) => addTo(jenis, name, index)));
+  return [
+    breakdown('mitra', 'Mitra Teratas', 'share', mitraItems(ranked, participants.size, topN)),
+    breakdown('jenis', 'Mitra per Jenis Aktivitas', 'share', shareItems(jenis, ranked.length)),
+  ];
+}
+
+function participantBreakdowns({ participants }) {
   const total = participants.size;
   const jenis = new Map();
   const status = new Map();
@@ -119,28 +142,23 @@ function participantBreakdowns({ participants }, topN = DEFAULT_MITRA_TOP_N) {
     addTo(status, best.label, nim);
   }
   const students = [...participants.values()].map(({ student }) => student);
-  const mitra = mitraItems(participants, topN);
 
-  return {
-    totalPartners: mitra.totalPartners,
-    breakdowns: [
-      breakdown('jenis', 'Per Jenis Aktivitas', 'share', shareItems(jenis, total)),
-      breakdown('status', 'Per Status', 'share', shareItems(status, total)),
-      breakdown(
-        'prodi',
-        'Per Program Studi',
-        'share',
-        shareItems(groupStudents(students, 'programStudi'), total),
-      ),
-      breakdown(
-        'angkatan',
-        'Per Angkatan',
-        'share',
-        shareItems(groupStudents(students, 'angkatan'), total),
-      ),
-      breakdown('mitra', 'Per Mitra', 'share', mitra.items),
-    ],
-  };
+  return [
+    breakdown('jenis', 'Per Jenis Aktivitas', 'share', shareItems(jenis, total)),
+    breakdown('status', 'Per Status', 'share', shareItems(status, total)),
+    breakdown(
+      'prodi',
+      'Per Program Studi',
+      'share',
+      shareItems(groupStudents(students, 'programStudi'), total),
+    ),
+    breakdown(
+      'angkatan',
+      'Per Angkatan',
+      'share',
+      shareItems(groupStudents(students, 'angkatan'), total),
+    ),
+  ];
 }
 
 function eligibleBreakdowns({ eligible, participants }) {
@@ -158,42 +176,11 @@ function eligibleBreakdowns({ eligible, participants }) {
   ];
 }
 
-const SKS_GROUP_LABELS = {
-  met: `≥ ${RECOGNITION_SKS} SKS`,
-  below: `< ${RECOGNITION_SKS} SKS`,
-  noData: 'Tanpa data SKS',
-};
-
-function recognitionBreakdowns({ participants }) {
-  const groups = new Map(Object.values(SKS_GROUP_LABELS).map((label) => [label, new Set()]));
-  const prodi = new Map();
-  const jenis = new Map();
-  for (const [nim, participant] of participants) {
-    groups.get(SKS_GROUP_LABELS[sksGroupOf(participant)]).add(nim);
-    addTo(prodi, nameOf(participant.student.programStudi), nim);
-    for (const activity of participant.activities)
-      addTo(jenis, nameOf(activity.jenisAktivitas), nim);
-  }
-  const meets = (nim) => sksGroupOf(participants.get(nim)) === 'met';
-  // Urutan kelompok tetap (memenuhi, di bawah, tanpa data), bukan urut jumlah.
-  const kelompok = [...groups]
-    .map(([name, nims]) => ({
-      name,
-      count: nims.size,
-      percentage: roundedRate(nims.size, participants.size, null),
-    }))
-    .filter((item) => item.count > 0);
-  return [
-    breakdown('kelompok', 'Per Kelompok SKS', 'share', kelompok),
-    breakdown('prodi', 'Per Program Studi', 'rate', rateItems(prodi, meets)),
-    breakdown('jenis', 'Per Jenis Aktivitas', 'rate', rateItems(jenis, meets)),
-  ];
-}
-
 module.exports = {
   rateBreakdowns,
   participantBreakdowns,
   eligibleBreakdowns,
-  recognitionBreakdowns,
+  mitraBreakdowns,
+  partnerSummary,
   DEFAULT_MITRA_TOP_N,
 };

@@ -7,7 +7,7 @@ import {
   joinLabels,
 } from '../../../utils/kpiLabels';
 
-const EMPTY_CARDS = { rate: {}, participants: {}, eligible: {}, recognition: {} };
+const EMPTY_CARDS = { rate: {}, participants: {}, eligible: {}, mitra: {} };
 const NO_ELIGIBLE = 'Tidak ada mahasiswa eligible semester 7 untuk kombinasi filter ini.';
 
 /** Nama filter untuk kalimat "Filter ... tidak mengubah angka ini"; daftarnya dari server. */
@@ -15,18 +15,12 @@ const IGNORED_FILTER_NAMES = {
   search: 'pencarian',
   jenisAktivitas: 'jenis aktivitas',
   statusAktivitas: 'status aktivitas',
-  statusPartisipasi: 'status partisipasi',
 };
 
 export function ignoredFiltersClause(ignored = []) {
   const names = (ignored || []).map((key) => IGNORED_FILTER_NAMES[key]).filter(Boolean);
   return names.length ? `Filter ${formatList(names)} tidak mengubah angka ini.` : '';
 }
-
-const RECOGNITION_EMPTY = {
-  noParticipants: 'Belum ada partisipan untuk kombinasi filter ini.',
-  noSksData: 'Belum ada data SKS konversi dari SEVIMA untuk periode ini.',
-};
 
 /** Kalimat cakupan: "Fakultas X, Tahun Ajaran 2025/2026. " */
 const scopeSentence = (filters, periodLabel) => {
@@ -65,15 +59,15 @@ export function eligibleSubtitle(card) {
   );
 }
 
-export function recognitionSubtitle(card) {
-  if (card.isEmpty) return RECOGNITION_EMPTY[card.emptyReason] || RECOGNITION_EMPTY.noParticipants;
-  const rest = [
-    card.below ? `${formatNumber(card.below)} di bawah ${card.threshold} SKS` : '',
-    card.noData ? `${formatNumber(card.noData)} tanpa data SKS` : '',
-  ];
-  const detail = formatList(rest);
+export function mitraSubtitle(card) {
+  if (card.isEmpty) return NO_ELIGIBLE;
+  if (!card.value)
+    return withClause('Belum ada mitra dari aktivitas Disetujui atau Selesai.', card);
+  const top = card.top
+    ? ` Terbanyak: ${card.top.name} (${formatNumber(card.top.count)} partisipan).`
+    : '';
   return withClause(
-    `${formatPercentage(card.percentage, 1)} partisipan dengan konversi minimal ${card.threshold} SKS.${detail ? ` ${detail}.` : ''}`,
+    `Mitra unik dari aktivitas ${formatNumber(card.withPartner)} partisipan.${top}`,
     card,
   );
 }
@@ -93,13 +87,13 @@ export function useMbkmKpiDisplay(summaryData, isLoading, filterValues = {}) {
         participationRate: formatPercentage(cards.rate.value, 1),
         totalParticipants: formatNumber(cards.participants.value),
         eligibleCount: formatNumber(cards.eligible.value),
-        recognition: formatNumber(cards.recognition.value),
+        totalMitra: formatNumber(cards.mitra.value),
       },
       displaySubtitles: {
         rate: `${scope}${rateSubtitle(cards.rate)}`,
         participants: `${scope}${participantsSubtitle(cards.participants)}`,
         eligible: `${scope}${eligibleSubtitle(cards.eligible)}`,
-        recognition: `${scope}${recognitionSubtitle(cards.recognition)}`,
+        mitra: `${scope}${mitraSubtitle(cards.mitra)}`,
       },
       isReady: Boolean(summaryData?.success) && !isLoading,
     };

@@ -343,28 +343,46 @@ ke kartu Partisipan.
       130 / 93,1% / 82; popup Persentase per fakultas 93,1% dan 92,9%; panel
       Kualitas Data terisi.
 
+### Revisi setelah review user (2026-10-27)
+
+Dihapus atas permintaan user, di server dan client:
+
+- [x] Panel Kualitas Data: `GET /mbkm/data-quality`, `mbkmDataQuality.js`,
+      tombol header (`MbkmHeaderExtra`), `MbkmDataQualityModal`, dan laporan
+      sync di `sync_runs.modules[].report`.
+- [x] Filter Status Partisipasi: opsi di `@komet/shared/constants`, validator,
+      `statusPartisipasiOptions`, mode tabel di `mbkmList.js`, dan field form.
+- [x] Kolom tabel Tanggal Mulai s.d. Selesai dan Dihitung: field
+      `tanggalMulai`, `tanggalSelesai`, `counted`, `countedReason` di baris list
+      dan `MBKM_ROW_FIELDS`, serta alasan "tidak dihitung" di `population.js`.
+      Kolom database tanggal tetap diisi sync (tidak tampil).
+- [x] Header MBKM kembali memakai `HeaderAcademicYearFilter` saja, sama dengan
+      Graduate Data. Deskripsi halaman dipendekkan karena teks dua baris
+      menggeser pemilih tahun ajaran.
+- [x] Card 4 kembali menjadi **Mitra MBKM** (keputusan user: aktivitas MBKM
+      sah bisa 3 atau 14 SKS, jadi kriteria 20 SKS dihapus). Mitra = nama mitra
+      unik (dinormalisasi) dari aktivitas Disetujui/Selesai mahasiswa eligible,
+      mengikuti semua filter. Popup: Mitra Teratas dan Mitra per Jenis
+      Aktivitas; tab Per Mitra di popup Partisipan dihapus. `RECOGNITION_SKS`,
+      `sksGroupOf`, dan `recognitionBreakdowns` dihapus. SKS konversi tetap
+      tampil di tabel.
+
 ### Checklist pengetesan lokal (untuk user)
 
-- [ ] Jalankan sync MBKM dari sidebar, lalu buka "Kualitas Data": duplikat feed
-      dan NIM tanpa mahasiswa kini terisi angka (sebelumnya "Belum ada laporan
-      sync").
+- [x] Sync MBKM dari sidebar (2026-10-27): 556 aktivitas, kunci unik, tanpa
+      mahasiswa palsu.
+- [ ] Posisi pemilih Tahun Ajaran di header sama dengan Student dan Graduate.
 - [ ] Default tanpa URL: header menunjukkan 2026/2027 dan kartu 121 / 130 /
-      93,1% / 82.
-- [ ] Tahun 2025/2026: Partisipan 115 (Selesai 114, Disetujui 1, 1 menunggu
-      persetujuan), persentase 86,5%.
-- [ ] Tahun 2023/2024: Rekognisi menampilkan "-" dengan kalimat belum ada data
-      SKS, bukan 0.
+      93,1% / 71 mitra; tabel 137 baris.
+- [ ] Tahun 2025/2026: Partisipan 113 (Selesai 112, Disetujui 1, 1 menunggu
+      persetujuan), persentase 85,0%, 62 mitra.
 - [ ] Satu fakultas: semua kartu, popup, dan tabel menyempit; tab Per Fakultas
       tersembunyi.
 - [ ] Jenis Aktivitas + Status Aktivitas: kartu Eligible menyebut filter itu
       tidak mengubah angkanya.
-- [ ] Status Partisipasi "Belum berpartisipasi": tabel berisi mahasiswa
-      eligible tanpa aktivitas, jumlahnya sama dengan "belum berpartisipasi" di
-      kartu Eligible.
-- [ ] Status Partisipasi "Berpartisipasi": total baris = kartu Partisipan.
 - [ ] Periode Genap 2026/2027 (kosong): kartu dan popup menjelaskan kombinasi
       kosong.
-- [ ] Popup Partisipan: tab Per Mitra berisi mitra teratas + "Lainnya".
+- [ ] Popup Mitra: tab Mitra Teratas berisi mitra teratas + "Lainnya".
 
 ## File utama
 
