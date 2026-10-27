@@ -2,24 +2,13 @@
  * Dispatcher controller untuk endpoint statistik & tabel MBKM (Tab MBKM Data).
  *
  * Controller hanya membaca `req.query`, memanggil service, dan mengirim
- * respons. Periode efektif, filter, aritmetika persentase, dan bentuk payload
+ * respons. Periode efektif, populasi, aritmetika persentase, dan bentuk payload
  * hidup di `services/mbkm/`.
  */
-const {
-  buildStudentFilterFromMbkmQuery,
-  resolveMbkmListFilter,
-  resolveMbkmQuery,
-} = require('../services/mbkm/filterBuilder');
 const { getPaginationParams } = require('../utils/paginationUtils');
-const {
-  getActivityDistribution,
-  getProdiDistribution,
-  getStatusDistribution,
-} = require('../services/mbkm/mbkmActivities');
-const { getEligibleStudents } = require('../services/mbkm/mbkmEligible');
-const { getMitraDistribution } = require('../services/mbkm/mbkmMitra');
+const { getMbkmDataQuality } = require('../services/mbkm/mbkmDataQuality');
+const { MBKM_DETAIL_CARDS, getMbkmDetail } = require('../services/mbkm/mbkmDetails');
 const { getMbkmList } = require('../services/mbkm/mbkmList');
-const { getMbkmRate } = require('../services/mbkm/mbkmRate');
 const { getMbkmSummary } = require('../services/mbkm/mbkmSummary');
 const { getOrLoad } = require('../services/summaryCache');
 const { sendServerError } = require('../utils/errorHandler');
@@ -38,93 +27,33 @@ const getSummary = async (req, res) => {
 const getMbkmData = async (req, res) => {
   try {
     const { page, limit } = getPaginationParams(req.query);
-    const result = await getMbkmList(await resolveMbkmListFilter(req.query), page, limit);
+    const result = await getMbkmList(req.query, page, limit);
     return res.json({ success: true, ...result });
   } catch (error) {
     return sendServerError(res, 'DATA_READ_FAILED', error, 'mbkm/getMbkmData');
   }
 };
 
-// GET /api/mbkm/analytics/rate — detail Persentase MBKM vs Eligible
-const getRate = async (req, res) => {
+// GET /api/mbkm/analytics/:card — popup kartu (rate | participants | eligible | recognition)
+const getDetail = async (req, res) => {
+  if (!MBKM_DETAIL_CARDS.includes(req.params.card)) {
+    return res.status(404).json({ success: false, message: 'Rincian kartu tidak ditemukan' });
+  }
   try {
-    const { selectedPeriode, selectedPeriods, whereFilter } = await resolveMbkmQuery(req.query);
-    const data = await getMbkmRate(
-      whereFilter,
-      selectedPeriods,
-      buildStudentFilterFromMbkmQuery(req.query),
-    );
-    return res.json({ success: true, selectedPeriode, selectedPeriods, data });
+    const data = await getMbkmDetail(req.params.card, req.query);
+    return res.json({ success: true, data });
   } catch (error) {
-    return sendServerError(res, 'DATA_READ_FAILED', error, 'mbkm/getRate');
+    return sendServerError(res, 'DATA_READ_FAILED', error, 'mbkm/getDetail');
   }
 };
 
-/**
- * Distribusi berbasis periode: ketiganya hanya berbeda di service penghitung.
- * Alurnya sama persis — periode efektif + filter, lalu satu payload
- * `{ selectedPeriode, selectedPeriods, data }`.
- */
-const periodeDistributionHandler = (service, label) => async (req, res) => {
+// GET /api/mbkm/data-quality — panel kualitas data
+const getDataQuality = async (req, res) => {
   try {
-    const { selectedPeriode, selectedPeriods, whereFilter } = await resolveMbkmQuery(req.query);
-    const data = await service(whereFilter, selectedPeriods);
-    return res.json({ success: true, selectedPeriode, selectedPeriods, data });
+    return res.json({ success: true, data: await getMbkmDataQuality() });
   } catch (error) {
-    return sendServerError(res, 'DATA_READ_FAILED', error, label);
+    return sendServerError(res, 'DATA_READ_FAILED', error, 'mbkm/getDataQuality');
   }
 };
 
-// GET /api/mbkm/analytics/activity-distribution — Detail Card 2 Tab A
-const getActivityDistributionHandler = periodeDistributionHandler(
-  getActivityDistribution,
-  'mbkm/getActivityDistribution',
-);
-
-// GET /api/mbkm/analytics/prodi-distribution — Detail Card 2 Tab B
-const getProdiDistributionHandler = periodeDistributionHandler(
-  getProdiDistribution,
-  'mbkm/getProdiDistribution',
-);
-
-// GET /api/mbkm/analytics/status-distribution — Detail Card 2 Tab C
-const getStatusDistributionHandler = periodeDistributionHandler(
-  getStatusDistribution,
-  'mbkm/getStatusDistribution',
-);
-
-// GET /api/mbkm/analytics/eligible-students — detail mahasiswa eligible
-const getEligibleStudentsHandler = async (req, res) => {
-  try {
-    const { selectedPeriode, selectedPeriods } = await resolveMbkmQuery(req.query);
-    const data = await getEligibleStudents(
-      buildStudentFilterFromMbkmQuery(req.query),
-      selectedPeriods,
-    );
-    return res.json({ success: true, selectedPeriode, selectedPeriods, data });
-  } catch (error) {
-    return sendServerError(res, 'DATA_READ_FAILED', error, 'mbkm/getEligibleStudents');
-  }
-};
-
-// GET /api/mbkm/analytics/mitra-distribution — Detail Card 4
-const getMitraDistributionHandler = async (req, res) => {
-  try {
-    const { selectedPeriode, selectedPeriods } = await resolveMbkmQuery(req.query);
-    const data = await getMitraDistribution(selectedPeriods, req.query.topN);
-    return res.json({ success: true, selectedPeriode, selectedPeriods, data });
-  } catch (error) {
-    return sendServerError(res, 'DATA_READ_FAILED', error, 'mbkm/getMitraDistribution');
-  }
-};
-
-module.exports = {
-  getSummary,
-  getMbkmData,
-  getRate,
-  getActivityDistributionHandler,
-  getProdiDistributionHandler,
-  getStatusDistributionHandler,
-  getEligibleStudentsHandler,
-  getMitraDistributionHandler,
-};
+module.exports = { getSummary, getMbkmData, getDetail, getDataQuality };

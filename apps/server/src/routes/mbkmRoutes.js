@@ -9,12 +9,8 @@ const { mbkmQuerySchema, validateQuery } = require('../middlewares/validator');
 const {
   getSummary,
   getMbkmData,
-  getRate,
-  getActivityDistributionHandler,
-  getProdiDistributionHandler,
-  getStatusDistributionHandler,
-  getEligibleStudentsHandler,
-  getMitraDistributionHandler,
+  getDetail,
+  getDataQuality,
 } = require('../controllers/mbkmController');
 
 // Route data MBKM: sesi siswa + rate limiter + validasi query. SYNC_API_KEY tidak berlaku di sini.
@@ -28,12 +24,10 @@ router.get('/summary', summaryLimiter, getSummary);
 // Endpoint tabel MBKM dengan filter + pagination
 router.get('/list', getMbkmData);
 
-// Analytics endpoints — Detail card popup
-router.get('/analytics/rate', getRate);
-router.get('/analytics/activity-distribution', getActivityDistributionHandler);
-router.get('/analytics/prodi-distribution', getProdiDistributionHandler);
-router.get('/analytics/status-distribution', getStatusDistributionHandler);
-router.get('/analytics/eligible-students', getEligibleStudentsHandler);
-router.get('/analytics/mitra-distribution', getMitraDistributionHandler);
+// Popup kartu: satu endpoint, isi `breakdowns` ditentukan service
+router.get('/analytics/:card', getDetail);
+
+// Panel kualitas data
+router.get('/data-quality', getDataQuality);
 
 module.exports = router;

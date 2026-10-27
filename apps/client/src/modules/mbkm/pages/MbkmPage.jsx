@@ -1,9 +1,9 @@
-import { Award, Building2, UserCheck, Users } from 'lucide-react';
+import { Award, GraduationCap, UserCheck, Users } from 'lucide-react';
 import DashboardPage from '../../../components/common/dashboard/DashboardPage';
-import HeaderAcademicYearFilter from '../../../components/common/filters/HeaderAcademicYearFilter';
 import { formatKpiDisplay } from '../../../utils/uiHelpers';
 import MbkmDataTable from '../components/MbkmDataTable';
 import MbkmDetailModal from '../components/MbkmDetailModal';
+import MbkmHeaderExtra from '../components/MbkmHeaderExtra';
 import { mbkmFilterForm, useMbkmFilters } from '../hooks/useMbkmFilters';
 import { useMbkmKpiDisplay } from '../hooks/useMbkmKpiDisplay';
 import { useSummary, useList } from '../mbkmQueries';
@@ -16,8 +16,8 @@ function buildCards({ kpis, displaySubtitles, kpiScope, isReady, openModal }) {
       value: formatKpiDisplay(kpis.totalParticipants),
       subtitle: displaySubtitles.participants,
       icon: Users,
-      onViewDetails: (event) => openModal('activities', event),
-      isFiltered: kpiScope.totalParticipants && isReady,
+      onViewDetails: (event) => openModal('participants', event),
+      isFiltered: kpiScope.participants && isReady,
     },
     {
       key: 'eligible',
@@ -38,13 +38,13 @@ function buildCards({ kpis, displaySubtitles, kpiScope, isReady, openModal }) {
       isFiltered: kpiScope.rate && isReady,
     },
     {
-      key: 'mitra',
-      title: 'Mitra MBKM',
-      value: formatKpiDisplay(kpis.totalMitra),
-      subtitle: displaySubtitles.mitra,
-      icon: Building2,
-      onViewDetails: (event) => openModal('partners', event),
-      isFiltered: kpiScope.mitra && isReady,
+      key: 'recognition',
+      title: 'Rekognisi ≥ 20 SKS',
+      value: formatKpiDisplay(kpis.recognition),
+      subtitle: displaySubtitles.recognition,
+      icon: GraduationCap,
+      onViewDetails: (event) => openModal('recognition', event),
+      isFiltered: kpiScope.recognition && isReady,
     },
   ];
 }
@@ -53,7 +53,7 @@ export default function MbkmPage() {
   return (
     <DashboardPage
       title="MBKM Data"
-      description="Jumlah partisipan, mahasiswa eligible, persentase partisipasi, dan mitra Merdeka Belajar Kampus Merdeka pada periode terpilih."
+      description="Partisipasi Merdeka Belajar Kampus Merdeka mahasiswa semester 7 pada periode terpilih: siapa yang sudah dan belum berpartisipasi, serta rekognisi SKS konversinya."
       useFilters={useMbkmFilters}
       filterForm={mbkmFilterForm}
       useSummary={useSummary}
@@ -62,7 +62,7 @@ export default function MbkmPage() {
       buildCards={buildCards}
       Table={MbkmDataTable}
       DetailModal={MbkmDetailModal}
-      headerExtra={HeaderAcademicYearFilter}
+      headerExtra={MbkmHeaderExtra}
     />
   );
 }

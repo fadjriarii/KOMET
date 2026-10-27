@@ -519,219 +519,92 @@ describe('useGraduateKpiDisplay', () => {
 });
 
 describe('useMbkmKpiDisplay', () => {
-  const mockSummary = {
-    success: true,
-    selectedPeriods: ['20261', '20262'],
-    selectedPeriode: '20261',
-    kpis: {
-      totalParticipants: 121,
-      eligibleCount: 130,
-      participationRate: 93.08,
-      totalMitra: 75,
-      selesaiCount: 0,
-      berjalanCount: 121,
-      evaluasiCount: 0,
-    },
-    filterOptions: {
-      periodeOptions: [
-        { value: '20261', label: 'Ganjil' },
-        { value: '20262', label: 'Genap' },
+  const cards = {
+    rate: { value: 86.47, isEmpty: false, participants: 115, eligible: 133, ignoredFilters: [] },
+    participants: {
+      value: 115,
+      isEmpty: false,
+      byStatus: [
+        { key: '5', label: 'Selesai', value: 114 },
+        { key: '2', label: 'Disetujui', value: 1 },
       ],
+      pending: 1,
+      ignoredFilters: [],
+    },
+    eligible: {
+      value: 133,
+      isEmpty: false,
+      notParticipating: 18,
+      ignoredFilters: ['search', 'jenisAktivitas'],
+    },
+    recognition: {
+      value: 55,
+      isEmpty: false,
+      emptyReason: null,
+      threshold: 20,
+      percentage: 47.83,
+      participants: 115,
+      below: 60,
+      noData: 0,
+      ignoredFilters: [],
     },
   };
+  const summary = (overrides = {}) => ({
+    success: true,
+    periodLabel: 'Tahun Ajaran 2025/2026',
+    kpis: { cards: { ...cards, ...overrides } },
+  });
 
-  it('menghasilkan subtitle dasar dari periode dan angka server', () => {
-    const { result } = renderHook(() => useMbkmKpiDisplay(mockSummary, false, {}));
-    const { displaySubtitles, kpis } = result.current;
+  it('menyusun nilai dan kalimat dari kartu server tanpa menghitung ulang', () => {
+    const { result } = renderHook(() => useMbkmKpiDisplay(summary(), false, {}));
+    const { kpis, displaySubtitles } = result.current;
 
-    expect(kpis.participationRate).toBe('93.1%');
+    expect(kpis.participationRate).toBe('86.5%');
+    expect(kpis.recognition).toBe('55');
+    expect(displaySubtitles.rate).toBe(
+      'Tahun Ajaran 2025/2026. 115 dari 133 mahasiswa eligible berpartisipasi.',
+    );
     expect(displaySubtitles.participants).toBe(
-      'Mahasiswa semester 7 dengan aktivitas MBKM aktif · Tahun Ajaran 2026/2027',
+      'Tahun Ajaran 2025/2026. Selesai 114, Disetujui 1, dan 1 menunggu persetujuan.',
     );
     expect(displaySubtitles.eligible).toBe(
-      'Mahasiswa aktif pada semester 7 · Tahun Ajaran 2026/2027',
+      'Tahun Ajaran 2025/2026. Mahasiswa aktif semester 7. 18 belum berpartisipasi. Filter pencarian dan jenis aktivitas tidak mengubah angka ini.',
     );
-    expect(displaySubtitles.rate).toBe(
-      '121 peserta dari 130 mahasiswa eligible · Tahun Ajaran 2026/2027',
+    expect(displaySubtitles.recognition).toContain('minimal 20 SKS');
+    expect(displaySubtitles.recognition).toContain('60 di bawah 20 SKS');
+  });
+
+  it('cakupan fakultas tampil di depan kalimat', () => {
+    const { result } = renderHook(() =>
+      useMbkmKpiDisplay(summary(), false, { selectedFaculty: ['FST'] }),
     );
-    expect(displaySubtitles.mitra).toBe(
-      'Mitra unik dari seluruh aktivitas periode ini · Tahun Ajaran 2026/2027',
+    expect(result.current.displaySubtitles.rate.startsWith('Fakultas FST, Tahun Ajaran')).toBe(
+      true,
     );
   });
 
-  it('memakai label Ganjil saat hanya satu periode dipilih', () => {
-    const summary = {
-      ...mockSummary,
-      selectedPeriods: ['20251'],
-      selectedPeriode: '20251',
-      filterOptions: {
-        periodeOptions: [
-          { value: '20251', label: 'Ganjil' },
-          { value: '20252', label: 'Genap' },
-        ],
-      },
+  it('periode tanpa data SKS menjelaskan alasannya, bukan menampilkan 0', () => {
+    const recognition = {
+      ...cards.recognition,
+      value: null,
+      isEmpty: true,
+      emptyReason: 'noSksData',
     };
-    const { result } = renderHook(() => useMbkmKpiDisplay(summary, false, {}));
-
-    expect(result.current.displaySubtitles.eligible).toBe(
-      'Mahasiswa aktif pada semester 7 · Ganjil 2025/2026',
-    );
-    expect(result.current.displaySubtitles.mitra).toContain('Ganjil 2025/2026');
+    const { result } = renderHook(() => useMbkmKpiDisplay(summary({ recognition }), false, {}));
+    expect(result.current.kpis.recognition).toBe('-');
+    expect(result.current.displaySubtitles.recognition).toContain('Belum ada data SKS konversi');
   });
 
-  it('menyebut fakultas di tiga kartu dan menandai mitra tidak terpengaruh', () => {
-    const { result } = renderHook(() =>
-      useMbkmKpiDisplay(mockSummary, false, { selectedFaculty: ['FST'] }),
-    );
-    const { displaySubtitles } = result.current;
-
-    expect(displaySubtitles.participants).toBe(
-      'Mahasiswa semester 7 dengan aktivitas MBKM aktif · Fakultas FST · Tahun Ajaran 2026/2027',
-    );
-    expect(displaySubtitles.eligible).toBe(
-      'Mahasiswa aktif pada semester 7 · Fakultas FST · Tahun Ajaran 2026/2027',
-    );
-    expect(displaySubtitles.rate).toBe(
-      '121 peserta dari 130 mahasiswa eligible · Fakultas FST · Tahun Ajaran 2026/2027',
-    );
-    expect(displaySubtitles.mitra).toBe(
-      'Mitra unik dari seluruh aktivitas periode ini · Tahun Ajaran 2026/2027 · tidak terpengaruh filter lain',
-    );
+  it('tanpa eligible: persentase "-" dan kalimat kosong yang jujur', () => {
+    const rate = { ...cards.rate, value: null, isEmpty: true };
+    const { result } = renderHook(() => useMbkmKpiDisplay(summary({ rate }), false, {}));
+    expect(result.current.kpis.participationRate).toBe('-');
+    expect(result.current.displaySubtitles.rate).toContain('Tidak ada mahasiswa eligible');
   });
 
-  it('pencarian hanya mengubah pembilang dan tidak menyentuh eligible', () => {
-    const { result } = renderHook(() =>
-      useMbkmKpiDisplay(mockSummary, false, { searchQuery: 'ani' }),
-    );
-    const { displaySubtitles } = result.current;
-
-    expect(displaySubtitles.participants).toBe(
-      'Mahasiswa semester 7 dengan aktivitas MBKM aktif · Tahun Ajaran 2026/2027 · pencarian "ani"',
-    );
-    expect(displaySubtitles.eligible).toBe(
-      'Mahasiswa aktif pada semester 7 · Tahun Ajaran 2026/2027 · pencarian tidak mengubah angka ini',
-    );
-    expect(displaySubtitles.rate).toBe(
-      '121 peserta (pencarian "ani") dari 130 mahasiswa eligible · Tahun Ajaran 2026/2027',
-    );
-    expect(displaySubtitles.mitra).toContain('tidak terpengaruh filter lain');
-  });
-
-  it('menjelaskan bahwa status Ditolak di luar populasi peserta', () => {
-    const summary = {
-      ...mockSummary,
-      kpis: {
-        ...mockSummary.kpis,
-        totalParticipants: 0,
-        participationRate: 0,
-      },
-    };
-    const { result } = renderHook(() =>
-      useMbkmKpiDisplay(summary, false, {
-        selectedStatusAktivitas: ['Ditolak'],
-      }),
-    );
-    const { displaySubtitles } = result.current;
-
-    expect(displaySubtitles.participants).toBe(
-      'Mahasiswa semester 7 dengan aktivitas MBKM aktif · Status Ditolak · Tahun Ajaran 2026/2027 · Ditolak tidak dihitung sebagai peserta',
-    );
-    expect(displaySubtitles.eligible).toBe(
-      'Mahasiswa aktif pada semester 7 · Tahun Ajaran 2026/2027 · status aktivitas tidak mengubah angka ini',
-    );
-    expect(displaySubtitles.rate).toBe(
-      '0 peserta (Status Ditolak) dari 130 mahasiswa eligible · Tahun Ajaran 2026/2027 · Ditolak tidak dihitung sebagai peserta',
-    );
-    expect(displaySubtitles.mitra).toContain('tidak terpengaruh filter lain');
-  });
-
-  it('menyebut jenis aktivitas di kartu aktivitas dan mengabaikannya di eligible', () => {
-    const { result } = renderHook(() =>
-      useMbkmKpiDisplay(mockSummary, false, { selectedJenisAktivitas: ['Magang'] }),
-    );
-    const { displaySubtitles } = result.current;
-
-    expect(displaySubtitles.participants).toBe(
-      'Mahasiswa semester 7 dengan aktivitas MBKM aktif · Jenis Aktivitas Magang · Tahun Ajaran 2026/2027',
-    );
-    expect(displaySubtitles.eligible).toBe(
-      'Mahasiswa aktif pada semester 7 · Tahun Ajaran 2026/2027 · jenis aktivitas tidak mengubah angka ini',
-    );
-    expect(displaySubtitles.rate).toBe(
-      '121 peserta (Jenis Aktivitas Magang) dari 130 mahasiswa eligible · Tahun Ajaran 2026/2027',
-    );
-    expect(displaySubtitles.mitra).toContain('tidak terpengaruh filter lain');
-  });
-
-  it('menggabungkan beberapa filter aktivitas dengan kata dan di catatan eligible', () => {
-    const { result } = renderHook(() =>
-      useMbkmKpiDisplay(mockSummary, false, {
-        searchQuery: 'ani',
-        selectedStatusAktivitas: ['Disetujui'],
-        selectedJenisAktivitas: ['Magang', 'Riset'],
-      }),
-    );
-    const { displaySubtitles } = result.current;
-
-    expect(displaySubtitles.participants).toContain('Status Disetujui');
-    expect(displaySubtitles.participants).toContain('Jenis Aktivitas terpilih');
-    expect(displaySubtitles.participants).toContain('pencarian "ani"');
-    expect(displaySubtitles.participants).not.toContain('Mitra terpilih');
-    expect(displaySubtitles.eligible).toBe(
-      'Mahasiswa aktif pada semester 7 · Tahun Ajaran 2026/2027 · pencarian, status aktivitas dan jenis aktivitas tidak mengubah angka ini',
-    );
-    expect(displaySubtitles.rate).toContain(
-      '(pencarian "ani", Status Disetujui, Jenis Aktivitas terpilih)',
-    );
-  });
-
-  it('meringkas multi-fakultas dan menulis status nonaktif yang dipilih', () => {
-    const summary = {
-      ...mockSummary,
-      kpis: {
-        ...mockSummary.kpis,
-        totalParticipants: 0,
-        participationRate: 0,
-      },
-    };
-    const { result } = renderHook(() =>
-      useMbkmKpiDisplay(summary, false, {
-        selectedFaculty: ['FST', 'FK'],
-        selectedStatusAktivitas: ['Ditolak', 'Dibatalkan'],
-      }),
-    );
-    const { displaySubtitles } = result.current;
-
-    expect(displaySubtitles.participants).toContain('Fakultas terpilih');
-    expect(displaySubtitles.participants).toContain('Status terpilih');
-    expect(displaySubtitles.participants).toContain(
-      'Ditolak/Dibatalkan tidak dihitung sebagai peserta',
-    );
-    expect(displaySubtitles.eligible).toContain('Fakultas terpilih');
-    expect(displaySubtitles.eligible).toContain('status aktivitas tidak mengubah angka ini');
-    expect(displaySubtitles.rate).toContain('(Status Ditolak/Dibatalkan)');
-  });
-
-  it('memotong pencarian panjang menjadi 24 karakter', () => {
-    const long = 'x'.repeat(30);
-    const { result } = renderHook(() =>
-      useMbkmKpiDisplay(mockSummary, false, { searchQuery: long }),
-    );
-
-    expect(result.current.displaySubtitles.participants).toContain(
-      `pencarian "${'x'.repeat(24)}..."`,
-    );
-    expect(result.current.displaySubtitles.rate).toContain(`pencarian "${'x'.repeat(24)}..."`);
-  });
-
-  it('tidak menyisakan pemisah saat periode kosong', () => {
-    const summary = { ...mockSummary, selectedPeriods: [] };
-    const { result } = renderHook(() => useMbkmKpiDisplay(summary, false, {}));
-    const { displaySubtitles } = result.current;
-
-    expect(displaySubtitles.participants).toBe('Mahasiswa semester 7 dengan aktivitas MBKM aktif');
-    expect(displaySubtitles.eligible).toBe('Mahasiswa aktif pada semester 7');
-    expect(displaySubtitles.rate).toBe('121 peserta dari 130 mahasiswa eligible');
-    expect(displaySubtitles.mitra).toBe('Mitra unik dari seluruh aktivitas periode ini');
+  it('belum siap sebelum summary termuat', () => {
+    const { result } = renderHook(() => useMbkmKpiDisplay(undefined, true, {}));
+    expect(result.current.isReady).toBe(false);
+    expect(result.current.kpis.totalParticipants).toBe('-');
   });
 });

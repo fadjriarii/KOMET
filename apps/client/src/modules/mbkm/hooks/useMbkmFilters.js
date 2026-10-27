@@ -1,14 +1,12 @@
-import { BookOpen, Briefcase, Building2, CalendarDays, UserCheck } from 'lucide-react';
-import { getCurrentAcademicYear, isValidAcademicYear } from '@komet/shared/academicYear';
+import { useMemo } from 'react';
+import { BookOpen, Briefcase, Building2, CalendarDays, ListChecks, UserCheck } from 'lucide-react';
+import { isValidAcademicYear } from '@komet/shared/academicYear';
 import { useDashboardFilters } from '../../../hooks/useDashboardFilters';
 import { sanitizeSearch } from '../../../utils/querySanitizer';
 
-/** Header selalu menunjuk satu tahun ajaran; tanpa itu server memakai periode terbaru saja. */
-const DEFAULT_ACADEMIC_YEAR = getCurrentAcademicYear();
-
-/** Tahun ajaran dari URL yang bentuknya bukan "YYYY/YYYY" dikembalikan ke tahun berjalan. */
-const sanitizeAcademicYear = (value) =>
-  isValidAcademicYear(value) ? value : DEFAULT_ACADEMIC_YEAR;
+/** Tahun ajaran dari URL yang bentuknya bukan "YYYY/YYYY" dikembalikan ke default. */
+const sanitizeAcademicYear = (value, defaultAcademicYear) =>
+  isValidAcademicYear(value) ? value : defaultAcademicYear;
 
 /**
  * Field filter MBKM: state ↔ URL ↔ param server ↔ kontrol tampilan.
@@ -26,10 +24,10 @@ export const mbkmFilterFields = {
   },
   // Tahun ajaran dipilih di header halaman, bukan di grid filter.
   tahunAjaran: {
-    initial: DEFAULT_ACADEMIC_YEAR,
+    initial: '',
     param: 'tahunAjaran',
     setter: 'setTahunAjaran',
-    sanitize: sanitizeAcademicYear,
+    sanitize: (value) => sanitizeAcademicYear(value, ''),
     clears: ['periode'],
   },
   selectedFaculty: {
@@ -73,8 +71,19 @@ export const mbkmFilterFields = {
     control: 'multi',
     label: 'Status Aktivitas',
     icon: UserCheck,
-    optionsKey: 'statusAktivitas',
+    optionsKey: 'statusAktivitasOptions',
     placeholder: 'Semua Status Aktivitas',
+  },
+  // Hanya mengubah tabel; kartu menyebutnya lewat `ignoredFilters` dari server.
+  selectedStatusPartisipasi: {
+    initial: '',
+    param: 'statusPartisipasi',
+    setter: 'setSelectedStatusPartisipasi',
+    control: 'single',
+    label: 'Status Partisipasi',
+    icon: ListChecks,
+    optionsKey: 'statusPartisipasiOptions',
+    placeholder: 'Semua Mahasiswa',
   },
   selectedPeriode: {
     initial: '',
@@ -91,10 +100,26 @@ export const mbkmFilterFields = {
 export const mbkmFilterForm = {
   title: 'Filter & Pencarian MBKM',
   firstRowColumns: 4,
-  secondRowColumns: 3,
+  secondRowColumns: 4,
   fields: mbkmFilterFields,
 };
 
-export function useMbkmFilters() {
-  return useDashboardFilters({ fields: mbkmFilterFields });
+/**
+ * Default tahun ajaran = tahun terbaru di data MBKM (`academicYearOptions[0]`,
+ * ADR 0005). Sebelum opsi termuat nilainya kosong dan server memakai default
+ * yang sama; pilihan URL tetap menang.
+ */
+export function useMbkmFilters(defaultAcademicYear = '') {
+  const fields = useMemo(
+    () => ({
+      ...mbkmFilterFields,
+      tahunAjaran: {
+        ...mbkmFilterFields.tahunAjaran,
+        initial: defaultAcademicYear,
+        sanitize: (value) => sanitizeAcademicYear(value, defaultAcademicYear),
+      },
+    }),
+    [defaultAcademicYear],
+  );
+  return useDashboardFilters({ fields });
 }

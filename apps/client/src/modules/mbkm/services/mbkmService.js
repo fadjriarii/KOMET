@@ -3,7 +3,7 @@ import { createQueryParams } from '../../../services/queryParams';
 import { createQuerySanitizer } from '../../../utils/querySanitizer';
 
 const sanitizeMbkmQuery = createQuerySanitizer({
-  single: ['periode', 'tahunAjaran', 'topN'],
+  single: ['periode', 'tahunAjaran', 'topN', 'statusPartisipasi'],
   multi: ['faculty', 'prodi', 'jenisAktivitas', 'statusAktivitas'],
 });
 
@@ -18,6 +18,7 @@ function toQueryParams(filters = {}, pagination = {}) {
   append('periode', sanitized.periode);
   append('tahunAjaran', sanitized.tahunAjaran);
   append('topN', sanitized.topN);
+  append('statusPartisipasi', sanitized.statusPartisipasi);
   append('search', sanitized.search);
   append('page', pagination.page);
   append('limit', pagination.limit);
@@ -29,13 +30,13 @@ export const mbkmService = createFilterService({
   toQueryParams,
   summaryPath: '/mbkm/summary',
   listPath: '/mbkm/list',
+  // Satu endpoint per kartu; isi tab (`breakdowns`) ditentukan server.
   detailPaths: {
     getRateDetail: '/mbkm/analytics/rate',
-    getActivityDistribution: '/mbkm/analytics/activity-distribution',
-    getProdiDistribution: '/mbkm/analytics/prodi-distribution',
-    getStatusDistribution: '/mbkm/analytics/status-distribution',
-    getEligibleStudents: '/mbkm/analytics/eligible-students',
-    getMitraDistribution: '/mbkm/analytics/mitra-distribution',
+    getParticipantsDetail: '/mbkm/analytics/participants',
+    getEligibleDetail: '/mbkm/analytics/eligible',
+    getRecognitionDetail: '/mbkm/analytics/recognition',
+    getDataQuality: '/mbkm/data-quality',
   },
 });
 

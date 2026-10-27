@@ -32,7 +32,9 @@ function semesterAtPeriode(startPeriode, selectedPeriode) {
 /**
  * Aktif pada periode P = sudah masuk, belum keluar, dan bukan cuti yang sudah
  * berjalan pada P. Cuti baru berlaku sejak `periodeTerakhir`-nya, jadi periode
- * sebelum cuti tetap dihitung aktif.
+ * sebelum cuti tetap dihitung aktif. Status keluar tanpa periode akhir tidak
+ * diketahui kapan keluarnya, jadi tidak dihitung aktif (dilaporkan di panel
+ * kualitas data), bukan aktif selamanya.
  */
 function isActiveAtPeriode(student = {}, selectedPeriode) {
   const start = getStartPeriode(student);
@@ -45,8 +47,26 @@ function isActiveAtPeriode(student = {}, selectedPeriode) {
     return Boolean(parsePeriode(exit)) && exit > selected;
   }
 
-  return !exit || !parsePeriode(exit) || exit >= selected;
+  if (!parsePeriode(exit)) return student.statusKeaktifan === STUDENT_STATUS.AKTIF;
+  return exit >= selected;
 }
+
+const ELIGIBILITY_SELECT = {
+  nim: true,
+  nama: true,
+  angkatan: true,
+  jenjang: true,
+  periodeMasuk: true,
+  periodeMasukAwal: true,
+  periodeTerakhir: true,
+  statusKeaktifan: true,
+  programStudi: true,
+  fakultas: true,
+};
+
+const isEligibleAt = (student, periode) =>
+  isActiveAtPeriode(student, periode) &&
+  semesterAtPeriode(getStartPeriode(student), periode) === MBKM_ELIGIBLE_SEMESTER;
 
 /**
  * Populasi eligible MBKM: mahasiswa aktif pada periode P dan tepat semester 7.
@@ -54,51 +74,23 @@ function isActiveAtPeriode(student = {}, selectedPeriode) {
  * periode masuk dan periode keluar — bukan dari `Student.semester` hari ini.
  */
 async function getEligibleStudentsAtPeriode(studentFilter = {}, selectedPeriode, db = prisma) {
-  if (!parsePeriode(selectedPeriode)) return [];
-
-  const students = await db.student.findMany({
-    where: studentFilter,
-    select: {
-      nim: true,
-      periodeMasuk: true,
-      periodeMasukAwal: true,
-      periodeTerakhir: true,
-      statusKeaktifan: true,
-      programStudi: true,
-      fakultas: true,
-    },
-  });
-
-  return students.filter(
-    (student) =>
-      isActiveAtPeriode(student, selectedPeriode) &&
-      semesterAtPeriode(getStartPeriode(student), selectedPeriode) === MBKM_ELIGIBLE_SEMESTER,
-  );
+  return getEligibleStudentsAtPeriodes(studentFilter, [selectedPeriode], db);
 }
 
 /**
  * Eligible untuk satu tahun ajaran = gabungan kohort semester 7 di Ganjil dan
  * Genap, dideduplikasi per NIM. Satu mahasiswa hanya mencapai semester 7 sekali,
- * jadi gabungan ini aman dipakai sebagai penyebut tanpa double-count.
+ * jadi gabungan ini aman dipakai sebagai penyebut tanpa double-count. Mahasiswa
+ * dimuat sekali untuk semua periode.
  */
 async function getEligibleStudentsAtPeriodes(studentFilter = {}, selectedPeriods, db = prisma) {
-  const periods = Array.isArray(selectedPeriods)
-    ? selectedPeriods.filter(Boolean)
-    : selectedPeriods
-      ? [selectedPeriods]
-      : [];
-  const seen = new Set();
-  const students = [];
+  const periods = (Array.isArray(selectedPeriods) ? selectedPeriods : [selectedPeriods]).filter(
+    (periode) => parsePeriode(periode),
+  );
+  if (!periods.length) return [];
 
-  for (const periode of periods) {
-    for (const student of await getEligibleStudentsAtPeriode(studentFilter, periode, db)) {
-      if (seen.has(student.nim)) continue;
-      seen.add(student.nim);
-      students.push(student);
-    }
-  }
-
-  return students;
+  const students = await db.student.findMany({ where: studentFilter, select: ELIGIBILITY_SELECT });
+  return students.filter((student) => periods.some((periode) => isEligibleAt(student, periode)));
 }
 
 module.exports = {

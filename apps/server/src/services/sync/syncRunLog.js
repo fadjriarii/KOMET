@@ -30,10 +30,12 @@ function isJobOver(state, success) {
   return scope.length > 0 && scope.every((key) => state.progress?.[key]?.status === COMPLETED);
 }
 
+// `report` = angka khusus modul (mis. duplikat feed MBKM) untuk panel kualitas data.
 const toModules = (state) =>
   (Array.isArray(state.scope) ? state.scope : []).map((key) => ({
     key,
     status: moduleStatus(state.progress?.[key]),
+    ...(state.progress?.[key]?.report ? { report: state.progress[key].report } : {}),
   }));
 
 /**

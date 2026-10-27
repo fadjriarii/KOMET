@@ -1,6 +1,6 @@
 # TODO: MBKM Data — definisi KPI, sync yang andal, data-driven, logika di server
 
-- Status: Fase 0–1 selesai dan terverifikasi; Fase 2 berikutnya. Fase S ditunda ke akhir (keputusan user, 2026-10-27).
+- Status: Fase 0–4 selesai dan terverifikasi; checklist pengetesan lokal menunggu user. Fase S ditunda ke akhir (keputusan user, 2026-10-27).
 - Dibuat: 2026-10-27
 - Cakupan: card KPI, popup, tabel, sync SEVIMA, dan service MBKM. UI/UX tidak
   didesain ulang.
@@ -260,67 +260,111 @@ npx prisma generate`, disetujui user 2026-10-27), lalu sync MBKM beberapa
 
 ### Fase 2 — Perhitungan server (`services/mbkm/`)
 
-- [ ] Satu builder populasi (P, E, aktivitas terhitung, partisipan) dipakai
-      summary, semua analytics, dan list. Fakultas/prodi selalu dari kolom
-      Student.
-- [ ] Eligibility memakai proyeksi snapshot Student Data (DRY), sehingga bug
-      Drop Out tanpa periode akhir hilang.
-- [ ] `kpis.cards` (value, isEmpty, scope, rincian, `ignoredFilters`) +
-      `kpiFilterScope`. Tanpa target.
-- [ ] Card 4 **Rekognisi ≥ 20 SKS**: partisipan dengan total `sksKonversi` ≥ 20
-      pada P, rincian < 20 SKS dan tanpa data SKS; periode tanpa data SKS sama
-      sekali = `isEmpty` dengan penjelasan, bukan 0. Ambang 20 SKS satu konstanta
-      server (kriteria, bukan target).
-- [ ] Hitungan status dan distribusi per mahasiswa (status terbaik), dengan
-      jumlah aktivitas sebagai angka sekunder.
-- [ ] Mitra: populasi = aktivitas terhitung; nama dinormalisasi; top N dari
-      server.
-- [ ] Popup menerima `breakdowns[]`, termasuk tingkat partisipasi per grup
-      (bukan porsi).
-- [ ] Endpoint `GET /mbkm/data-quality`: duplikat dari feed API, NIM tanpa
-      mahasiswa, status `unclassified`, periode tidak valid, jenis kosong, nama
-      mitra mirip, SKS tidak wajar (> 40), aktivitas terhitung tanpa data SKS,
-      eligible tanpa periode akhir, waktu sync terakhir.
-- [ ] Filter **Status Partisipasi** (Berpartisipasi, Belum berpartisipasi,
-      Menunggu persetujuan, Belum 20 SKS): opsi dari server, divalidasi di
-      `validator.js`, diterapkan di builder populasi.
-- [ ] List: periode default sama dengan card; per baris `periodeLabel`,
-      `statusCategory`, `judulAktivitas`, `sksKonversi`, `tanggalMulai`,
-      `tanggalSelesai`, `counted` + `countedReason` (mis. belum disetujui, bukan
-      semester 7, SKS < 20). Mode "Belum berpartisipasi" mengembalikan daftar
-      mahasiswa eligible tanpa aktivitas. Perbarui `MBKM_ROW_FIELDS` di
-      `packages/shared/src/contracts.js`.
-- [ ] Opsi filter: `statusAktivitas` membawa kategori; jenjang dinamis (bukan
-      `JENJANGS` S1/S2); periode valid saja.
-- [ ] Cache warmup memakai tahun terbaru dari data, bukan kalender.
-- [ ] Tes: definisi R1 per kombinasi filter, per-mahasiswa vs per-aktivitas,
-      tingkat partisipasi per fakultas ≤ 100%, eligible Drop Out, status
-      `unclassified`.
+- [x] Satu builder populasi `population.js` (P, E, aktivitas dengan `counted` +
+      alasan, partisipan) dipakai summary, popup, dan list. Fakultas, prodi,
+      jenjang, dan angkatan dibaca dari kolom Student. Service lama
+      (`mbkmRate`, `mbkmActivities`, `mbkmMitra`, `mbkmEligible`) dihapus.
+- [x] Eligibility: status non-aktif tanpa periode akhir tidak lagi aktif
+      selamanya. Proyeksi tetap per periode di `mbkmEligibility.js`; snapshot
+      Student Data per tahun ajaran (Prisma where) tidak dipakai ulang karena
+      punya celah yang sama untuk periode akhir kosong. Mahasiswa dimuat sekali
+      per populasi.
+- [x] `kpis.cards` (`mbkmCards.js`): `rate`, `participants`, `eligible`,
+      `recognition`, masing-masing dengan `value`, `isEmpty`, rincian, dan
+      `ignoredFilters`; `kpiFilterScope` per kartu. Tanpa target.
+- [x] Card 4 Rekognisi ≥ 20 SKS: `RECOGNITION_SKS` di `population.js`;
+      `emptyReason` `noParticipants` atau `noSksData` (bukan 0).
+- [x] Status dan distribusi per mahasiswa (status terbaik). Jumlah aktivitas
+      sebagai angka sekunder tidak dibuat (tidak dibutuhkan popup).
+- [x] Mitra: dari aktivitas terhitung, nama dinormalisasi (`mitraKey`), top N + "Lainnya" di server, dihitung per mahasiswa.
+- [x] Popup: `GET /mbkm/analytics/:card` mengembalikan `card` + `breakdowns[]`
+      (`kind: 'share' | 'rate'`). Rate: per fakultas, per prodi, tren 5 tahun.
+      Menggantikan enam endpoint analytics lama.
+- [x] `GET /mbkm/data-quality` (`mbkmDataQuality.js`): `lastSyncAt` dan
+      `checks[]`. Duplikat feed dan NIM tanpa mahasiswa dibaca dari laporan sync
+      terakhir yang kini disimpan di `sync_runs.modules[].report`.
+- [x] Filter Status Partisipasi (`participating`, `notParticipating`,
+      `pending`, `belowSks`): opsi di `@komet/shared/constants`, divalidasi
+      `validator.js`, diterapkan di `mbkmList.js`. Kartu melaporkannya sebagai
+      `ignoredFilters`.
+- [x] List: periode sama dengan kartu; baris membawa `periodeLabel`,
+      `statusCategory`, `sksKonversi`, `totalSks`, tanggal, `counted`,
+      `countedReason`. `tahun` dihapus. `MBKM_ROW_FIELDS` diperbarui.
+- [x] Opsi filter: `statusAktivitasOptions` (dengan kategori, urut rank),
+      jenjang dari data, `statusPartisipasiOptions`. Default periode = kedua
+      periode tahun ajaran terbaru di data (kode Ganjil/Genap saja).
+- [x] Warmup memakai tahun ajaran terbaru dari data MBKM.
+- [x] Tes `mbkmAnalytics.test.js` (18), validator, dan `syncRunLog`. 354 tes
+      server lulus.
+
+Hasil di DB lokal (2026-10-27, SELECT saja):
+
+| Tahun ajaran | Partisipan / Eligible | Persentase | Rekognisi ≥ 20 SKS         | Catatan                                                        |
+| ------------ | --------------------- | ---------- | -------------------------- | -------------------------------------------------------------- |
+| 2026/2027    | 121 / 130             | 93.08%     | 82 (39 < 20)               | sama dengan baseline                                           |
+| 2025/2026    | 115 / 133             | 86.47%     | 55 (60 < 20)               | −1: satu mahasiswa hanya Diajukan, kini "menunggu persetujuan" |
+| 2024/2025    | 109 / 145             | 75.17%     | 74 (32 < 20, 3 tanpa data) | sama                                                           |
+| 2023/2024    | 102 / 188             | 54.26%     | tanpa data SKS             | sama                                                           |
+| 2022/2023    | 7 / 162               | 4.32%      | tanpa data SKS             | sama                                                           |
+
+Tingkat partisipasi per fakultas/prodi ≤ 100%; status per mahasiswa menjumlah
+ke kartu Partisipan.
 
 ### Fase 3 — Client hanya presentasi (`modules/mbkm/`)
 
-- [ ] `useMbkmFilters` menerima default dari data (pola `useStudentFilters`).
-- [ ] `useMbkmKpiDisplay` ditulis ulang di atas `kpis.cards`, memakai
-      `formatList` dan helper cakupan bersama. Hapus `ACTIVE_STATUSES`, parsing
-      periode, aturan `ignoredFilters`, dan `topN`.
-- [ ] Satu komponen modal generik yang merender `breakdowns` (gantikan 4 modal
-      yang hampir identik) + popup Kualitas Data.
-- [ ] Tabel: badge dari `statusCategory` (peta kategori → warna, pola
-      `predikatBadge`), warna jenis dari urutan server, kolom Periode dari
-      `periodeLabel`; kolom baru Judul Aktivitas, SKS Konversi, Tanggal
-      Mulai–Selesai, Dihitung (✓/✗ + alasan). Tanpa kolom Pembimbing.
-- [ ] Filter Status Partisipasi di form filter (opsi dari server); mode
-      "Belum berpartisipasi" menampilkan daftar mahasiswa eligible.
-- [ ] Card 4 Rekognisi ≥ 20 SKS + popupnya; mitra pindah ke tab Per Mitra di
-      popup Partisipan.
-- [ ] Tes: hook di atas `cards`, render modal generik, badge dari kategori,
-      default tahun dari data.
+- [x] `useMbkmFilters(defaultAcademicYear)`: default dari data (pola
+      `useStudentFilters`); sebelum opsi termuat `tahunAjaran` tidak dikirim
+      sehingga server memilih tahun terbaru di data.
+- [x] `useMbkmKpiDisplay` ditulis ulang di atas `kpis.cards` dan
+      `periodLabel` dari server, memakai `formatList`/`joinLabels`. Parsing
+      periode, `ACTIVE_STATUSES`, aturan `ignoredFilters`, dan `topN` di client
+      dihapus.
+- [x] Satu modal generik `MbkmBreakdownModal` (menggantikan 4 modal) dan
+      `MbkmDataQualityModal` (tombol "Kualitas Data" di header). Breakdown
+      `rate` tampil sebagai tabel supaya grup 0% tetap terlihat.
+- [x] Tabel: badge status dari `statusCategory` dan warna jenis dari urutan opsi
+      server (`utils/mbkmBadges.js`), kolom Periode dari `periodeLabel`, kolom
+      baru Tanggal, Judul Aktivitas, SKS Konversi, Dihitung. Fakultas dan
+      angkatan digabung ke sel Prodi dan Nama. Tanpa kolom Pembimbing.
+- [x] Filter Status Partisipasi (opsi dari server).
+- [x] Card 4 Rekognisi ≥ 20 SKS; mitra menjadi tab Per Mitra di popup
+      Partisipan.
+- [x] Tes: `kpiDisplayHooks` (bagian MBKM), `dashboardPages` (rute MBKM),
+      `mbkmModals.test.jsx` (modal generik, badge). 189 tes client lulus.
 
 ### Fase 4 — Dokumentasi & verifikasi
 
-- [ ] `docs/ARCHITECTURE.md` bagian MBKM (definisi, matriks filter, aturan
-      presentasi, endpoint), CHANGELOG (BREAKING untuk field yang berubah),
-      dan file `task/mbkm-data-...md` dengan checklist pengetesan lokal.
+- [x] `docs/ARCHITECTURE.md` bagian "MBKM Data population, cards, and
+      details" (definisi, matriks filter, endpoint) dan CHANGELOG (Added,
+      Changed, BREAKING di Removed, Fixed).
+- [x] `pnpm verify` hijau (format, lint, 34 tes shared, 189 client, 354 server,
+      build).
+- [x] Browser lokal (headless, 2026-10-27): kartu default 2026/2027 = 121 /
+      130 / 93,1% / 82; popup Persentase per fakultas 93,1% dan 92,9%; panel
+      Kualitas Data terisi.
+
+### Checklist pengetesan lokal (untuk user)
+
+- [ ] Jalankan sync MBKM dari sidebar, lalu buka "Kualitas Data": duplikat feed
+      dan NIM tanpa mahasiswa kini terisi angka (sebelumnya "Belum ada laporan
+      sync").
+- [ ] Default tanpa URL: header menunjukkan 2026/2027 dan kartu 121 / 130 /
+      93,1% / 82.
+- [ ] Tahun 2025/2026: Partisipan 115 (Selesai 114, Disetujui 1, 1 menunggu
+      persetujuan), persentase 86,5%.
+- [ ] Tahun 2023/2024: Rekognisi menampilkan "-" dengan kalimat belum ada data
+      SKS, bukan 0.
+- [ ] Satu fakultas: semua kartu, popup, dan tabel menyempit; tab Per Fakultas
+      tersembunyi.
+- [ ] Jenis Aktivitas + Status Aktivitas: kartu Eligible menyebut filter itu
+      tidak mengubah angkanya.
+- [ ] Status Partisipasi "Belum berpartisipasi": tabel berisi mahasiswa
+      eligible tanpa aktivitas, jumlahnya sama dengan "belum berpartisipasi" di
+      kartu Eligible.
+- [ ] Status Partisipasi "Berpartisipasi": total baris = kartu Partisipan.
+- [ ] Periode Genap 2026/2027 (kosong): kartu dan popup menjelaskan kombinasi
+      kosong.
+- [ ] Popup Partisipan: tab Per Mitra berisi mitra teratas + "Lainnya".
 
 ## File utama
 

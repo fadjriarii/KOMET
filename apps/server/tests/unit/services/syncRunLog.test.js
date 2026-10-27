@@ -117,6 +117,16 @@ describe('recordRun', () => {
     });
   });
 
+  it('laporan modul (mis. duplikat feed MBKM) ikut tersimpan di baris modulnya', async () => {
+    const table = stubTable();
+    const finished = state(['mbkm'], { mbkm: 'completed' });
+    finished.progress.mbkm.report = { feedDuplicates: 32, orphanActivities: 0 };
+    await recordRun({ state: finished, success: true, actor: 'Dashboard' });
+    expect(table.create.mock.calls[0][0].data.modules).toEqual([
+      { key: 'mbkm', status: 'completed', report: { feedDuplicates: 32, orphanActivities: 0 } },
+    ]);
+  });
+
   it('memangkas tabel ke run terbaru', async () => {
     const deleted = [];
     prisma.syncRun = {

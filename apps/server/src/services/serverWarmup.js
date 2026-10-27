@@ -22,8 +22,8 @@ async function warmFilterOptions() {
 }
 
 /**
- * Panaskan summary default (tahun ajaran berjalan untuk Student/MBKM, Tahun
- * Lulus terbaru untuk Graduate) supaya kunjungan pertama tidak membayar query
+ * Panaskan summary default (tahun ajaran berjalan untuk Student, tahun ajaran
+ * terbaru di data untuk MBKM, Tahun Lulus terbaru untuk Graduate) supaya kunjungan pertama tidak membayar query
  * dingin. Cache tetap dibuang setelah sync.
  */
 async function warmSummaryCaches() {
@@ -33,17 +33,24 @@ async function warmSummaryCaches() {
   const { buildGraduateFilter } = require('./graduates/filterBuilder');
   const { getGraduateSummary } = require('./graduates/graduateSummary');
   const { getMbkmSummary } = require('./mbkm/mbkmSummary');
+  const { getMbkmFilterOptions } = require('./mbkm/filterOptions');
 
   const tahunAjaran = getCurrentAcademicYear();
   const graduateOptions = await getGraduateFilterOptions();
   const tahunLulus = graduateOptions?.rollingYears?.[0];
 
+  // MBKM: tahun ajaran terbaru di data, sama dengan default client (ADR 0005).
+  const mbkmYear = (await getMbkmFilterOptions()).academicYearOptions?.[0];
+
   const tasks = [
     getOrLoad('students', { tahunAjaran, statusKeaktifan: 'Aktif' }, () =>
       getStudentSummary({ tahunAjaran, statusKeaktifan: 'Aktif' }),
     ),
-    getOrLoad('mbkm', { tahunAjaran }, () => getMbkmSummary({ tahunAjaran })),
   ];
+  if (mbkmYear) {
+    const query = { tahunAjaran: mbkmYear };
+    tasks.push(getOrLoad('mbkm', query, () => getMbkmSummary(query)));
+  }
   if (tahunLulus) {
     const query = { tahunLulus };
     tasks.push(getOrLoad('graduates', query, () => getGraduateSummary(buildGraduateFilter(query))));

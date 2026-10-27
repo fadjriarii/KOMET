@@ -57,6 +57,7 @@ const executeSyncMbkm = async ({ runDedup = true } = {}) => {
     status: 'completed',
     synced: totalSynced,
     skipped: totalSkipped,
+    report: { feedDuplicates, orphanActivities: orphans },
   });
   logger.success(
     `[MBKM] Selesai! ${totalSynced} aktivitas ditulis, ${feedDuplicates} duplikat feed dibuang, ` +

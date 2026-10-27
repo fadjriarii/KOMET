@@ -4,7 +4,8 @@ const {
   getAcademicYearStart,
   toAcademicYear,
 } = require('../../utils/academicUtils');
-const { JENJANGS } = require('@komet/shared/constants');
+const { MBKM_STATUS_PARTISIPASI_OPTIONS } = require('@komet/shared/constants');
+const { statusRuleOf } = require('./statusRules');
 
 const hasMbkmActivity = { mbkmActivities: { some: {} } };
 
@@ -20,7 +21,7 @@ const mbkmQueries = {
   jenisAktivitas: { model: 'mbkmActivity', field: 'jenisAktivitas', byCount: true },
   angkatan: { model: 'student', field: 'angkatan', where: hasMbkmActivity, desc: true },
   statusAktivitas: { model: 'mbkmActivity', field: 'statusAktivitas' },
-  jenjang: { model: 'mbkmActivity', field: 'jenjang', where: { jenjang: { in: JENJANGS } } },
+  jenjang: { model: 'mbkmActivity', field: 'jenjang' },
 };
 
 /**
@@ -28,7 +29,10 @@ const mbkmQueries = {
  * sedang dipilih. Tanpa tahun ajaran eksplisit, pakai tahun dari periode yang
  * sedang difilter atau tahun terbaru di data.
  */
-function deriveMbkmOptions({ periode: rawPeriods }, { tahunAjaran, periode } = {}) {
+function deriveMbkmOptions(
+  { periode: rawPeriods, statusAktivitas },
+  { tahunAjaran, periode } = {},
+) {
   const academicYears = rawPeriods.map(toAcademicYear).filter(Boolean);
   const starts = academicYears
     .map((label) => getAcademicYearStart(label))
@@ -41,6 +45,12 @@ function deriveMbkmOptions({ periode: rawPeriods }, { tahunAjaran, periode } = {
 
   return {
     academicYearOptions: get5YearRollingAcademicYears(academicYears).reverse(),
+    // Status urut rank aturan (Selesai dulu); status baru = `unclassified` di akhir.
+    statusAktivitasOptions: statusAktivitas
+      .map((label) => ({ value: label, label, ...statusRuleOf({ statusAktivitas: label }) }))
+      .sort((a, b) => b.rank - a.rank || a.label.localeCompare(b.label))
+      .map(({ value, label, category }) => ({ value, label, category })),
+    statusPartisipasiOptions: MBKM_STATUS_PARTISIPASI_OPTIONS,
     periodeOptions:
       selectedStart === null
         ? []

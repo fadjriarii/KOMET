@@ -1,27 +1,24 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const prisma = require('../../../src/config/prisma');
 const { contractFor, contractProblems } = require('@komet/shared/contracts');
-const {
-  buildActivityWhere,
-  buildMbkmFilter,
-  resolveMbkmListFilter,
-} = require('../../../src/services/mbkm/filterBuilder');
-const {
-  distributionBy,
-  getStatusDistribution,
-} = require('../../../src/services/mbkm/mbkmActivities');
-const { getMbkmRate } = require('../../../src/services/mbkm/mbkmRate');
-const { getMbkmSummary } = require('../../../src/services/mbkm/mbkmSummary');
-const { getEligibleStudents } = require('../../../src/services/mbkm/mbkmEligible');
+const { resolvePeriods } = require('../../../src/services/mbkm/filterBuilder');
 const {
   getEligibleStudentsAtPeriode,
   semesterAtPeriode,
   isActiveAtPeriode,
 } = require('../../../src/services/mbkm/mbkmEligibility');
-const { getMitraDistribution } = require('../../../src/services/mbkm/mbkmMitra');
+const { loadMbkmPopulation, periodeLabel } = require('../../../src/services/mbkm/population');
+const { buildMbkmCards } = require('../../../src/services/mbkm/mbkmCards');
+const {
+  rateBreakdowns,
+  participantBreakdowns,
+  recognitionBreakdowns,
+} = require('../../../src/services/mbkm/mbkmBreakdowns');
+const { getMbkmSummary } = require('../../../src/services/mbkm/mbkmSummary');
+const { getMbkmList } = require('../../../src/services/mbkm/mbkmList');
 
 const calls = [];
 const original = [
@@ -30,130 +27,58 @@ const original = [
   [prisma.mbkmActivity, 'findMany', prisma.mbkmActivity.findMany],
   [prisma.student, 'findMany', prisma.student.findMany],
   [prisma.student, 'groupBy', prisma.student.groupBy],
-  [prisma.student, 'count', prisma.student.count],
 ];
-
-/** Stub Prisma delegate; hasil per bentuk `by` dikirim dari `fixtures`. */
-function stubDelegates(fixtures) {
-  prisma.mbkmActivity.groupBy = vi.fn(async (args) => {
-    calls.push({ model: 'mbkmActivity', ...args });
-    return fixtures[JSON.stringify(args.by)] ?? [];
-  });
-  prisma.mbkmActivity.findFirst = vi.fn(async (args) => {
-    calls.push({ model: 'mbkmActivity', kind: 'findFirst', ...args });
-    const prefix = args?.where?.periode?.startsWith;
-    if (prefix && fixtures.periods) {
-      const periode = fixtures.periods.find((value) => value.startsWith(prefix));
-      return periode ? { periode } : null;
-    }
-    return fixtures.latestPeriode ?? null;
-  });
-  prisma.mbkmActivity.findMany = vi.fn(async (args) => {
-    calls.push({ model: 'mbkmActivity', kind: 'findMany', ...args });
-    return fixtures.activities ?? [];
-  });
-  prisma.student.findMany = vi.fn(async (args) => {
-    calls.push({ model: 'student', kind: 'findMany', ...args });
-    return fixtures.students ?? [];
-  });
-  prisma.student.count = vi.fn(async (args) => {
-    calls.push({ model: 'student', kind: 'count', ...args });
-    return fixtures.eligibleCount ?? 0;
-  });
-  prisma.student.groupBy = vi.fn(async (args) => {
-    calls.push({ model: 'student', ...args });
-    return fixtures.studentGroups ?? [];
-  });
-}
 
 const studentRow = (nim, start, exit = '', fakultas = 'FST', statusKeaktifan = 'Aktif') => ({
   nim,
+  nama: `Mahasiswa ${nim}`,
+  angkatan: '2022/2023',
+  jenjang: 'S1',
   periodeMasuk: start,
   periodeMasukAwal: '',
   periodeTerakhir: exit,
   statusKeaktifan,
-  programStudi: 'Ilmu Komputer',
+  programStudi: fakultas === 'FST' ? 'Bio Teknologi' : 'Bisnis',
   fakultas,
 });
+
+const activity = (nim, statusAktivitas, overrides = {}) => ({
+  id: calls.length + Math.random(),
+  idAktivitas: 1,
+  nim,
+  periode: '20251',
+  jenisAktivitas: 'Magang',
+  judulAktivitas: 'Judul',
+  mitra: 'PT Mitra',
+  statusAktivitas,
+  idStatusAktivitas: '',
+  sksKonversi: null,
+  tanggalMulai: '',
+  tanggalSelesai: '',
+  programStudi: 'Bio Teknologi',
+  fakultas: 'FST',
+  student: { nama: `Mahasiswa ${nim}`, angkatan: '2022/2023', programStudi: 'Bio Teknologi' },
+  ...overrides,
+});
+
+/** Stub Prisma: mahasiswa dan aktivitas dari fixture; `where` dicatat untuk asersi. */
+function stubDb({ students = [], activities = [], latestPeriode = '20251', groups = {} } = {}) {
+  prisma.student.findMany = vi.fn(async (args) => {
+    calls.push({ model: 'student', ...args });
+    return students;
+  });
+  prisma.mbkmActivity.findMany = vi.fn(async (args) => {
+    calls.push({ model: 'mbkmActivity', ...args });
+    return activities;
+  });
+  prisma.mbkmActivity.findFirst = vi.fn(async () => ({ periode: latestPeriode }));
+  prisma.mbkmActivity.groupBy = vi.fn(async (args) => groups[args.by[0]] ?? []);
+  prisma.student.groupBy = vi.fn(async () => []);
+}
 
 beforeEach(() => calls.splice(0, calls.length));
 afterAll(() => {
   for (const [target, key, value] of original) target[key] = value;
-});
-
-const STATUS_GROUPS = [
-  { _count: { statusAktivitas: 30 }, statusAktivitas: 'Selesai' },
-  { _count: { statusAktivitas: 12 }, statusAktivitas: 'Disetujui' },
-  { _count: { statusAktivitas: 5 }, statusAktivitas: 'Diajukan' },
-  { _count: { statusAktivitas: 3 }, statusAktivitas: 'Ditolak' },
-];
-
-const FAKULTAS_GROUPS = [
-  { _count: { fakultas: 30 }, fakultas: 'Fakultas Teknik' },
-  { _count: { fakultas: 12 }, fakultas: 'Fakultas Ekonomi' },
-];
-
-const ELIGIBLE_STUDENTS = Array.from({ length: 200 }, (_, index) =>
-  studentRow(`A${index}`, '20221'),
-);
-const mbkmRow = (nim, statusAktivitas, fakultas = 'FST') => ({
-  nim,
-  statusAktivitas,
-  fakultas,
-});
-const RATE_ACTIVITIES = [
-  ...Array.from({ length: 30 }, (_, index) => mbkmRow(`A${index}`, 'Selesai')),
-  ...Array.from({ length: 12 }, (_, index) => mbkmRow(`A${30 + index}`, 'Disetujui', 'FEB')),
-  ...Array.from({ length: 5 }, (_, index) => mbkmRow(`A${42 + index}`, 'Diajukan')),
-  ...Array.from({ length: 3 }, (_, index) => mbkmRow(`A${47 + index}`, 'Ditolak')),
-  // Duplikat NIM dan peserta di luar kohort eligible tidak boleh menambah angka.
-  mbkmRow('A0', 'Selesai'),
-  mbkmRow('B0', 'Selesai'),
-];
-
-describe('scope status agregasi MBKM', () => {
-  it('mengiris filter status client dengan scope partisipan, tidak menimpanya', () => {
-    const where = buildActivityWhere({ statusAktivitas: { in: ['Selesai', 'Ditolak'] } }, '20251');
-    expect(where.statusAktivitas).toEqual({ in: ['Selesai'] });
-    expect(where.periode).toBe('20251');
-    // Aktivitas tanpa jenis dibuang saat sync, bukan disaring setiap kali dibaca.
-    expect(where.jenisAktivitas).toBeUndefined();
-  });
-
-  it('status di luar scope menghasilkan populasi kosong', () => {
-    const where = buildActivityWhere({ statusAktivitas: { in: ['Ditolak'] } }, '20251');
-    expect(where.statusAktivitas).toEqual({ in: [] });
-  });
-
-  it('scope null memakai filter client apa adanya (tab status verifikasi)', () => {
-    const where = buildActivityWhere({ statusAktivitas: { in: ['Ditolak'] } }, '20251', null);
-    expect(where.statusAktivitas).toEqual({ in: ['Ditolak'] });
-  });
-
-  it('tanpa filter status client, partisipan mencakup Evaluasi/Diajukan', () => {
-    const where = buildActivityWhere({}, '20251');
-    expect(where.statusAktivitas.in).toEqual(['Disetujui', 'Selesai', 'Diajukan']);
-  });
-
-  it('dua periode tahun ajaran menjadi filter IN, bukan salah satu periode', () => {
-    const where = buildActivityWhere({}, ['20251', '20252']);
-    expect(where.periode).toEqual({ in: ['20251', '20252'] });
-  });
-
-  it('meneruskan filter jenis aktivitas dan mencari NIM, nama, serta mitra', () => {
-    const where = buildMbkmFilter({
-      jenisAktivitas: 'Magang',
-      search: 'kalbe',
-      angkatan: '2023/2024',
-    });
-    expect(where.jenisAktivitas).toEqual({ in: ['Magang'] });
-    expect(where.student).toEqual({ angkatan: { in: ['2023/2024'] } });
-    expect(where.OR).toEqual([
-      { student: { nim: { contains: 'kalbe' } } },
-      { student: { nama: { contains: 'kalbe' } } },
-      { mitra: { contains: 'kalbe' } },
-    ]);
-  });
 });
 
 describe('eligible per periode', () => {
@@ -169,6 +94,11 @@ describe('eligible per periode', () => {
     expect(isActiveAtPeriode(studentRow('B', '20261'), '20251')).toBe(false);
     expect(isActiveAtPeriode(studentRow('C', '20221', '20242'), '20251')).toBe(false);
     expect(isActiveAtPeriode(studentRow('D', '20221', '20252'), '20251')).toBe(true);
+  });
+
+  it('status keluar tanpa periode akhir tidak dianggap aktif selamanya', () => {
+    const dropOut = studentRow('G', '20221', '', 'FST', 'Drop Out / Dikeluarkan');
+    expect(isActiveAtPeriode(dropOut, '20251')).toBe(false);
   });
 
   it('cuti baru tidak aktif sejak periode cutinya, tetapi aktif di periode sebelumnya', () => {
@@ -190,257 +120,218 @@ describe('eligible per periode', () => {
     const eligible = await getEligibleStudentsAtPeriode({}, '20251', db);
     expect(eligible.map((student) => student.nim)).toEqual(['A', 'D']);
   });
+});
 
-  it('mahasiswa cuti semester 7 tidak masuk eligible pada periode cuti', async () => {
-    const rows = [
-      studentRow('A', '20231'),
-      studentRow('B', '20231', '20261', 'FST', 'Cuti'),
-      studentRow('C', '20231', '20252', 'FST', 'Cuti'),
-    ];
-    const db = { student: { findMany: vi.fn(async () => rows) } };
-    const eligible = await getEligibleStudentsAtPeriode({}, '20261', db);
-    expect(eligible.map((student) => student.nim)).toEqual(['A']);
+describe('periode terpilih', () => {
+  it('default = kedua periode tahun ajaran terbaru di data, bukan satu periode', async () => {
+    stubDb({ latestPeriode: '20261' });
+    expect(await resolvePeriods({})).toEqual(['20261', '20262']);
+    expect(await resolvePeriods({ tahunAjaran: '2024/2025' })).toEqual(['20241', '20242']);
+    expect(await resolvePeriods({ periode: '20252' })).toEqual(['20252']);
+  });
+
+  it('label periode dari kode', () => {
+    expect(periodeLabel('20251')).toBe('Ganjil 2025/2026');
+    expect(periodeLabel('20252')).toBe('Genap 2025/2026');
+    expect(periodeLabel('20253')).toBe('20253');
   });
 });
 
-describe('distribusi MBKM', () => {
-  beforeAll(() => stubDelegates({ '["fakultas"]': FAKULTAS_GROUPS }));
+const ELIGIBLE = [
+  studentRow('A', '20221'),
+  studentRow('B', '20221'),
+  studentRow('C', '20221', '', 'FEB'),
+  studentRow('D', '20221', '', 'FEB'),
+];
 
-  it('mengurutkan di SQL tanpa sort ulang di JavaScript', async () => {
-    await distributionBy('fakultas', {}, '20251');
-    expect(calls[0].orderBy).toEqual([{ _count: { fakultas: 'desc' } }, { fakultas: 'asc' }]);
-  });
-
-  it('persentase dihitung atas total kelompok sendiri', async () => {
-    const result = await distributionBy('fakultas', {}, '20251');
-    expect(result.total).toBe(42);
-    expect(result.population).toBe('active_participants');
-    expect(result.items.map((item) => item.percentage)).toEqual([(30 / 42) * 100, (12 / 42) * 100]);
-  });
-
-  it('tab status menandai penyebutnya sendiri', async () => {
-    stubDelegates({ '["statusAktivitas"]': STATUS_GROUPS });
-    const result = await getStatusDistribution({}, '20251');
-    expect(result.population).toBe('all_statuses');
-    expect(result.total).toBe(50);
-    expect(result.items[0]).toEqual({
-      name: 'Selesai',
-      count: 30,
-      percentage: 60,
+describe('populasi MBKM', () => {
+  it('partisipan per mahasiswa: Diajukan/Ditolak, duplikat, dan non-eligible tidak menambah angka', async () => {
+    stubDb({
+      students: ELIGIBLE,
+      activities: [
+        activity('A', 'Selesai', { sksKonversi: 20 }),
+        activity('A', 'Disetujui', { jenisAktivitas: 'Riset', sksKonversi: 4 }),
+        activity('B', 'Disetujui', { sksKonversi: 10 }),
+        activity('C', 'Diajukan'),
+        activity('D', 'Ditolak'),
+        activity('Z', 'Selesai'),
+      ],
     });
+    const population = await loadMbkmPopulation({}, ['20251']);
+    const cards = buildMbkmCards(population, { statusPartisipasi: 'pending' });
+
+    expect(cards.rate).toMatchObject({ value: 50, participants: 2, eligible: 4 });
+    expect(cards.participants.byStatus).toEqual([
+      { key: '5', label: 'Selesai', value: 1 },
+      { key: '2', label: 'Disetujui', value: 1 },
+    ]);
+    expect(cards.participants.pending).toBe(1);
+    expect(cards.eligible).toMatchObject({ value: 4, notParticipating: 2 });
+    expect(cards.recognition).toMatchObject({ value: 1, below: 1, noData: 0, percentage: 50 });
+    expect(cards.rate.ignoredFilters).toEqual(['statusPartisipasi']);
+
+    const reasons = Object.fromEntries(population.activities.map((a) => [a.nim, a.countedReason]));
+    expect(reasons).toMatchObject({
+      C: 'Menunggu persetujuan',
+      D: 'Ditolak',
+      Z: 'Bukan mahasiswa eligible semester 7',
+    });
+  });
+
+  it('fakultas/prodi difilter lewat kolom Student, untuk pembilang dan penyebut', async () => {
+    stubDb({ students: [], activities: [] });
+    await loadMbkmPopulation({ fakultas: 'FST', jenisAktivitas: 'Magang' }, ['20251']);
+    const activityQuery = calls.find((call) => call.model === 'mbkmActivity');
+    const studentQuery = calls.find((call) => call.model === 'student');
+    expect(activityQuery.where).toMatchObject({
+      periode: { in: ['20251'] },
+      student: { fakultas: { in: ['FST'] } },
+      jenisAktivitas: { in: ['Magang'] },
+    });
+    expect(activityQuery.where.fakultas).toBeUndefined();
+    expect(studentQuery.where).toEqual({ fakultas: { in: ['FST'] } });
+  });
+
+  it('status baru dari SEVIMA tidak dihitung dan ditandai belum diklasifikasi', async () => {
+    stubDb({
+      students: ELIGIBLE,
+      activities: [activity('A', 'Ditunda', { idStatusAktivitas: '9' })],
+    });
+    const population = await loadMbkmPopulation({}, ['20251']);
+    expect(population.participants.size).toBe(0);
+    expect(population.activities[0]).toMatchObject({
+      counted: false,
+      countedReason: 'Status belum diklasifikasi',
+    });
+  });
+
+  it('periode tanpa data SKS sama sekali = kartu rekognisi kosong, bukan 0', async () => {
+    stubDb({ students: ELIGIBLE, activities: [activity('A', 'Selesai')] });
+    const cards = buildMbkmCards(await loadMbkmPopulation({}, ['20251']));
+    expect(cards.recognition).toMatchObject({
+      value: null,
+      isEmpty: true,
+      emptyReason: 'noSksData',
+    });
+  });
+
+  it('tanpa eligible: persentase null dan semua kartu kosong', async () => {
+    stubDb({ students: [], activities: [] });
+    const cards = buildMbkmCards(await loadMbkmPopulation({}, ['20251']));
+    expect(cards.rate).toMatchObject({ value: null, isEmpty: true });
+    expect(cards.participants.isEmpty).toBe(true);
   });
 });
 
-describe('getMbkmRate', () => {
-  beforeAll(() =>
-    stubDelegates({
-      students: ELIGIBLE_STUDENTS,
-      activities: RATE_ACTIVITIES,
-      latestPeriode: { periode: '20251' },
-    }),
-  );
-
-  it('menghitung mahasiswa unik yang benar-benar eligible pada periode', async () => {
-    const data = await getMbkmRate({}, '20251', {});
-    expect(data.eligibleCount).toBe(200);
-    expect(data.participantStats).toEqual({
-      count: 47,
-      disetujuiCount: 12,
-      selesaiCount: 31,
-      evaluasiCount: 5,
+describe('breakdowns', () => {
+  it('tingkat partisipasi per fakultas = partisipan ÷ eligible fakultas itu (≤ 100%)', async () => {
+    stubDb({
+      students: ELIGIBLE,
+      activities: [activity('A', 'Selesai'), activity('B', 'Selesai'), activity('C', 'Selesai')],
     });
-    expect(data.eligibleRate).toEqual({ numPercentage: 23.5 });
-    expect(data.facultyData.map((item) => [item.name, item.count])).toEqual([
-      ['FST', 35],
-      ['FEB', 12],
+    const [fakultas] = rateBreakdowns(await loadMbkmPopulation({}, ['20251']));
+    expect(fakultas.kind).toBe('rate');
+    expect(fakultas.items).toEqual([
+      { name: 'FEB', count: 1, total: 2, percentage: 50 },
+      { name: 'FST', count: 2, total: 2, percentage: 100 },
     ]);
   });
 
-  it('membatasi query ke kohort eligible, status partisipan, dan jenis terisi', async () => {
-    await getMbkmRate({}, '20251', {});
-    const query = calls.find((call) => call.kind === 'findMany' && call.model === 'mbkmActivity');
-    expect(query.where.nim.in).toHaveLength(200);
-    expect(query.where.statusAktivitas.in).toEqual(['Disetujui', 'Selesai', 'Diajukan']);
-    expect(query.where.jenisAktivitas).toEqual({ not: '' });
+  it('status per mahasiswa menjumlah ke kartu; mitra kembar digabung, sisanya Lainnya', async () => {
+    stubDb({
+      students: ELIGIBLE,
+      activities: [
+        activity('A', 'Selesai', { mitra: 'PT Mitra' }),
+        activity('A', 'Disetujui', { mitra: 'PT. MITRA' }),
+        activity('B', 'Disetujui', { mitra: 'PT Mitra ' }),
+        activity('C', 'Selesai', { mitra: 'CV Lain' }),
+      ],
+    });
+    const population = await loadMbkmPopulation({}, ['20251']);
+    const { breakdowns, totalPartners } = participantBreakdowns(population, 1);
+    const byKey = Object.fromEntries(breakdowns.map((b) => [b.key, b.items]));
+    expect(byKey.status.reduce((sum, item) => sum + item.count, 0)).toBe(3);
+    expect(totalPartners).toBe(2);
+    expect(byKey.mitra).toEqual([
+      { name: 'PT Mitra', count: 2, percentage: 66.67 },
+      { name: 'Lainnya', count: 1, percentage: 33.33 },
+    ]);
   });
 
-  it('mempertahankan filter BKP saat menambahkan syarat jenis terisi', async () => {
-    await getMbkmRate({ jenisAktivitas: { in: ['Magang'] } }, '20251', {});
-    const query = calls.find((call) => call.kind === 'findMany' && call.model === 'mbkmActivity');
-    expect(query.where.jenisAktivitas).toEqual({ in: ['Magang'], not: '' });
+  it('kelompok SKS berurutan tetap: memenuhi, di bawah, tanpa data', async () => {
+    stubDb({
+      students: ELIGIBLE,
+      activities: [
+        activity('A', 'Selesai', { sksKonversi: 5 }),
+        activity('B', 'Selesai', { sksKonversi: 5 }),
+        activity('C', 'Selesai', { sksKonversi: 20 }),
+        activity('D', 'Selesai'),
+      ],
+    });
+    const [kelompok] = recognitionBreakdowns(await loadMbkmPopulation({}, ['20251']));
+    expect(kelompok.items.map((item) => [item.name, item.count])).toEqual([
+      ['≥ 20 SKS', 1],
+      ['< 20 SKS', 2],
+      ['Tanpa data SKS', 1],
+    ]);
+  });
+});
+
+describe('getMbkmList', () => {
+  const fixture = {
+    students: ELIGIBLE,
+    activities: [
+      activity('A', 'Selesai', { sksKonversi: 24 }),
+      activity('B', 'Selesai', { sksKonversi: 6 }),
+      activity('C', 'Diajukan'),
+    ],
+  };
+
+  it('memakai periode default yang sama dengan kartu dan menandai baris terhitung', async () => {
+    stubDb({ ...fixture, latestPeriode: '20251' });
+    const result = await getMbkmList({}, 1, 10);
+    expect(result.selectedPeriods).toEqual(['20251', '20252']);
+    expect(result.pagination.total).toBe(3);
+    expect(result.data.map((row) => [row.nim, row.counted, row.statusCategory])).toEqual([
+      ['A', true, 'participating'],
+      ['B', true, 'participating'],
+      ['C', false, 'pending'],
+    ]);
+    expect(contractProblems(contractFor('/mbkm/list'), result)).toEqual([]);
   });
 
-  it('penyebut nol menghasilkan null, bukan 0%', async () => {
-    stubDelegates({ students: [], activities: [] });
-    const data = await getMbkmRate({}, '20251', {});
-    expect(data.eligibleCount).toBe(0);
-    expect(data.eligibleRate.numPercentage).toBeNull();
-    expect(data.facultyData).toEqual([]);
-    expect(calls.some((call) => call.kind === 'findMany' && call.model === 'mbkmActivity')).toBe(
-      false,
-    );
-  });
-
-  it('eligibleCount identik dengan service daftar eligible', async () => {
-    stubDelegates({ students: ELIGIBLE_STUDENTS, activities: RATE_ACTIVITIES });
-    const rate = await getMbkmRate({}, '20251', { fakultas: { in: ['FST'] } });
-    const eligible = await getEligibleStudents({ fakultas: { in: ['FST'] } }, '20251');
-    expect(rate.eligibleCount).toBe(eligible.eligibleCount);
-  });
-
-  it('tahun ajaran menggabungkan kohort dan aktivitas Ganjil + Genap', async () => {
-    stubDelegates({ students: ELIGIBLE_STUDENTS, activities: RATE_ACTIVITIES });
-    const periods = ['20251', '20252'];
-    const data = await getMbkmRate({ periode: { in: periods } }, periods, {});
-
-    expect(data.eligibleCount).toBe(200);
-    expect(data.participantStats.count).toBe(47);
-    expect(
-      calls.filter((call) => call.kind === 'findMany' && call.model === 'student'),
-    ).toHaveLength(2);
-    const query = calls.find((call) => call.kind === 'findMany' && call.model === 'mbkmActivity');
-    expect(query.where.periode).toEqual({ in: periods });
+  it('Status Partisipasi memilih baris; belum berpartisipasi = mahasiswa eligible tanpa aktivitas', async () => {
+    stubDb(fixture);
+    const nims = async (statusPartisipasi) =>
+      (await getMbkmList({ statusPartisipasi }, 1, 10)).data.map((row) => row.nim);
+    expect(await nims('participating')).toEqual(['A', 'B']);
+    expect(await nims('pending')).toEqual(['C']);
+    expect(await nims('belowSks')).toEqual(['B']);
+    expect(await nims('notParticipating')).toEqual(['C', 'D']);
   });
 });
 
 describe('getMbkmSummary', () => {
-  beforeAll(() =>
-    stubDelegates({
-      students: ELIGIBLE_STUDENTS,
-      activities: RATE_ACTIVITIES,
-      '["mitra"]': [
-        { _count: { mitra: 10 }, mitra: 'Mitra A' },
-        { _count: { mitra: 8 }, mitra: 'Mitra B' },
-        { _count: { mitra: 4 }, mitra: 'Mitra C' },
-        { _count: { mitra: 3 }, mitra: 'Mitra D' },
-      ],
-      '["jenisAktivitas"]': [
-        { _count: { jenisAktivitas: 20 }, jenisAktivitas: 'Magang' },
-        { _count: { jenisAktivitas: 10 }, jenisAktivitas: 'Riset' },
-      ],
-      '["periode"]': [
-        { _count: { periode: 1 }, periode: '20241' },
-        { _count: { periode: 1 }, periode: '20242' },
-        { _count: { periode: 1 }, periode: '20251' },
-        { _count: { periode: 1 }, periode: '20261' },
-      ],
-      periods: ['20241', '20242', '20251', '20252', '20261'],
-      latestPeriode: { periode: '20251' },
-    }),
-  );
-
-  it('menyusun payload kartu di service, eligible dihitung sekali', async () => {
-    const result = await getMbkmSummary({ periode: '20251', topN: 2 });
-
-    expect(
-      calls.filter((call) => call.kind === 'findMany' && call.model === 'student'),
-    ).toHaveLength(1);
-    // Client sudah mengirim periode → tidak ada `findFirst` untuk default periode.
-    expect(calls.some((call) => call.kind === 'findFirst')).toBe(false);
-    expect(result.selectedPeriods).toEqual(['20251']);
-    expect(result.summary.persentaseMbkm).toEqual({
-      mbkmCount: 47,
-      eligibleCount: 200,
-      percentage: 23.5,
-    });
-    expect(result.kpis).toEqual({
-      totalParticipants: 47,
-      selesaiCount: 31,
-      evaluasiCount: 5,
-      berjalanCount: 12,
-      participationRate: 23.5,
-      eligibleCount: 200,
-      totalMitra: 4,
-    });
-    expect(result.kpiFilterScope.totalParticipants).toContain('search');
-    expect(result.kpiFilterScope.rate).toContain('statusAktivitas');
-    expect(result.kpiFilterScope.totalParticipants).toContain('jenisAktivitas');
-    expect(result.kpiFilterScope.eligible).toContain('fakultas');
-    expect(result.kpiFilterScope.eligible).not.toContain('search');
-    expect(result.kpiFilterScope.eligible).not.toContain('statusAktivitas');
-    expect(result.kpiFilterScope.eligible).not.toContain('jenisAktivitas');
-    expect(result.kpiFilterScope.mitra).toEqual(['periode', 'tahunAjaran']);
-    expect(result.filterOptions.jenisAktivitas).toEqual(['Magang', 'Riset']);
-    expect(result.filterOptions.academicYearOptions).toEqual([
-      '2026/2027',
-      '2025/2026',
-      '2024/2025',
-      '2023/2024',
-      '2022/2023',
-    ]);
-    expect(result.filterOptions.periodeOptions).toEqual([
-      { value: '20251', label: 'Ganjil' },
-      { value: '20252', label: 'Genap' },
-    ]);
-    expect(JSON.stringify(result)).not.toContain('Target IKU-2');
-  });
-
-  it('tahun ajaran memakai Ganjil + Genap dan opsi periode mengikuti tahun itu', async () => {
-    const result = await getMbkmSummary({ tahunAjaran: '2025/2026' });
-
-    // Tahun ajaran deterministik; tidak perlu mencari periode di database.
-    expect(calls.some((call) => call.kind === 'findFirst')).toBe(false);
-    expect(result.selectedPeriods).toEqual(['20251', '20252']);
-    expect(result.selectedPeriode).toBe('20251');
-    expect(result.filterOptions.periodeOptions).toEqual([
-      { value: '20251', label: 'Ganjil' },
-      { value: '20252', label: 'Genap' },
-    ]);
-    expect(result.kpiFilterScope.rate).toContain('tahunAjaran');
-    expect(result.kpiFilterScope.eligible).toContain('tahunAjaran');
-    expect(result.kpiFilterScope.mitra).toContain('tahunAjaran');
-  });
-
-  it('daftar memakai kedua periode tahun ajaran tanpa mengubah default semua periode', async () => {
-    expect((await resolveMbkmListFilter({ tahunAjaran: '2024/2025' })).periode).toEqual({
-      in: ['20241', '20242'],
-    });
-    expect((await resolveMbkmListFilter({})).periode).toBeUndefined();
-  });
-
   it('bentuknya memenuhi kontrak yang dibaca client', async () => {
-    const result = await getMbkmSummary({ periode: '20251' });
-
-    // Nama KPI adalah satu-satunya pengikat angka server ke kartu client; yang
-    // tidak terdaftar di kontrak tertangkap di sini, bukan saat kartunya kosong.
+    stubDb({
+      students: ELIGIBLE,
+      activities: [activity('A', 'Selesai')],
+      groups: { periode: [{ periode: '20251', _count: { periode: 1 } }] },
+    });
+    const result = await getMbkmSummary({ tahunAjaran: '2025/2026' });
+    expect(result.selectedPeriods).toEqual(['20251', '20252']);
+    expect(result.periodLabel).toBe('Tahun Ajaran 2025/2026');
+    expect(Object.keys(result.kpis.cards)).toEqual([
+      'rate',
+      'participants',
+      'eligible',
+      'recognition',
+    ]);
+    expect(result.filterOptions.statusPartisipasiOptions.map((o) => o.value)).toContain(
+      'notParticipating',
+    );
     expect(contractProblems(contractFor('/mbkm/summary'), { success: true, ...result })).toEqual(
       [],
     );
-  });
-});
-
-describe('getMitraDistribution', () => {
-  const MITRA_GROUPS = [
-    { _count: { mitra: 10 }, mitra: 'Mitra A' },
-    { _count: { mitra: 8 }, mitra: 'Mitra B' },
-    { _count: { mitra: 4 }, mitra: 'Mitra C' },
-    { _count: { mitra: 3 }, mitra: 'Mitra D' },
-  ];
-
-  it('bucket Lainnya membuat persentase menutup 100%', async () => {
-    stubDelegates({ '["mitra"]': MITRA_GROUPS });
-    const data = await getMitraDistribution('20251', 2);
-    expect(data.totalPartners).toBe(4);
-    expect(data.mitraData).toHaveLength(3);
-    expect(data.mitraData.at(-1)).toEqual({
-      name: 'Lainnya',
-      count: 7,
-      percentage: (7 / 25) * 100,
-    });
-    const sum = data.mitraData.reduce((acc, item) => acc + item.percentage, 0);
-    expect(sum).toBeCloseTo(100, 10);
-  });
-
-  it('tanpa pemangkasan, tidak ada bucket Lainnya', async () => {
-    stubDelegates({ '["mitra"]': MITRA_GROUPS });
-    const data = await getMitraDistribution('20251', 10);
-    expect(data.mitraData).toHaveLength(4);
-    expect(data.mitraData.some((item) => item.name === 'Lainnya')).toBe(false);
-  });
-
-  it('tahun ajaran menghitung mitra unik dari Ganjil + Genap', async () => {
-    stubDelegates({ '["mitra"]': MITRA_GROUPS });
-    await getMitraDistribution(['20251', '20252'], 10);
-    expect(calls[0].where.periode).toEqual({ in: ['20251', '20252'] });
   });
 });

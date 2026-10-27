@@ -50,7 +50,7 @@ export const MBKM_ROW_FIELDS = [
   'nim',
   'nama',
   'periode',
-  'tahun',
+  'periodeLabel',
   'angkatan',
   'programStudi',
   'fakultas',
@@ -60,6 +60,13 @@ export const MBKM_ROW_FIELDS = [
   'judulAktivitas',
   'mitra',
   'statusAktivitas',
+  'statusCategory',
+  'sksKonversi',
+  'totalSks',
+  'tanggalMulai',
+  'tanggalSelesai',
+  'counted',
+  'countedReason',
 ];
 
 /**
@@ -104,15 +111,7 @@ const STUDENT_SUMMARY_KPIS = [
 
 const GRADUATE_SUMMARY_KPIS = ['cards'];
 
-const MBKM_SUMMARY_KPIS = [
-  'totalParticipants',
-  'selesaiCount',
-  'evaluasiCount',
-  'berjalanCount',
-  'participationRate',
-  'eligibleCount',
-  'totalMitra',
-];
+const MBKM_SUMMARY_KPIS = ['cards'];
 
 /** Key = path tanpa query, relatif terhadap BASE_URL client (sudah termasuk /api). */
 export const RESPONSE_CONTRACTS = {

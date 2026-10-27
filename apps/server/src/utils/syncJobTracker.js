@@ -157,7 +157,7 @@ const syncJobTracker = {
     currentState.lastActivityAt = now;
     saveState(true);
   },
-  updateProgress: (moduleName, { page, totalPages, synced, skipped, status }) => {
+  updateProgress: (moduleName, { page, totalPages, synced, skipped, status, report }) => {
     // Setiap halaman yang dilaporkan adalah detak hidup job: selama angkanya bergerak,
     // job ini tidak dianggap mati.
     currentState.lastActivityAt = new Date().toISOString();
@@ -169,6 +169,7 @@ const syncJobTracker = {
     if (synced !== undefined) currentState.progress[moduleName].total_synced = synced;
     if (skipped !== undefined) currentState.progress[moduleName].skipped = skipped;
     if (status !== undefined) currentState.progress[moduleName].status = status;
+    if (report !== undefined) currentState.progress[moduleName].report = report;
     saveState();
   },
   finishJob: (success = true, error = null) => {

@@ -172,6 +172,7 @@ export default function DashboardPage({
           onPageChange={setPage}
           isLoading={!optionsReady || isListLoading}
           error={listError}
+          filterOptions={availableFilterOptions}
         />
 
         <DetailModal
