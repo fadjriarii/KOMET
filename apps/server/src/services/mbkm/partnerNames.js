@@ -11,8 +11,9 @@
  * 3. Singkatan bergabung dengan nama yang memuatnya dalam kurung ("I3L" dengan
  *    "... Life-Sciences (i3L)").
  * 4. Nama pendek bergabung dengan satu-satunya nama yang diawali kata-katanya
- *    ("Osaka University" dengan "Osaka University, Japan"). Bila ada dua nama
- *    panjang yang cocok, tidak digabung: tidak jelas yang mana.
+ *    ("Osaka University" dengan "Osaka University, Japan"); kata terakhirnya
+ *    boleh singkatan ("Semen Ind" dengan "PT Semen Indonesia"). Bila ada dua
+ *    mitra yang cocok, tidak digabung: tidak jelas yang mana.
  * 5. Salah ketik satu huruf pada nama panjang ("Indoneisia" vs "Indonesia").
  * 6. Tabel `mbkm_partner_aliases` untuk ejaan yang tidak bisa ditebak aturan
  *    ("MBKM - BRIN"). Alias baru berlaku tanpa mengubah kode.
@@ -65,18 +66,24 @@ function oneLetterApart(a, b) {
   return a.length > b.length ? a.slice(i + 1) === b.slice(i) : a.slice(i) === b.slice(i + 1);
 }
 
-/** Nama yang kata-katanya diawali `short` (kata utuh; satu kata boleh awalan huruf, min. 5). */
+/** Huruf minimal agar kata terakhir boleh berupa singkatan ("Ind" → "Indonesia"). */
+const ABBREVIATION_MIN = 3;
+/** Nama satu kata harus lebih panjang agar tidak menelan nama lain ("intern" → "internship"). */
+const SINGLE_WORD_ABBREVIATION_MIN = 5;
+
+/**
+ * Benar bila `long` diawali kata-kata `short`. Kata terakhir `short` boleh
+ * singkatan dari kata di posisi yang sama ("Semen Ind" → "Semen Indonesia").
+ */
 function startsWithWords(long, short) {
-  if (long.length < short.length) return false;
-  if (long.length === short.length) {
-    return (
-      short.length === 1 &&
-      short[0].length >= 5 &&
-      long[0] !== short[0] &&
-      long[0].startsWith(short[0])
-    );
-  }
-  return short.every((word, index) => long[index] === word);
+  if (long.length < short.length || long.join('') === short.join('')) return false;
+  const last = short.length - 1;
+  const minimum = short.length === 1 ? SINGLE_WORD_ABBREVIATION_MIN : ABBREVIATION_MIN;
+  return short.every(
+    (word, index) =>
+      long[index] === word ||
+      (index === last && word.length >= minimum && long[index].startsWith(word)),
+  );
 }
 
 /**
@@ -122,7 +129,8 @@ function buildPartnerIndex(names, aliases = [], counts = new Map()) {
     canonicalKeys.set(partnerKey(canonical), String(canonical).trim());
   }
   // Aturan 3: singkatan hanya bergabung bila ada nama yang ditulis sebagai singkatan itu.
-  for (const name of names) {
+  // Nama baku alias ikut: "BRIN" bergabung dengan "Badan Riset ... (BRIN)" tanpa alias sendiri.
+  for (const name of [...names, ...canonicalKeys.values()]) {
     const acronym = parenAcronym(name);
     if (acronym && parent.has(acronym)) union(acronym, partnerKey(name));
   }
@@ -134,12 +142,17 @@ function buildPartnerIndex(names, aliases = [], counts = new Map()) {
     if (key && !key.startsWith('kode:')) wordsByKey.set(key, partnerWords(name));
   }
   const entries = [...wordsByKey];
-  for (const [key, words] of entries) {
+  // Nama panjang diproses dulu, supaya "Semen Indo" sudah ikut "Semen Indonesia"
+  // sebelum "Semen Ind" melihat keduanya sebagai satu mitra.
+  const byLength = [...entries].sort(([a], [b]) => b.length - a.length);
+  for (const [key, words] of byLength) {
     if (key.length < 4) continue;
     const longer = entries.filter(
       ([other, otherWords]) => other !== key && startsWithWords(otherWords, words),
     );
-    if (longer.length === 1) union(key, longer[0][0]);
+    // Kandidat yang sudah satu mitra (mis. lewat alias) dihitung sekali.
+    const partners = new Set(longer.map(([other]) => find(other)));
+    if (partners.size === 1) union(key, longer[0][0]);
   }
   for (let i = 0; i < entries.length; i += 1) {
     for (let j = i + 1; j < entries.length; j += 1) {

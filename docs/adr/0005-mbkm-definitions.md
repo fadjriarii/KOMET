@@ -49,9 +49,11 @@ One population serves every card, detail, and the table:
     Persero), or a plural "-s" are one partner;
   - course-coded MBKM entries ("BM41932 - Research Internship") merge per
     course code;
-  - a bare acronym joins the name that carries it in parentheses;
-  - a short name joins the only name that starts with its words (two
-    candidates: no merge);
+  - a bare acronym joins the name, or the alias canonical name, that carries
+    it in parentheses;
+  - a short name joins the only partner whose name starts with its words, and
+    its last word may be an abbreviation of at least three letters ("Semen
+    Ind" joins "PT Semen Indonesia"); two candidate partners: no merge;
   - a one-letter typo in a name of at least 12 characters is the same partner.
 
   Other spellings go through the `mbkm_partner_aliases` table (alias →

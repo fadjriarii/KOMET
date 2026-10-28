@@ -83,6 +83,34 @@ describe('buildPartnerIndex', () => {
     expect(ambiguous('PT Kalbe Farma').key).not.toBe(ambiguous('PT Kalbe Nutritionals').key);
   });
 
+  it('kata terakhir boleh singkatan; tetap tidak digabung bila ada dua kandidat', () => {
+    const partnerOf = buildPartnerIndex([
+      'PT. Semen Indonesia',
+      'PT Semen Indonesia (Persero) Tbk',
+      'Semen Ind',
+      'Semen Indo',
+      'PT Semen Gresik',
+    ]);
+    const names = ['PT. Semen Indonesia', 'Semen Ind', 'Semen Indo'].map((n) => partnerOf(n));
+    expect(new Set(names.map((p) => p.key)).size).toBe(1);
+    expect(names[1].name).toBe('PT Semen Indonesia (Persero) Tbk');
+    expect(partnerOf('PT Semen Gresik').key).not.toBe(names[0].key);
+
+    const ambiguous = buildPartnerIndex(['Semen Ind', 'Semen Indonesia', 'Semen Indocement']);
+    expect(ambiguous('Semen Ind').key).not.toBe(ambiguous('Semen Indonesia').key);
+    expect(buildPartnerIndex(['Ind', 'Industri Kimia'])('Ind').name).toBe('Ind');
+  });
+
+  it('singkatan bergabung dengan nama baku alias tanpa alias sendiri', () => {
+    const partnerOf = buildPartnerIndex(
+      ['BRIN', 'MBKM - BRIN', 'BRIN - Pusat Riset Eijkman'],
+      [{ alias: 'MBKM - BRIN', canonical: 'Badan Riset dan Inovasi Nasional (BRIN)' }],
+    );
+    const keys = ['BRIN', 'MBKM - BRIN', 'BRIN - Pusat Riset Eijkman'].map((n) => partnerOf(n).key);
+    expect(new Set(keys).size).toBe(1);
+    expect(partnerOf('BRIN').name).toBe('Badan Riset dan Inovasi Nasional (BRIN)');
+  });
+
   it('salah ketik satu huruf bergabung dan memakai ejaan yang paling sering; nama beda tetap terpisah', () => {
     const counts = new Map([
       ['PT Frisian Flag Indonesia', 2],

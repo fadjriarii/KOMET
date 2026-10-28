@@ -393,6 +393,10 @@ Dihapus atas permintaan user, di server dan client:
       Nama tampil = kata terbanyak, lalu paling sering, lalu terpanjang.
 - [x] Alias BRIN (4 ejaan → "Badan Riset dan Inovasi Nasional (BRIN)").
       190 ejaan → 169 mitra; kartu Mitra 2026/2027 = 68, 2025/2026 = 63.
+- [x] Singkatan kata terakhir ("Semen Ind", "Semen Indo" → "PT Semen
+      Indonesia") digabung otomatis bila hanya satu mitra cocok. Alias yang
+      sudah tertangkap aturan dihapus dari seed dan database; tersisa 3 (i3L
+      University, MBKM - BRIN, Research - BRIN), hasil tetap 169 mitra.
 
 Cara menambah alias: tambah baris di file seed, lalu jalankan
 `npx prisma db execute --file prisma/data/mbkm-partner-aliases.sql` dari
