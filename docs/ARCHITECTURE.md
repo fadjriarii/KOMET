@@ -495,9 +495,10 @@ Card values:
   (`student_cuti_periods`). It reports the jenjang with the most graduates.
   `GET /graduates/masa-studi` returns `bySemester` + `jenjangs`, `byProdi`, and
   `byYear` + `trendJenjangs`.
-- Five cards use `MetricSummaryGrid`'s five-card layout: one column on phones,
-  2 + 2 + 1 on tablets (last card full width), and 3 + 2 on desktop through a
-  six-column grid, so no width leaves an empty slot.
+- Rata-rata Masa Studi is the featured card (`featured: true`, `breakdown`
+  tiles per jenjang in `StatCard`). `MetricSummaryGrid` gives it 2 columns × 2
+  rows on desktop and a full row on tablets; the other four cards fill a 2 × 2
+  block beside or below it, so no width leaves an empty slot.
 
 Presentation rules:
 

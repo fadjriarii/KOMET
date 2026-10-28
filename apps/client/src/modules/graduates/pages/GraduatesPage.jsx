@@ -10,8 +10,22 @@ import { useGraduateFilterOptions } from '../hooks/useGraduateFilterOptions';
 import { useGraduateKpiDisplay } from '../hooks/useGraduateKpiDisplay';
 import { useSummary, useList } from '../graduateQueries';
 
-function buildCards({ kpis, displaySubtitles, kpiScope, isReady, openModal }) {
+function buildCards({ kpis, displaySubtitles, studyLengthTiles, kpiScope, isReady, openModal }) {
   return [
+    // Kartu unggulan: rincian per jenjang butuh ruang lebih (2 × 2 di desktop).
+    {
+      key: 'studyLength',
+      featured: true,
+      title: 'Rata-rata Masa Studi Lulusan',
+      caption: 'Durasi kelulusan menurut jenjang program',
+      value: formatKpiDisplay(kpis.studyLengthDisplay),
+      breakdown: studyLengthTiles,
+      subtitle: displaySubtitles.studyLength,
+      icon: Hourglass,
+      badge: 'Maks. 2 Semester Cuti',
+      onViewDetails: (event) => openModal('studyLength', event),
+      isFiltered: kpiScope.studyLength && isReady,
+    },
     {
       key: 'total',
       title: 'Total Lulusan',
@@ -31,16 +45,6 @@ function buildCards({ kpis, displaySubtitles, kpiScope, isReady, openModal }) {
       badge: 'Skala 4.00',
       onViewDetails: (event) => openModal('gpa', event),
       isFiltered: kpiScope.gpa && isReady,
-    },
-    {
-      key: 'studyLength',
-      title: 'Rata-rata Masa Studi Lulusan',
-      value: formatKpiDisplay(kpis.studyLengthDisplay),
-      subtitle: displaySubtitles.studyLength,
-      icon: Hourglass,
-      badge: 'Maks. 2 Semester Cuti',
-      onViewDetails: (event) => openModal('studyLength', event),
-      isFiltered: kpiScope.studyLength && isReady,
     },
     {
       key: 'onTime',

@@ -108,6 +108,14 @@ export function useGraduateKpiDisplay(summaryData, isLoading, filterValues = {})
         onTimeDisplay: rate(cards.onTime.value),
         studySuccessDisplay: rate(cards.studySuccess.value),
       },
+      // Ubin kartu unggulan Masa Studi: satu per jenjang dari server, tahun sebagai angka utama.
+      studyLengthTiles: (studyLength.byJenjang || []).map((entry) => ({
+        key: entry.key,
+        label: entry.label,
+        value: formatDecimal(entry.years, 1),
+        unit: 'Thn',
+        caption: `${semesters(entry.value)} semester · ${formatNumber(entry.count)} lulusan`,
+      })),
       cards,
       summary: summaryData?.summary || {},
       displaySubtitles: {

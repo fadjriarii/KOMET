@@ -13,8 +13,9 @@ Version numbers follow the root `package.json`.
 - Graduate Data "Rata-rata Masa Studi Lulusan" card and detail
   (`GET /api/graduates/masa-studi`): average semesters per jenjang for the
   selected Tahun Lulus, minus at most two cuti semesters (ADR 0006), with the
-  semester distribution, per-program averages, and a five-year trend. The five
-  cards use a 3 + 2 desktop layout with no empty slots.
+  semester distribution, per-program averages, and a five-year trend. It is a
+  featured card with per-jenjang tiles beside a 2 × 2 block of the other four
+  cards, with no empty slots.
 
 - Student Data Total Mahasiswa detail: Per Status, Per Angkatan, Per Semester,
   and Per Kewarganegaraan tabs. Bars stack by status when the selection holds

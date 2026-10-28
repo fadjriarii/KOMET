@@ -2,14 +2,43 @@ import { StatCardSkeleton } from './StatCardSkeleton';
 import { StatCardFooter } from './StatCardFooter';
 
 /**
+ * Ubin rincian kartu unggulan: satu angka per kategori (mis. per jenjang).
+ * Jumlah ubin mengikuti data; kolom menyesuaikan lebar kartu.
+ */
+function BreakdownTiles({ items }) {
+  return (
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(7.5rem,1fr))] gap-3">
+      {items.map((item) => (
+        <div key={item.key} className="rounded-xl border border-gray-100 bg-gray-50/80 p-3.5">
+          <p className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider">
+            {item.label}
+          </p>
+          <p className="mt-2 text-2xl font-bold tracking-tight text-gray-900 leading-none">
+            {item.value ?? '-'}
+            {item.unit && (
+              <span className="ml-1 text-xs font-medium text-gray-500">{item.unit}</span>
+            )}
+          </p>
+          {item.caption && <p className="mt-1.5 text-[11px] text-gray-500">{item.caption}</p>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
  * StatCard - Komponen kartu KPI / Statistik reusable
  * Layout terstruktur: Judul, Angka (Value), Subtitle (teks di atas garis), dan Footer (Garis, Badge, Aksi)
  * selalu sejajar horizontal di setiap card berkat min-height yang konsisten.
+ * Dengan `breakdown`, kartu menjadi kartu unggulan: judul + `caption`, ubin per
+ * kategori menggantikan angka tunggal, lalu subtitle di atas footer.
  */
 export default function StatCard({
   title,
   value,
   subtitle,
+  caption,
+  breakdown,
   icon: Icon,
   badge,
   actionLabel = 'Lihat Rincian',
@@ -42,15 +71,25 @@ export default function StatCard({
         )}
       </div>
 
-      {/* 2. Bagian Tengah: Angka KPI (Value) & Subtitle tepat di atas garis pemisah */}
-      <div className="mt-3 space-y-1">
-        <h3 className={`text-2xl font-bold tracking-tight leading-tight ${valueClassName}`}>
-          {value ?? '-'}
-        </h3>
-        <p className="text-xs text-gray-500 font-normal leading-snug min-h-[20px] flex items-center">
-          {subtitle || ' '}
-        </p>
-      </div>
+      {breakdown?.length ? (
+        <>
+          {caption && <p className="-mt-2 text-sm text-gray-700">{caption}</p>}
+          <div className="flex-1 flex flex-col justify-center py-5">
+            <BreakdownTiles items={breakdown} />
+          </div>
+          <p className="text-xs text-gray-500 font-normal leading-relaxed">{subtitle}</p>
+        </>
+      ) : (
+        /* 2. Bagian Tengah: Angka KPI (Value) & Subtitle tepat di atas garis pemisah */
+        <div className="mt-3 space-y-1">
+          <h3 className={`text-2xl font-bold tracking-tight leading-tight ${valueClassName}`}>
+            {value ?? '-'}
+          </h3>
+          <p className="text-xs text-gray-500 font-normal leading-snug min-h-[20px] flex items-center">
+            {subtitle || ' '}
+          </p>
+        </div>
+      )}
 
       {/* 3. Bagian Bawah (Footer): Garis pemisah, Badge di Kiri & Button Aksi di Kanan */}
       <StatCardFooter

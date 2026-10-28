@@ -14,22 +14,42 @@ const gridOf = (count) =>
   render(<MetricSummaryGrid cards={cards(count)} cardProps={{}} />).container.firstChild;
 
 describe('MetricSummaryGrid', () => {
-  it('lima kartu: 1 kolom ponsel, 2+2+1 tablet, 3+2 desktop tanpa slot kosong', () => {
-    const grid = gridOf(5);
-    expect(grid.className).toContain('grid-cols-1');
-    expect(grid.className).toContain('sm:grid-cols-2');
-    expect(grid.className).toContain('lg:grid-cols-6');
-    const spans = [...grid.children].map((child) => child.className);
-    spans.slice(0, 3).forEach((className) => expect(className).toContain('lg:col-span-2'));
-    expect(spans[3]).toContain('lg:col-span-3');
-    expect(spans[4]).toContain('sm:col-span-2');
-    expect(spans[4]).toContain('lg:col-span-3');
+  it('kartu unggulan: 2 kolom × 2 baris di desktop, baris penuh di tablet; sisanya 1 sel', () => {
+    const list = cards(5).map((card, index) => ({ ...card, featured: index === 0 }));
+    const grid = render(<MetricSummaryGrid cards={list} cardProps={{}} />).container.firstChild;
+    expect(grid.className).toContain('lg:grid-cols-4');
+    const [featured, ...rest] = [...grid.children].map((child) => child.className);
+    expect(featured).toContain('sm:col-span-2');
+    expect(featured).toContain('lg:col-span-2');
+    expect(featured).toContain('lg:row-span-2');
+    rest.forEach((className) => expect(className).not.toContain('span'));
   });
 
-  it('empat kartu tetap grid 4 kolom tanpa span', () => {
+  it('empat kartu tanpa kartu unggulan tetap grid 4 kolom tanpa span', () => {
     const grid = gridOf(4);
     expect(grid.className).toContain('lg:grid-cols-4');
     [...grid.children].forEach((child) => expect(child.className).not.toContain('col-span'));
+  });
+
+  it('kartu dengan breakdown menampilkan ubin per kategori, bukan satu angka', () => {
+    const list = [
+      {
+        key: 'study',
+        featured: true,
+        title: 'Rata-rata Masa Studi Lulusan',
+        caption: 'Durasi kelulusan menurut jenjang program',
+        breakdown: [
+          { key: 's1', label: 'S1', value: '4.1', unit: 'Thn', caption: '8.2 semester' },
+          { key: 's2', label: 'S2', value: '2.1', unit: 'Thn', caption: '4.2 semester' },
+        ],
+        subtitle: 'Kalimat ringkasan.',
+      },
+    ];
+    const { getByText, queryByRole } = render(<MetricSummaryGrid cards={list} cardProps={{}} />);
+    expect(getByText('Durasi kelulusan menurut jenjang program')).toBeTruthy();
+    expect(getByText('8.2 semester')).toBeTruthy();
+    expect(getByText('4.2 semester')).toBeTruthy();
+    expect(queryByRole('heading', { level: 3 })).toBeNull();
   });
 });
 
