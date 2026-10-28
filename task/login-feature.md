@@ -102,7 +102,7 @@ GOOGLE_CLIENT_SECRET="..."   # dipakai server untuk tukar code
 # === Direktori institusi (HAK BACA SAJA) ===
 PORTAL_DB_URL="mysql://readonly_user:pass@host:3306/portal"
 HRIS_DB_URL="mysql://readonly_user:pass@host:3306/hris"
-# Kosongkan bila portal & hris ada di server MySQL yang sama (lihat catatan di bawah)
+# Kosongkan bila portal & hris ada di server MariaDB/MySQL yang sama (lihat catatan di bawah)
 
 # === Kebijakan role ===
 ADMIN_DEPARTMENT_IDS="4,11"   # iddepartments QA dan IT, ditulis eksplisit
@@ -117,8 +117,9 @@ Pilihan koneksi — **putuskan setelah verifikasi di §5**:
   (portal → `idusers`, lalu hris → divisi). Tetap tanpa Prisma schema kedua.
 
 Kenapa tidak bikin schema Prisma kedua: Prisma hanya mendukung satu `datasource` per berkas
-skema. Untuk beberapa query login yang murni baca, pool `mysql2` biasa jauh lebih murah —
-dan `mysql2` **sudah ada di `apps/server/package.json`** (saat ini tidak dipakai kode mana pun).
+skema. Untuk beberapa query login yang murni baca, pool driver `mariadb` biasa jauh lebih
+murah. Driver itu sudah terpasang sebagai dependensi `@prisma/adapter-mariadb`; tambahkan ke
+`apps/server/package.json` secara eksplisit bila dipakai langsung. `mysql2` sudah dihapus.
 
 ```js
 // apps/server/src/config/directory.js — gambaran, bukan kode final

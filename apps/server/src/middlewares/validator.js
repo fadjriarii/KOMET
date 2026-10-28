@@ -11,7 +11,7 @@ const WITHOUT_CONTROL_BYTES = /^[^\u0000-\u001F\u007F]+$/;
 const safeString = z.string().trim().min(1).max(100).regex(WITHOUT_CONTROL_BYTES);
 const stringOrArray = z.union([safeString, z.array(safeString).max(50)]).optional();
 // Batas halaman diturunkan dari 100 000: dengan limit maks 100, OFFSET tak boleh
-// mencapai jutaan baris yang tetap dibaca lalu dibuang oleh MySQL.
+// mencapai jutaan baris yang tetap dibaca lalu dibuang oleh MariaDB.
 const pageParam = z
   .string()
   .regex(/^\d+$/)

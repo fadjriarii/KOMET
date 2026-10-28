@@ -6,7 +6,7 @@
 -- Idempotent: the REGEXP guard matches nothing once the rows are converted.
 --
 -- Run manually after restoring an old dump:
---   mysql ... < prisma/data/2026-academic-year-labels.sql
+--   npx prisma db execute --file prisma/data/2026-academic-year-labels.sql   (dari apps/server)
 
 UPDATE `students`
 SET `angkatan` = CONCAT(`angkatan`, '/', CAST(CAST(`angkatan` AS UNSIGNED) + 1 AS CHAR))
