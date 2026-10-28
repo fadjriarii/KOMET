@@ -7,11 +7,12 @@ const { buildPartnerIndex, partnerKey } = require('../../../src/services/mbkm/pa
 const I3L_FULL = 'Indonesia International Institute for Life-Sciences (i3L)';
 
 describe('partnerKey', () => {
-  it('mengabaikan huruf besar, tanda baca, dan kata badan usaha', () => {
+  it('mengabaikan huruf besar, tanda baca, kata badan usaha, dan akhiran jamak', () => {
     expect(partnerKey('PT. Kalbe')).toBe(partnerKey('PT Kalbe'));
     expect(partnerKey('Genomik Solidaritas Indonesia')).toBe(
       partnerKey('PT Genomik Solidaritas Indonesia'),
     );
+    expect(partnerKey('Life-Science')).toBe(partnerKey('Life-Sciences'));
     expect(partnerKey('')).toBe('');
   });
 });
@@ -42,15 +43,65 @@ describe('buildPartnerIndex', () => {
     expect(names[0].name).toBe(I3L_FULL);
   });
 
-  it('tidak menebak: nama berbeda tetap terpisah, mitra kosong = tanpa mitra', () => {
-    const partnerOf = buildPartnerIndex([
-      'internship',
-      'Internship (FT4191)',
-      'PT Kalbe Farma',
-      'PT Kalbe',
+  it('nama tanpa PT bergabung dengan nama ber-PT dan memakai nama yang lebih lengkap', () => {
+    const partnerOf = buildPartnerIndex(['Semen Indonesia', 'PT. Semen Indonesia']);
+    expect(partnerOf('Semen Indonesia')).toEqual(partnerOf('PT. Semen Indonesia'));
+    expect(partnerOf('Semen Indonesia').name).toBe('PT. Semen Indonesia');
+  });
+
+  it('MBKM mata kuliah digabung per kode; kode berbeda tetap terpisah', () => {
+    const counts = new Map([['BM41932 - Research Internship', 19]]);
+    const partnerOf = buildPartnerIndex(
+      [
+        'BM41932',
+        'BM41932 - Research Internship',
+        'BM41932 Rersearch Internship',
+        'BT41932 - Research Internship',
+        'Internship (FT4191)',
+      ],
+      [],
+      counts,
+    );
+    expect(partnerOf('BM41932').key).toBe(partnerOf('BM41932 Rersearch Internship').key);
+    expect(partnerOf('BM41932').name).toBe('BM41932 - Research Internship');
+    expect(partnerOf('BT41932 - Research Internship').key).not.toBe(partnerOf('BM41932').key);
+    expect(partnerOf('Internship (FT4191)').key).toBe('kode:ft4191');
+  });
+
+  it('intern/Internship/INTERN hanya beda huruf besar atau awalan kata, jadi satu mitra', () => {
+    const partnerOf = buildPartnerIndex(['intern', 'Internship', 'INTERN', 'EP Internship']);
+    expect(new Set(['intern', 'Internship', 'INTERN'].map((n) => partnerOf(n).key)).size).toBe(1);
+    expect(partnerOf('intern').name).toBe('Internship');
+    expect(partnerOf('EP Internship').key).not.toBe(partnerOf('intern').key);
+  });
+
+  it('nama pendek ikut satu-satunya nama yang diawali kata-katanya; bila dua, tidak digabung', () => {
+    const unique = buildPartnerIndex(['Osaka University', 'Osaka University, Japan']);
+    expect(unique('Osaka University').name).toBe('Osaka University, Japan');
+    const ambiguous = buildPartnerIndex(['PT Kalbe', 'PT Kalbe Farma', 'PT Kalbe Nutritionals']);
+    expect(ambiguous('PT Kalbe').key).not.toBe(ambiguous('PT Kalbe Farma').key);
+    expect(ambiguous('PT Kalbe Farma').key).not.toBe(ambiguous('PT Kalbe Nutritionals').key);
+  });
+
+  it('salah ketik satu huruf bergabung dan memakai ejaan yang paling sering; nama beda tetap terpisah', () => {
+    const counts = new Map([
+      ['PT Frisian Flag Indonesia', 2],
+      ['PT Frisian Flag Indoneisia', 1],
     ]);
-    expect(partnerOf('internship').key).not.toBe(partnerOf('Internship (FT4191)').key);
-    expect(partnerOf('PT Kalbe Farma').key).not.toBe(partnerOf('PT Kalbe').key);
+    const partnerOf = buildPartnerIndex(
+      [
+        'PT Frisian Flag Indoneisia',
+        'PT Frisian Flag Indonesia',
+        'National Chung Cheng University',
+        'National Chung Hsing University',
+      ],
+      [],
+      counts,
+    );
+    expect(partnerOf('PT Frisian Flag Indoneisia').name).toBe('PT Frisian Flag Indonesia');
+    expect(partnerOf('National Chung Cheng University').key).not.toBe(
+      partnerOf('National Chung Hsing University').key,
+    );
     expect(partnerOf('  ')).toBeNull();
     expect(partnerOf('Mitra Baru').name).toBe('Mitra Baru');
   });

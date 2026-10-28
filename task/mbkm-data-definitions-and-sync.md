@@ -387,8 +387,12 @@ Dihapus atas permintaan user, di server dan client:
       ejaan terpanjang. Tanpa pencocokan kemiripan (fuzzy).
 - [x] Seed `prisma/data/mbkm-partner-aliases.sql`: 3 alias i3L. 190 ejaan →
       181 mitra; i3L di 2025/2026 = 29 mahasiswa (mitra terbanyak).
-- [ ] Isian bukan-mitra di SEVIMA (mis. "BM41932 Research Internship",
-      "internship") belum diputuskan: tetap dihitung sebagai mitra.
+- [x] Aturan umum tambahan (keputusan user, 2026-10-28): jamak "-s", kode
+      mata kuliah (MBKM mata kuliah memang dihitung sebagai mitra), nama pendek
+      yang mengawali satu-satunya nama panjang, dan salah ketik satu huruf.
+      Nama tampil = kata terbanyak, lalu paling sering, lalu terpanjang.
+- [x] Alias BRIN (4 ejaan → "Badan Riset dan Inovasi Nasional (BRIN)").
+      190 ejaan → 169 mitra; kartu Mitra 2026/2027 = 68, 2025/2026 = 63.
 
 Cara menambah alias: tambah baris di file seed, lalu jalankan
 `npx prisma db execute --file prisma/data/mbkm-partner-aliases.sql` dari

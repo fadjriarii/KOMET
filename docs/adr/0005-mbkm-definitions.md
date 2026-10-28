@@ -43,13 +43,23 @@ One population serves every card, detail, and the table:
 - **Partners and activity types:** distinct partners and types of the
   all-semester activities. Rejected and cancelled activities add neither. A
   student can take two types, so type shares can sum past 100%.
-- **Partner names:** spellings that differ only in case, punctuation, or a legal
-  word (PT, CV, Tbk, Persero) are one partner, and a bare acronym joins the name
-  that carries it in parentheses ("I3L" and "... (i3L)"). Other spellings are
-  joined through the `mbkm_partner_aliases` table (alias → canonical), filled
-  from `prisma/data/mbkm-partner-aliases.sql`. The shown name is the canonical
-  alias name, else the longest spelling. No fuzzy matching: two different
-  partners must never merge silently.
+- **Partner names:** general rules merge spellings without naming any partner
+  in code:
+  - spellings that differ only in case, punctuation, a legal word (PT, CV, Tbk,
+    Persero), or a plural "-s" are one partner;
+  - course-coded MBKM entries ("BM41932 - Research Internship") merge per
+    course code;
+  - a bare acronym joins the name that carries it in parentheses;
+  - a short name joins the only name that starts with its words (two
+    candidates: no merge);
+  - a one-letter typo in a name of at least 12 characters is the same partner.
+
+  Other spellings go through the `mbkm_partner_aliases` table (alias →
+  canonical), seeded from `prisma/data/mbkm-partner-aliases.sql`. The shown
+  name is the canonical alias name, else the most complete spelling: most
+  words, then most used, then longest. Distinct course codes and names that
+  differ by more than one letter stay separate.
+
 - **Converted credits:** the sum of `sks_mata_kuliah` from
   `mata-kuliah-konversi-mbkm` per activity, shown in the table only. There is
   no credit threshold: a valid activity can convert 3 or 14 SKS. SEVIMA has
