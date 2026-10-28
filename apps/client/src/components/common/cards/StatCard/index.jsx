@@ -7,9 +7,14 @@ import { StatCardFooter } from './StatCardFooter';
  */
 function BreakdownTiles({ items }) {
   return (
-    <div className="grid grid-cols-[repeat(auto-fit,minmax(7.5rem,1fr))] gap-3">
+    <div className="flex-1 grid grid-cols-[repeat(auto-fit,minmax(7.5rem,1fr))] gap-3">
       {items.map((item) => (
-        <div key={item.key} className="rounded-xl border border-gray-100 bg-gray-50/80 p-3.5">
+        // Gradien vertikal tema (digital-blue-50) memisahkan kolom tiap kategori
+        // tanpa garis tepi, dan memudar supaya kartu besar tetap tenang.
+        <div
+          key={item.key}
+          className="min-h-36 flex flex-col justify-center rounded-xl bg-gradient-to-b from-digital-blue-50/0 via-digital-blue-50 to-digital-blue-50/0 px-4 py-6"
+        >
           <p className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider">
             {item.label}
           </p>
@@ -74,7 +79,7 @@ export default function StatCard({
       {breakdown?.length ? (
         <>
           {caption && <p className="-mt-2 text-sm text-gray-700">{caption}</p>}
-          <div className="flex-1 flex flex-col justify-center py-5">
+          <div className="flex-1 flex flex-col py-4">
             <BreakdownTiles items={breakdown} />
           </div>
           <p className="text-xs text-gray-500 font-normal leading-relaxed">{subtitle}</p>
