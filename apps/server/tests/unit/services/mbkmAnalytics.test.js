@@ -350,4 +350,17 @@ describe('getMbkmSummary', () => {
       [],
     );
   });
+
+  it('opsi Jenis Aktivitas hanya jenis yang ada di periode terpilih', async () => {
+    stubDb({
+      students: ELIGIBLE,
+      groups: { jenisAktivitas: [{ jenisAktivitas: 'Riset', _count: { jenisAktivitas: 3 } }] },
+    });
+    const result = await getMbkmSummary({ tahunAjaran: '2025/2026' });
+    expect(result.filterOptions.jenisAktivitas).toEqual(['Riset']);
+    const jenisQuery = prisma.mbkmActivity.groupBy.mock.calls.find(
+      ([args]) => args.by[0] === 'jenisAktivitas' && args.where?.periode,
+    );
+    expect(jenisQuery[0].where.periode).toEqual({ in: ['20251', '20252'] });
+  });
 });

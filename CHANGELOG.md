@@ -92,7 +92,8 @@ Version numbers follow the root `package.json`.
   participant, eligible, and rate cards in one sentence), "Total Mahasiswa
   MBKM" (all semesters, with a per-semester popup), "Mitra MBKM", and "Bentuk
   Kegiatan MBKM". Mitra and activity types count approved and completed
-  activities of every semester and follow every filter.
+  activities of every semester and follow every filter. The Jenis Aktivitas
+  filter lists only the types present in the selected academic year.
 - MBKM defaults to the latest academic year in MBKM data, in the client and in
   the server warm-up, instead of the calendar year.
 - Dashboard query data stays fresh for five minutes; sync still invalidates the

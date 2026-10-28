@@ -539,7 +539,9 @@ denominator, and the sentence names the filtered type instead of "MBKM".
 `participation` (`value` rate, `participants`, `eligible`, `notParticipating`,
 `pending`), `total` (`value`, `semester7`), `mitra` (`totalPartners`,
 `withPartner`, `top`), and `jenis` (`value` type count, `top` two types).
-`periodLabel` is the selected period in words.
+`periodLabel` is the selected period in words. `filterOptions.jenisAktivitas`
+lists only the types present in the selected periods (any status), so the
+filter never offers a type the cards cannot show.
 
 `GET /mbkm/analytics/:card` (`participation`, `total`, `mitra`, `jenis`)
 returns `{ card, periodLabel, breakdowns }`. Each breakdown is
