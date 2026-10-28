@@ -10,6 +10,12 @@ Version numbers follow the root `package.json`.
 
 ### Added
 
+- Graduate Data "Rata-rata Masa Studi Lulusan" card and detail
+  (`GET /api/graduates/masa-studi`): average semesters per jenjang for the
+  selected Tahun Lulus, minus at most two cuti semesters (ADR 0006), with the
+  semester distribution, per-program averages, and a five-year trend. The five
+  cards use a 3 + 2 desktop layout with no empty slots.
+
 - Student Data Total Mahasiswa detail: Per Status, Per Angkatan, Per Semester,
   and Per Kewarganegaraan tabs. Bars stack by status when the selection holds
   more than one status, and Per Angkatan shows the five academic years up to the
@@ -57,6 +63,11 @@ Version numbers follow the root `package.json`.
   graduate study length in semesters (ADR 0004).
 
 ### Changed
+
+- Graduate study length reads the `/mahasiswa` exit period when `/kelulusan`
+  has none, and a short term (`YYYY3`) counts as the Genap of that year (ADR
+  0004). The five graduates missing from `/kelulusan` now enter Tepat Waktu and
+  Keberhasilan Studi.
 
 - Student Data keeps Cuti as history per semester. The sync stores each
   `/perwalian` cuti period in `student_cuti_periods`; the academic-year filter

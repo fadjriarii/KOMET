@@ -8,6 +8,7 @@ const filterOptions = require('../../../src/services/graduates/filterOptions');
 const totalLulusan = require('../../../src/services/graduates/totalLulusan');
 const ipkTrend = require('../../../src/services/graduates/ipkTrend');
 const tepatWaktu = require('../../../src/services/graduates/tepatWaktu');
+const masaStudi = require('../../../src/services/graduates/masaStudi');
 const keberhasilanStudi = require('../../../src/services/graduates/keberhasilanStudi');
 const yearJenjangSeries = require('../../../src/services/graduates/yearJenjangSeries');
 
@@ -16,6 +17,7 @@ const original = [
   [totalLulusan, 'getTotalLulusan'],
   [ipkTrend, 'getAvgIpk'],
   [tepatWaktu, 'getTepatWaktu'],
+  [masaStudi, 'getMasaStudi'],
   [keberhasilanStudi, 'getKeberhasilanStudi'],
   [yearJenjangSeries, 'getGraduateLabelWindow'],
 ].map(([target, key]) => [target, key, target[key]]);
@@ -31,6 +33,7 @@ filterOptions.getGraduateFilterOptions = async () => ({ fakultas: ['FST'], jenja
 totalLulusan.getTotalLulusan = async () => AGG.total;
 ipkTrend.getAvgIpk = async () => AGG.ipk;
 tepatWaktu.getTepatWaktu = async () => AGG.tepatWaktu;
+masaStudi.getMasaStudi = async () => AGG.masaStudi ?? {};
 keberhasilanStudi.getKeberhasilanStudi = async () => AGG.keberhasilan;
 yearJenjangSeries.getGraduateLabelWindow = async () => [
   '2020/2021',
@@ -61,6 +64,10 @@ const WITH_S2 = {
     profesi: { average: 3.8 },
   },
   tepatWaktu: { s1: 80, s2: 70, profesi: 100 },
+  masaStudi: {
+    s1: { average: 8.18, count: 125, cutiAdjusted: 1 },
+    s2: { average: 4.17, count: 12, cutiAdjusted: 0 },
+  },
   keberhasilan: { s1: 90, s2: null },
 };
 
@@ -87,6 +94,8 @@ describe('getGraduateSummary', () => {
     expect(cards.total.scope).toMatchObject({ label: '2023/2024' });
     expect(cards.onTime.byJenjang.map((entry) => entry.value)).toEqual([80, 70, 100]);
     expect(cards.gpa.byJenjang.map((entry) => entry.value)).toEqual([3.4, 3.6, 3.8]);
+    // Masa studi: nilai utama = jenjang dengan lulusan terbanyak; tahun = semester ÷ 2.
+    expect(cards.studyLength).toMatchObject({ value: 8.18, years: 4.09, headlineJenjang: 'S1' });
     expect(cards.studySuccess.ignoredFilters).toEqual([]);
   });
 
@@ -121,7 +130,13 @@ describe('getGraduateSummary', () => {
 
     // Badge "Terfilter" di client membaca kunci ini; kunci yang tidak diumumkan
     // membuat kartu tampak tidak terfilter padahal angkanya berubah.
-    expect(Object.keys(kpiFilterScope).sort()).toEqual(['gpa', 'onTime', 'studySuccess', 'total']);
+    expect(Object.keys(kpiFilterScope).sort()).toEqual([
+      'gpa',
+      'onTime',
+      'studyLength',
+      'studySuccess',
+      'total',
+    ]);
     expect(kpiFilterScope.studySuccess).not.toContain('tahunLulus');
   });
 
@@ -131,7 +146,7 @@ describe('getGraduateSummary', () => {
     const { kpiFilterScope } = await getGraduateSummary({});
 
     const eventParams = ['tahunLulus', 'periodeWisuda', 'predikat'];
-    for (const card of ['total', 'gpa', 'onTime']) {
+    for (const card of ['total', 'gpa', 'studyLength', 'onTime']) {
       for (const param of eventParams) expect(kpiFilterScope[card]).toContain(param);
     }
     for (const param of eventParams) expect(kpiFilterScope.studySuccess).not.toContain(param);

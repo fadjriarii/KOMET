@@ -172,6 +172,7 @@ async function countCohorts(jenjang, studentWhere, angkatanList) {
         angkatan: true,
         periodeMasuk: true,
         periodeMasukAwal: true,
+        periodeTerakhir: true,
         graduate: { select: { periodeWisuda: true, tahunLulus: true } },
       },
     }),

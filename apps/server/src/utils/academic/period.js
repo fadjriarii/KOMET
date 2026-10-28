@@ -58,25 +58,51 @@ function studyStartPoint(student) {
   return labelStart === null ? null : { year: labelStart, term: 1 };
 }
 
+/** Semester pendek (`YYYY3`) tidak dihitung sebagai semester: dibaca Genap tahun itu. */
+const withoutShortTerm = (code) =>
+  String(code ?? '')
+    .trim()
+    .replace(/^(\d{4})3$/, '$12');
+
+/**
+ * Titik akhir studi sebagai {year, term}: periode wisuda (`/kelulusan`), lalu
+ * periode terakhir dari `/mahasiswa` (lulusan yang tidak pernah diterbitkan
+ * `/kelulusan`), lalu label `tahunLulus` sebagai Genap.
+ */
+function studyEndPoint(student, graduate) {
+  const lulus =
+    parsePeriode(withoutShortTerm(graduate?.periodeWisuda)) ??
+    parsePeriode(withoutShortTerm(student?.periodeTerakhir));
+  if (lulus) return { year: lulus.year, term: Number(lulus.term) };
+  const year = getAcademicYearStart(String(graduate?.tahunLulus ?? '').trim());
+  return year === null || year === undefined ? null : { year, term: 2 };
+}
+
+const toCode = ({ year, term }) => `${year}${term}`;
+
+/**
+ * Rentang studi `{ start, end }` dalam kode periode (`YYYYT`), atau null bila
+ * datanya tidak lengkap atau periode lulus sebelum periode masuk.
+ */
+function studyPeriodRange(student, graduate) {
+  const start = studyStartPoint(student);
+  const end = studyEndPoint(student, graduate);
+  if (!start || !end) return null;
+  const semesters = (end.year - start.year) * 2 + (end.term - start.term) + 1;
+  return semesters >= 1 ? { start: toCode(start), end: toCode(end), semesters } : null;
+}
+
 /**
  * Jumlah semester yang ditempuh sampai lulus, inklusif: masuk 20201 → lulus
- * 20232 = 8 semester. Tanpa `periodeWisuda`, label `tahunLulus` dipakai dengan
- * anggapan lulus di Genap (batas atas tahun itu). Data tak lengkap atau periode
- * lulus sebelum periode masuk = null, bukan durasi palsu.
+ * 20232 = 8 semester. Data tak lengkap atau periode lulus sebelum periode
+ * masuk = null, bukan durasi palsu (ADR 0004).
  *
- * @param {{periodeMasukAwal?: string, periodeMasuk?: string, angkatan?: string}} student
+ * @param {{periodeMasukAwal?: string, periodeMasuk?: string, angkatan?: string, periodeTerakhir?: string}} student
  * @param {{periodeWisuda?: string, tahunLulus?: string}} graduate
  * @returns {number|null}
  */
 function studySemesters(student, graduate) {
-  const start = studyStartPoint(student);
-  if (!start) return null;
-  const lulus = parsePeriode(graduate?.periodeWisuda);
-  const endYear = lulus?.year ?? getAcademicYearStart(String(graduate?.tahunLulus ?? '').trim());
-  if (endYear === null || endYear === undefined) return null;
-  const endTerm = lulus ? Number(lulus.term) : 2;
-  const semesters = (endYear - start.year) * 2 + (endTerm - start.term) + 1;
-  return semesters >= 1 ? semesters : null;
+  return studyPeriodRange(student, graduate)?.semesters ?? null;
 }
 
 module.exports = {
@@ -84,5 +110,6 @@ module.exports = {
   getPeriodeYear,
   getStudyStartYear,
   studySemesters,
+  studyPeriodRange,
   toAcademicYear,
 };

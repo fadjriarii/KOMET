@@ -1,6 +1,6 @@
 # TODO: Graduate Data: kartu Rata-rata Masa Studi Lulusan (termasuk cuti)
 
-- Status: rencana, belum dieksekusi (menunggu instruksi user).
+- Status: selesai dan terverifikasi (2026-10-28).
 - Dibuat: 2026-10-28
 - Cakupan: rumus `requirements/FORMULA.md` §7, riwayat cuti dari SEVIMA,
   kartu ke-5 Graduate Data, dan tata letak 5 kartu.
@@ -61,40 +61,40 @@ sebagai kartu baru tanpa membuat tata letak halaman berantakan.
 
 ### Fase 1: Riwayat cuti saat sync mahasiswa
 
-- [ ] `studentCuti.js`: `fetchCutiHistory(periods)`. Untuk setiap periode
+- [x] `studentCuti.js`: `fetchCutiHistory(periods)`. Untuk setiap periode
       Ganjil/Genap dari periode masuk paling awal di data sampai periode
       berjalan, panggil `/perwalian` dengan status C. Hasilnya
       `Map(nim → Set(periode))`, memakai `paginateSevimaPages`. - Paralel terbatas. - Kalau gagal, sync tetap jalan dan nilai lama dipertahankan.
-- [ ] Schema: `Student.semesterCuti Int @default(0)`. Butuh `db push`
+- [x] Schema: `Student.semesterCuti Int @default(0)`. Butuh `db push`
       (kolom baru) dengan persetujuan user saat eksekusi (ADR 0002).
-- [ ] `syncStudents.js`: isi `semesterCuti` per baris. Status Cuti periode
+- [x] `syncStudents.js`: isi `semesterCuti` per baris. Status Cuti periode
       berjalan tetap memakai `fetchCutiNims`.
-- [ ] Tes: baris ganda per NIM digabung, dan periode gagal tidak
+- [x] Tes: baris ganda per NIM digabung, dan periode gagal tidak
       mengosongkan data.
 
 ### Fase 2: Akhir studi untuk 5 lulusan tanpa `/kelulusan`
 
-- [ ] `studySemesters(student, graduate)` urutan akhirnya menjadi: 1. `graduate.periodeWisuda`; 2. `student.periodeTerakhir`; 3. `tahunLulus` sebagai Genap.
-- [ ] `YYYY3` dibaca Genap tahun itu, tanpa menambah semester.
-- [ ] Laporkan selisih Tepat Waktu dan Keberhasilan Studi sebelum dan sesudah
+- [x] `studySemesters(student, graduate)` urutan akhirnya menjadi: 1. `graduate.periodeWisuda`; 2. `student.periodeTerakhir`; 3. `tahunLulus` sebagai Genap.
+- [x] `YYYY3` dibaca Genap tahun itu, tanpa menambah semester.
+- [x] Laporkan selisih Tepat Waktu dan Keberhasilan Studi sebelum dan sesudah
       (5 lulusan ikut terhitung).
-- [ ] Tes: fallback `periodeTerakhir`, `YYYY3`, dan data tidak lengkap = null.
+- [x] Tes: fallback `periodeTerakhir`, `YYYY3`, dan data tidak lengkap = null.
 
 ### Fase 3: Perhitungan masa studi (server)
 
-- [ ] `services/graduates/masaStudi.js` mengikuti pola `tepatWaktu.js`. - Masa studi = `studySemesters(...) − min(semesterCuti, 2)`. - Data tidak lengkap dikeluarkan dari pembagi. - Populasi = lulusan Tahun Lulus terpilih dengan `GRADUATE_PARAMS`.
-- [ ] `graduateCards.js`: kartu `studyLength`. - `byJenjang`: rata-rata semester, jumlah lulusan, jumlah yang
+- [x] `services/graduates/masaStudi.js` mengikuti pola `tepatWaktu.js`. - Masa studi = `studySemesters(...) − min(semesterCuti, 2)`. - Data tidak lengkap dikeluarkan dari pembagi. - Populasi = lulusan Tahun Lulus terpilih dengan `GRADUATE_PARAMS`.
+- [x] `graduateCards.js`: kartu `studyLength`. - `byJenjang`: rata-rata semester, jumlah lulusan, jumlah yang
       dikurangi cuti. - Nilai utama = jenjang dengan lulusan terbanyak (pola
       `studySuccessCard`). - Kosong = null.
-- [ ] `graduateSummary.js`: kartu dan `kpiFilterScope.studyLength`.
-- [ ] Endpoint detail mengikuti pola `/graduates/tepat-waktu`: - sebaran jumlah semester per jenjang; - rata-rata per prodi; - tren 5 Tahun Lulus.
-- [ ] Tes: - rata-rata per jenjang; - cuti 0, 1, dan 3 (dibatasi 2); - pindah prodi memakai `periodeMasukAwal`; - data tidak lengkap dikeluarkan.
+- [x] `graduateSummary.js`: kartu dan `kpiFilterScope.studyLength`.
+- [x] Endpoint detail mengikuti pola `/graduates/tepat-waktu`: - sebaran jumlah semester per jenjang; - rata-rata per prodi; - tren 5 Tahun Lulus.
+- [x] Tes: - rata-rata per jenjang; - cuti 0, 1, dan 3 (dibatasi 2); - pindah prodi memakai `periodeMasukAwal`; - data tidak lengkap dikeluarkan.
 
 ### Fase 4: Client dan tata letak 5 kartu (DESIGN.md + antislop core + antislop-layoutmobile)
 
-- [ ] `GraduatesPage.jsx`: urutan Total Lulusan, Rata-rata IPK, **Rata-rata
+- [x] `GraduatesPage.jsx`: urutan Total Lulusan, Rata-rata IPK, **Rata-rata
       Masa Studi**, Tepat Waktu, Keberhasilan Studi.
-- [ ] `MetricSummaryGrid.jsx`, cabang 5 kartu. Tidak boleh ada slot kosong di
+- [x] `MetricSummaryGrid.jsx`, cabang 5 kartu. Tidak boleh ada slot kosong di
       lebar mana pun.
 
       | Lebar | Grid | Susunan |
@@ -106,23 +106,23 @@ sebagai kartu baru tanpa membuat tata letak halaman berantakan.
       Span dikirim lewat `className` `StatCard`. Halaman 3/4 kartu tidak
       berubah.
 
-- [ ] Kartu: - nilai "8.3 semester" (`formatDecimal(·, 1)`); - subjudul "Lulusan S1 rata-rata 8.3 semester (4.2 tahun), setelah
+- [x] Kartu: - nilai "8.3 semester" (`formatDecimal(·, 1)`); - subjudul "Lulusan S1 rata-rata 8.3 semester (4.2 tahun), setelah
       dikurangi maksimal 2 semester cuti. Rincian: S2 4.1 semester."; - tanpa em dash; - kalimat kosong sama dengan kartu lain.
-- [ ] `useGraduateKpiDisplay.js` (subtitle) dan modal baru mengikuti modal
+- [x] `useGraduateKpiDisplay.js` (subtitle) dan modal baru mengikuti modal
       Graduate yang ada.
-- [ ] Tes: - 5 kartu dan urutannya; - kelas span; - subtitle dan kosong; - halaman 4 kartu (Student, MBKM) tidak berubah.
+- [x] Tes: - 5 kartu dan urutannya; - kelas span; - subtitle dan kosong; - halaman 4 kartu (Student, MBKM) tidak berubah.
 
 ### Fase 5: Dokumentasi dan verifikasi
 
-- [ ] ADR 0004: akhir studi membaca `periodeTerakhir`, dan `YYYY3` dibaca
+- [x] ADR 0004: akhir studi membaca `periodeTerakhir`, dan `YYYY3` dibaca
       Genap.
-- [ ] ADR 0006: riwayat cuti dari `/perwalian` dan aturan maksimal 2 cuti
+- [x] ADR 0006: riwayat cuti dari `/perwalian` dan aturan maksimal 2 cuti
       (khusus Masa Studi).
-- [ ] `docs/ARCHITECTURE.md` (matriks filter Graduate), CHANGELOG, dan
+- [x] `docs/ARCHITECTURE.md` (matriks filter Graduate), CHANGELOG, dan
       FORMULA.md §7 (sumber cuti).
-- [ ] `pnpm verify`; user menjalankan sync mahasiswa dan kelulusan.
-- [ ] Probe ulang (GET, angka agregat): jumlah periode cuti per lulusan.
-- [ ] Browser (playwright-cli): - screenshot di 375, 768, 1024, dan 1440 px; - tidak ada slot kosong dan tidak ada scroll horizontal; - tinggi kartu rata; - Delivery Gate antislop.
+- [x] `pnpm verify`; user menjalankan sync mahasiswa dan kelulusan.
+- [x] Probe ulang (GET, angka agregat): jumlah periode cuti per lulusan.
+- [x] Browser (playwright-cli): - screenshot di 375, 768, 1024, dan 1440 px; - tidak ada slot kosong dan tidak ada scroll horizontal; - tinggi kartu rata; - Delivery Gate antislop.
 
 ## Di luar cakupan (dicatat)
 

@@ -94,10 +94,36 @@ function studySuccessCard(keberhasilanStudi) {
   };
 }
 
-function buildGraduateCards({ totalLulusan, avgIpk, tepatWaktu, keberhasilanStudi }) {
+/**
+ * Rata-rata Masa Studi: nilai utama = jenjang dengan lulusan terhitung
+ * terbanyak, karena masa studi standar tiap jenjang berbeda dan rata-rata
+ * gabungan tidak bermakna. `years` = semester ÷ 2.
+ */
+function studyLengthCard(masaStudi) {
+  const byJenjang = jenjangEntries(masaStudi, (raw) => ({
+    value: raw?.average ?? null,
+    years: raw?.average === null || raw?.average === undefined ? null : round2(raw.average / 2),
+    count: raw?.count ?? 0,
+    cutiAdjusted: raw?.cutiAdjusted ?? 0,
+  }));
+  const headline = byJenjang.reduce(
+    (best, entry) => (!best || entry.count > best.count ? entry : best),
+    null,
+  );
+  return {
+    value: headline?.value ?? null,
+    years: headline?.years ?? null,
+    headlineJenjang: headline?.jenjang ?? null,
+    isEmpty: !headline,
+    byJenjang,
+  };
+}
+
+function buildGraduateCards({ totalLulusan, avgIpk, masaStudi, tepatWaktu, keberhasilanStudi }) {
   return {
     total: totalCard(totalLulusan),
     gpa: gpaCard(avgIpk),
+    studyLength: studyLengthCard(masaStudi),
     onTime: onTimeCard(tepatWaktu),
     studySuccess: studySuccessCard(keberhasilanStudi),
   };

@@ -26,6 +26,7 @@ router.get('/summary', summaryLimiter, graduates.getSummary);
 router.get('/total-lulusan', graduates.getTotalLulusanDetail);
 router.get('/ipk-trend', graduates.getIpkTrendDetail);
 router.get('/tepat-waktu', graduates.getTepatWaktuDetail);
+router.get('/masa-studi', graduates.getMasaStudiDetailHandler);
 router.get('/keberhasilan-studi', graduates.getKeberhasilanStudiDetail);
 router.get('/distribution', graduates.getGraduateDistributionDetail);
 

@@ -20,9 +20,11 @@ had no limits, so both cards returned null for them.
 
 - Study length is counted in semesters, inclusive: from `periodeMasukAwal`
   (start of a transfer chain), else `periodeMasuk`, else `angkatan` as Ganjil,
-  to `graduate.periodeWisuda`. Without a graduation period, `tahunLulus` is read
-  as its Genap term. The helper is `studySemesters` in
-  `apps/server/src/utils/academic/period.js`.
+  to `graduate.periodeWisuda`, else `student.periodeTerakhir` from
+  `/mahasiswa` (graduates `/kelulusan` never published), else `tahunLulus` as
+  its Genap term. A short term (`YYYY3`) is not a semester and reads as the
+  Genap of that year (2026-10-28). The helpers are `studySemesters` and
+  `studyPeriodRange` in `apps/server/src/utils/academic/period.js`.
 - One limits table, `apps/server/src/services/graduates/studyLimits.js`:
 
   | Jenjang | On time (years) | Maximum (years) |

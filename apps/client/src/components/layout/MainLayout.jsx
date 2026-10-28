@@ -3,7 +3,13 @@ import Navbar from './Navbar/Navbar';
 import Sidebar from './Sidebar/Sidebar';
 
 export default function MainLayout({ children }) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  // Sidebar 256 px mendorong konten; di bawah lg (ponsel/tablet) mulai tertutup
+  // supaya kartu dan tabel tidak terjepit. Tanpa matchMedia (tes) tetap terbuka.
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() =>
+    typeof window === 'undefined' || !window.matchMedia
+      ? true
+      : window.matchMedia('(min-width: 1024px)').matches,
+  );
   const [dragWidth, setDragWidth] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
 

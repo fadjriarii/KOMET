@@ -148,14 +148,19 @@ function windowGraduateTrend(series, whereFilter = {}) {
  * @param {object} whereFilter  Filter student-base (flat + nesting `graduate`)
  * @param {function({tahun, jenjang, items}): number|null} options.valueOf  angka dari satu bucket tahun×jenjang
  * @param {number|null} options.missing  nilai tahun/jenjang tanpa baris
+ * @param {object} [options.select]  kolom tambahan yang dibutuhkan `valueOf`
  * @returns {Promise<Array<{tahun: string, [jenjangLower]: number|null}>>} terurut naik;
  *   kunci jenjang dinamis (s1/s2/profesi, bukan daftar statis)
  */
-async function valuesByYearAndJenjang(whereFilter, { valueOf, missing }) {
+async function valuesByYearAndJenjang(whereFilter, { valueOf, missing, select = {} }) {
   const { scope } = await resolveTahunScope(whereFilter);
   const students = await prisma.student.findMany({
     where: withTahunScope(whereFilter, scope),
-    select: { jenjang: true, graduate: { select: { tahunLulus: true, ipk: true } } },
+    select: {
+      ...select,
+      jenjang: true,
+      graduate: { select: { ...select.graduate?.select, tahunLulus: true, ipk: true } },
+    },
   });
 
   // Filter jenjang user menang; tanpanya = semua jenjang yang ada di populasi

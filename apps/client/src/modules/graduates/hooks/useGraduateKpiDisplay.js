@@ -5,7 +5,7 @@ import { ignoredFiltersClause, scopeTexts } from '../utils/filterScope';
 
 const SUCCESS_TAIL = 'Dinilai dari angkatan terbaru yang masa studi maksimumnya sudah habis.';
 const EMPTY_SENTENCE = 'Tidak ada lulusan untuk kombinasi filter ini.';
-const EMPTY_CARDS = { total: {}, gpa: {}, onTime: {}, studySuccess: {} };
+const EMPTY_CARDS = { total: {}, gpa: {}, studyLength: {}, onTime: {}, studySuccess: {} };
 
 const rate = (value) => formatPercentage(value, 1);
 const gpa = (value) => formatDecimal(value, 2);
@@ -28,6 +28,25 @@ function gpaSubtitle(card, scope) {
   const parts = (card.byJenjang || []).map((entry) => `${gpa(entry.value)} (${entry.label})`);
   const phrase = card.scope?.phrase ? ` ${card.scope.phrase}` : '';
   return `IPK rata-rata lulusan${scope.suffix} ${formatList(parts)} dari skala 4.00${phrase}.`;
+}
+
+const semesters = (value) => formatDecimal(value, 1);
+
+/** "Lulusan S1 rata-rata 8.2 semester (4.1 tahun)..." dengan rincian jenjang lain. */
+export function studyLengthSubtitle(card, scope) {
+  const entries = card?.byJenjang || [];
+  const headline = entries.find((entry) => entry.jenjang === card.headlineJenjang) || entries[0];
+  if (card?.isEmpty || !headline) return EMPTY_SENTENCE;
+  const others = entries.filter((entry) => entry !== headline);
+  const phrase = card.scope?.phrase ? ` ${card.scope.phrase}` : '';
+  const base =
+    `Lulusan ${headline.label}${scope.suffix} rata-rata ${semesters(headline.value)} semester ` +
+    `(${formatDecimal(headline.years, 1)} tahun)${phrase}, setelah dikurangi maksimal 2 semester cuti.`;
+  if (!others.length) return base;
+  const detail = formatList(
+    others.map((entry) => `${entry.label} ${semesters(entry.value)} semester`),
+  );
+  return `${base} Rincian: ${detail}.`;
 }
 
 function onTimeSubtitle(card, scope) {
@@ -76,11 +95,16 @@ export function useGraduateKpiDisplay(summaryData, isLoading, filterValues = {})
     const scope = scopeTexts(filterValues);
     const cohortScope = scopeTexts(filterValues, { cohort: true });
     const withSearch = (sentence, texts = scope) => `${sentence}${texts.searchSuffix}`;
+    const studyLength = cards.studyLength || {};
 
     return {
       kpis: {
         totalGraduates: formatNumber(cards.total.value),
         gpaDisplay: gpa(cards.gpa.value),
+        studyLengthDisplay:
+          studyLength.value === null || studyLength.value === undefined
+            ? '-'
+            : `${semesters(studyLength.value)} semester`,
         onTimeDisplay: rate(cards.onTime.value),
         studySuccessDisplay: rate(cards.studySuccess.value),
       },
@@ -90,6 +114,7 @@ export function useGraduateKpiDisplay(summaryData, isLoading, filterValues = {})
         total: withSearch(totalSubtitle(cards.total, scope)),
         totalScope: cards.total.scope?.label || 'Semua Tahun',
         gpa: withSearch(gpaSubtitle(cards.gpa, scope)),
+        studyLength: withSearch(studyLengthSubtitle(studyLength, scope)),
         onTime: withSearch(onTimeSubtitle(cards.onTime, scope)),
         studySuccess: withSearch(
           studySuccessSubtitle(cards.studySuccess, cohortScope),

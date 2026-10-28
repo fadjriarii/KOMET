@@ -37,6 +37,7 @@ export const graduatesService = {
       getTotalLulusanDetail: '/graduates/total-lulusan',
       getIpkTrendDetail: '/graduates/ipk-trend',
       getTepatWaktuDetail: '/graduates/tepat-waktu',
+      getMasaStudiDetail: '/graduates/masa-studi',
       getKeberhasilanStudiDetail: '/graduates/keberhasilan-studi',
       getGraduateDistribution: '/graduates/distribution',
     },

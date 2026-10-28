@@ -4,6 +4,7 @@ import DetailModalOrchestrator from '../../../components/common/modals/DetailMod
 const MODAL_IMPORTS = {
   total: () => import('./modals/TotalGraduatesModal'),
   gpa: () => import('./modals/GpaOverviewModal'),
+  studyLength: () => import('./modals/StudyLengthModal'),
   onTime: () => import('./modals/OnTimeGraduationModal'),
   studySuccess: () => import('./modals/StudySuccessModal'),
 };

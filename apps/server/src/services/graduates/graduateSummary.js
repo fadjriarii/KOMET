@@ -11,6 +11,7 @@ const { getTahunAjaran } = require('./tahunAjaran');
 const { getTotalLulusan } = require('./totalLulusan');
 const { getAvgIpk } = require('./ipkTrend');
 const { getTepatWaktu } = require('./tepatWaktu');
+const { getMasaStudi } = require('./masaStudi');
 const { getKeberhasilanStudi } = require('./keberhasilanStudi');
 const { getGraduateLabelWindow } = require('./yearJenjangSeries');
 const { buildGraduateCards } = require('./graduateCards');
@@ -60,19 +61,34 @@ function ignoredStudySuccessFilters(query = {}, defaultTahunLulus = null) {
 }
 
 async function getGraduateSummary(whereFilter, query = {}) {
-  const [filterOptions, totalLulusan, avgIpk, tepatWaktu, keberhasilanStudi, labelRange] =
-    await Promise.all([
-      getGraduateFilterOptions(getTahunAjaran(whereFilter)),
-      getTotalLulusan(whereFilter),
-      getAvgIpk(whereFilter),
-      getTepatWaktu(whereFilter),
-      getKeberhasilanStudi(whereFilter),
-      getGraduateLabelWindow(),
-    ]);
+  const [
+    filterOptions,
+    totalLulusan,
+    avgIpk,
+    masaStudi,
+    tepatWaktu,
+    keberhasilanStudi,
+    labelRange,
+  ] = await Promise.all([
+    getGraduateFilterOptions(getTahunAjaran(whereFilter)),
+    getTotalLulusan(whereFilter),
+    getAvgIpk(whereFilter),
+    getMasaStudi(whereFilter),
+    getTepatWaktu(whereFilter),
+    getKeberhasilanStudi(whereFilter),
+    getGraduateLabelWindow(),
+  ]);
 
-  const cards = buildGraduateCards({ totalLulusan, avgIpk, tepatWaktu, keberhasilanStudi });
+  const cards = buildGraduateCards({
+    totalLulusan,
+    avgIpk,
+    masaStudi,
+    tepatWaktu,
+    keberhasilanStudi,
+  });
   cards.total.scope = totalLulusan.tahunScope ?? null;
   cards.gpa.scope = avgIpk.tahunScope ?? null;
+  cards.studyLength.scope = masaStudi.tahunScope ?? null;
   cards.onTime.scope = tepatWaktu.tahunScope ?? null;
   cards.studySuccess.ignoredFilters = ignoredStudySuccessFilters(
     query,
@@ -88,6 +104,7 @@ async function getGraduateSummary(whereFilter, query = {}) {
     kpiFilterScope: {
       total: GRADUATE_PARAMS,
       gpa: GRADUATE_PARAMS,
+      studyLength: GRADUATE_PARAMS,
       onTime: GRADUATE_PARAMS,
       studySuccess: COHORT_PARAMS,
     },

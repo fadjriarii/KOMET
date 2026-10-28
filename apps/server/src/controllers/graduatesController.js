@@ -15,6 +15,7 @@ const { getOrLoad } = require('../services/summaryCache');
 const { getTotalLulusanByYear } = require('../services/graduates/totalLulusan');
 const { getAvgIpk, getIpkByYear, getIpkOverview } = require('../services/graduates/ipkTrend');
 const { getTepatWaktuByYear } = require('../services/graduates/tepatWaktu');
+const { getMasaStudiDetail } = require('../services/graduates/masaStudi');
 const { getKeberhasilanStudiByAngkatan } = require('../services/graduates/keberhasilanStudi');
 const { getGraduateDistribution } = require('../services/graduates/graduateDistribution');
 const { getGraduateList } = require('../services/graduates/graduateList');
@@ -102,6 +103,18 @@ const getTepatWaktuDetail = async (req, res) => {
   }
 };
 
+// GET /api/graduates/masa-studi — Detail kartu Rata-rata Masa Studi
+const getMasaStudiDetailHandler = async (req, res) => {
+  try {
+    const whereFilter = buildGraduateFilter(req.query);
+    // Sebaran dan prodi = scope kartu; tren per Tahun Lulus = jendela tren.
+    const data = await getMasaStudiDetail(whereFilter, await withoutDefaultTahunLulus(whereFilter));
+    return res.json({ success: true, data });
+  } catch (error) {
+    return sendServerError(res, 'DATA_READ_FAILED', error, 'graduates/getMasaStudiDetail');
+  }
+};
+
 // GET /api/graduates/keberhasilan-studi — Detail chart Card 4
 const getKeberhasilanStudiDetail = async (req, res) => {
   try {
@@ -147,6 +160,7 @@ module.exports = {
   getTotalLulusanDetail,
   getIpkTrendDetail,
   getTepatWaktuDetail,
+  getMasaStudiDetailHandler,
   getKeberhasilanStudiDetail,
   getGraduateDistributionDetail,
   getGraduates,

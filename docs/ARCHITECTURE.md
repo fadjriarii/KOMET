@@ -470,13 +470,13 @@ text. `GET /graduates/summary` returns `kpis.cards` from
 Jenjang order and spelling are canonical (`CANONICAL_JENJANG`,
 `normalizeJenjang` in `@komet/shared`); a jenjang without data is never listed.
 
-| Filter                                        | Total Lulusan   | Rata-rata IPK | Tepat Waktu | Keberhasilan Studi          |
-| --------------------------------------------- | --------------- | ------------- | ----------- | --------------------------- |
-| Search, Fakultas, Prodi, Jenjang              | on              | on            | on          | on                          |
-| Angkatan                                      | on              | on            | on          | on (the evaluated angkatan) |
-| Tahun Ajaran without Tahun Lulus              | cumulative ≤ TA | cumulative    | cumulative  | on (anchor TA − maximum)    |
-| Tahun Lulus (explicit wins over Tahun Ajaran) | on              | on            | on          | off                         |
-| Predikat, Periode Lulus                       | on              | on            | on          | off                         |
+| Filter                                        | Total Lulusan   | Rata-rata IPK | Masa Studi | Tepat Waktu | Keberhasilan Studi          |
+| --------------------------------------------- | --------------- | ------------- | ---------- | ----------- | --------------------------- |
+| Search, Fakultas, Prodi, Jenjang              | on              | on            | on         | on          | on                          |
+| Angkatan                                      | on              | on            | on         | on          | on (the evaluated angkatan) |
+| Tahun Ajaran without Tahun Lulus              | cumulative ≤ TA | cumulative    | cumulative | cumulative  | on (anchor TA − maximum)    |
+| Tahun Lulus (explicit wins over Tahun Ajaran) | on              | on            | on         | on          | off                         |
+| Predikat, Periode Lulus                       | on              | on            | on         | on          | off                         |
 
 Card values:
 
@@ -490,6 +490,14 @@ Card values:
   filters this card does not read, so the client can say so.
 - Study length is counted in semesters against `services/graduates/studyLimits.js`
   (ADR 0004).
+- Rata-rata Masa Studi (`services/graduates/masaStudi.js`, ADR 0006) averages
+  semesters per jenjang minus at most two cuti semesters inside the study range
+  (`student_cuti_periods`). It reports the jenjang with the most graduates.
+  `GET /graduates/masa-studi` returns `bySemester` + `jenjangs`, `byProdi`, and
+  `byYear` + `trendJenjangs`.
+- Five cards use `MetricSummaryGrid`'s five-card layout: one column on phones,
+  2 + 2 + 1 on tablets (last card full width), and 3 + 2 on desktop through a
+  six-column grid, so no width leaves an empty slot.
 
 Presentation rules:
 

@@ -199,6 +199,16 @@ const ROUTES = {
           ],
         },
         gpa: { value: 3.45, count: 1000, isEmpty: false, byJenjang: [] },
+        studyLength: {
+          value: 8.18,
+          years: 4.09,
+          headlineJenjang: 'S1',
+          isEmpty: false,
+          byJenjang: [
+            { key: 's1', jenjang: 'S1', label: 'S1', value: 8.18, years: 4.09, count: 125 },
+            { key: 's2', jenjang: 'S2', label: 'S2', value: 4.17, years: 2.09, count: 12 },
+          ],
+        },
         onTime: { value: 79.1, isEmpty: false, byJenjang: [] },
         studySuccess: { value: 91.2, isEmpty: false, ignoredFilters: [], byJenjang: [] },
       },
@@ -219,12 +229,14 @@ const ROUTES = {
     cards: [
       { key: 'total', title: 'Total Lulusan' },
       { key: 'gpa', title: 'Rata-rata IPK Lulusan' },
+      { key: 'studyLength', title: 'Rata-rata Masa Studi Lulusan' },
       { key: 'onTime', title: 'Kelulusan Tepat Waktu' },
       { key: 'studySuccess', title: 'Keberhasilan Studi' },
     ],
     scope: {
       total: GRADUATE_PARAMS,
       gpa: GRADUATE_PARAMS,
+      studyLength: GRADUATE_PARAMS,
       onTime: GRADUATE_PARAMS,
       studySuccess: [
         'search',

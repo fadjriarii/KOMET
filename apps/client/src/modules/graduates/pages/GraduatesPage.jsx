@@ -1,4 +1,4 @@
-import { Award, BookOpenCheck, Clock, GraduationCap } from 'lucide-react';
+import { Award, BookOpenCheck, Clock, GraduationCap, Hourglass } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import DashboardPage from '../../../components/common/dashboard/DashboardPage';
 import HeaderAcademicYearFilter from '../../../components/common/filters/HeaderAcademicYearFilter';
@@ -33,6 +33,16 @@ function buildCards({ kpis, displaySubtitles, kpiScope, isReady, openModal }) {
       isFiltered: kpiScope.gpa && isReady,
     },
     {
+      key: 'studyLength',
+      title: 'Rata-rata Masa Studi Lulusan',
+      value: formatKpiDisplay(kpis.studyLengthDisplay),
+      subtitle: displaySubtitles.studyLength,
+      icon: Hourglass,
+      badge: 'Maks. 2 Semester Cuti',
+      onViewDetails: (event) => openModal('studyLength', event),
+      isFiltered: kpiScope.studyLength && isReady,
+    },
+    {
       key: 'onTime',
       title: 'Kelulusan Tepat Waktu',
       value: formatKpiDisplay(kpis.onTimeDisplay),
@@ -64,7 +74,7 @@ export default function GraduatesPage() {
   return (
     <DashboardPage
       title="Graduate Data"
-      description="Statistik kelulusan mahasiswa, distribusi IPK, dan persentase kelulusan tepat waktu."
+      description="Statistik kelulusan, IPK, masa studi, dan kelulusan tepat waktu mahasiswa."
       useFilters={useGraduateFilters}
       filterForm={graduateFilterForm}
       useSummary={useSummary}
