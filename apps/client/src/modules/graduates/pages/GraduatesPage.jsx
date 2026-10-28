@@ -22,7 +22,7 @@ function buildCards({ kpis, displaySubtitles, studyLengthTiles, kpiScope, isRead
       breakdown: studyLengthTiles,
       subtitle: displaySubtitles.studyLength,
       icon: Hourglass,
-      badge: 'Maks. 2 Semester Cuti',
+      badge: displaySubtitles.studyLengthScope,
       onViewDetails: (event) => openModal('studyLength', event),
       isFiltered: kpiScope.studyLength && isReady,
     },

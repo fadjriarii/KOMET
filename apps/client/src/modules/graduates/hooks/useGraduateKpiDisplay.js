@@ -121,6 +121,7 @@ export function useGraduateKpiDisplay(summaryData, isLoading, filterValues = {})
       displaySubtitles: {
         total: withSearch(totalSubtitle(cards.total, scope)),
         totalScope: cards.total.scope?.label || 'Semua Tahun',
+        studyLengthScope: studyLength.scope?.label || 'Semua Tahun',
         gpa: withSearch(gpaSubtitle(cards.gpa, scope)),
         studyLength: withSearch(studyLengthSubtitle(studyLength, scope)),
         onTime: withSearch(onTimeSubtitle(cards.onTime, scope)),
