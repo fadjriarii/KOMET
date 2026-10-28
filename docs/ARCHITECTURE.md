@@ -550,7 +550,10 @@ total, `kind: 'rate'` items carry `count ÷ total` within the group, so a facult
 rate never exceeds 100%. Participation: per faculty and program (rate), a
 five-year trend, per status, and not participating per program. Total: per
 semester, program, and angkatan. Mitra: top partners by students (top N plus
-"Lainnya" decided by the server) and partners per type. Jenis: students per
+"Lainnya" decided by the server) and partners per type. Partner spellings are
+merged by `services/mbkm/partnerNames.js` (safe rules plus the
+`mbkm_partner_aliases` table, cached five minutes and cleared after sync), and
+the table's Mitra column shows the merged name. Jenis: students per
 type. The client renders breakdowns generically
 (`MbkmBreakdownModal`) and hides single-category tabs (`tabsWithData`); `rate`
 breakdowns render as a table so 0% groups stay visible.

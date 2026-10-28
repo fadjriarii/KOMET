@@ -379,6 +379,21 @@ Dihapus atas permintaan user, di server dan client:
       semua semester.
 - [x] `ignoredFilters` dihapus: semua kartu membaca semua filter.
 
+### Alias nama mitra (2026-10-28)
+
+- [x] `services/mbkm/partnerNames.js`: aturan aman (huruf besar, tanda baca,
+      PT/CV/Tbk/Persero, singkatan dalam kurung) + tabel `mbkm_partner_aliases`
+      (db push dengan persetujuan user). Nama tampil = `canonical` alias atau
+      ejaan terpanjang. Tanpa pencocokan kemiripan (fuzzy).
+- [x] Seed `prisma/data/mbkm-partner-aliases.sql`: 3 alias i3L. 190 ejaan →
+      181 mitra; i3L di 2025/2026 = 29 mahasiswa (mitra terbanyak).
+- [ ] Isian bukan-mitra di SEVIMA (mis. "BM41932 Research Internship",
+      "internship") belum diputuskan: tetap dihitung sebagai mitra.
+
+Cara menambah alias: tambah baris di file seed, lalu jalankan
+`npx prisma db execute --file prisma/data/mbkm-partner-aliases.sql` dari
+`apps/server`. Perubahan tampil setelah cache 5 menit, sync, atau restart.
+
 ### Checklist pengetesan lokal (untuk user)
 
 - [x] Sync MBKM dari sidebar (2026-10-27): 556 aktivitas, kunci unik, tanpa

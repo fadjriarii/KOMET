@@ -127,6 +127,17 @@ model MbkmActivity {
   @@map("mbkm_activities")
 }
 
+/// Alias nama mitra MBKM: ejaan apa pun di `alias` dihitung sebagai mitra `canonical`.
+/// Diisi lewat `prisma/data/mbkm-partner-aliases.sql`; ejaan yang hanya beda huruf
+/// besar, tanda baca, atau awalan PT/CV/Tbk sudah digabung otomatis tanpa alias.
+model MbkmPartnerAlias {
+  id        Int    @id @default(autoincrement())
+  alias     String @unique @db.VarChar(191)
+  canonical String @db.VarChar(191)
+
+  @@map("mbkm_partner_aliases")
+}
+
 /// Riwayat job sinkronisasi. Hanya n run terbaru yang disimpan (dipangkas
 /// `services/sync/syncRunLog`), jadi tabel ini tetap kecil tanpa perlu paginasi.
 model SyncRun {

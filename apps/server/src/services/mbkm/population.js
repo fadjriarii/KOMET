@@ -20,6 +20,7 @@ const {
   semesterAtPeriode,
 } = require('./mbkmEligibility');
 const { statusRuleOf } = require('./statusRules');
+const { getPartnerIndex } = require('./partnerNames');
 
 const ACTIVITY_SELECT = {
   id: true,
@@ -66,12 +67,6 @@ function periodsLabel(periods = []) {
     : periods.map(periodeLabel).join(', ');
 }
 
-/** Kunci nama mitra: huruf kecil, tanpa tanda baca/spasi, supaya ejaan kembar bergabung. */
-const mitraKey = (name) =>
-  String(name ?? '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '');
-
 function activityWhere(query, periods) {
   const where = { periode: { in: periods } };
   const student = buildStudentFilterFromMbkmQuery(query);
@@ -106,7 +101,7 @@ const isParticipating = (activity, rule) =>
  * }>}
  */
 async function loadMbkmPopulation(query, periods) {
-  const [eligible, rawActivities] = await Promise.all([
+  const [eligible, rawActivities, partnerOf] = await Promise.all([
     getEligibleStudentsAtPeriodes(buildStudentFilterFromMbkmQuery(query), periods),
     periods.length
       ? prisma.mbkmActivity.findMany({
@@ -114,6 +109,7 @@ async function loadMbkmPopulation(query, periods) {
           select: ACTIVITY_SELECT,
         })
       : [],
+    getPartnerIndex(),
   ]);
 
   const eligibleByNim = new Map(eligible.map((student) => [student.nim, student]));
@@ -125,7 +121,12 @@ async function loadMbkmPopulation(query, periods) {
     const rule = statusRuleOf(activity);
     const student = eligibleByNim.get(activity.nim);
     const participating = isParticipating(activity, rule);
-    const row = { ...activity, rule, counted: participating && Boolean(student) };
+    const row = {
+      ...activity,
+      rule,
+      counted: participating && Boolean(student),
+      partner: partnerOf(activity.mitra),
+    };
 
     if (student && rule.category === 'pending') pendingNims.add(activity.nim);
     if (participating && activity.student) {
@@ -171,5 +172,4 @@ module.exports = {
   loadMbkmPopulation,
   periodeLabel,
   periodsLabel,
-  mitraKey,
 };

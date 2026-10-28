@@ -94,6 +94,11 @@ Version numbers follow the root `package.json`.
   Kegiatan MBKM". Mitra and activity types count approved and completed
   activities of every semester and follow every filter. The Jenis Aktivitas
   filter lists only the types present in the selected academic year.
+- MBKM partner spellings merge into one partner: case, punctuation, PT/CV/Tbk,
+  and acronyms in parentheses are handled automatically, and other spellings
+  through the new `mbkm_partner_aliases` table, seeded from
+  `apps/server/prisma/data/mbkm-partner-aliases.sql` (i3L variants). The
+  longest or canonical spelling is shown.
 - MBKM defaults to the latest academic year in MBKM data, in the client and in
   the server warm-up, instead of the calendar year.
 - Dashboard query data stays fresh for five minutes; sync still invalidates the

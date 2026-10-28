@@ -20,6 +20,7 @@ const {
 } = require('../../../src/services/mbkm/mbkmBreakdowns');
 const { getMbkmSummary } = require('../../../src/services/mbkm/mbkmSummary');
 const { getMbkmList } = require('../../../src/services/mbkm/mbkmList');
+const { clearPartnerIndex } = require('../../../src/services/mbkm/partnerNames');
 
 const calls = [];
 const original = [
@@ -73,6 +74,8 @@ function stubDb({ students = [], activities = [], latestPeriode = '20251', group
   prisma.mbkmActivity.findFirst = vi.fn(async () => ({ periode: latestPeriode }));
   prisma.mbkmActivity.groupBy = vi.fn(async (args) => groups[args.by[0]] ?? []);
   prisma.student.groupBy = vi.fn(async () => []);
+  prisma.mbkmPartnerAlias = { findMany: vi.fn(async () => []) };
+  clearPartnerIndex();
 }
 
 beforeEach(() => calls.splice(0, calls.length));

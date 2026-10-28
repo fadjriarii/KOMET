@@ -12,6 +12,7 @@ function clearFilterCachesSafely() {
     require('../../services/students/filterOptions').clearFilterCache();
     require('../../services/graduates/filterOptions').clearGraduateFilterCache();
     require('../../services/mbkm/filterOptions').clearMbkmFilterCache();
+    require('../../services/mbkm/partnerNames').clearPartnerIndex();
     require('../../services/summaryCache').clearSummaryCaches();
   } catch (error) {
     logger.warn('Gagal membersihkan cache dashboard:', error.message);

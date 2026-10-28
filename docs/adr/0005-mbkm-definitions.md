@@ -40,9 +40,16 @@ One population serves every card, detail, and the table:
   `participating` activity with a filled type in the selected periods, after
   every filter, in any semester. Shown as "Total Mahasiswa MBKM", with the
   semester projected at the earliest activity period.
-- **Partners and activity types:** distinct normalized partner names and types
-  of the all-semester activities. Rejected and cancelled activities add
-  neither. A student can take two types, so type shares can sum past 100%.
+- **Partners and activity types:** distinct partners and types of the
+  all-semester activities. Rejected and cancelled activities add neither. A
+  student can take two types, so type shares can sum past 100%.
+- **Partner names:** spellings that differ only in case, punctuation, or a legal
+  word (PT, CV, Tbk, Persero) are one partner, and a bare acronym joins the name
+  that carries it in parentheses ("I3L" and "... (i3L)"). Other spellings are
+  joined through the `mbkm_partner_aliases` table (alias → canonical), filled
+  from `prisma/data/mbkm-partner-aliases.sql`. The shown name is the canonical
+  alias name, else the longest spelling. No fuzzy matching: two different
+  partners must never merge silently.
 - **Converted credits:** the sum of `sks_mata_kuliah` from
   `mata-kuliah-konversi-mbkm` per activity, shown in the table only. There is
   no credit threshold: a valid activity can convert 3 or 14 SKS. SEVIMA has

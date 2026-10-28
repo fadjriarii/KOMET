@@ -21,7 +21,8 @@ function activityRow(activity, participants) {
     statusKeaktifan: student.statusKeaktifan || '',
     jenisAktivitas: activity.jenisAktivitas,
     judulAktivitas: activity.judulAktivitas,
-    mitra: activity.mitra,
+    // Nama mitra yang sudah digabung, sama dengan kartu Mitra.
+    mitra: activity.partner?.name ?? activity.mitra,
     statusAktivitas: activity.statusAktivitas,
     statusCategory: activity.rule.category,
     sksKonversi: activity.sksKonversi,

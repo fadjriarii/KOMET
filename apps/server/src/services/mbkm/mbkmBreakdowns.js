@@ -8,7 +8,6 @@
  * secara generik; pengelompokan baru cukup ditambah di sini.
  */
 const { roundedRate } = require('../../utils/percentageUtils');
-const { mitraKey } = require('./population');
 
 const UNKNOWN = 'Tidak diketahui';
 const DEFAULT_MITRA_TOP_N = 10;
@@ -121,29 +120,27 @@ const jenisBreakdowns = ({ allParticipants }) => [
 ];
 
 /**
- * Mitra unik dari aktivitas sah, urut jumlah mahasiswa. Ejaan kembar
- * digabung lewat `mitraKey` dan diberi nama ejaan yang paling sering.
+ * Mitra unik dari aktivitas sah, urut jumlah mahasiswa. Ejaan kembar sudah
+ * digabung di `population.js` (`activity.partner`, lihat `partnerNames.js`).
  */
 function rankPartners(participants) {
   const groups = new Map();
   for (const [nim, { activities }] of participants) {
-    for (const { mitra, jenisAktivitas } of activities) {
-      const key = mitraKey(mitra);
-      if (!key) continue;
-      const entry = groups.get(key) || { nims: new Set(), spellings: new Map(), jenis: new Set() };
+    for (const { partner, jenisAktivitas } of activities) {
+      if (!partner) continue;
+      const entry = groups.get(partner.key) || {
+        name: partner.name,
+        nims: new Set(),
+        jenis: new Set(),
+      };
       entry.nims.add(nim);
       entry.jenis.add(nameOf(jenisAktivitas));
-      entry.spellings.set(mitra.trim(), (entry.spellings.get(mitra.trim()) || 0) + 1);
-      groups.set(key, entry);
+      groups.set(partner.key, entry);
     }
   }
-  return [...groups.values()]
-    .map(({ nims, spellings, jenis }) => ({
-      name: [...spellings].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0][0],
-      nims,
-      jenis,
-    }))
-    .sort((a, b) => b.nims.size - a.nims.size || a.name.localeCompare(b.name));
+  return [...groups.values()].sort(
+    (a, b) => b.nims.size - a.nims.size || a.name.localeCompare(b.name),
+  );
 }
 
 /** Angka kartu Mitra: jumlah mitra, mahasiswa bermitra, dan mitra teratas. */
