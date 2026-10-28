@@ -223,6 +223,18 @@ describe('populasi MBKM', () => {
     expect(studentQuery.where).toEqual({ fakultas: { in: ['FST'] } });
   });
 
+  it('pencarian nama mitra ikut mencari semua ejaan mitra yang sama', async () => {
+    stubDb({
+      students: ELIGIBLE,
+      groups: { mitra: [{ mitra: 'I3L' }, { mitra: 'Indonesia International Institute (i3L)' }] },
+    });
+    await loadMbkmPopulation({ search: 'Indonesia International Institute (i3L)' }, ['20251']);
+    const { where } = calls.find((call) => call.model === 'mbkmActivity');
+    expect(where.OR).toContainEqual({
+      mitra: { in: ['I3L', 'Indonesia International Institute (i3L)'] },
+    });
+  });
+
   it('status baru dari SEVIMA tidak dihitung dan berkategori unclassified', async () => {
     stubDb({
       students: ELIGIBLE,

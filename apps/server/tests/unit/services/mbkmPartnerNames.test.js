@@ -54,4 +54,16 @@ describe('buildPartnerIndex', () => {
     expect(partnerOf('  ')).toBeNull();
     expect(partnerOf('Mitra Baru').name).toBe('Mitra Baru');
   });
+
+  it('pencarian satu ejaan menemukan semua ejaan mitra yang sama', () => {
+    const partnerOf = buildPartnerIndex(
+      ['I3L', 'i3L University', I3L_FULL, 'PT Kalbe'],
+      [{ alias: 'i3L University', canonical: I3L_FULL }],
+    );
+    const all = ['I3L', 'i3L University', I3L_FULL];
+    expect(partnerOf.spellingsMatching(I3L_FULL).sort()).toEqual([...all].sort());
+    expect(partnerOf.spellingsMatching('university').sort()).toEqual([...all].sort());
+    expect(partnerOf.spellingsMatching('kalbe')).toEqual(['PT Kalbe']);
+    expect(partnerOf.spellingsMatching('  ')).toEqual([]);
+  });
 });

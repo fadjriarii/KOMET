@@ -33,7 +33,9 @@ const parenAcronym = (name) => partnerKey(String(name ?? '').match(/\(([^)]+)\)\
 /**
  * @param {string[]} names semua ejaan mitra yang tersimpan
  * @param {{ alias: string, canonical: string }[]} aliases isi tabel alias
- * @returns {(name: string) => { key: string, name: string } | null}
+ * @returns {((name: string) => { key: string, name: string } | null) & {
+ *   spellingsMatching: (term: string) => string[],
+ * }}
  */
 function buildPartnerIndex(names, aliases = []) {
   const parent = new Map();
@@ -87,13 +89,40 @@ function buildPartnerIndex(names, aliases = []) {
     }
   }
 
-  return (name) => {
+  // Ejaan tersimpan per grup: pencarian satu ejaan harus menemukan semua ejaan mitra itu.
+  const stored = new Map();
+  for (const name of names) {
+    const key = partnerKey(name);
+    if (!key) continue;
+    const root = find(key);
+    if (!stored.has(root)) stored.set(root, new Set());
+    stored.get(root).add(name);
+  }
+
+  const partnerOf = (name) => {
     const key = partnerKey(name);
     if (!key) return null;
     if (!parent.has(key)) return { key, name: String(name).trim() };
     const root = find(key);
     return { key: root, name: display.get(root)?.name ?? String(name).trim() };
   };
+
+  /** Semua ejaan tersimpan dari mitra yang nama tampil atau salah satu ejaannya memuat `term`. */
+  partnerOf.spellingsMatching = (term) => {
+    const needle = String(term ?? '')
+      .trim()
+      .toLowerCase();
+    if (!needle) return [];
+    const result = [];
+    for (const [root, spellingSet] of stored) {
+      const candidates = [display.get(root)?.name ?? '', ...spellingSet];
+      if (candidates.some((candidate) => candidate.toLowerCase().includes(needle))) {
+        result.push(...spellingSet);
+      }
+    }
+    return result;
+  };
+  return partnerOf;
 }
 
 let cache = null;

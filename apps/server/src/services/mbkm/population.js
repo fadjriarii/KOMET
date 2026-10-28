@@ -67,7 +67,7 @@ function periodsLabel(periods = []) {
     : periods.map(periodeLabel).join(', ');
 }
 
-function activityWhere(query, periods) {
+function activityWhere(query, periods, partnerOf) {
   const where = { periode: { in: periods } };
   const student = buildStudentFilterFromMbkmQuery(query);
   if (hasFilters(student)) where.student = student;
@@ -80,6 +80,10 @@ function activityWhere(query, periods) {
       { student: { nama: { contains: term } } },
       { mitra: { contains: term } },
     ];
+    // Ejaan lain dari mitra yang sama: "Indonesia International Institute for
+    // Life-Sciences (i3L)" juga menemukan baris yang ditulis "I3L".
+    const spellings = partnerOf?.spellingsMatching(term) ?? [];
+    if (spellings.length) where.OR.push({ mitra: { in: spellings } });
   }
   return where;
 }
@@ -101,15 +105,16 @@ const isParticipating = (activity, rule) =>
  * }>}
  */
 async function loadMbkmPopulation(query, periods) {
-  const [eligible, rawActivities, partnerOf] = await Promise.all([
+  // Indeks mitra dulu: pencarian memakai ejaan gabungannya (di-cache, murah).
+  const partnerOf = await getPartnerIndex();
+  const [eligible, rawActivities] = await Promise.all([
     getEligibleStudentsAtPeriodes(buildStudentFilterFromMbkmQuery(query), periods),
     periods.length
       ? prisma.mbkmActivity.findMany({
-          where: activityWhere(query, periods),
+          where: activityWhere(query, periods, partnerOf),
           select: ACTIVITY_SELECT,
         })
       : [],
-    getPartnerIndex(),
   ]);
 
   const eligibleByNim = new Map(eligible.map((student) => [student.nim, student]));
