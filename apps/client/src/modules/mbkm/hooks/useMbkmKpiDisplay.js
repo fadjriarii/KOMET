@@ -7,20 +7,18 @@ import {
   joinLabels,
 } from '../../../utils/kpiLabels';
 
-const EMPTY_CARDS = { rate: {}, participants: {}, eligible: {}, mitra: {} };
-const NO_ELIGIBLE = 'Tidak ada mahasiswa eligible semester 7 untuk kombinasi filter ini.';
+const EMPTY_CARDS = { participation: {}, total: {}, mitra: {}, jenis: {} };
+const NO_ACTIVITY =
+  'Belum ada mahasiswa dengan aktivitas MBKM Disetujui atau Selesai untuk filter ini.';
 
-/** Nama filter untuk kalimat "Filter ... tidak mengubah angka ini"; daftarnya dari server. */
-const IGNORED_FILTER_NAMES = {
-  search: 'pencarian',
-  jenisAktivitas: 'jenis aktivitas',
-  statusAktivitas: 'status aktivitas',
+/** Nama jenis tanpa keterangan dalam kurung: "Magang/Praktik Kerja (Kampus Merdeka)" → "Magang/Praktik Kerja". */
+export const shortJenis = (name = '') => String(name).replace(/\s*\([^)]*\)\s*$/, '');
+
+/** "MBKM", atau nama jenis yang sedang difilter ("Magang/Praktik Kerja"). */
+export const activityName = (jenis = []) => {
+  const list = (Array.isArray(jenis) ? jenis : [jenis]).filter(Boolean).map(shortJenis);
+  return list.length ? formatList(list) : 'MBKM';
 };
-
-export function ignoredFiltersClause(ignored = []) {
-  const names = (ignored || []).map((key) => IGNORED_FILTER_NAMES[key]).filter(Boolean);
-  return names.length ? `Filter ${formatList(names)} tidak mengubah angka ini.` : '';
-}
 
 /** Kalimat cakupan: "Fakultas X, Tahun Ajaran 2025/2026. " */
 const scopeSentence = (filters, periodLabel) => {
@@ -32,68 +30,66 @@ const scopeSentence = (filters, periodLabel) => {
   return scope ? `${scope}. ` : '';
 };
 
-const withClause = (sentence, card) =>
-  [sentence, ignoredFiltersClause(card.ignoredFilters)].filter(Boolean).join(' ');
-
-export function rateSubtitle(card) {
-  if (card.isEmpty) return NO_ELIGIBLE;
-  return withClause(
-    `${formatNumber(card.participants)} dari ${formatNumber(card.eligible)} mahasiswa eligible berpartisipasi.`,
-    card,
+export function participationSubtitle(card, activity = 'MBKM') {
+  if (card.isEmpty) return 'Tidak ada mahasiswa aktif semester 7 untuk filter ini.';
+  const pending = card.pending ? ` ${formatNumber(card.pending)} menunggu persetujuan.` : '';
+  // Saat difilter jenis, sisanya belum mengikuti jenis itu, belum tentu belum MBKM sama sekali.
+  const rest = activity === 'MBKM' ? 'belum berpartisipasi' : `belum mengikuti ${activity}`;
+  return (
+    `${formatNumber(card.participants)} dari ${formatNumber(card.eligible)} mahasiswa aktif semester 7 mengikuti ${activity}. ` +
+    `${formatNumber(card.notParticipating)} ${rest}.${pending}`
   );
 }
 
-export function participantsSubtitle(card) {
-  if (card.isEmpty) return NO_ELIGIBLE;
-  const parts = (card.byStatus || []).map((entry) => `${entry.label} ${formatNumber(entry.value)}`);
-  const pending = card.pending ? `${formatNumber(card.pending)} menunggu persetujuan` : '';
-  const detail = formatList([...parts, pending]);
-  return withClause(detail ? `${detail}.` : 'Belum ada partisipan.', card);
-}
-
-export function eligibleSubtitle(card) {
-  if (card.isEmpty) return NO_ELIGIBLE;
-  return withClause(
-    `Mahasiswa aktif semester 7. ${formatNumber(card.notParticipating)} belum berpartisipasi.`,
-    card,
-  );
+export function totalSubtitle(card) {
+  if (card.isEmpty) return NO_ACTIVITY;
+  return `Mahasiswa semua semester dengan aktivitas Disetujui atau Selesai; ${formatNumber(card.semester7)} di antaranya semester 7.`;
 }
 
 export function mitraSubtitle(card) {
-  if (card.isEmpty) return NO_ELIGIBLE;
-  if (!card.value)
-    return withClause('Belum ada mitra dari aktivitas Disetujui atau Selesai.', card);
+  if (card.isEmpty || !card.value) return NO_ACTIVITY;
   const top = card.top
-    ? ` Terbanyak: ${card.top.name} (${formatNumber(card.top.count)} partisipan).`
+    ? ` Terbanyak: ${card.top.name} (${formatNumber(card.top.count)} mahasiswa).`
     : '';
-  return withClause(
-    `Mitra unik dari aktivitas ${formatNumber(card.withPartner)} partisipan.${top}`,
-    card,
-  );
+  return `Mitra unik dari aktivitas ${formatNumber(card.withPartner)} mahasiswa.${top}`;
+}
+
+export function jenisSubtitle(card) {
+  if (card.isEmpty) return NO_ACTIVITY;
+  const [first, second] = card.top || [];
+  if (!first) return NO_ACTIVITY;
+  const next = second
+    ? `, lalu ${shortJenis(second.name)} (${formatNumber(second.count)} mahasiswa)`
+    : '';
+  return `Terbanyak ${shortJenis(first.name)} (${formatNumber(first.count)} mahasiswa, ${formatPercentage(first.percentage, 0)})${next}.`;
 }
 
 /**
- * Teks kartu MBKM Data. Angka, rincian, kosong atau tidak, dan filter yang
- * tidak mengubah angka semuanya dari server (`kpis.cards`); hook ini hanya
- * menyusun kalimat. null = belum ada data ("-"), 0 tetap angka.
+ * Teks kartu MBKM Data. Angka dan kosong atau tidaknya dari server
+ * (`kpis.cards`); hook ini hanya menyusun kalimat. null = "-", 0 tetap angka.
  */
 export function useMbkmKpiDisplay(summaryData, isLoading, filterValues = {}) {
   return useMemo(() => {
     const cards = summaryData?.kpis?.cards || EMPTY_CARDS;
-    const scope = scopeSentence(filterValues || {}, summaryData?.periodLabel || '');
+    const filters = filterValues || {};
+    const scope = scopeSentence(filters, summaryData?.periodLabel || '');
+    const jenisCount = cards.jenis.value;
 
     return {
       kpis: {
-        participationRate: formatPercentage(cards.rate.value, 1),
-        totalParticipants: formatNumber(cards.participants.value),
-        eligibleCount: formatNumber(cards.eligible.value),
+        participationRate: formatPercentage(cards.participation.value, 1),
+        totalStudents: formatNumber(cards.total.value),
         totalMitra: formatNumber(cards.mitra.value),
+        jenisCount:
+          jenisCount === null || jenisCount === undefined
+            ? '-'
+            : `${formatNumber(jenisCount)} jenis`,
       },
       displaySubtitles: {
-        rate: `${scope}${rateSubtitle(cards.rate)}`,
-        participants: `${scope}${participantsSubtitle(cards.participants)}`,
-        eligible: `${scope}${eligibleSubtitle(cards.eligible)}`,
+        participation: `${scope}${participationSubtitle(cards.participation, activityName(filters.selectedJenisAktivitas))}`,
+        total: `${scope}${totalSubtitle(cards.total)}`,
         mitra: `${scope}${mitraSubtitle(cards.mitra)}`,
+        jenis: `${scope}${jenisSubtitle(cards.jenis)}`,
       },
       isReady: Boolean(summaryData?.success) && !isLoading,
     };

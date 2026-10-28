@@ -1,4 +1,4 @@
-import { Award, Building2, UserCheck, Users } from 'lucide-react';
+import { Award, Briefcase, Building2, Users } from 'lucide-react';
 import DashboardPage from '../../../components/common/dashboard/DashboardPage';
 import HeaderAcademicYearFilter from '../../../components/common/filters/HeaderAcademicYearFilter';
 import { formatKpiDisplay } from '../../../utils/uiHelpers';
@@ -11,31 +11,22 @@ import { useSummary, useList } from '../mbkmQueries';
 function buildCards({ kpis, displaySubtitles, kpiScope, isReady, openModal }) {
   return [
     {
-      key: 'totalParticipants',
-      title: 'Partisipan MBKM',
-      value: formatKpiDisplay(kpis.totalParticipants),
-      subtitle: displaySubtitles.participants,
-      icon: Users,
-      onViewDetails: (event) => openModal('participants', event),
-      isFiltered: kpiScope.participants && isReady,
-    },
-    {
-      key: 'eligible',
-      title: 'Mahasiswa Eligible',
-      value: formatKpiDisplay(kpis.eligibleCount),
-      subtitle: displaySubtitles.eligible,
-      icon: UserCheck,
-      onViewDetails: (event) => openModal('eligible', event),
-      isFiltered: kpiScope.eligible && isReady,
-    },
-    {
-      key: 'rate',
-      title: 'Persentase Partisipasi',
+      key: 'participation',
+      title: 'Partisipasi MBKM Semester 7',
       value: formatKpiDisplay(kpis.participationRate),
-      subtitle: displaySubtitles.rate,
+      subtitle: displaySubtitles.participation,
       icon: Award,
-      onViewDetails: (event) => openModal('rate', event),
-      isFiltered: kpiScope.rate && isReady,
+      onViewDetails: (event) => openModal('participation', event),
+      isFiltered: kpiScope.participation && isReady,
+    },
+    {
+      key: 'total',
+      title: 'Total Mahasiswa MBKM',
+      value: formatKpiDisplay(kpis.totalStudents),
+      subtitle: displaySubtitles.total,
+      icon: Users,
+      onViewDetails: (event) => openModal('total', event),
+      isFiltered: kpiScope.total && isReady,
     },
     {
       key: 'mitra',
@@ -46,6 +37,15 @@ function buildCards({ kpis, displaySubtitles, kpiScope, isReady, openModal }) {
       onViewDetails: (event) => openModal('mitra', event),
       isFiltered: kpiScope.mitra && isReady,
     },
+    {
+      key: 'jenis',
+      title: 'Bentuk Kegiatan MBKM',
+      value: formatKpiDisplay(kpis.jenisCount),
+      subtitle: displaySubtitles.jenis,
+      icon: Briefcase,
+      onViewDetails: (event) => openModal('jenis', event),
+      isFiltered: kpiScope.jenis && isReady,
+    },
   ];
 }
 
@@ -53,7 +53,7 @@ export default function MbkmPage() {
   return (
     <DashboardPage
       title="MBKM Data"
-      description="Partisipasi MBKM mahasiswa semester 7 dan mitranya pada periode terpilih."
+      description="Partisipasi MBKM mahasiswa, mitra, dan bentuk kegiatan pada periode terpilih."
       useFilters={useMbkmFilters}
       filterForm={mbkmFilterForm}
       useSummary={useSummary}

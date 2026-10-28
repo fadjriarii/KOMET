@@ -527,27 +527,29 @@ warning system: it shows no targets.
 - **Counted activity:** status category `participating` (Disetujui, Selesai),
   type filled, student eligible. Faculty, program, jenjang, and angkatan filters
   read Student columns for both numerator and denominator.
+- **All-semester participants** (`allParticipants`): the same activity rule
+  without the eligibility condition; they feed the total, partner, and activity
+  type cards.
 
-| Filter                                           | Persentase | Partisipan | Eligible | Mitra | Table |
-| ------------------------------------------------ | ---------- | ---------- | -------- | ----- | ----- |
-| Tahun Ajaran, Periode                            | on         | on         | on       | on    | on    |
-| Fakultas, Prodi (and API-only Jenjang, Angkatan) | on         | on         | on       | on    | on    |
-| Jenis Aktivitas, Status Aktivitas, Search        | on         | on         | off      | on    | on    |
+Every card reads every filter (`kpiFilterScope`). In the participation card,
+type, status, and search narrow the participants but not the eligible
+denominator, and the sentence names the filtered type instead of "MBKM".
 
 `GET /mbkm/summary` returns `kpis.cards` from `services/mbkm/mbkmCards.js`:
-`rate`, `participants` (`byStatus` per student by best status, `pending`),
-`eligible` (`notParticipating`), and `mitra` (`totalPartners`, `withPartner`,
-`top`). Each card lists the
-active filters it ignores in `ignoredFilters`; `kpiFilterScope` drives the
-"Terfilter" badge. `periodLabel` is the selected period in words.
+`participation` (`value` rate, `participants`, `eligible`, `notParticipating`,
+`pending`), `total` (`value`, `semester7`), `mitra` (`totalPartners`,
+`withPartner`, `top`), and `jenis` (`value` type count, `top` two types).
+`periodLabel` is the selected period in words.
 
-`GET /mbkm/analytics/:card` (`rate`, `participants`, `eligible`,
-`mitra`) returns `{ card, periodLabel, breakdowns }`. Each breakdown is
+`GET /mbkm/analytics/:card` (`participation`, `total`, `mitra`, `jenis`)
+returns `{ card, periodLabel, breakdowns }`. Each breakdown is
 `{ key, label, kind, items }`: `kind: 'share'` items carry a share of the card
 total, `kind: 'rate'` items carry `count ÷ total` within the group, so a faculty
-rate never exceeds 100%. The rate card adds a five-year trend. The mitra card
-lists top partners by participants (normalized names, top N plus "Lainnya"
-decided by the server) and partners per activity type. The client renders breakdowns generically
+rate never exceeds 100%. Participation: per faculty and program (rate), a
+five-year trend, per status, and not participating per program. Total: per
+semester, program, and angkatan. Mitra: top partners by students (top N plus
+"Lainnya" decided by the server) and partners per type. Jenis: students per
+type. The client renders breakdowns generically
 (`MbkmBreakdownModal`) and hides single-category tabs (`tabsWithData`); `rate`
 breakdowns render as a table so 0% groups stay visible.
 

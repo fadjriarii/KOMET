@@ -13,8 +13,9 @@ const {
 const { loadMbkmPopulation, periodeLabel } = require('../../../src/services/mbkm/population');
 const { buildMbkmCards } = require('../../../src/services/mbkm/mbkmCards');
 const {
-  rateBreakdowns,
-  participantBreakdowns,
+  participationBreakdowns,
+  totalBreakdowns,
+  jenisBreakdowns,
   mitraBreakdowns,
 } = require('../../../src/services/mbkm/mbkmBreakdowns');
 const { getMbkmSummary } = require('../../../src/services/mbkm/mbkmSummary');
@@ -142,39 +143,67 @@ const ELIGIBLE = [
   studentRow('D', '20221', '', 'FEB'),
 ];
 
+/** Aktivitas mahasiswa di luar semester 7 (masuk 20231 = semester 5 pada 20251). */
+const outsider = (nim, status, overrides = {}) =>
+  activity(nim, status, {
+    student: {
+      nama: `Mahasiswa ${nim}`,
+      angkatan: '2023/2024',
+      programStudi: 'Bisnis',
+      periodeMasuk: '20231',
+    },
+    ...overrides,
+  });
+
 describe('populasi MBKM', () => {
-  it('partisipan per mahasiswa: Diajukan/Ditolak, duplikat, dan non-eligible tidak menambah angka', async () => {
+  it('kartu Partisipasi Semester 7: Diajukan/Ditolak dan non-eligible tidak menambah angka', async () => {
     stubDb({
       students: ELIGIBLE,
       activities: [
-        activity('A', 'Selesai', { sksKonversi: 20 }),
-        activity('A', 'Disetujui', { jenisAktivitas: 'Riset', sksKonversi: 4 }),
-        activity('B', 'Disetujui', { sksKonversi: 10 }),
+        activity('A', 'Selesai'),
+        activity('A', 'Disetujui', { jenisAktivitas: 'Riset' }),
+        activity('B', 'Disetujui'),
         activity('C', 'Diajukan'),
         activity('D', 'Ditolak'),
-        activity('Z', 'Selesai'),
+        outsider('Z', 'Selesai'),
       ],
     });
     const population = await loadMbkmPopulation({}, ['20251']);
-    const cards = buildMbkmCards(population, { jenisAktivitas: 'Magang' });
+    const cards = buildMbkmCards(population);
 
-    expect(cards.rate).toMatchObject({ value: 50, participants: 2, eligible: 4 });
-    expect(cards.participants.byStatus).toEqual([
-      { key: '5', label: 'Selesai', value: 1 },
-      { key: '2', label: 'Disetujui', value: 1 },
-    ]);
-    expect(cards.participants.pending).toBe(1);
-    expect(cards.eligible).toMatchObject({ value: 4, notParticipating: 2 });
-    expect(cards.mitra).toMatchObject({
-      value: 1,
-      withPartner: 2,
-      top: { name: 'PT Mitra', count: 2 },
+    expect(cards.participation).toEqual({
+      value: 50,
+      isEmpty: false,
+      participants: 2,
+      eligible: 4,
+      notParticipating: 2,
+      pending: 1,
     });
-    expect(cards.rate.ignoredFilters).toEqual([]);
-    expect(cards.eligible.ignoredFilters).toEqual(['jenisAktivitas']);
-
     const counted = Object.fromEntries(population.activities.map((a) => [a.nim, a.counted]));
     expect(counted).toMatchObject({ B: true, C: false, D: false, Z: false });
+  });
+
+  it('Total Mahasiswa MBKM mencakup semua semester, tanpa Ditolak atau Dibatalkan', async () => {
+    stubDb({
+      students: ELIGIBLE,
+      activities: [
+        activity('A', 'Selesai'),
+        outsider('Y', 'Disetujui'),
+        outsider('Z', 'Selesai', { jenisAktivitas: 'Riset' }),
+        outsider('X', 'Ditolak'),
+        outsider('W', 'Dibatalkan'),
+      ],
+    });
+    const population = await loadMbkmPopulation({}, ['20251']);
+    const cards = buildMbkmCards(population);
+    expect(cards.total).toEqual({ value: 3, isEmpty: false, semester7: 1 });
+    expect(population.allParticipants.get('Z').student.semester).toBe(5);
+
+    const [semester] = totalBreakdowns(population);
+    expect(semester.items.map((item) => [item.name, item.count])).toEqual([
+      ['Semester 5', 2],
+      ['Tidak diketahui', 1],
+    ]);
   });
 
   it('fakultas/prodi difilter lewat kolom Student, untuk pembilang dan penyebut', async () => {
@@ -198,32 +227,41 @@ describe('populasi MBKM', () => {
     });
     const population = await loadMbkmPopulation({}, ['20251']);
     expect(population.participants.size).toBe(0);
+    expect(population.allParticipants.size).toBe(0);
     expect(population.activities[0]).toMatchObject({
       counted: false,
       rule: { category: 'unclassified' },
     });
   });
 
-  it('mitra hanya dari aktivitas terhitung: Ditolak/Dibatalkan dan non-eligible tidak ikut', async () => {
+  it('mitra dan bentuk kegiatan memakai semua semester; Ditolak/Dibatalkan tidak ikut', async () => {
     stubDb({
       students: ELIGIBLE,
       activities: [
         activity('A', 'Selesai', { mitra: 'PT Mitra' }),
         activity('B', 'Ditolak', { mitra: 'PT Ditolak' }),
         activity('C', 'Dibatalkan', { mitra: 'PT Batal' }),
-        activity('Z', 'Selesai', { mitra: 'PT Luar' }),
+        outsider('Z', 'Selesai', { mitra: 'PT Luar', jenisAktivitas: 'Riset' }),
       ],
     });
     const cards = buildMbkmCards(await loadMbkmPopulation({}, ['20251']));
-    expect(cards.mitra).toMatchObject({ value: 1, withPartner: 1, isEmpty: false });
+    expect(cards.mitra).toMatchObject({ value: 2, withPartner: 2, isEmpty: false });
+    expect(cards.jenis).toEqual({
+      value: 2,
+      isEmpty: false,
+      top: [
+        { name: 'Magang', count: 1, percentage: 50 },
+        { name: 'Riset', count: 1, percentage: 50 },
+      ],
+    });
   });
 
-  it('tanpa eligible: persentase null dan semua kartu kosong', async () => {
+  it('tanpa eligible dan aktivitas: persentase null, angka lain 0 dengan isEmpty', async () => {
     stubDb({ students: [], activities: [] });
     const cards = buildMbkmCards(await loadMbkmPopulation({}, ['20251']));
-    expect(cards.rate).toMatchObject({ value: null, isEmpty: true });
-    expect(cards.participants.isEmpty).toBe(true);
-    expect(cards.mitra).toMatchObject({ value: null, isEmpty: true });
+    expect(cards.participation).toMatchObject({ value: null, isEmpty: true });
+    expect(cards.total).toMatchObject({ value: 0, isEmpty: true });
+    expect(cards.mitra).toMatchObject({ value: 0, isEmpty: true });
   });
 });
 
@@ -233,37 +271,43 @@ describe('breakdowns', () => {
       students: ELIGIBLE,
       activities: [activity('A', 'Selesai'), activity('B', 'Selesai'), activity('C', 'Selesai')],
     });
-    const [fakultas] = rateBreakdowns(await loadMbkmPopulation({}, ['20251']));
+    const [fakultas, , status, belum] = participationBreakdowns(
+      await loadMbkmPopulation({}, ['20251']),
+    );
     expect(fakultas.kind).toBe('rate');
     expect(fakultas.items).toEqual([
       { name: 'FEB', count: 1, total: 2, percentage: 50 },
       { name: 'FST', count: 2, total: 2, percentage: 100 },
     ]);
+    expect(status.items).toEqual([{ name: 'Selesai', count: 3, percentage: 100 }]);
+    expect(belum.items).toEqual([{ name: 'Bisnis', count: 1, percentage: 100 }]);
   });
 
-  it('status per mahasiswa menjumlah ke kartu; mitra kembar digabung, sisanya Lainnya', async () => {
+  it('mitra kembar digabung dan sisanya Lainnya; jenis menghitung mahasiswa per jenis', async () => {
     stubDb({
       students: ELIGIBLE,
       activities: [
         activity('A', 'Selesai', { mitra: 'PT Mitra' }),
-        activity('A', 'Disetujui', { mitra: 'PT. MITRA' }),
+        activity('A', 'Disetujui', { mitra: 'PT. MITRA', jenisAktivitas: 'Riset' }),
         activity('B', 'Disetujui', { mitra: 'PT Mitra ' }),
         activity('C', 'Selesai', { mitra: 'CV Lain' }),
       ],
     });
     const population = await loadMbkmPopulation({}, ['20251']);
-    const byKey = Object.fromEntries(
-      participantBreakdowns(population).map((b) => [b.key, b.items]),
-    );
-    expect(byKey.status.reduce((sum, item) => sum + item.count, 0)).toBe(3);
-    expect(byKey.mitra).toBeUndefined();
-
-    const [mitra, jenis] = mitraBreakdowns(population, 1);
+    const [mitra, mitraPerJenis] = mitraBreakdowns(population, 1);
     expect(mitra.items).toEqual([
       { name: 'PT Mitra', count: 2, percentage: 66.67 },
       { name: 'Lainnya', count: 1, percentage: 33.33 },
     ]);
-    expect(jenis.items).toEqual([{ name: 'Magang', count: 2, percentage: 100 }]);
+    expect(mitraPerJenis.items).toEqual([
+      { name: 'Magang', count: 2, percentage: 100 },
+      { name: 'Riset', count: 1, percentage: 50 },
+    ]);
+    const [jenis] = jenisBreakdowns(population);
+    expect(jenis.items).toEqual([
+      { name: 'Magang', count: 3, percentage: 100 },
+      { name: 'Riset', count: 1, percentage: 33.33 },
+    ]);
   });
 });
 
@@ -301,7 +345,7 @@ describe('getMbkmSummary', () => {
     const result = await getMbkmSummary({ tahunAjaran: '2025/2026' });
     expect(result.selectedPeriods).toEqual(['20251', '20252']);
     expect(result.periodLabel).toBe('Tahun Ajaran 2025/2026');
-    expect(Object.keys(result.kpis.cards)).toEqual(['rate', 'participants', 'eligible', 'mitra']);
+    expect(Object.keys(result.kpis.cards)).toEqual(['participation', 'total', 'mitra', 'jenis']);
     expect(contractProblems(contractFor('/mbkm/summary'), { success: true, ...result })).toEqual(
       [],
     );

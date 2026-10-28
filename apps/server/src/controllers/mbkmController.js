@@ -33,7 +33,7 @@ const getMbkmData = async (req, res) => {
   }
 };
 
-// GET /api/mbkm/analytics/:card — popup kartu (rate | participants | eligible | mitra)
+// GET /api/mbkm/analytics/:card — popup kartu (participation | total | mitra | jenis)
 const getDetail = async (req, res) => {
   if (!MBKM_DETAIL_CARDS.includes(req.params.card)) {
     return res.status(404).json({ success: false, message: 'Rincian kartu tidak ditemukan' });

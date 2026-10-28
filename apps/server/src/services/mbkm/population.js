@@ -2,10 +2,10 @@
  * population.js
  *
  * Satu populasi MBKM (ADR 0005) untuk kartu, popup, dan tabel: periode
- * terpilih P, mahasiswa eligible E, aktivitas dengan tanda `counted`, dan
- * partisipan. Fakultas, prodi, jenjang, dan
- * angkatan selalu dibaca dari kolom Student, baik untuk pembilang maupun
- * penyebut.
+ * terpilih P, mahasiswa eligible E, aktivitas dengan tanda `counted`,
+ * partisipan semester 7, dan mahasiswa MBKM semua semester. Fakultas, prodi,
+ * jenjang, dan angkatan selalu dibaca dari kolom Student, baik untuk pembilang
+ * maupun penyebut.
  *
  * shortcut: seluruh populasi dimuat ke memori (±2 ribu mahasiswa, ±600
  * aktivitas). Bila data tumbuh puluhan ribu baris, pindahkan agregasi ke SQL.
@@ -14,7 +14,11 @@ const prisma = require('../../config/prisma');
 const { addInFilter, hasFilters } = require('@komet/shared/filterUtils');
 const { parsePeriode } = require('../../utils/academicUtils');
 const { buildStudentFilterFromMbkmQuery } = require('./filterBuilder');
-const { getEligibleStudentsAtPeriodes } = require('./mbkmEligibility');
+const {
+  getEligibleStudentsAtPeriodes,
+  getStartPeriode,
+  semesterAtPeriode,
+} = require('./mbkmEligibility');
 const { statusRuleOf } = require('./statusRules');
 
 const ACTIVITY_SELECT = {
@@ -38,6 +42,8 @@ const ACTIVITY_SELECT = {
       programStudi: true,
       fakultas: true,
       statusKeaktifan: true,
+      periodeMasuk: true,
+      periodeMasukAwal: true,
     },
   },
 };
@@ -83,11 +89,9 @@ function activityWhere(query, periods) {
   return where;
 }
 
-/** Terhitung = mahasiswa eligible, kategori `participating`, dan jenis terisi. */
-const isCounted = (activity, rule, isEligible) =>
-  isEligible &&
-  rule.category === 'participating' &&
-  Boolean(String(activity.jenisAktivitas ?? '').trim());
+/** Aktivitas sah: kategori `participating` dan jenis terisi, semester berapa pun. */
+const isParticipating = (activity, rule) =>
+  rule.category === 'participating' && Boolean(String(activity.jenisAktivitas ?? '').trim());
 
 /**
  * @param {object} query query MBKM yang sudah divalidasi
@@ -97,6 +101,7 @@ const isCounted = (activity, rule, isEligible) =>
  *   eligible: object[],
  *   activities: object[],
  *   participants: Map<string, object>,
+ *   allParticipants: Map<string, { student: object, activities: object[] }>,
  *   pendingNims: Set<string>,
  * }>}
  */
@@ -113,14 +118,30 @@ async function loadMbkmPopulation(query, periods) {
 
   const eligibleByNim = new Map(eligible.map((student) => [student.nim, student]));
   const participants = new Map();
+  const allParticipants = new Map();
   const pendingNims = new Set();
 
   const activities = rawActivities.map((activity) => {
     const rule = statusRuleOf(activity);
     const student = eligibleByNim.get(activity.nim);
-    const row = { ...activity, rule, counted: isCounted(activity, rule, Boolean(student)) };
+    const participating = isParticipating(activity, rule);
+    const row = { ...activity, rule, counted: participating && Boolean(student) };
 
     if (student && rule.category === 'pending') pendingNims.add(activity.nim);
+    if (participating && activity.student) {
+      // Semester pada periode aktivitas paling awal di P (satu mahasiswa, satu semester).
+      const entry = allParticipants.get(activity.nim) || { student: null, activities: [] };
+      if (!entry.student || activity.periode < entry.periode) {
+        entry.periode = activity.periode;
+        entry.student = {
+          ...activity.student,
+          nim: activity.nim,
+          semester: semesterAtPeriode(getStartPeriode(activity.student), activity.periode),
+        };
+      }
+      entry.activities.push(row);
+      allParticipants.set(activity.nim, entry);
+    }
     if (row.counted) {
       const entry = participants.get(activity.nim) || {
         student,
@@ -143,7 +164,7 @@ async function loadMbkmPopulation(query, periods) {
   // "Menunggu persetujuan" = eligible yang hanya punya aktivitas Diajukan.
   for (const nim of participants.keys()) pendingNims.delete(nim);
 
-  return { periods, eligible, activities, participants, pendingNims };
+  return { periods, eligible, activities, participants, allParticipants, pendingNims };
 }
 
 module.exports = {

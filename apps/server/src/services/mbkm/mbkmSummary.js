@@ -22,7 +22,7 @@ async function getMbkmSummary(query = {}) {
     selectedPeriods,
     periodLabel: periodsLabel(selectedPeriods),
     summary: {},
-    kpis: { cards: buildMbkmCards(population, query) },
+    kpis: { cards: buildMbkmCards(population) },
     kpiFilterScope: KPI_FILTER_SCOPE,
     filterOptions,
   };

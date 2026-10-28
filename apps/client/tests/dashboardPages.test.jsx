@@ -62,25 +62,29 @@ const MBKM_ROW = {
 };
 
 const MBKM_CARDS = {
-  rate: { value: 25.5, isEmpty: false, participants: 300, eligible: 1176, ignoredFilters: [] },
-  participants: {
-    value: 300,
+  participation: {
+    value: 25.5,
     isEmpty: false,
-    byStatus: [
-      { key: '5', label: 'Selesai', value: 200 },
-      { key: '2', label: 'Disetujui', value: 100 },
-    ],
+    participants: 300,
+    eligible: 1176,
+    notParticipating: 876,
     pending: 4,
-    ignoredFilters: [],
   },
-  eligible: { value: 1176, isEmpty: false, notParticipating: 876, ignoredFilters: [] },
+  total: { value: 320, isEmpty: false, semester7: 300 },
   mitra: {
     value: 42,
     isEmpty: false,
     totalPartners: 42,
     withPartner: 290,
     top: { name: 'PT Mitra', count: 30 },
-    ignoredFilters: [],
+  },
+  jenis: {
+    value: 3,
+    isEmpty: false,
+    top: [
+      { name: 'Magang', count: 200, percentage: 62.5 },
+      { name: 'Riset', count: 100, percentage: 31.25 },
+    ],
   },
 };
 
@@ -260,16 +264,16 @@ const ROUTES = {
     listPayload: listPayload([MBKM_ROW]),
     extraPaths: {},
     cards: [
-      { key: 'participants', title: 'Partisipan MBKM' },
-      { key: 'eligible', title: 'Mahasiswa Eligible' },
-      { key: 'rate', title: 'Persentase Partisipasi' },
+      { key: 'participation', title: 'Partisipasi MBKM Semester 7' },
+      { key: 'total', title: 'Total Mahasiswa MBKM' },
       { key: 'mitra', title: 'Mitra MBKM' },
+      { key: 'jenis', title: 'Bentuk Kegiatan MBKM' },
     ],
     scope: {
-      rate: ACTIVITY_PARAMS,
-      participants: ACTIVITY_PARAMS,
-      eligible: ['fakultas', 'programStudi', 'angkatan', 'jenjang', 'periode', 'tahunAjaran'],
+      participation: ACTIVITY_PARAMS,
+      total: ACTIVITY_PARAMS,
       mitra: ACTIVITY_PARAMS,
+      jenis: ACTIVITY_PARAMS,
     },
     filterCases: [
       { url: '/mbkm?faculty=FST', api: 'fakultas', value: 'FST' },
@@ -412,24 +416,24 @@ describe('tahun ajaran default Students', () => {
 });
 
 describe('kartu MBKM', () => {
-  it('menampilkan empat kartu MBKM dalam urutan partisipan, eligible, persentase, mitra', async () => {
+  it('menampilkan empat kartu: partisipasi semester 7, total, mitra, bentuk kegiatan', async () => {
     const route = mockModule('mbkm');
     renderPage(MbkmPage);
 
     await cardsReady(route);
-    const titles = [
-      'Partisipan MBKM',
-      'Mahasiswa Eligible',
-      'Persentase Partisipasi',
-      'Mitra MBKM',
-    ];
+    const titles = route.cards.map((card) => card.title);
     const grid = cardOf(titles[0]).parentElement;
     expect([...grid.children].map((card) => card.querySelector('p').textContent)).toEqual(titles);
-    expect(within(cardOf('Mitra MBKM')).getByText('42')).toBeTruthy();
-    expect(within(cardOf('Mahasiswa Eligible')).getByText(/876 belum berpartisipasi/)).toBeTruthy();
-    expect(screen.queryByText(/Target IKU-2/)).toBeNull();
+
+    const participation = within(cardOf('Partisipasi MBKM Semester 7'));
+    expect(participation.getByText('25.5%')).toBeTruthy();
+    expect(participation.getByText(/300 dari 1[.,]176 mahasiswa aktif semester 7/)).toBeTruthy();
+    expect(within(cardOf('Total Mahasiswa MBKM')).getByText('320')).toBeTruthy();
     expect(within(cardOf('Mitra MBKM')).getByText(/Terbanyak: PT Mitra/)).toBeTruthy();
-    expect(screen.queryByText(/Rekognisi/)).toBeNull();
+    expect(within(cardOf('Bentuk Kegiatan MBKM')).getByText('3 jenis')).toBeTruthy();
+    for (const removed of ['Partisipan MBKM', 'Mahasiswa Eligible', 'Persentase Partisipasi']) {
+      expect(screen.queryByText(removed)).toBeNull();
+    }
   });
 
   it('tanpa tahun ajaran di URL, request pertama membiarkan server memilih tahun terbaru di data', async () => {

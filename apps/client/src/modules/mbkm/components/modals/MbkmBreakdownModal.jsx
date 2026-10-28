@@ -22,10 +22,11 @@ import DistributionChart from '../../../../components/common/charts/Distribution
 import { useTabTransition } from '../../../../hooks/useTabTransition';
 import { useDetail } from '../../mbkmQueries';
 import {
-  eligibleSubtitle,
+  activityName,
+  jenisSubtitle,
   mitraSubtitle,
-  participantsSubtitle,
-  rateSubtitle,
+  participationSubtitle,
+  totalSubtitle,
 } from '../../hooks/useMbkmKpiDisplay';
 
 const EMPTY = [];
@@ -39,36 +40,30 @@ const TAB_ICONS = {
   jenis: Briefcase,
   status: CheckCircle2,
   mitra: Building2,
+  semester: Layers,
+  belum: Users,
 };
 
 /** Isi tetap per kartu: endpoint, judul, dan cara membaca nilai banner. */
 const CARD_DETAILS = {
-  rate: {
-    method: 'getRateDetail',
-    title: 'Rincian Persentase Partisipasi',
-    subtitle: 'Tingkat partisipasi mahasiswa eligible semester 7 per kelompok dan per tahun ajaran',
-    label: 'Persentase Partisipasi',
-    sublabel: 'Partisipan dari eligible',
+  participation: {
+    method: 'getParticipationDetail',
+    title: 'Rincian Partisipasi MBKM Semester 7',
+    subtitle: 'Tingkat partisipasi mahasiswa aktif semester 7 per kelompok dan per tahun ajaran',
+    label: 'Partisipasi Semester 7',
+    sublabel: 'Mengikuti MBKM',
     value: (card) => formatPercentage(card.value, 1),
-    describe: rateSubtitle,
+    describe: (card, filters) => participationSubtitle(card, activityName(filters?.jenisAktivitas)),
   },
-  participants: {
-    method: 'getParticipantsDetail',
-    title: 'Rincian Partisipan MBKM',
-    subtitle: 'Partisipan per jenis aktivitas, status, program studi, angkatan, dan mitra',
-    label: 'Partisipan',
-    sublabel: 'Mahasiswa',
+  total: {
+    method: 'getTotalDetail',
+    title: 'Rincian Total Mahasiswa MBKM',
+    subtitle:
+      'Mahasiswa semua semester yang mengikuti MBKM per semester, program studi, dan angkatan',
+    label: 'Total Mahasiswa MBKM',
+    sublabel: 'Semua semester',
     value: (card) => formatNumber(card.value),
-    describe: participantsSubtitle,
-  },
-  eligible: {
-    method: 'getEligibleDetail',
-    title: 'Rincian Mahasiswa Eligible',
-    subtitle: 'Mahasiswa aktif semester 7 dan yang belum berpartisipasi per kelompok',
-    label: 'Mahasiswa Eligible',
-    sublabel: 'Semester 7',
-    value: (card) => formatNumber(card.value),
-    describe: eligibleSubtitle,
+    describe: totalSubtitle,
   },
   mitra: {
     method: 'getMitraDetail',
@@ -78,6 +73,15 @@ const CARD_DETAILS = {
     sublabel: 'Mitra unik',
     value: (card) => formatNumber(card.value),
     describe: mitraSubtitle,
+  },
+  jenis: {
+    method: 'getJenisDetail',
+    title: 'Rincian Bentuk Kegiatan MBKM',
+    subtitle: 'Mahasiswa per jenis kegiatan; satu mahasiswa bisa mengikuti lebih dari satu jenis',
+    label: 'Bentuk Kegiatan',
+    sublabel: 'Jenis kegiatan',
+    value: (card) => formatNumber(card.value),
+    describe: jenisSubtitle,
   },
 };
 
@@ -210,7 +214,7 @@ export default function MbkmBreakdownModal({ cardKey, isOpen, onClose, originRec
         <ModalSummaryBanner
           description={
             <p className="text-justify">
-              {isLoading ? 'Memuat rincian...' : `${periodLabel}${config.describe(card)}`}
+              {isLoading ? 'Memuat rincian...' : `${periodLabel}${config.describe(card, filters)}`}
             </p>
           }
           label={config.label}

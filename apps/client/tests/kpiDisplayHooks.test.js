@@ -520,84 +520,97 @@ describe('useGraduateKpiDisplay', () => {
 
 describe('useMbkmKpiDisplay', () => {
   const cards = {
-    rate: { value: 86.47, isEmpty: false, participants: 115, eligible: 133, ignoredFilters: [] },
-    participants: {
-      value: 115,
+    participation: {
+      value: 93.08,
       isEmpty: false,
-      byStatus: [
-        { key: '5', label: 'Selesai', value: 114 },
-        { key: '2', label: 'Disetujui', value: 1 },
-      ],
-      pending: 1,
-      ignoredFilters: [],
+      participants: 121,
+      eligible: 130,
+      notParticipating: 9,
+      pending: 0,
     },
-    eligible: {
-      value: 133,
-      isEmpty: false,
-      notParticipating: 18,
-      ignoredFilters: ['search', 'jenisAktivitas'],
-    },
+    total: { value: 131, isEmpty: false, semester7: 121 },
     mitra: {
-      value: 68,
+      value: 72,
       isEmpty: false,
-      totalPartners: 68,
-      withPartner: 110,
-      top: { name: 'PT Mitra', count: 12 },
-      ignoredFilters: [],
+      totalPartners: 72,
+      withPartner: 126,
+      top: { name: 'Taipei Medical University', count: 15 },
+    },
+    jenis: {
+      value: 4,
+      isEmpty: false,
+      top: [
+        { name: 'Magang/Praktik Kerja (Kampus Merdeka)', count: 67, percentage: 51.15 },
+        { name: 'Penelitian/Riset (Kampus Merdeka)', count: 56, percentage: 42.75 },
+      ],
     },
   };
   const summary = (overrides = {}) => ({
     success: true,
-    periodLabel: 'Tahun Ajaran 2025/2026',
+    periodLabel: 'Tahun Ajaran 2026/2027',
     kpis: { cards: { ...cards, ...overrides } },
   });
 
-  it('menyusun nilai dan kalimat dari kartu server tanpa menghitung ulang', () => {
+  it('menyusun nilai dan kalimat empat kartu dari angka server', () => {
     const { result } = renderHook(() => useMbkmKpiDisplay(summary(), false, {}));
     const { kpis, displaySubtitles } = result.current;
 
-    expect(kpis.participationRate).toBe('86.5%');
-    expect(kpis.totalMitra).toBe('68');
-    expect(displaySubtitles.rate).toBe(
-      'Tahun Ajaran 2025/2026. 115 dari 133 mahasiswa eligible berpartisipasi.',
+    expect(kpis).toEqual({
+      participationRate: '93.1%',
+      totalStudents: '131',
+      totalMitra: '72',
+      jenisCount: '4 jenis',
+    });
+    expect(displaySubtitles.participation).toBe(
+      'Tahun Ajaran 2026/2027. 121 dari 130 mahasiswa aktif semester 7 mengikuti MBKM. 9 belum berpartisipasi.',
     );
-    expect(displaySubtitles.participants).toBe(
-      'Tahun Ajaran 2025/2026. Selesai 114, Disetujui 1, dan 1 menunggu persetujuan.',
-    );
-    expect(displaySubtitles.eligible).toBe(
-      'Tahun Ajaran 2025/2026. Mahasiswa aktif semester 7. 18 belum berpartisipasi. Filter pencarian dan jenis aktivitas tidak mengubah angka ini.',
+    expect(displaySubtitles.total).toBe(
+      'Tahun Ajaran 2026/2027. Mahasiswa semua semester dengan aktivitas Disetujui atau Selesai; 121 di antaranya semester 7.',
     );
     expect(displaySubtitles.mitra).toBe(
-      'Tahun Ajaran 2025/2026. Mitra unik dari aktivitas 110 partisipan. Terbanyak: PT Mitra (12 partisipan).',
+      'Tahun Ajaran 2026/2027. Mitra unik dari aktivitas 126 mahasiswa. Terbanyak: Taipei Medical University (15 mahasiswa).',
+    );
+    expect(displaySubtitles.jenis).toBe(
+      'Tahun Ajaran 2026/2027. Terbanyak Magang/Praktik Kerja (67 mahasiswa, 51%), lalu Penelitian/Riset (56 mahasiswa).',
     );
   });
 
-  it('cakupan fakultas tampil di depan kalimat', () => {
+  it('filter fakultas tampil di depan kalimat; filter jenis menggantikan kata MBKM', () => {
     const { result } = renderHook(() =>
-      useMbkmKpiDisplay(summary(), false, { selectedFaculty: ['FST'] }),
+      useMbkmKpiDisplay(summary(), false, {
+        selectedFaculty: ['FST'],
+        selectedJenisAktivitas: ['Magang/Praktik Kerja (Kampus Merdeka)'],
+      }),
     );
-    expect(result.current.displaySubtitles.rate.startsWith('Fakultas FST, Tahun Ajaran')).toBe(
-      true,
+    expect(result.current.displaySubtitles.participation).toBe(
+      'Fakultas FST, Tahun Ajaran 2026/2027. 121 dari 130 mahasiswa aktif semester 7 mengikuti Magang/Praktik Kerja. 9 belum mengikuti Magang/Praktik Kerja.',
     );
   });
 
-  it('mitra 0 tetap 0 dengan kalimat yang menjelaskan', () => {
-    const mitra = { ...cards.mitra, value: 0, totalPartners: 0, withPartner: 0, top: null };
-    const { result } = renderHook(() => useMbkmKpiDisplay(summary({ mitra }), false, {}));
-    expect(result.current.kpis.totalMitra).toBe('0');
-    expect(result.current.displaySubtitles.mitra).toContain('Belum ada mitra');
-  });
-
-  it('tanpa eligible: persentase "-" dan kalimat kosong yang jujur', () => {
-    const rate = { ...cards.rate, value: null, isEmpty: true };
-    const { result } = renderHook(() => useMbkmKpiDisplay(summary({ rate }), false, {}));
+  it('kombinasi kosong: persentase "-", angka lain tetap 0, kalimat menjelaskan', () => {
+    const { result } = renderHook(() =>
+      useMbkmKpiDisplay(
+        summary({
+          participation: { ...cards.participation, value: null, isEmpty: true },
+          total: { value: 0, isEmpty: true, semester7: 0 },
+          jenis: { value: 0, isEmpty: true, top: [] },
+        }),
+        false,
+        {},
+      ),
+    );
     expect(result.current.kpis.participationRate).toBe('-');
-    expect(result.current.displaySubtitles.rate).toContain('Tidak ada mahasiswa eligible');
+    expect(result.current.kpis.totalStudents).toBe('0');
+    expect(result.current.kpis.jenisCount).toBe('0 jenis');
+    expect(result.current.displaySubtitles.participation).toContain(
+      'Tidak ada mahasiswa aktif semester 7',
+    );
+    expect(result.current.displaySubtitles.total).toContain('Belum ada mahasiswa');
   });
 
   it('belum siap sebelum summary termuat', () => {
     const { result } = renderHook(() => useMbkmKpiDisplay(undefined, true, {}));
     expect(result.current.isReady).toBe(false);
-    expect(result.current.kpis.totalParticipants).toBe('-');
+    expect(result.current.kpis.totalStudents).toBe('-');
   });
 });

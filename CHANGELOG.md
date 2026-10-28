@@ -86,9 +86,13 @@ Version numbers follow the root `package.json`.
 - MBKM Data follows one population (ADR 0005). Participants are Disetujui and
   Selesai only; Diajukan shows as "menunggu persetujuan". Status and
   distribution counts are per student, faculty and program filters read Student
-  columns, and popup rates are participants ÷ eligible per group. The Mitra
-  card counts normalized partner names of approved and completed activities
-  only, and follows every filter. The table uses the same periods as the cards.
+  columns, and popup rates are participants ÷ eligible per group. The table
+  uses the same periods as the cards.
+- MBKM Data shows four cards: "Partisipasi MBKM Semester 7" (the former
+  participant, eligible, and rate cards in one sentence), "Total Mahasiswa
+  MBKM" (all semesters, with a per-semester popup), "Mitra MBKM", and "Bentuk
+  Kegiatan MBKM". Mitra and activity types count approved and completed
+  activities of every semester and follow every filter.
 - MBKM defaults to the latest academic year in MBKM data, in the client and in
   the server warm-up, instead of the calendar year.
 - Dashboard query data stays fresh for five minutes; sync still invalidates the
@@ -127,8 +131,8 @@ Version numbers follow the root `package.json`.
   `angkatanEvaluasi*` keys on the on-time and study success details. Read
   `kpis.cards` and `jenjangs` instead.
 - **BREAKING:** the flat MBKM API fields. `kpis` on `GET /api/mbkm/summary` now
-  holds only `cards`, `summary` is empty, and `kpiFilterScope` keys are `rate`,
-  `participants`, `eligible`, and `mitra`. The six
+  holds only `cards`, `summary` is empty, and the card and `kpiFilterScope`
+  keys are `participation`, `total`, `mitra`, and `jenis`. The six
   `/api/mbkm/analytics/*-distribution`, `rate`, and `eligible-students`
   endpoints are replaced by `GET /api/mbkm/analytics/:card`, and list rows drop
   `tahun` in favour of `periodeLabel`.

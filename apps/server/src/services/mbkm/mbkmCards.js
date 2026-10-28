@@ -1,16 +1,20 @@
 /**
  * mbkmCards.js
  *
- * Empat kartu KPI MBKM Data dari satu populasi (`population.js`). Semua
- * keputusan domain (nilai, rincian, kosong atau tidak, filter yang tidak
- * mengubah angka) dibuat di sini; client hanya merender. Tidak ada target:
+ * Empat kartu KPI MBKM Data dari satu populasi (`population.js`): partisipasi
+ * semester 7 (persentase, partisipan, dan eligible dalam satu kartu), total
+ * mahasiswa MBKM semua semester, mitra, dan bentuk kegiatan. Semua keputusan
+ * domain dibuat di sini; client hanya menyusun kalimat. Tidak ada target:
  * halaman ini early warning system.
  */
 const { roundedRate } = require('../../utils/percentageUtils');
-const { partnerSummary } = require('./mbkmBreakdowns');
+const { jenisItems, partnerSummary } = require('./mbkmBreakdowns');
 
-/** Param yang dibaca kartu partisipasi (pembilang ikut filter aktivitas). */
-const PARTICIPATION_PARAMS = [
+/**
+ * Param yang dibaca semua kartu. Penyebut eligible tidak ikut jenis, status,
+ * atau pencarian, tetapi pembilangnya ikut, jadi angka kartu berubah.
+ */
+const MBKM_PARAMS = [
   'search',
   'fakultas',
   'programStudi',
@@ -21,80 +25,33 @@ const PARTICIPATION_PARAMS = [
   'periode',
   'tahunAjaran',
 ];
-/** Eligible hanya mengikuti filter mahasiswa dan periode. */
-const ELIGIBLE_PARAMS = [
-  'fakultas',
-  'programStudi',
-  'angkatan',
-  'jenjang',
-  'periode',
-  'tahunAjaran',
-];
 
 const KPI_FILTER_SCOPE = {
-  rate: PARTICIPATION_PARAMS,
-  participants: PARTICIPATION_PARAMS,
-  eligible: ELIGIBLE_PARAMS,
-  mitra: PARTICIPATION_PARAMS,
+  participation: MBKM_PARAMS,
+  total: MBKM_PARAMS,
+  mitra: MBKM_PARAMS,
+  jenis: MBKM_PARAMS,
 };
 
-const isActive = (value) =>
-  Array.isArray(value) ? value.length > 0 : typeof value === 'string' && value.trim() !== '';
-
-/** Filter aktif yang tidak dibaca sebuah kartu. */
-function ignoredFilters(query, scope) {
-  return ['search', 'jenisAktivitas', 'statusAktivitas'].filter(
-    (key) => isActive(query[key]) && !scope.includes(key),
-  );
-}
-
-/** Jumlah partisipan per status terbaiknya, urut rank (Selesai dulu). */
-function participantsByStatus(participants) {
-  const counts = new Map();
-  for (const { best } of participants.values()) {
-    const entry = counts.get(best.label) || { key: best.code, label: best.label, rank: best.rank };
-    entry.value = (entry.value || 0) + 1;
-    counts.set(best.label, entry);
-  }
-  return [...counts.values()]
-    .sort((a, b) => b.rank - a.rank)
-    .map(({ key, label, value }) => ({ key, label, value }));
-}
-
-function buildMbkmCards(population, query = {}) {
+function buildMbkmCards(population) {
   const eligible = population.eligible.length;
   const participants = population.participants.size;
-  const noEligible = eligible === 0;
-  const partners = partnerSummary(population.participants);
+  const all = population.allParticipants.size;
+  const partners = partnerSummary(population.allParticipants);
+  const jenis = jenisItems(population.allParticipants);
 
   return {
-    rate: {
+    participation: {
       value: roundedRate(participants, eligible, null),
-      isEmpty: noEligible,
+      isEmpty: eligible === 0,
       participants,
       eligible,
-      ignoredFilters: ignoredFilters(query, KPI_FILTER_SCOPE.rate),
-    },
-    participants: {
-      value: noEligible ? null : participants,
-      isEmpty: noEligible,
-      byStatus: participantsByStatus(population.participants),
-      pending: population.pendingNims.size,
-      ignoredFilters: ignoredFilters(query, KPI_FILTER_SCOPE.participants),
-    },
-    eligible: {
-      value: eligible,
-      isEmpty: noEligible,
       notParticipating: eligible - participants,
-      ignoredFilters: ignoredFilters(query, KPI_FILTER_SCOPE.eligible),
+      pending: population.pendingNims.size,
     },
-    // Mitra unik dari aktivitas terhitung (Disetujui/Selesai), bukan semua status.
-    mitra: {
-      ...partners,
-      value: noEligible ? null : partners.totalPartners,
-      isEmpty: noEligible,
-      ignoredFilters: ignoredFilters(query, KPI_FILTER_SCOPE.mitra),
-    },
+    total: { value: all, isEmpty: all === 0, semester7: participants },
+    mitra: { ...partners, value: partners.totalPartners, isEmpty: all === 0 },
+    jenis: { value: jenis.length, isEmpty: all === 0, top: jenis.slice(0, 2) },
   };
 }
 

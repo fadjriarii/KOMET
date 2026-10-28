@@ -52,8 +52,12 @@ function rateItems(denominator, isCounted) {
 
 const breakdown = (key, label, kind, items) => ({ key, label, kind, items });
 
-function rateBreakdowns({ eligible, participants }) {
+/** Popup Partisipasi Semester 7: tingkat per grup, status, dan yang belum ikut per prodi. */
+function participationBreakdowns({ eligible, participants }) {
   const isParticipant = (nim) => participants.has(nim);
+  const status = new Map();
+  for (const [nim, { best }] of participants) addTo(status, best.label, nim);
+  const notParticipating = eligible.filter((student) => !participants.has(student.nim));
   return [
     breakdown(
       'fakultas',
@@ -67,11 +71,57 @@ function rateBreakdowns({ eligible, participants }) {
       'rate',
       rateItems(groupStudents(eligible, 'programStudi'), isParticipant),
     ),
+    breakdown('status', 'Per Status', 'share', shareItems(status, participants.size)),
+    breakdown(
+      'belum',
+      'Belum Berpartisipasi',
+      'share',
+      shareItems(groupStudents(notParticipating, 'programStudi'), notParticipating.length),
+    ),
   ];
 }
 
+/** Popup Total Mahasiswa MBKM (semua semester): per semester, prodi, dan angkatan. */
+function totalBreakdowns({ allParticipants }) {
+  const students = [...allParticipants.values()].map(({ student }) => student);
+  const total = students.length;
+  const semester = new Map();
+  for (const student of students) {
+    addTo(semester, student.semester ? `Semester ${student.semester}` : UNKNOWN, student.nim);
+  }
+  return [
+    breakdown('semester', 'Per Semester', 'share', shareItems(semester, total)),
+    breakdown(
+      'prodi',
+      'Per Program Studi',
+      'share',
+      shareItems(groupStudents(students, 'programStudi'), total),
+    ),
+    breakdown(
+      'angkatan',
+      'Per Angkatan',
+      'share',
+      shareItems(groupStudents(students, 'angkatan'), total),
+    ),
+  ];
+}
+
+/** Mahasiswa per jenis aktivitas; satu mahasiswa bisa masuk dua jenis. */
+function jenisItems(allParticipants) {
+  const jenis = new Map();
+  for (const [nim, { activities }] of allParticipants) {
+    for (const activity of activities) addTo(jenis, nameOf(activity.jenisAktivitas), nim);
+  }
+  return shareItems(jenis, allParticipants.size);
+}
+
+/** Popup Bentuk Kegiatan MBKM. */
+const jenisBreakdowns = ({ allParticipants }) => [
+  breakdown('jenis', 'Per Jenis Aktivitas', 'share', jenisItems(allParticipants)),
+];
+
 /**
- * Mitra unik dari aktivitas terhitung, urut jumlah partisipan. Ejaan kembar
+ * Mitra unik dari aktivitas sah, urut jumlah mahasiswa. Ejaan kembar
  * digabung lewat `mitraKey` dan diberi nama ejaan yang paling sering.
  */
 function rankPartners(participants) {
@@ -96,7 +146,7 @@ function rankPartners(participants) {
     .sort((a, b) => b.nims.size - a.nims.size || a.name.localeCompare(b.name));
 }
 
-/** Angka kartu Mitra: jumlah mitra, partisipan bermitra, dan mitra teratas. */
+/** Angka kartu Mitra: jumlah mitra, mahasiswa bermitra, dan mitra teratas. */
 function partnerSummary(participants) {
   const ranked = rankPartners(participants);
   const withPartner = new Set(ranked.flatMap(({ nims }) => [...nims])).size;
@@ -122,64 +172,22 @@ function mitraItems(ranked, total, topN) {
   return items;
 }
 
-/** Popup Mitra: mitra teratas per partisipan dan jumlah mitra per jenis aktivitas. */
-function mitraBreakdowns({ participants }, topN = DEFAULT_MITRA_TOP_N) {
-  const ranked = rankPartners(participants);
+/** Popup Mitra: mitra teratas dan jumlah mitra per jenis aktivitas (semua semester). */
+function mitraBreakdowns({ allParticipants }, topN = DEFAULT_MITRA_TOP_N) {
+  const ranked = rankPartners(allParticipants);
   const jenis = new Map();
   ranked.forEach(({ jenis: names }, index) => names.forEach((name) => addTo(jenis, name, index)));
   return [
-    breakdown('mitra', 'Mitra Teratas', 'share', mitraItems(ranked, participants.size, topN)),
+    breakdown('mitra', 'Mitra Teratas', 'share', mitraItems(ranked, allParticipants.size, topN)),
     breakdown('jenis', 'Mitra per Jenis Aktivitas', 'share', shareItems(jenis, ranked.length)),
   ];
 }
 
-function participantBreakdowns({ participants }) {
-  const total = participants.size;
-  const jenis = new Map();
-  const status = new Map();
-  for (const [nim, { activities, best }] of participants) {
-    for (const activity of activities) addTo(jenis, nameOf(activity.jenisAktivitas), nim);
-    addTo(status, best.label, nim);
-  }
-  const students = [...participants.values()].map(({ student }) => student);
-
-  return [
-    breakdown('jenis', 'Per Jenis Aktivitas', 'share', shareItems(jenis, total)),
-    breakdown('status', 'Per Status', 'share', shareItems(status, total)),
-    breakdown(
-      'prodi',
-      'Per Program Studi',
-      'share',
-      shareItems(groupStudents(students, 'programStudi'), total),
-    ),
-    breakdown(
-      'angkatan',
-      'Per Angkatan',
-      'share',
-      shareItems(groupStudents(students, 'angkatan'), total),
-    ),
-  ];
-}
-
-function eligibleBreakdowns({ eligible, participants }) {
-  const withGap = (field) =>
-    shareItems(groupStudents(eligible, field), eligible.length).map((item) => ({
-      ...item,
-      notParticipating: eligible.filter(
-        (student) => nameOf(student[field]) === item.name && !participants.has(student.nim),
-      ).length,
-    }));
-  return [
-    breakdown('prodi', 'Per Program Studi', 'share', withGap('programStudi')),
-    breakdown('fakultas', 'Per Fakultas', 'share', withGap('fakultas')),
-    breakdown('angkatan', 'Per Angkatan', 'share', withGap('angkatan')),
-  ];
-}
-
 module.exports = {
-  rateBreakdowns,
-  participantBreakdowns,
-  eligibleBreakdowns,
+  participationBreakdowns,
+  totalBreakdowns,
+  jenisBreakdowns,
+  jenisItems,
   mitraBreakdowns,
   partnerSummary,
   DEFAULT_MITRA_TOP_N,

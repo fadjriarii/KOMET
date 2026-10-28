@@ -367,19 +367,33 @@ Dihapus atas permintaan user, di server dan client:
       `sksGroupOf`, dan `recognitionBreakdowns` dihapus. SKS konversi tetap
       tampil di tabel.
 
+### Revisi kartu (2026-10-28, keputusan user)
+
+- [x] Tiga kartu (Partisipan, Eligible, Persentase) digabung menjadi
+      **Partisipasi MBKM Semester 7**: "121 dari 130 mahasiswa aktif semester 7
+      mengikuti MBKM. 9 belum berpartisipasi." Saat difilter jenis, kata "MBKM"
+      diganti nama jenisnya.
+- [x] Kartu baru **Total Mahasiswa MBKM** (semua semester, `allParticipants`
+      di `population.js`), dengan popup Per Semester, Per Prodi, dan Per Angkatan.
+- [x] **Mitra MBKM** dan kartu baru **Bentuk Kegiatan MBKM** memakai populasi
+      semua semester.
+- [x] `ignoredFilters` dihapus: semua kartu membaca semua filter.
+
 ### Checklist pengetesan lokal (untuk user)
 
 - [x] Sync MBKM dari sidebar (2026-10-27): 556 aktivitas, kunci unik, tanpa
       mahasiswa palsu.
 - [ ] Posisi pemilih Tahun Ajaran di header sama dengan Student dan Graduate.
-- [ ] Default tanpa URL: header menunjukkan 2026/2027 dan kartu 121 / 130 /
-      93,1% / 71 mitra; tabel 137 baris.
-- [ ] Tahun 2025/2026: Partisipan 113 (Selesai 112, Disetujui 1, 1 menunggu
-      persetujuan), persentase 85,0%, 62 mitra.
+- [ ] Default tanpa URL (2026/2027): 93,1% (121 dari 130, 9 belum) / 131
+      mahasiswa / 72 mitra / 4 jenis (Magang 67, Riset 56); tabel 137 baris.
+- [ ] Tahun 2025/2026: 85,0% (113 dari 133, 1 menunggu persetujuan) / 124
+      mahasiswa / 65 mitra.
+- [ ] Popup Total Mahasiswa MBKM: Per Semester berisi 7 = 121, 9 = 6, 13 = 2,
+      11 = 1, 5 = 1.
 - [ ] Satu fakultas: semua kartu, popup, dan tabel menyempit; tab Per Fakultas
       tersembunyi.
-- [ ] Jenis Aktivitas + Status Aktivitas: kartu Eligible menyebut filter itu
-      tidak mengubah angkanya.
+- [ ] Satu jenis aktivitas: kartu Partisipasi menyebut nama jenisnya, penyebut
+      tetap 130.
 - [ ] Periode Genap 2026/2027 (kosong): kartu dan popup menjelaskan kombinasi
       kosong.
 - [ ] Popup Mitra: tab Mitra Teratas berisi mitra teratas + "Lainnya".

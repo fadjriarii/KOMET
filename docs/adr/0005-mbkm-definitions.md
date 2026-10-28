@@ -34,8 +34,15 @@ One population serves every card, detail, and the table:
   activity filters (type, status, search).
 - **Participant:** an eligible student with at least one counted activity.
 - **Participation rate:** participants ÷ eligible × 100. No target is shown.
-- **Partners:** distinct normalized partner names of counted activities, shown
-  as the fourth card. Rejected and cancelled activities do not add partners.
+  One card ("Partisipasi MBKM Semester 7") shows the rate, participants,
+  eligible, and those not participating.
+- **MBKM students (all semesters):** unique students with at least one
+  `participating` activity with a filled type in the selected periods, after
+  every filter, in any semester. Shown as "Total Mahasiswa MBKM", with the
+  semester projected at the earliest activity period.
+- **Partners and activity types:** distinct normalized partner names and types
+  of the all-semester activities. Rejected and cancelled activities add
+  neither. A student can take two types, so type shares can sum past 100%.
 - **Converted credits:** the sum of `sks_mata_kuliah` from
   `mata-kuliah-konversi-mbkm` per activity, shown in the table only. There is
   no credit threshold: a valid activity can convert 3 or 14 SKS. SEVIMA has

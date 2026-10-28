@@ -31,10 +31,10 @@ export const mbkmService = createFilterService({
   listPath: '/mbkm/list',
   // Satu endpoint per kartu; isi tab (`breakdowns`) ditentukan server.
   detailPaths: {
-    getRateDetail: '/mbkm/analytics/rate',
-    getParticipantsDetail: '/mbkm/analytics/participants',
-    getEligibleDetail: '/mbkm/analytics/eligible',
+    getParticipationDetail: '/mbkm/analytics/participation',
+    getTotalDetail: '/mbkm/analytics/total',
     getMitraDetail: '/mbkm/analytics/mitra',
+    getJenisDetail: '/mbkm/analytics/jenis',
   },
 });
 
