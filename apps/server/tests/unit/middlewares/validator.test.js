@@ -37,6 +37,7 @@ describe('student query validation', () => {
       studentQuerySchema.safeParse({
         kewarganegaraan: 'Unknown',
         periodeMasuk: 'Musim Panas',
+        periodeAkademik: 'Tahunan',
         periode: 'invalid',
         selectedPeriode: '2025',
       }).success,
@@ -45,6 +46,7 @@ describe('student query validation', () => {
       studentQuerySchema.safeParse({
         kewarganegaraan: 'WNA',
         periodeMasuk: 'Genap',
+        periodeAkademik: 'Ganjil',
         periode: '2025/2026',
         selectedPeriode: '2025/2026',
       }).success,

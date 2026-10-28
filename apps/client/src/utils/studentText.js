@@ -91,3 +91,18 @@ export function getStatusBadgeVariant(status) {
   if (status === STUDENT_STATUS.DROP_OUT) return 'danger';
   return 'default';
 }
+
+/** "20241" → "Ganjil 2024/2025". */
+export function formatCutiPeriod(periode) {
+  const match = /^(\d{4})([12])$/.exec(String(periode || '').trim());
+  if (!match) return '';
+  return `${match[2] === '1' ? 'Ganjil' : 'Genap'} ${match[1]}/${Number(match[1]) + 1}`;
+}
+
+/** Ringkasan riwayat cuti: periode Ganjil/Genap + jumlah semester. */
+export function formatCutiHistory(periods = [], semesterCount) {
+  const labels = (Array.isArray(periods) ? periods : []).map(formatCutiPeriod).filter(Boolean);
+  if (!labels.length) return '';
+  const count = Number(semesterCount) || labels.length;
+  return `${labels.join(', ')} · ${count} semester`;
+}

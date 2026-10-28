@@ -60,6 +60,7 @@ const studentQuerySchema = z.object({
   jenjang: stringOrArray,
   semester: stringOrArray,
   periodeMasuk: z.enum(['Ganjil', 'Genap']).optional(),
+  periodeAkademik: z.enum(['Ganjil', 'Genap']).optional(),
   kewarganegaraan: z.enum(['WNI', 'WNA']).optional(),
   statusKeaktifan: stringOrArray,
   selectedPeriode: z

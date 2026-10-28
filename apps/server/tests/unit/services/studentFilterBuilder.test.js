@@ -15,6 +15,40 @@ const {
 } = require('../../../src/services/students/snapshotConditions');
 
 describe('student filter builder', () => {
+  const activeSnapshotCondition = (start, end) => ({
+    OR: [
+      {
+        AND: [
+          {
+            OR: [
+              { statusKeaktifan: 'Aktif' },
+              { AND: [{ periodeTerakhir: '' }, { statusKeaktifan: { not: 'Cuti' } }] },
+              { periodeTerakhir: { gt: end } },
+              {
+                AND: [
+                  { periodeTerakhir: end },
+                  { periodeMasuk: { endsWith: '2' } },
+                  { statusKeaktifan: { not: 'Cuti' } },
+                ],
+              },
+              {
+                AND: [
+                  { periodeTerakhir: end },
+                  { statusKeaktifan: { notIn: ['Aktif', 'Lulus', 'Cuti'] } },
+                ],
+              },
+            ],
+          },
+          {
+            NOT: {
+              cutiPeriods: { some: { periode: { gte: start, lte: end } } },
+            },
+          },
+        ],
+      },
+    ],
+  });
+
   // ── Filter dasar (tanpa Tahun Ajaran) ───────────────────────────────────────
 
   it('defaults to statusKeaktifan Aktif when no params given', () => {
@@ -82,60 +116,14 @@ describe('student filter builder', () => {
     const filter = buildStudentFilter({ tahunAjaran: '2023/2024' });
     expect(filter.AND).toContainEqual({ periodeMasuk: { lte: '20232' } });
     // Status aktif historis memperhitungkan paritas semester yang ditempuh.
-    expect(filter.AND).toContainEqual({
-      OR: [
-        {
-          OR: [
-            { statusKeaktifan: 'Aktif' },
-            { AND: [{ periodeTerakhir: '' }, { statusKeaktifan: { not: 'Cuti' } }] },
-            { periodeTerakhir: { gt: '20232' } },
-            {
-              AND: [
-                { periodeTerakhir: '20232' },
-                { periodeMasuk: { endsWith: '2' } },
-                { statusKeaktifan: { not: 'Cuti' } },
-              ],
-            },
-            {
-              AND: [
-                { periodeTerakhir: '20232' },
-                { statusKeaktifan: { notIn: ['Aktif', 'Lulus', 'Cuti'] } },
-              ],
-            },
-          ],
-        },
-      ],
-    });
+    expect(filter.AND).toContainEqual(activeSnapshotCondition('20231', '20232'));
     expect(filter.statusKeaktifan).toBeUndefined();
   });
 
   it('TA historis + statusKeaktifan Aktif eksplisit: sama dengan default snapshot', () => {
     const filter = buildStudentFilter({ tahunAjaran: '2020/2021', statusKeaktifan: 'Aktif' });
     expect(filter.AND).toContainEqual({ periodeMasuk: { lte: '20202' } });
-    expect(filter.AND).toContainEqual({
-      OR: [
-        {
-          OR: [
-            { statusKeaktifan: 'Aktif' },
-            { AND: [{ periodeTerakhir: '' }, { statusKeaktifan: { not: 'Cuti' } }] },
-            { periodeTerakhir: { gt: '20202' } },
-            {
-              AND: [
-                { periodeTerakhir: '20202' },
-                { periodeMasuk: { endsWith: '2' } },
-                { statusKeaktifan: { not: 'Cuti' } },
-              ],
-            },
-            {
-              AND: [
-                { periodeTerakhir: '20202' },
-                { statusKeaktifan: { notIn: ['Aktif', 'Lulus', 'Cuti'] } },
-              ],
-            },
-          ],
-        },
-      ],
-    });
+    expect(filter.AND).toContainEqual(activeSnapshotCondition('20201', '20202'));
     expect(filter.statusKeaktifan).toBeUndefined();
   });
 
@@ -157,52 +145,55 @@ describe('student filter builder', () => {
   it('TA + status kosong [] sama dengan tidak dikirim: default populasi Aktif', () => {
     const filter = buildStudentFilter({ tahunAjaran: '2025/2026', statusKeaktifan: [] });
     expect(filter.AND).toContainEqual({ periodeMasuk: { lte: '20252' } });
-    expect(filter.AND).toContainEqual({
-      OR: [
-        {
-          OR: [
-            { statusKeaktifan: 'Aktif' },
-            { AND: [{ periodeTerakhir: '' }, { statusKeaktifan: { not: 'Cuti' } }] },
-            { periodeTerakhir: { gt: '20252' } },
-            {
-              AND: [
-                { periodeTerakhir: '20252' },
-                { periodeMasuk: { endsWith: '2' } },
-                { statusKeaktifan: { not: 'Cuti' } },
-              ],
-            },
-            {
-              AND: [
-                { periodeTerakhir: '20252' },
-                { statusKeaktifan: { notIn: ['Aktif', 'Lulus', 'Cuti'] } },
-              ],
-            },
-          ],
-        },
-      ],
-    });
+    expect(filter.AND).toContainEqual(activeSnapshotCondition('20251', '20252'));
     expect(filter.statusKeaktifan).toBeUndefined();
   });
 
   // ── Tahun Ajaran + Status spesifik (Lulus / Transfer / dll.) ───────────────
 
-  it('TA + Cuti: memakai periode cuti sampai akhir TA, bukan aturan keluar', () => {
+  it('TA + Cuti: memakai riwayat periode cuti, bukan status terbaru', () => {
     const filter = buildStudentFilter({ tahunAjaran: '2026/2027', statusKeaktifan: 'Cuti' });
     expect(filter.AND).toContainEqual({
       OR: [
         {
-          AND: [
-            { statusKeaktifan: 'Cuti' },
-            {
-              OR: [
-                { periodeTerakhir: { not: '', lt: '20261' } },
-                { periodeTerakhir: '20261' },
-                { periodeTerakhir: { not: '', lte: '20262' } },
-              ],
-            },
-          ],
+          cutiPeriods: {
+            some: { periode: { gte: '20261', lte: '20262' } },
+          },
         },
       ],
+    });
+  });
+
+  it('TA + Cuti + Periode: hanya cuti pada semester yang dipilih', () => {
+    const ganjil = buildStudentFilter({
+      tahunAjaran: '2025/2026',
+      statusKeaktifan: 'Cuti',
+      periodeAkademik: 'Ganjil',
+    });
+    const genap = buildStudentFilter({
+      tahunAjaran: '2025/2026',
+      statusKeaktifan: 'Cuti',
+      periodeAkademik: 'Genap',
+    });
+
+    expect(ganjil.AND).toContainEqual({
+      OR: [{ cutiPeriods: { some: { periode: '20251' } } }],
+    });
+    expect(genap.AND).toContainEqual({
+      OR: [{ cutiPeriods: { some: { periode: '20252' } } }],
+    });
+  });
+
+  it('TA + Aktif + Periode: cuti semester lain tidak mengeluarkan mahasiswa dari Aktif', () => {
+    const filter = buildStudentFilter({
+      tahunAjaran: '2025/2026',
+      periodeAkademik: 'Genap',
+    });
+    const snapshotOr = filter.AND.find((condition) => condition.OR);
+    const activeBranch = snapshotOr.OR.find((branch) => branch.AND);
+
+    expect(activeBranch.AND).toContainEqual({
+      NOT: { cutiPeriods: { some: { periode: '20252' } } },
     });
   });
 
@@ -297,42 +288,20 @@ describe('student filter builder', () => {
       tahunAjaran: '2025/2026',
       statusKeaktifan: ['Aktif', 'Lulus'],
     });
-    expect(filter.AND).toContainEqual({
-      OR: [
+    const expected = activeSnapshotCondition('20251', '20252');
+    expected.OR.push({
+      AND: [
+        { statusKeaktifan: 'Lulus' },
         {
           OR: [
-            { statusKeaktifan: 'Aktif' },
-            { AND: [{ periodeTerakhir: '' }, { statusKeaktifan: { not: 'Cuti' } }] },
-            { periodeTerakhir: { gt: '20252' } },
-            {
-              AND: [
-                { periodeTerakhir: '20252' },
-                { periodeMasuk: { endsWith: '2' } },
-                { statusKeaktifan: { not: 'Cuti' } },
-              ],
-            },
-            {
-              AND: [
-                { periodeTerakhir: '20252' },
-                { statusKeaktifan: { notIn: ['Aktif', 'Lulus', 'Cuti'] } },
-              ],
-            },
-          ],
-        },
-        {
-          AND: [
-            { statusKeaktifan: 'Lulus' },
-            {
-              OR: [
-                { periodeTerakhir: { not: '', lt: '20251' } },
-                { periodeTerakhir: '20251' },
-                { periodeTerakhir: '20252' },
-              ],
-            },
+            { periodeTerakhir: { not: '', lt: '20251' } },
+            { periodeTerakhir: '20251' },
+            { periodeTerakhir: '20252' },
           ],
         },
       ],
     });
+    expect(filter.AND).toContainEqual(expected);
   });
 
   // ── Kombinasi Tahun Ajaran + Periode Masuk (Ganjil/Genap) ──────────────────
@@ -344,6 +313,22 @@ describe('student filter builder', () => {
     });
     expect(filter.AND).toContainEqual({ periodeMasuk: { endsWith: '1' } });
     expect(filter.statusKeaktifan).toBeUndefined();
+  });
+
+  it('satu filter Periode: di snapshot berarti semester, di intake berarti periode masuk', () => {
+    const query = {
+      tahunAjaran: '2025/2026',
+      statusKeaktifan: 'Cuti',
+      periodeAkademik: 'Genap',
+      periodeMasuk: 'Genap',
+    };
+    const snapshot = buildStudentFilter(query);
+    // Cuti Genap dari intake Ganjil tidak boleh hilang karena syarat intake.
+    expect(snapshot.AND).not.toContainEqual({ periodeMasuk: { endsWith: '2' } });
+    expect(JSON.stringify(snapshot)).toContain('"periode":"20252"');
+
+    const cohort = buildStudentFilter(query, { scope: FILTER_SCOPES.COHORT });
+    expect(cohort.AND).toContainEqual({ periodeMasuk: { endsWith: '2' } });
   });
 
   // ── Scope filter: populasi dipilih saat filter dibangun, bukan dibuang sesudahnya ──
@@ -421,7 +406,8 @@ describe('student filter builder', () => {
   it('populasi Aktif mencakup non-Lulus yang keluar tepat di akhir tahun (kasus Eliza)', () => {
     const filter = buildStudentFilter({ tahunAjaran: '2020/2021', statusKeaktifan: 'Aktif' });
     const snapshotOr = filter.AND.find((c) => c.OR);
-    const activeOr = snapshotOr.OR.find((b) => b.OR);
+    const activeBranch = snapshotOr.OR.find((branch) => branch.AND);
+    const activeOr = activeBranch.AND.find((condition) => condition.OR);
     const eliza = {
       statusKeaktifan: 'Mengundurkan Diri / Keluar',
       periodeMasuk: '20201',

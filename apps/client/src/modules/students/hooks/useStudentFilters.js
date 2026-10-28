@@ -118,16 +118,18 @@ export const studentFilterFields = {
     placeholder: 'Semua Status',
     defaultValue: [STUDENT_STATUS.AKTIF],
   },
+  // Satu pilihan Ganjil/Genap untuk dua aturan server sekaligus (keputusan user):
+  // semester tahun ajaran yang dilihat (`periodeAkademik`) dan intake (`periodeMasuk`).
   selectedPeriode: {
     initial: '',
     param: 'periode',
     api: 'periodeMasuk',
     setter: 'setSelectedPeriode',
     control: 'single',
-    label: 'Periode Masuk',
+    label: 'Periode',
     icon: CalendarDays,
     optionsKey: 'periodeOptions',
-    placeholder: 'Semua Periode Masuk',
+    placeholder: 'Semua Periode',
   },
 };
 

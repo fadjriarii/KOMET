@@ -14,13 +14,14 @@ const POPULATION_PARAMS = [
   'kewarganegaraan',
   'statusKeaktifan',
   'periodeMasuk',
+  'periodeAkademik',
   'tahunAjaran',
 ];
 const tanpa = (...keys) => POPULATION_PARAMS.filter((key) => !keys.includes(key));
 /** COHORT: intake menghitung semua yang masuk, status keaktifan tidak membatasi. Semester dan angkatan memfilter intake. */
-const INTAKE_SCOPE = tanpa('statusKeaktifan');
+const INTAKE_SCOPE = tanpa('statusKeaktifan', 'periodeAkademik');
 /** Tren penurunan kebal terhadap filter semester dan status keaktifan. */
-const DECLINE_SCOPE = tanpa('statusKeaktifan', 'semester');
+const DECLINE_SCOPE = tanpa('statusKeaktifan', 'semester', 'periodeAkademik');
 /** kewarganegaraan tidak memfilter WNA; tahunAjaran tetap memfilter populasi card. */
 const FOREIGN_SCOPE = tanpa('kewarganegaraan');
 

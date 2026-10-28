@@ -6,7 +6,14 @@ const { SYNC_FETCH_WINDOW, SYNC_PAGE_DELAY_MS, sleep } = require('../config');
  * Halaman ke-N+1 diminta sebelum halaman ke-N ditulis ke DB, sehingga waktu jaring
  * dan waktu tulis saling menimpa (bukan berantai).
  */
-async function paginateSevimaPages({ endpoint, startPage = 1, onPage, params }) {
+async function paginateSevimaPages({
+  endpoint,
+  startPage = 1,
+  onPage,
+  params,
+  window = SYNC_FETCH_WINDOW,
+}) {
+  const fetchWindow = Math.max(1, window);
   const inflight = new Map();
   const swallowRemaining = () => {
     for (const promise of inflight.values()) promise.catch(() => {});
@@ -22,7 +29,7 @@ async function paginateSevimaPages({ endpoint, startPage = 1, onPage, params }) 
   let nextPage = startPage;
   let pagesProcessed = 0;
 
-  while (inflight.size < SYNC_FETCH_WINDOW && nextPage <= lastPage) {
+  while (inflight.size < fetchWindow && nextPage <= lastPage) {
     inflight.set(nextPage, fetchPage(nextPage));
     nextPage += 1;
   }

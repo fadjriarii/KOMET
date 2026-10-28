@@ -1,5 +1,7 @@
+import { STUDENT_STATUS } from '@komet/shared/constants';
 import Badge from '../../../components/common/ui/Badge';
 import { getStatusBadgeVariant } from '../../../utils/uiHelpers';
+import { formatCutiHistory } from '../../../utils/studentText';
 
 export const STUDENT_TABLE_COLUMNS = [
   {
@@ -101,10 +103,24 @@ export const STUDENT_TABLE_COLUMNS = [
     label: 'Status Keaktifan',
     headerClassName: 'w-[10%] whitespace-normal leading-tight text-center',
     cellClassName: 'text-center',
-    render: (row) => (
-      <Badge size="sm" variant={getStatusBadgeVariant(row.statusKeaktifan)}>
-        <span className="whitespace-normal break-words">{row.statusKeaktifan || '-'}</span>
-      </Badge>
-    ),
+    render: (row) => {
+      const cutiHistory =
+        row.statusKeaktifan === STUDENT_STATUS.CUTI
+          ? formatCutiHistory(row.cutiPeriods, row.cutiSemesterCount)
+          : '';
+      return (
+        <div className="inline-flex flex-col items-center gap-1">
+          <Badge size="sm" variant={getStatusBadgeVariant(row.statusKeaktifan)}>
+            <span className="whitespace-normal break-words">{row.statusKeaktifan || '-'}</span>
+          </Badge>
+          {cutiHistory && (
+            <span className="text-[10px] font-medium leading-tight text-gray-500">
+              {cutiHistory}
+              {row.isHistoricalCuti ? ' · historis' : ''}
+            </span>
+          )}
+        </div>
+      );
+    },
   },
 ];

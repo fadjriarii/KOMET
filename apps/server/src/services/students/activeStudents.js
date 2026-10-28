@@ -102,11 +102,14 @@ async function getActiveStudentsMultisector(baseFilter, query = {}) {
       kewarganegaraan: true,
       idNegara: true,
       statusKeaktifan: true,
+      cutiPeriods: { select: { periode: true } },
     },
   });
   const academicYear = getRequestedAcademicYear(query);
   return groupStudentRows(
-    rows.map((row) => projectSnapshotStudent(row, academicYear, query.statusKeaktifan)),
+    rows.map((row) =>
+      projectSnapshotStudent(row, academicYear, query.statusKeaktifan, query.periodeAkademik),
+    ),
     getSelectedAcademicYear(query),
   );
 }

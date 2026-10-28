@@ -9,6 +9,7 @@ const {
   getStudentList,
   projectSnapshotStudent,
 } = require('../../../src/services/students/studentList');
+const { contractFor, contractProblems } = require('@komet/shared/contracts');
 
 describe('student list pagination query', () => {
   it('uses offset pagination without a cursor', () => {
@@ -49,6 +50,7 @@ describe('student list pagination query', () => {
         'semester',
         'kewarganegaraan',
         'statusKeaktifan',
+        'cutiPeriods',
       ].sort(),
     );
     expect(select).not.toHaveProperty('nik');
@@ -75,6 +77,55 @@ describe('student list pagination query', () => {
   it('cuti yang berlanjut sampai Genap tetap Cuti di tahun ajaran itu', () => {
     const student = { statusKeaktifan: 'Cuti', periodeMasuk: '20231', periodeTerakhir: '20262' };
     expect(getSnapshotStatus(student, { startYear: '2026' })).toBe('Cuti');
+  });
+
+  it('cuti historis menang atas status terbaru pada tahun yang tepat', () => {
+    const student = {
+      statusKeaktifan: 'Aktif',
+      periodeMasuk: '20231',
+      cutiPeriods: [{ periode: '20241' }],
+    };
+    const year = { startYear: '2024', isCurrent: false };
+    expect(getSnapshotStatus(student, year, 'Cuti')).toBe('Cuti');
+    expect(getSnapshotStatus(student, year, 'ALL')).toBe('Cuti');
+    expect(getSnapshotStatus(student, { startYear: '2025' }, 'Cuti')).toBe('Aktif');
+    expect(projectSnapshotStudent(student, year, 'Cuti')).toMatchObject({
+      statusKeaktifan: 'Cuti',
+      cutiPeriods: ['20241'],
+      cutiSemesterCount: 1,
+      isHistoricalCuti: true,
+    });
+  });
+
+  it('filter Periode hanya menandai cuti pada semester yang dipilih', () => {
+    const student = {
+      statusKeaktifan: 'Aktif',
+      periodeMasuk: '20231',
+      cutiPeriods: [{ periode: '20251' }],
+    };
+    const year = { startYear: '2025', isCurrent: false };
+
+    expect(getSnapshotStatus(student, year, 'Cuti', 'Ganjil')).toBe('Cuti');
+    expect(getSnapshotStatus(student, year, ['Aktif', 'Cuti'], 'Genap')).toBe('Aktif');
+    expect(projectSnapshotStudent(student, year, 'Cuti', 'Genap')).toMatchObject({
+      statusKeaktifan: 'Aktif',
+      isHistoricalCuti: false,
+    });
+  });
+
+  it('baris hasil proyeksi selalu memenuhi kontrak /students/students', () => {
+    const contract = contractFor('/students/students');
+    const base = Object.fromEntries(contract.rows.map((key) => [key, '']));
+    const projected = projectSnapshotStudent(
+      { ...base, cutiPeriods: [] },
+      { startYear: '2026', isCurrent: true },
+    );
+    expect(
+      contractProblems(contract, {
+        data: [projected],
+        pagination: { page: 1, limit: 10, total: 1, totalPages: 1 },
+      }),
+    ).toEqual([]);
   });
 
   it('keluar setelah Genap ditunda ke tahun ajaran berikut (bukan terminal di tahun itu)', () => {

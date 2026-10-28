@@ -58,6 +58,14 @@ Version numbers follow the root `package.json`.
 
 ### Changed
 
+- Student Data keeps Cuti as history per semester. The sync stores each
+  `/perwalian` cuti period in `student_cuti_periods`; the academic-year filter
+  and status column show the Ganjil/Genap period, duration, and a historical
+  marker even after the student is active or graduated. Cuti rows are excluded
+  from the same year's Aktif population. One Periode filter (Ganjil/Genap)
+  replaces the separate Periode and Periode Masuk filters: status cards and the
+  table read it as the semester of the selected academic year, and the intake
+  cards read it as the intake term.
 - MBKM sync cleans NIM `xx` and `(Akun Lama)` before insert, then keeps one
   row per cleaned NIM + BKP + partner and chooses the most complete, newest
   row. Different BKP or partner pairs are kept.

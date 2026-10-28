@@ -27,6 +27,9 @@ export const STUDENT_ROW_FIELDS = [
   'semester',
   'kewarganegaraan',
   'statusKeaktifan',
+  'cutiPeriods',
+  'cutiSemesterCount',
+  'isHistoricalCuti',
 ];
 
 export const GRADUATE_ROW_FIELDS = [

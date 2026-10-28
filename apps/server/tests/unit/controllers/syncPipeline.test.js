@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeAll, afterAll } from 'vitest';
+import { describe, expect, it, beforeAll, afterAll, vi } from 'vitest';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
@@ -10,8 +10,15 @@ process.env.SEVIMA_FETCH_WINDOW = '3';
 const sevimaApi = require('../../../src/config/sevimaApi');
 const prisma = require('../../../src/config/prisma');
 const { paginateSevimaPages } = require('../../../src/controllers/sync/sevimaLookup');
-const { fetchCutiNims } = require('../../../src/controllers/sync/studentCuti');
-const { bulkUpsertStudents } = require('../../../src/controllers/sync/bulkWrite');
+const {
+  fetchCutiNims,
+  fetchCutiHistory,
+  buildPeriodRange,
+} = require('../../../src/controllers/sync/studentCuti');
+const {
+  bulkUpsertStudents,
+  replaceCutiPeriods,
+} = require('../../../src/controllers/sync/bulkWrite');
 const { chunkBy } = require('../../../src/controllers/sync/config');
 
 describe('paginateSevimaPages', () => {
@@ -68,6 +75,16 @@ describe('paginateSevimaPages', () => {
     expect(seen[0].totalPages).toBe(3);
     expect(seen[0].size).toBe(2);
     expect(requested).toContain(1);
+  });
+
+  it('window 1 memaksa halaman diambil satu per satu', async () => {
+    const tracker = stubPages(3);
+    await paginateSevimaPages({
+      endpoint: '/siakadcloud/v1/x',
+      window: 1,
+      onPage: () => {},
+    });
+    expect(tracker.maxInFlight()).toBe(1);
   });
 
   it('membiarkan halaman berikutnya diminta sebelum halaman sebelumnya selesai ditulis', async () => {
@@ -139,6 +156,74 @@ describe('fetchCutiNims', () => {
     });
 
     await expect(fetchCutiNims('20261')).resolves.toEqual(new Set(['23010099']));
+  });
+});
+
+describe('fetchCutiHistory', () => {
+  const originalGet = sevimaApi.get;
+
+  afterAll(() => {
+    sevimaApi.get = originalGet;
+  });
+
+  it('mengambil cuti per periode dan mempertahankan periode yang gagal', async () => {
+    sevimaApi.get = async (_url, { params }) => {
+      if (params['f-id_periode'] === '20242') throw new Error('boom');
+      return {
+        data: {
+          data: [{ attributes: { nim: '23010099', id_status_mahasiswa: 'C' } }],
+          meta: { last_page: 1 },
+        },
+      };
+    };
+
+    const history = await fetchCutiHistory(['20241', '20242']);
+    expect(history.get('20241')).toEqual(new Set(['23010099']));
+    expect(history.get('20242')).toBeNull();
+  });
+
+  it('membangun rentang periode Ganjil/Genap inklusif', () => {
+    expect(buildPeriodRange('20241', '20252')).toEqual(['20241', '20242', '20251', '20252']);
+    expect(buildPeriodRange('tidak-valid', '20252')).toEqual(['20252']);
+  });
+});
+
+describe('replaceCutiPeriods', () => {
+  const originalFindMany = prisma.student.findMany;
+  const originalTransaction = prisma.$transaction;
+
+  afterAll(() => {
+    prisma.student.findMany = originalFindMany;
+    prisma.$transaction = originalTransaction;
+  });
+
+  it('hanya menyimpan NIM yang ada dan mengganti satu periode dalam transaksi', async () => {
+    prisma.student.findMany = vi.fn(async ({ where }) =>
+      where.nim.in.filter((nim) => nim !== 'tidak-ada').map((nim) => ({ nim })),
+    );
+    const tx = { studentCutiPeriod: { deleteMany: vi.fn(), createMany: vi.fn() } };
+    prisma.$transaction = vi.fn(async (fn) => fn(tx));
+
+    await expect(replaceCutiPeriods('20241', ['23010099', 'tidak-ada'])).resolves.toBe(1);
+    expect(tx.studentCutiPeriod.deleteMany).toHaveBeenCalledWith({
+      where: { periode: '20241' },
+    });
+    expect(tx.studentCutiPeriod.createMany.mock.calls[0][0].data).toEqual([
+      { nim: '23010099', periode: '20241' },
+    ]);
+  });
+
+  it('memetakan NIM akun lama xx ke NIM bersih yang ada', async () => {
+    prisma.student.findMany = vi.fn(async ({ where }) =>
+      where.nim.in.includes('23010099') ? [{ nim: '23010099' }] : [],
+    );
+    const tx = { studentCutiPeriod: { deleteMany: vi.fn(), createMany: vi.fn() } };
+    prisma.$transaction = vi.fn(async (fn) => fn(tx));
+
+    await expect(replaceCutiPeriods('20242', ['XX23010099'])).resolves.toBe(1);
+    expect(tx.studentCutiPeriod.createMany.mock.calls[0][0].data).toEqual([
+      { nim: '23010099', periode: '20242' },
+    ]);
   });
 });
 

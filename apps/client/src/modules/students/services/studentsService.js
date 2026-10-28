@@ -26,6 +26,8 @@ function toQueryParams(filters = {}, pagination = {}) {
     else appendMany('statusKeaktifan', sanitized.status);
   }
 
+  // Satu filter Periode mengatur semester tahun ajaran dan intake sekaligus.
+  append('periodeAkademik', sanitized.periode);
   append('periodeMasuk', sanitized.periode);
   // Satu parameter tahun akademik kanonik; `selectedPeriode` hanya diterima server
   // untuk tautan lama yang masih terpasang.

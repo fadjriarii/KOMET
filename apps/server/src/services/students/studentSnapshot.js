@@ -1,6 +1,8 @@
 const { getAcademicYear } = require('./filterBuilder');
 const { toArray } = require('@komet/shared/filterUtils');
+const { STUDENT_STATUS } = require('@komet/shared/constants');
 const {
+  getAcademicPeriodBounds,
   isTerminalInAcademicYear,
   parseStatusSelection,
   DEFAULT_STATUS,
@@ -12,14 +14,39 @@ function getRequestedAcademicYear(query = {}) {
   return getAcademicYear(tahunAjaran || (selectedPeriode?.includes('/') ? selectedPeriode : null));
 }
 
+function periodCode(entry) {
+  return typeof entry === 'string' ? entry : entry?.periode;
+}
+
+/** True bila mahasiswa punya cuti di tahun ajaran itu, atau di periode terpilih. */
+function hasCutiInAcademicYear(student, academicYear, periodeAkademik) {
+  if (!academicYear || !Array.isArray(student.cutiPeriods)) return false;
+  const { start, end } = getAcademicPeriodBounds(academicYear);
+  const selected = periodeAkademik === 'Ganjil' ? start : periodeAkademik === 'Genap' ? end : null;
+  return student.cutiPeriods.some((entry) => {
+    const periode = periodCode(entry);
+    if (!periode) return false;
+    return selected ? periode === selected : periode >= start && periode <= end;
+  });
+}
+
 /**
  * A Student row stores the latest SEVIMA status. For historical snapshots the
  * table must instead show the status at the selected year boundary. A future
  * graduation/exit is therefore rendered as Aktif in an earlier snapshot.
+ * Cuti adalah fakta historis per periode, jadi riwayat menang atas status
+ * terbaru saat tahun yang dipilih memang punya cuti.
  */
-function getSnapshotStatus(student, academicYear, statusValues) {
+function getSnapshotStatus(student, academicYear, statusValues, periodeAkademik) {
   if (!academicYear) return student.statusKeaktifan;
   const { isAll, statuses } = parseStatusSelection(statusValues);
+  if (
+    hasCutiInAcademicYear(student, academicYear, periodeAkademik) &&
+    (isAll || statuses.includes(STUDENT_STATUS.CUTI))
+  ) {
+    return STUDENT_STATUS.CUTI;
+  }
+
   const hasExplicitTerminalFilter = !isAll && !statuses.includes(DEFAULT_STATUS);
   if (hasExplicitTerminalFilter) return student.statusKeaktifan;
 
@@ -28,13 +55,22 @@ function getSnapshotStatus(student, academicYear, statusValues) {
   return hasReachedFinalStatus ? student.statusKeaktifan : DEFAULT_STATUS;
 }
 
-function projectSnapshotStudent(student, academicYear, statusValues) {
-  if (!academicYear) return student;
-  return {
-    ...student,
-    statusKeaktifan: getSnapshotStatus(student, academicYear, statusValues),
-    semester: snapshotSemester(student, academicYear),
+function projectSnapshotStudent(student, academicYear, statusValues, periodeAkademik) {
+  const { cutiPeriods, ...rest } = student;
+  const projected = {
+    ...rest,
+    statusKeaktifan: getSnapshotStatus(student, academicYear, statusValues, periodeAkademik),
+    semester: academicYear ? snapshotSemester(student, academicYear) : student.semester,
   };
+  if (Array.isArray(cutiPeriods)) {
+    projected.cutiPeriods = cutiPeriods.map(periodCode).filter(Boolean);
+    projected.cutiSemesterCount = projected.cutiPeriods.length;
+    projected.isHistoricalCuti =
+      projected.statusKeaktifan === STUDENT_STATUS.CUTI &&
+      Boolean(academicYear) &&
+      !academicYear.isCurrent;
+  }
+  return projected;
 }
 
 /**
@@ -102,6 +138,7 @@ async function resolveSnapshotSemesterWhere(db, whereFilter, query) {
 module.exports = {
   getRequestedAcademicYear,
   getSnapshotStatus,
+  hasCutiInAcademicYear,
   projectSnapshotStudent,
   snapshotSemester,
   resolveSnapshotSemesterWhere,

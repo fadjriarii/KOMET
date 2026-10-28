@@ -14,6 +14,7 @@ const SECOND_ROW_CLASS = {
   3: 'grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-4.5 w-full items-end pt-1',
   4: 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-4.5 w-full items-end pt-1',
   5: 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-4.5 w-full items-end pt-1',
+  6: 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-4.5 w-full items-end pt-1',
 };
 
 function Control({ field, value, onChange, choices, customMeta, disabled }) {

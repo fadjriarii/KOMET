@@ -20,6 +20,7 @@
  * jadi proyeksi tidak pernah menjadi implementasi paralel dari kondisi SQL.
  */
 const { toArray } = require('@komet/shared/filterUtils');
+const { STUDENT_STATUS } = require('@komet/shared/constants');
 const { ALL_STATUSES, DEFAULT_STATUS } = require('./snapshot/status');
 const {
   getAcademicPeriodBounds,
@@ -27,6 +28,19 @@ const {
   buildActiveSnapshotCondition,
 } = require('./snapshot/bounds');
 const { matchesStudentCondition } = require('./snapshot/match');
+
+const CUTI = STUDENT_STATUS.CUTI;
+
+/** Cuti pada periode terpilih, atau pada salah satu periode di tahun ajaran. */
+function buildCutiPeriodCondition(academicStart, academicEnd, periodeAkademik) {
+  const periode =
+    periodeAkademik === 'Ganjil' ? academicStart : periodeAkademik === 'Genap' ? academicEnd : null;
+  return {
+    cutiPeriods: {
+      some: { periode: periode || { gte: academicStart, lte: academicEnd } },
+    },
+  };
+}
 
 /** @returns {{isAll: boolean, statuses: string[]}} pemilihan status ternormalisasi. */
 function parseStatusSelection(statusValues) {
@@ -50,16 +64,21 @@ function isTerminalInAcademicYear(student, academicYear) {
   );
 }
 
-function buildSnapshotStatusCondition(academicStart, academicEnd, statusValues) {
+function buildSnapshotStatusCondition(academicStart, academicEnd, statusValues, periodeAkademik) {
   const { isAll, statuses } = parseStatusSelection(statusValues);
   if (isAll) return null;
 
+  const cutiCondition = buildCutiPeriodCondition(academicStart, academicEnd, periodeAkademik);
   const branches = [];
   if (statuses.includes(DEFAULT_STATUS)) {
-    branches.push(buildActiveSnapshotCondition(academicEnd));
+    // Cuti di tahun itu bukan Aktif, meskipun status terbarunya sudah Aktif.
+    branches.push({ AND: [buildActiveSnapshotCondition(academicEnd), { NOT: cutiCondition }] });
   }
+  if (statuses.includes(CUTI)) branches.push(cutiCondition);
 
-  const terminalStatuses = statuses.filter((status) => status !== DEFAULT_STATUS);
+  const terminalStatuses = statuses.filter(
+    (status) => status !== DEFAULT_STATUS && status !== CUTI,
+  );
   if (terminalStatuses.length) {
     branches.push({
       AND: [
@@ -75,12 +94,17 @@ function buildSnapshotStatusCondition(academicStart, academicEnd, statusValues) 
   return branches.length ? { OR: branches } : null;
 }
 
-/** Snapshot predicates for one academic year. */
-function buildAcademicYearFilter(academicYear, statusValues) {
+/** Snapshot predicates for one academic year, optionally one of its periods. */
+function buildAcademicYearFilter(academicYear, statusValues, periodeAkademik) {
   if (!academicYear) return [];
   const { start, end } = getAcademicPeriodBounds(academicYear);
   const conditions = [{ periodeMasuk: { lte: end } }];
-  const snapshotStatusCondition = buildSnapshotStatusCondition(start, end, statusValues);
+  const snapshotStatusCondition = buildSnapshotStatusCondition(
+    start,
+    end,
+    statusValues,
+    periodeAkademik,
+  );
   if (snapshotStatusCondition) conditions.push(snapshotStatusCondition);
   return conditions;
 }
@@ -91,6 +115,7 @@ module.exports = {
   parseStatusSelection,
   getAcademicPeriodBounds,
   buildTerminalPeriodCondition,
+  buildCutiPeriodCondition,
   matchesStudentCondition,
   isTerminalInAcademicYear,
   buildAcademicYearFilter,

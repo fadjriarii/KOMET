@@ -120,6 +120,7 @@ const POPULATION = [
   'kewarganegaraan',
   'statusKeaktifan',
   'periodeMasuk',
+  'periodeAkademik',
   'tahunAjaran',
 ];
 const tanpa = (...keys) => POPULATION.filter((key) => !keys.includes(key));
@@ -172,12 +173,13 @@ const ROUTES = {
     scope: {
       active: POPULATION,
       foreign: tanpa('kewarganegaraan'),
-      intake: tanpa('statusKeaktifan'),
-      decline: tanpa('statusKeaktifan', 'semester'),
+      intake: tanpa('statusKeaktifan', 'periodeAkademik'),
+      decline: tanpa('statusKeaktifan', 'semester', 'periodeAkademik'),
     },
     filterCases: [
       { url: '/students?faculty=FST', api: 'fakultas', value: 'FST' },
       { url: '/students?status=Lulus', api: 'statusKeaktifan', value: 'Lulus' },
+      { url: '/students?periode=Ganjil', api: 'periodeMasuk', value: 'Ganjil' },
     ],
     rowLabel: '20211001',
   },

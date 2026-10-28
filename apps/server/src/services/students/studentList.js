@@ -48,7 +48,9 @@ async function getStudentList(whereFilter, page = 1, limit = TABLE_LIMIT, cursor
   const academicYear = getRequestedAcademicYear(query);
   const data = rawData
     .slice(0, limit)
-    .map((student) => projectSnapshotStudent(student, academicYear, query.statusKeaktifan));
+    .map((student) =>
+      projectSnapshotStudent(student, academicYear, query.statusKeaktifan, query.periodeAkademik),
+    );
   return {
     data,
     nextCursor: hasNextPage ? data[data.length - 1].nim : null,
@@ -80,6 +82,7 @@ function buildStudentListQuery(whereFilter, page, limit, cursor) {
       semester: true,
       kewarganegaraan: true,
       statusKeaktifan: true,
+      cutiPeriods: { select: { periode: true } },
     },
     take: limit + 1,
     // Mahasiswa terbaru di atas: angkatan tertinggi (masih semester 1) dulu,

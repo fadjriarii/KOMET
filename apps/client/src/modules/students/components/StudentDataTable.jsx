@@ -16,7 +16,7 @@ export default function StudentDataTable({
   return (
     <DataTable
       title="Daftar Mahasiswa"
-      description="Daftar identitas akademik, asal, dan status keaktifan mahasiswa."
+      description="Daftar identitas akademik, asal, dan status keaktifan pada tahun ajaran terpilih. Riwayat cuti ditampilkan per periode Ganjil/Genap, termasuk mahasiswa yang sekarang sudah aktif atau lulus."
       headerMeta={
         isLoading && rows.length === 0
           ? 'Memuat…'

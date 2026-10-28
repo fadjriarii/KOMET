@@ -42,6 +42,7 @@ model Student {
   // Relasi
   graduate        Graduate?
   mbkmActivities  MbkmActivity[]
+  cutiPeriods     StudentCutiPeriod[]
 
   @@index([nik])
   @@index([statusKeaktifan])
@@ -61,6 +62,21 @@ model Student {
   @@index([statusKeaktifan, angkatan])
   @@index([statusKeaktifan, periodeMasuk])
   @@map("students")
+}
+
+/// Satu baris = satu semester mahasiswa berstatus Cuti menurut `/perwalian`.
+/// Status cuti tidak ada di `/mahasiswa` dan bisa hilang saat mahasiswa kembali
+/// aktif, jadi periode disimpan terpisah dari status terbaru di `students`.
+model StudentCutiPeriod {
+  id        Int      @id @default(autoincrement())
+  nim       String
+  periode   String
+  student   Student  @relation(fields: [nim], references: [nim], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([nim, periode])
+  @@index([periode])
+  @@map("student_cuti_periods")
 }
 
 model Graduate {

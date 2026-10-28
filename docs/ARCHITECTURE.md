@@ -416,14 +416,16 @@ dari baris **hidup** `students`, dengan predikat snapshot (`periodeMasuk`/
 diterima:
 
 - Satu mahasiswa hanya membawa satu `statusKeaktifan` dan satu `semester` saat ini, jadi nilai historis untuk tahun-tahun sebelumnya direkonstruksi dari tanggal keluar; mahasiswa yang datanya dibetulkan setelah sync menampilkan snapshot yang mengikuti kondisi terkini.
+- **Cuti adalah pengecualian:** `/mahasiswa` tidak pernah menyimpan cuti, dan status itu hilang saat mahasiswa kembali aktif. Sync mengisi `student_cuti_periods` dari `/perwalian` untuk setiap periode, lalu filter/proyeksi tahun ajaran memakai tabel itu. Satu baris = satu semester cuti, sehingga durasi dan periode Ganjil/Genap tetap terbaca. Client hanya punya satu filter **Periode** (Ganjil/Genap) yang dikirim sebagai `periodeAkademik` dan `periodeMasuk`. Pada snapshot tahun ajaran (kartu status, tabel), filter ini berarti semester yang dilihat dan syarat intake tidak diterapkan, supaya mahasiswa intake Genap tetap muncul di semester Ganjil. Pada kartu Intake dan Trend Intake (scope COHORT), filter yang sama berarti periode masuk.
 - Biaya baca tumbuh bersama jumlah mahasiswa, dan setiap request mengulang rekonstruksi yang sama.
 
-Materialisasi snapshot ditolak untuk saat ini karena tidak ada sumber data SEVIMA
-untuk status per periode: tabel riwayat hanya boleh diisi oleh proses yang sama yang
-mengisi `students`, dan itu menambah jalur sinkronisasi kedua yang bisa berbeda dari
-yang pertama. Upgrade path yang disepakati: tabel snapshot per tahun akademik yang
-diisi pada akhir sync (`apps/server/src/controllers/sync/`), dibaca oleh service tren,
-dengan backfill eksplisit satu kali.
+Materialisasi snapshot status lain ditolak untuk saat ini karena tidak ada sumber
+data SEVIMA untuk status per periode: tabel riwayat hanya boleh diisi oleh proses
+yang sama yang mengisi `students`, dan itu menambah jalur sinkronisasi kedua yang
+bisa berbeda dari yang pertama. Upgrade path yang disepakati: tabel snapshot per
+tahun akademik yang diisi pada akhir sync
+(`apps/server/src/controllers/sync/`), dibaca oleh service tren, dengan backfill
+eksplisit satu kali.
 
 ### Student Data detail breakdowns under filters
 

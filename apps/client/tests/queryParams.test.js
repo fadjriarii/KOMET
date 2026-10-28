@@ -52,6 +52,13 @@ describe('serialisasi query ke server', () => {
     expect(studentsService.toQueryString({})).toBe('');
   });
 
+  it('satu filter Periode dikirim sebagai semester tahun ajaran dan intake sekaligus', () => {
+    expect(studentsService.toQueryString({ periode: 'Genap' })).toBe(
+      'periodeAkademik=Genap&periodeMasuk=Genap',
+    );
+    expect(studentsService.toQueryString({ periodeAkademik: 'Ganjil' })).toBe('');
+  });
+
   it('menyertakan pagination hanya bila ada', () => {
     expect(studentsService.toQueryParams({}, { page: 2, limit: 25 }).toString()).toBe(
       'page=2&limit=25',

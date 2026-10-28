@@ -66,14 +66,19 @@ function buildStudentFilter(query = {}, options = {}) {
   const academicConditions = buildAcademicYearFilter(
     academicYear,
     cohortOnly ? ALL_STATUSES : statusValues,
+    query.periodeAkademik,
   );
   if (academicConditions.length) {
     where.AND = [...(where.AND || []), ...academicConditions];
   }
-  // Ganjil/Genap adalah pilihan periode masuk, terpisah dari snapshot: selalu
-  // diterapkan, di dalam AND (scope lain) maupun sebagai predicate langsung.
+  // Client punya satu filter Periode yang dikirim sebagai `periodeAkademik` dan
+  // `periodeMasuk`. Di snapshot tahun ajaran artinya semester yang dilihat;
+  // menambah syarat intake di sana menghilangkan mahasiswa intake Genap dari
+  // semester Ganjil (dan cuti Genap dari intake Ganjil). Intake (COHORT) dan
+  // filter tanpa tahun ajaran tetap membaca `periodeMasuk`.
+  const periodeIsSemester = Boolean(academicYear && !cohortOnly && query.periodeAkademik);
   const periodeMasukFilter = buildPeriodeFilter(query.periodeMasuk);
-  if (query.periodeMasuk && periodeMasukFilter?.endsWith) {
+  if (query.periodeMasuk && periodeMasukFilter?.endsWith && !periodeIsSemester) {
     if (academicConditions.length) where.AND.push({ periodeMasuk: periodeMasukFilter });
     else where.periodeMasuk = periodeMasukFilter;
   }
