@@ -542,14 +542,34 @@ warning system: it shows no targets.
   without the eligibility condition; they feed the total, partner, and activity
   type cards.
 
-Every card reads every filter (`kpiFilterScope`). In the participation card,
-type, status, and search narrow the participants but not the eligible
-denominator, and the sentence names the filtered type instead of "MBKM".
+Each card reads only the filters in its scope (ADR 0007); the table reads every
+filter:
+
+| Filter                 | Participation | Total | Partners | Activity types       | Table |
+| ---------------------- | ------------- | ----- | -------- | -------------------- | ----- |
+| Academic year / period | yes           | yes   | yes      | yes                  | yes   |
+| Faculty, program       | yes           | yes   | yes      | yes                  | yes   |
+| Activity type          | numerator     | yes   | yes      | no, highlighted only | yes   |
+| Activity status        | no            | no    | no       | no                   | yes   |
+| Search                 | no            | no    | no       | no                   | yes   |
+
+`KPI_FILTER_SCOPE` and `cardQuery(query, card)` in `services/mbkm/mbkmCards.js`
+are the single source of the rule. The summary and every detail load the
+population with `cardQuery`, so a detail banner equals its card. In the
+participation card, faculty and program narrow both the participants and the
+eligible denominator, while the activity type narrows only the participants
+and the sentence names that type instead of "MBKM". When a type is selected,
+the summary loads a second population without it for the activity-type card,
+which then lists the selected types in `jenis.selected`. The participation
+trend covers the five academic years ending at the selected period's year. The
+client sends only card params to summary and detail (`toCardQueryParams`), and
+card and banner sentences say when search or status only filter the table.
 
 `GET /mbkm/summary` returns `kpis.cards` from `services/mbkm/mbkmCards.js`:
 `participation` (`value` rate, `participants`, `eligible`, `notParticipating`,
 `pending`), `total` (`value`, `semester7`), `mitra` (`totalPartners`,
-`withPartner`, `top`), and `jenis` (`value` type count, `top` two types).
+`withPartner`, `top`), and `jenis` (`value` type count, `top` two types,
+`selected` types under an active type filter).
 `periodLabel` is the selected period in words. `filterOptions.jenisAktivitas`
 lists only the types present in the selected periods (any status), so the
 filter never offers a type the cards cannot show.

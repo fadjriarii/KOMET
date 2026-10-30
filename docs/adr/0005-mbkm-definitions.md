@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-27
 - Scope: MBKM Data cards, details, table, and the MBKM sync
+- Superseded in part by ADR 0007: card filter scope
 
 ## Context
 

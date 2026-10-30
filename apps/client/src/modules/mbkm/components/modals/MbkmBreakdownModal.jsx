@@ -26,6 +26,8 @@ import {
   jenisSubtitle,
   mitraSubtitle,
   participationSubtitle,
+  scopeSentence,
+  tableOnlyClause,
   totalSubtitle,
 } from '../../hooks/useMbkmKpiDisplay';
 
@@ -198,7 +200,11 @@ export default function MbkmBreakdownModal({ cardKey, isOpen, onClose, originRec
   );
 
   const card = data?.card || {};
-  const periodLabel = data?.periodLabel ? `${data.periodLabel}. ` : '';
+  // Banner = kalimat kartunya + cakupan + filter yang hanya untuk tabel (ADR 0007).
+  // `filters` memakai nama param URL (`faculty`, `prodi`, `search`, ...).
+  const bannerText = isLoading
+    ? 'Memuat rincian...'
+    : `${scopeSentence(filters, data?.periodLabel)}${config.describe(card, filters)}${tableOnlyClause(filters)}`;
 
   return (
     <Modal
@@ -212,11 +218,7 @@ export default function MbkmBreakdownModal({ cardKey, isOpen, onClose, originRec
     >
       <div className="flex flex-col h-full space-y-4">
         <ModalSummaryBanner
-          description={
-            <p className="text-left sm:text-justify">
-              {isLoading ? 'Memuat rincian...' : `${periodLabel}${config.describe(card, filters)}`}
-            </p>
-          }
+          description={<p className="text-left sm:text-justify">{bannerText}</p>}
           label={config.label}
           value={isLoading ? '-' : config.value(card)}
           sublabel={config.sublabel}

@@ -11,7 +11,12 @@ const {
   isActiveAtPeriode,
 } = require('../../../src/services/mbkm/mbkmEligibility');
 const { loadMbkmPopulation, periodeLabel } = require('../../../src/services/mbkm/population');
-const { buildMbkmCards } = require('../../../src/services/mbkm/mbkmCards');
+const {
+  buildMbkmCards,
+  cardQuery,
+  KPI_FILTER_SCOPE,
+} = require('../../../src/services/mbkm/mbkmCards');
+const { getMbkmDetail, trendYears } = require('../../../src/services/mbkm/mbkmDetails');
 const {
   participationBreakdowns,
   totalBreakdowns,
@@ -268,6 +273,7 @@ describe('populasi MBKM', () => {
         { name: 'Magang', count: 1, percentage: 50 },
         { name: 'Riset', count: 1, percentage: 50 },
       ],
+      selected: [],
     });
   });
 
@@ -377,5 +383,96 @@ describe('getMbkmSummary', () => {
       ([args]) => args.by[0] === 'jenisAktivitas' && args.where?.periode,
     );
     expect(jenisQuery[0].where.periode).toEqual({ in: ['20251', '20252'] });
+  });
+});
+
+describe('cakupan filter per kartu (ADR 0007)', () => {
+  const FILTERS = {
+    search: 'ani',
+    statusAktivitas: ['Diajukan'],
+    jenisAktivitas: ['Magang'],
+    fakultas: ['FST'],
+    tahunAjaran: '2025/2026',
+  };
+
+  /** Stub yang benar-benar menyaring jenis, supaya pembilang terlihat berubah. */
+  function stubJenisAware(activities) {
+    stubDb({ students: ELIGIBLE });
+    prisma.mbkmActivity.findMany = vi.fn(async (args) => {
+      calls.push({ model: 'mbkmActivity', ...args });
+      const allowed = args.where.jenisAktivitas?.in;
+      return activities.filter((row) => !allowed || allowed.includes(row.jenisAktivitas));
+    });
+  }
+
+  it('pencarian dan status hanya untuk tabel; jenis tidak dibaca kartu Bentuk Kegiatan', () => {
+    for (const card of ['participation', 'total', 'mitra']) {
+      expect(cardQuery(FILTERS, card)).toEqual({
+        jenisAktivitas: ['Magang'],
+        fakultas: ['FST'],
+        tahunAjaran: '2025/2026',
+      });
+      expect(KPI_FILTER_SCOPE[card]).not.toContain('search');
+      expect(KPI_FILTER_SCOPE[card]).not.toContain('statusAktivitas');
+    }
+    expect(cardQuery(FILTERS, 'jenis')).toEqual({ fakultas: ['FST'], tahunAjaran: '2025/2026' });
+    expect(KPI_FILTER_SCOPE.jenis).not.toContain('jenisAktivitas');
+  });
+
+  it('summary: kartu tidak membaca pencarian/status; jenis hanya mempersempit pembilang', async () => {
+    stubJenisAware([
+      activity('A', 'Selesai'),
+      activity('B', 'Selesai', { jenisAktivitas: 'Riset' }),
+      activity('C', 'Disetujui', { jenisAktivitas: 'Riset' }),
+    ]);
+    const { kpis } = await getMbkmSummary({ ...FILTERS, fakultas: undefined });
+    const activityWheres = calls
+      .filter((call) => call.model === 'mbkmActivity')
+      .map((c) => c.where);
+
+    for (const where of activityWheres) {
+      expect(where.OR).toBeUndefined();
+      expect(where.statusAktivitas).toBeUndefined();
+    }
+    // Penyebut tetap 4 eligible; pembilang hanya yang ikut Magang.
+    expect(kpis.cards.participation).toMatchObject({ participants: 1, eligible: 4, value: 25 });
+    expect(kpis.cards.total.value).toBe(1);
+    // Bentuk Kegiatan menghitung semua jenis dan menyorot jenis terpilih.
+    expect(kpis.cards.jenis).toMatchObject({
+      value: 2,
+      selected: [{ name: 'Magang', count: 1, percentage: 33.33 }],
+    });
+  });
+
+  it('tanpa filter jenis, summary hanya memuat satu populasi aktivitas', async () => {
+    stubJenisAware([activity('A', 'Selesai')]);
+    const { kpis } = await getMbkmSummary({ tahunAjaran: '2025/2026' });
+    expect(calls.filter((call) => call.model === 'mbkmActivity')).toHaveLength(1);
+    expect(kpis.cards.jenis.selected).toEqual([]);
+  });
+
+  it('popup memakai scope kartunya, jadi banner = kartu', async () => {
+    stubJenisAware([
+      activity('A', 'Selesai'),
+      activity('B', 'Selesai', { jenisAktivitas: 'Riset' }),
+    ]);
+    const jenis = await getMbkmDetail('jenis', FILTERS);
+    const jenisWhere = calls.find((call) => call.model === 'mbkmActivity').where;
+    expect(jenisWhere.jenisAktivitas).toBeUndefined();
+    expect(jenisWhere.OR).toBeUndefined();
+    expect(jenis.card).toMatchObject({ value: 2, selected: [{ name: 'Magang', count: 1 }] });
+    expect(jenis.breakdowns[0].items.map((item) => item.name)).toEqual(['Magang', 'Riset']);
+  });
+
+  it('tren partisipasi: lima tahun ajaran yang berakhir di tahun terpilih', () => {
+    expect(trendYears(['20251', '20252'])).toEqual([
+      '2021/2022',
+      '2022/2023',
+      '2023/2024',
+      '2024/2025',
+      '2025/2026',
+    ]);
+    expect(trendYears(['20192']).at(-1)).toBe('2019/2020');
+    expect(trendYears([])).toEqual([]);
   });
 });

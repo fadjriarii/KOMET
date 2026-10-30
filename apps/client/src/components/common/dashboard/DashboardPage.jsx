@@ -25,6 +25,8 @@ export default function DashboardPage({
   DetailModal,
   filterOptions,
   waitForFilterOptions = false,
+  // false = pencarian hanya menyaring tabel, jadi kartu tidak menunggu debounce-nya.
+  searchFiltersCards = true,
   headerExtra: HeaderExtra,
 }) {
   // Tab Lulusan: tahun ajaran "default" adalah tahun ajaran terbaru
@@ -123,7 +125,8 @@ export default function DashboardPage({
   }, [latestTahunLulusFromData]);
 
   // Refetch senyap tidak boleh mengubah kartu yang sudah tampil menjadi skeleton.
-  const isKpiLoading = !optionsReady || summaryQuery.isLoading || isDebouncing;
+  const isKpiLoading =
+    !optionsReady || summaryQuery.isLoading || (searchFiltersCards && isDebouncing);
   const display = useKpiDisplay(summaryQuery.data, isKpiLoading, filters);
   const { cards, cardProps } = useDashboardCards({
     buildCards,

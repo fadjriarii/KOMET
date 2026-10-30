@@ -2,14 +2,14 @@
  * mbkmSummary.js
  *
  * Menyusun seluruh isi `GET /api/mbkm/summary`: periode efektif, empat kartu,
- * dan opsi filter. Kartu dihitung dari satu populasi (`population.js`), jadi
- * angka kartu, popup, dan tabel berasal dari definisi yang sama (ADR 0005).
+ * dan opsi filter. Kartu dihitung dari populasi `population.js` dengan scope
+ * kartunya (`cardQuery`, ADR 0007), jadi angka kartu sama dengan popup-nya.
  */
 const prisma = require('../../config/prisma');
 const { resolvePeriods } = require('./filterBuilder');
 const { getMbkmFilterOptions } = require('./filterOptions');
 const { loadMbkmPopulation, periodsLabel } = require('./population');
-const { buildMbkmCards, KPI_FILTER_SCOPE } = require('./mbkmCards');
+const { buildMbkmCards, cardQuery, KPI_FILTER_SCOPE } = require('./mbkmCards');
 
 /**
  * Opsi Jenis Aktivitas mengikuti periode terpilih (semua status, terbanyak
@@ -26,12 +26,23 @@ async function jenisOptionsAt(periods) {
   return groups.map((group) => group.jenisAktivitas);
 }
 
+/** Populasi kartu; kedua (tanpa filter jenis) hanya dimuat bila jenis difilter. */
+async function loadCardPopulations(query, periods) {
+  const base = cardQuery(query, 'participation');
+  const withoutJenis = cardQuery(query, 'jenis');
+  const [population, jenisPopulation] = await Promise.all([
+    loadMbkmPopulation(base, periods),
+    base.jenisAktivitas ? loadMbkmPopulation(withoutJenis, periods) : null,
+  ]);
+  return { population, jenisPopulation: jenisPopulation || population };
+}
+
 async function getMbkmSummary(query = {}) {
   const selectedPeriods = await resolvePeriods(query);
-  const [filterOptions, jenisAktivitas, population] = await Promise.all([
+  const [filterOptions, jenisAktivitas, { population, jenisPopulation }] = await Promise.all([
     getMbkmFilterOptions(false, { tahunAjaran: query.tahunAjaran, periode: query.periode }),
     jenisOptionsAt(selectedPeriods),
-    loadMbkmPopulation(query, selectedPeriods),
+    loadCardPopulations(query, selectedPeriods),
   ]);
 
   return {
@@ -39,7 +50,12 @@ async function getMbkmSummary(query = {}) {
     selectedPeriods,
     periodLabel: periodsLabel(selectedPeriods),
     summary: {},
-    kpis: { cards: buildMbkmCards(population) },
+    kpis: {
+      cards: buildMbkmCards(population, {
+        jenisPopulation,
+        selectedJenis: query.jenisAktivitas,
+      }),
+    },
     kpiFilterScope: KPI_FILTER_SCOPE,
     filterOptions: { ...filterOptions, jenisAktivitas },
   };

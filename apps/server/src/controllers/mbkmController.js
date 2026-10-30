@@ -9,13 +9,17 @@ const { getPaginationParams } = require('../utils/paginationUtils');
 const { MBKM_DETAIL_CARDS, getMbkmDetail } = require('../services/mbkm/mbkmDetails');
 const { getMbkmList } = require('../services/mbkm/mbkmList');
 const { getMbkmSummary } = require('../services/mbkm/mbkmSummary');
+const { cardQuery } = require('../services/mbkm/mbkmCards');
 const { getOrLoad } = require('../services/summaryCache');
 const { sendServerError } = require('../utils/errorHandler');
 
 // GET /api/mbkm/summary — data card MBKM + filter options
 const getSummary = async (req, res) => {
   try {
-    const data = await getOrLoad('mbkm', req.query, () => getMbkmSummary(req.query));
+    // Kunci cache = scope kartu: mengetik di Cari atau memilih status tidak memuat ulang kartu.
+    const data = await getOrLoad('mbkm', cardQuery(req.query, 'participation'), () =>
+      getMbkmSummary(req.query),
+    );
     return res.json({ success: true, ...data });
   } catch (error) {
     return sendServerError(res, 'DATA_READ_FAILED', error, 'mbkm/getSummary');
@@ -39,7 +43,12 @@ const getDetail = async (req, res) => {
     return res.status(404).json({ success: false, message: 'Rincian kartu tidak ditemukan' });
   }
   try {
-    const data = await getMbkmDetail(req.params.card, req.query);
+    const { card } = req.params;
+    // Scope partisipasi (memuat jenis): kartu jenis memakai jenis untuk `selected`.
+    const scope = { ...cardQuery(req.query, 'participation'), topN: req.query.topN };
+    const data = await getOrLoad(`mbkm-detail-${card}`, scope, () =>
+      getMbkmDetail(card, req.query),
+    );
     return res.json({ success: true, data });
   } catch (error) {
     return sendServerError(res, 'DATA_READ_FAILED', error, 'mbkm/getDetail');

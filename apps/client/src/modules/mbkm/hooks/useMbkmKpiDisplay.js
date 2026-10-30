@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { MBKM_TABLE_ONLY_FILTERS } from '@komet/shared/constants';
 import { formatNumber, formatPercentage } from '@komet/shared/formatters';
 import {
   formatFacultyLabel,
@@ -20,14 +21,35 @@ export const activityName = (jenis = []) => {
   return list.length ? formatList(list) : 'MBKM';
 };
 
-/** Kalimat cakupan: "Fakultas X, Tahun Ajaran 2025/2026. " */
-const scopeSentence = (filters, periodLabel) => {
-  const scope = joinLabels(
-    formatFacultyLabel(filters.selectedFaculty),
-    formatProdiLabel(filters.selectedProdi),
-    periodLabel,
-  );
+/** Kalimat cakupan kartu dan popup: "Fakultas X, Tahun Ajaran 2025/2026. " */
+export const scopeSentence = ({ faculty, prodi } = {}, periodLabel = '') => {
+  const scope = joinLabels(formatFacultyLabel(faculty), formatProdiLabel(prodi), periodLabel);
   return scope ? `${scope}. ` : '';
+};
+
+const TABLE_ONLY_NAMES = { search: 'pencarian', statusAktivitas: 'status aktivitas' };
+const hasValue = (value) =>
+  Array.isArray(value) ? value.length > 0 : Boolean(String(value ?? '').trim());
+
+/**
+ * Klausa jujur untuk filter aktif yang tidak dibaca kartu (ADR 0007). `filters`
+ * memakai nama param URL (`search`, `statusAktivitas`).
+ */
+export const tableOnlyClause = (filters = {}) => {
+  const names = MBKM_TABLE_ONLY_FILTERS.filter((key) => hasValue(filters[key])).map(
+    (key) => TABLE_ONLY_NAMES[key],
+  );
+  return names.length ? ` Filter ${formatList(names)} hanya menyaring tabel.` : '';
+};
+
+/** Jenis yang sedang difilter, disorot di kartu Bentuk Kegiatan yang menghitung semua jenis. */
+const selectedJenisClause = (selected = []) => {
+  if (!selected.length) return '';
+  const items = selected.map(
+    (item) =>
+      `${shortJenis(item.name)} (${formatNumber(item.count)} mahasiswa, ${formatPercentage(item.percentage, 0)})`,
+  );
+  return ` Jenis dipilih: ${formatList(items)}.`;
 };
 
 export function participationSubtitle(card, activity = 'MBKM') {
@@ -61,7 +83,7 @@ export function jenisSubtitle(card) {
   const next = second
     ? `, lalu ${shortJenis(second.name)} (${formatNumber(second.count)} mahasiswa)`
     : '';
-  return `Terbanyak ${shortJenis(first.name)} (${formatNumber(first.count)} mahasiswa, ${formatPercentage(first.percentage, 0)})${next}.`;
+  return `Terbanyak ${shortJenis(first.name)} (${formatNumber(first.count)} mahasiswa, ${formatPercentage(first.percentage, 0)})${next}.${selectedJenisClause(card.selected)}`;
 }
 
 /**
@@ -72,7 +94,14 @@ export function useMbkmKpiDisplay(summaryData, isLoading, filterValues = {}) {
   return useMemo(() => {
     const cards = summaryData?.kpis?.cards || EMPTY_CARDS;
     const filters = filterValues || {};
-    const scope = scopeSentence(filters, summaryData?.periodLabel || '');
+    const scope = scopeSentence(
+      { faculty: filters.selectedFaculty, prodi: filters.selectedProdi },
+      summaryData?.periodLabel || '',
+    );
+    const tableOnly = tableOnlyClause({
+      search: filters.searchQuery,
+      statusAktivitas: filters.selectedStatusAktivitas,
+    });
     const jenisCount = cards.jenis.value;
 
     return {
@@ -86,10 +115,10 @@ export function useMbkmKpiDisplay(summaryData, isLoading, filterValues = {}) {
             : `${formatNumber(jenisCount)} jenis`,
       },
       displaySubtitles: {
-        participation: `${scope}${participationSubtitle(cards.participation, activityName(filters.selectedJenisAktivitas))}`,
-        total: `${scope}${totalSubtitle(cards.total)}`,
-        mitra: `${scope}${mitraSubtitle(cards.mitra)}`,
-        jenis: `${scope}${jenisSubtitle(cards.jenis)}`,
+        participation: `${scope}${participationSubtitle(cards.participation, activityName(filters.selectedJenisAktivitas))}${tableOnly}`,
+        total: `${scope}${totalSubtitle(cards.total)}${tableOnly}`,
+        mitra: `${scope}${mitraSubtitle(cards.mitra)}${tableOnly}`,
+        jenis: `${scope}${jenisSubtitle(cards.jenis)}${tableOnly}`,
       },
       isReady: Boolean(summaryData?.success) && !isLoading,
     };

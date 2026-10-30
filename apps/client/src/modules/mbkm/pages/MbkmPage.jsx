@@ -63,6 +63,7 @@ export default function MbkmPage() {
       Table={MbkmDataTable}
       DetailModal={MbkmDetailModal}
       headerExtra={HeaderAcademicYearFilter}
+      searchFiltersCards={false}
     />
   );
 }

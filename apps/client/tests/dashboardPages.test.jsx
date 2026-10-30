@@ -135,17 +135,17 @@ const GRADUATE_PARAMS = [
   'angkatanTahun',
   'tahunAjaran',
 ];
+// Salinan KPI_FILTER_SCOPE server (ADR 0007): pencarian dan status hanya untuk tabel.
 const ACTIVITY_PARAMS = [
-  'search',
   'fakultas',
   'programStudi',
   'jenisAktivitas',
   'angkatan',
-  'statusAktivitas',
   'jenjang',
   'periode',
   'tahunAjaran',
 ];
+const ACTIVITY_PARAMS_WITHOUT_JENIS = ACTIVITY_PARAMS.filter((k) => k !== 'jenisAktivitas');
 
 const ROUTES = {
   students: {
@@ -287,15 +287,21 @@ const ROUTES = {
       participation: ACTIVITY_PARAMS,
       total: ACTIVITY_PARAMS,
       mitra: ACTIVITY_PARAMS,
-      jenis: ACTIVITY_PARAMS,
+      jenis: ACTIVITY_PARAMS_WITHOUT_JENIS,
     },
     filterCases: [
       { url: '/mbkm?faculty=FST', api: 'fakultas', value: 'FST' },
-      { url: '/mbkm?search=ani', api: 'search', value: 'ani' },
-      { url: '/mbkm?statusAktivitas=Disetujui', api: 'statusAktivitas', value: 'Disetujui' },
       { url: '/mbkm?jenisAktivitas=Magang', api: 'jenisAktivitas', value: 'Magang' },
       { url: '/mbkm?periode=20251', api: 'periode', value: '20251' },
       { url: '/mbkm?tahunAjaran=2020/2021', api: 'tahunAjaran', value: '2020/2021' },
+      // Khusus tabel: tidak dikirim ke summary dan tidak menyalakan badge kartu mana pun.
+      { url: '/mbkm?search=ani', api: 'search', value: 'ani', tableOnly: true },
+      {
+        url: '/mbkm?statusAktivitas=Disetujui',
+        api: 'statusAktivitas',
+        value: 'Disetujui',
+        tableOnly: true,
+      },
     ],
     rowLabel: '20201003',
   },
@@ -383,13 +389,17 @@ describe.each(Object.keys(ROUTES))('halaman %s', (name) => {
 
   it.each(ROUTES[name].filterCases.map((testCase) => [testCase.url, testCase]))(
     'badge "Terfilter" tiap kartu mengikuti scope yang diumumkan server (%s)',
-    async (url, { api, value }) => {
+    async (url, { api, value, tableOnly = false }) => {
       const route = mockModule(name);
       renderPage(route.Page, [url]);
 
       await cardsReady(route);
-      // Param URL diteruskan dengan nama yang dipakai server.
-      expect(lastQuery(route.summaryPath).getAll(api)).toEqual([value]);
+      // Param URL diteruskan dengan nama yang dipakai server; filter khusus tabel
+      // hanya sampai ke endpoint list.
+      expect(lastQuery(tableOnly ? route.listPath : route.summaryPath).getAll(api)).toEqual([
+        value,
+      ]);
+      if (tableOnly) expect(lastQuery(route.summaryPath).getAll(api)).toEqual([]);
       for (const { key, title } of route.cards) {
         const claimed = route.scope[key].includes(api);
         expect(badgesOf(title), `${name}:${key}`).toHaveLength(claimed ? 1 : 0);

@@ -105,3 +105,9 @@ export const SYNC_TRIGGER = { MANUAL: 'manual', AUTOMATIC: 'automatic' };
  * isinya jenis kredensial, bukan nama orang.
  */
 export const SYNC_ACTOR = { DASHBOARD: 'Dashboard', API_KEY: 'API Key' };
+
+/**
+ * Filter MBKM yang hanya menyaring tabel; kartu dan popup tidak membacanya
+ * (ADR 0007). Nama param URL dan API-nya sama, jadi client dan server berbagi daftar ini.
+ */
+export const MBKM_TABLE_ONLY_FILTERS = ['search', 'statusAktivitas'];

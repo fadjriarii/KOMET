@@ -5,10 +5,15 @@
  * (angka banner = angka kartu) dan `breakdowns` dari populasi yang sama.
  */
 const { getAcademicYearPeriods, resolvePeriods } = require('./filterBuilder');
-const { getMbkmFilterOptions } = require('./filterOptions');
 const { loadMbkmPopulation, periodsLabel } = require('./population');
-const { buildMbkmCards } = require('./mbkmCards');
+const { buildMbkmCards, cardQuery } = require('./mbkmCards');
 const { roundedRate } = require('../../utils/percentageUtils');
+const {
+  TREND_WINDOW_YEARS,
+  getAcademicYearStart,
+  getAcademicYearWindow,
+  toAcademicYear,
+} = require('../../utils/academicUtils');
 const {
   participationBreakdowns,
   totalBreakdowns,
@@ -18,10 +23,15 @@ const {
 
 const MBKM_DETAIL_CARDS = ['participation', 'total', 'mitra', 'jenis'];
 
-/** Tingkat partisipasi per tahun ajaran (5 tahun data terakhir), urut kronologis. */
-async function rateTrend(query) {
-  const { academicYearOptions = [] } = await getMbkmFilterOptions();
-  const years = [...academicYearOptions].reverse();
+/** Lima tahun ajaran yang berakhir di tahun ajaran periode terpilih, urut kronologis. */
+function trendYears(periods) {
+  const start = getAcademicYearStart(toAcademicYear(periods[0]));
+  return start === null ? [] : getAcademicYearWindow(start, TREND_WINDOW_YEARS);
+}
+
+/** Tingkat partisipasi per tahun ajaran dalam jendela tren, dengan scope kartu yang sama. */
+async function rateTrend(query, periods) {
+  const years = trendYears(periods);
   const yearQuery = { ...query, periode: undefined };
   const populations = await Promise.all(
     years.map((tahunAjaran) =>
@@ -44,10 +54,10 @@ async function rateTrend(query) {
   };
 }
 
-async function breakdownsFor(card, population, query) {
+async function breakdownsFor(card, population, query, periods) {
   if (card === 'participation') {
     const [fakultas, prodi, ...rest] = participationBreakdowns(population);
-    return [fakultas, prodi, await rateTrend(query), ...rest];
+    return [fakultas, prodi, await rateTrend(query, periods), ...rest];
   }
   if (card === 'total') return totalBreakdowns(population);
   if (card === 'jenis') return jenisBreakdowns(population);
@@ -56,14 +66,22 @@ async function breakdownsFor(card, population, query) {
 
 async function getMbkmDetail(card, query = {}) {
   const selectedPeriods = await resolvePeriods(query);
-  const population = await loadMbkmPopulation(query, selectedPeriods);
+  // Scope kartu yang sama dengan summary, jadi angka banner = angka kartu.
+  const scoped = cardQuery(query, card);
+  const population = await loadMbkmPopulation(scoped, selectedPeriods);
+  const cards = buildMbkmCards(population, { selectedJenis: query.jenisAktivitas });
   return {
     selectedPeriode: selectedPeriods[0] ?? null,
     selectedPeriods,
     periodLabel: periodsLabel(selectedPeriods),
-    card: buildMbkmCards(population)[card],
-    breakdowns: await breakdownsFor(card, population, query),
+    card: cards[card],
+    breakdowns: await breakdownsFor(
+      card,
+      population,
+      { ...scoped, topN: query.topN },
+      selectedPeriods,
+    ),
   };
 }
 
-module.exports = { MBKM_DETAIL_CARDS, getMbkmDetail };
+module.exports = { MBKM_DETAIL_CARDS, getMbkmDetail, trendYears };

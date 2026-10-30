@@ -1,3 +1,4 @@
+import { MBKM_TABLE_ONLY_FILTERS } from '@komet/shared/constants';
 import { createFilterService } from '../../../services/createFilterService';
 import { createQueryParams } from '../../../services/queryParams';
 import { createQuerySanitizer } from '../../../utils/querySanitizer';
@@ -25,8 +26,16 @@ function toQueryParams(filters = {}, pagination = {}) {
   return params;
 }
 
+/** Param kartu dan popup (ADR 0007): pencarian dan status hanya menyaring tabel. */
+const toCardQueryParams = (filters = {}) =>
+  toQueryParams({
+    ...filters,
+    ...Object.fromEntries(MBKM_TABLE_ONLY_FILTERS.map((key) => [key, undefined])),
+  });
+
 export const mbkmService = createFilterService({
   toQueryParams,
+  toCardQueryParams,
   summaryPath: '/mbkm/summary',
   listPath: '/mbkm/list',
   // Satu endpoint per kartu; isi tab (`breakdowns`) ditentukan server.

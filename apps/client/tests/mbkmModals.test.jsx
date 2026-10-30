@@ -65,6 +65,28 @@ describe('MbkmBreakdownModal', () => {
   });
 });
 
+describe('banner popup MBKM mengikuti cakupan kartu', () => {
+  it('menyebut fakultas/prodi, kalimat kartu, dan filter yang hanya untuk tabel', async () => {
+    useDetail.mockReturnValue({ data: RATE_DETAIL, isLoading: false, error: null });
+    render(
+      <MbkmBreakdownModal
+        cardKey="participation"
+        isOpen
+        onClose={() => {}}
+        filters={{ faculty: ['FST'], search: 'ani', statusAktivitas: ['Diajukan'] }}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(
+          'Fakultas FST, Tahun Ajaran 2025/2026. 115 dari 133 mahasiswa aktif semester 7 mengikuti MBKM. 18 belum berpartisipasi. Filter pencarian dan status aktivitas hanya menyaring tabel.',
+        ),
+      ).toBeTruthy(),
+    );
+  });
+});
+
 describe('badge MBKM', () => {
   it('warna status dari kategori server, warna jenis dari urutan opsi server', () => {
     expect(badgeVariantForCategory('participating')).toBe('success');

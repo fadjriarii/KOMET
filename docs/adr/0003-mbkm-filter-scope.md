@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-22
 - Scope: MBKM Data filters and KPI scope
+- Superseded in part by ADR 0007: card filter scope
 
 ## Context
 

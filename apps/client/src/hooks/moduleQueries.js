@@ -28,7 +28,8 @@ function readPage(searchParams) {
 }
 
 function useModuleSummary({ namespace, service, queryParams, enabled = true }) {
-  const queryString = useMemo(() => service.toQueryString(queryParams), [service, queryParams]);
+  // Kunci = param yang dibaca kartu: filter khusus tabel tidak memuat ulang summary.
+  const queryString = useMemo(() => service.toCardQueryString(queryParams), [service, queryParams]);
   const query = useQuery({
     queryKey: queryKey(namespace, 'summary', queryString),
     queryFn: ({ signal }) => service.getSummary(queryParams, { signal }),
@@ -113,7 +114,7 @@ function useModuleDetail({
   summaryData,
   summaryKey,
 }) {
-  const filterKey = useMemo(() => service.toQueryString(filters), [service, filters]);
+  const filterKey = useMemo(() => service.toCardQueryString(filters), [service, filters]);
   // Bentuknya sengaja identik dengan payload endpoint detail, jadi pemakai membaca
   // satu bentuk saja (`data.trend`, bukan `data.data.trend`).
   const summaryResource = summaryKey ? summaryData?.summary?.[summaryKey] : undefined;

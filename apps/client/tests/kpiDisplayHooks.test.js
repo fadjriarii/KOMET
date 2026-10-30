@@ -587,6 +587,32 @@ describe('useMbkmKpiDisplay', () => {
     );
   });
 
+  it('pencarian dan status disebut sebagai filter khusus tabel di keempat kartu', () => {
+    const { result } = renderHook(() =>
+      useMbkmKpiDisplay(summary(), false, {
+        searchQuery: 'ani',
+        selectedStatusAktivitas: ['Diajukan'],
+      }),
+    );
+    for (const subtitle of Object.values(result.current.displaySubtitles)) {
+      expect(subtitle).toMatch(/ Filter pencarian dan status aktivitas hanya menyaring tabel\.$/);
+    }
+  });
+
+  it('Bentuk Kegiatan tetap menghitung semua jenis dan menyorot jenis terpilih', () => {
+    const { result } = renderHook(() =>
+      useMbkmKpiDisplay(
+        summary({ jenis: { ...cards.jenis, selected: [cards.jenis.top[0]] } }),
+        false,
+        { selectedJenisAktivitas: ['Magang/Praktik Kerja (Kampus Merdeka)'] },
+      ),
+    );
+    expect(result.current.kpis.jenisCount).toBe('4 jenis');
+    expect(result.current.displaySubtitles.jenis).toBe(
+      'Tahun Ajaran 2026/2027. Terbanyak Magang/Praktik Kerja (67 mahasiswa, 51%), lalu Penelitian/Riset (56 mahasiswa). Jenis dipilih: Magang/Praktik Kerja (67 mahasiswa, 51%).',
+    );
+  });
+
   it('kombinasi kosong: persentase "-", angka lain tetap 0, kalimat menjelaskan', () => {
     const { result } = renderHook(() =>
       useMbkmKpiDisplay(

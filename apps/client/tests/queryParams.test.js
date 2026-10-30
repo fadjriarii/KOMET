@@ -42,6 +42,15 @@ describe('serialisasi query ke server', () => {
         statusAktivitas: ['Selesai'],
       }),
     ).toBe('jenisAktivitas=Magang&statusAktivitas=Selesai');
+    // Kartu dan popup MBKM tidak membaca pencarian dan status (ADR 0007).
+    expect(
+      mbkmService.toCardQueryString({
+        faculty: ['FST'],
+        jenisAktivitas: ['Magang'],
+        statusAktivitas: ['Selesai'],
+        search: 'ani',
+      }),
+    ).toBe('fakultas=FST&jenisAktivitas=Magang');
   });
 
   it('membedakan "semua status" dari status yang tidak dipilih', () => {
