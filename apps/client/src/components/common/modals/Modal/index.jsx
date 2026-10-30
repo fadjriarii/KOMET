@@ -17,7 +17,7 @@ export default function Modal({
   subtitle,
   children,
   maxWidth = 'max-w-2xl', // max-w-sm | max-w-md | max-w-lg | max-w-xl | max-w-2xl | max-w-4xl
-  height = 'h-[78vh] min-h-[500px] max-h-[82vh]',
+  height = 'max-h-[88dvh] min-h-0 sm:h-[78vh] sm:max-h-[82vh]',
   footer,
   originRect, // { left, top, width, height } koordinat card pemanggil
   showCloseButton = false,
@@ -35,7 +35,7 @@ export default function Modal({
   return createPortal(
     <div
       onClick={() => onClose?.()}
-      className="absolute inset-0 pointer-events-auto flex flex-col items-center justify-center p-4 sm:p-6 overflow-hidden select-none z-50"
+      className="absolute inset-0 pointer-events-auto flex flex-col items-center justify-center p-3 sm:p-6 overflow-hidden select-none z-50"
     >
       {/* Backdrop Blur khusus untuk area konten */}
       <div
@@ -71,23 +71,23 @@ export default function Modal({
           />
 
           {/* Modal Body */}
-          <div className="p-6 overflow-y-auto custom-scrollbar scroll-smooth flex-1 text-gray-800 text-sm flex flex-col">
+          <div className="p-4 sm:p-6 overflow-y-auto custom-scrollbar scroll-smooth flex-1 text-gray-800 text-sm flex flex-col">
             {children}
           </div>
 
           {/* Optional Footer */}
           {footer && (
-            <div className="px-6 py-3.5 bg-gray-50/80 border-t border-gray-100 flex items-center justify-end gap-2.5 shrink-0">
+            <div className="px-4 sm:px-6 py-3.5 bg-gray-50/80 border-t border-gray-100 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2.5 shrink-0">
               {footer}
             </div>
           )}
         </div>
 
-        {/* Helper text di luar bawah popup */}
+        {/* Helper text di luar bawah popup - desktop only */}
         <button
           type="button"
           onClick={() => onClose?.()}
-          className="mt-2 text-center text-[11px] font-medium text-white/80 hover:text-white bg-slate-900/30 hover:bg-slate-900/45 backdrop-blur-sm px-3.5 py-1 rounded-full border border-white/10 shadow-xs select-none pointer-events-auto transition-all cursor-pointer"
+          className="hidden sm:block mt-2 text-center text-[11px] font-medium text-white/80 hover:text-white bg-slate-900/30 hover:bg-slate-900/45 backdrop-blur-sm px-3.5 py-1 rounded-full border border-white/10 shadow-xs select-none pointer-events-auto transition-all cursor-pointer"
         >
           Click outside to close
         </button>

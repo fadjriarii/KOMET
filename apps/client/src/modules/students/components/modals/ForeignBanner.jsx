@@ -14,7 +14,7 @@ export function ForeignBanner({
   return (
     <ModalSummaryBanner
       description={
-        <div className="space-y-1.5 text-justify">
+        <div className="space-y-1.5 text-left sm:text-justify">
           <p>
             Persentase mahasiswa asing ({foreignRate}) dihitung berdasarkan rasio total mahasiswa
             berkewarganegaraan Non-WNI yang berstatus {statusWord} ({foreignCount} mahasiswa)

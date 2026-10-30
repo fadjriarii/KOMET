@@ -5,7 +5,7 @@ import { NAV_ITEMS } from '../../../constants/navigation';
 /** Grup menu diambil dari urutan `group` di NAV_ITEMS, tanpa daftar kedua untuk dijaga selaras. */
 const GROUPS = [...new Set(NAV_ITEMS.map((item) => item.group))];
 
-export default function SidebarNav() {
+export default function SidebarNav({ onNavigate }) {
   return (
     <nav className="flex-1 overflow-y-auto p-4 space-y-2">
       {GROUPS.map((group) => (
@@ -16,10 +16,11 @@ export default function SidebarNav() {
                 key={id}
                 to={path}
                 end={path === '/'}
+                onClick={onNavigate}
                 onMouseEnter={() => load?.().catch(() => {})}
                 onFocus={() => load?.().catch(() => {})}
                 className={({ isActive }) =>
-                  `w-full px-3.5 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2.5 group cursor-pointer text-left ${
+                  `w-full px-3.5 py-2 max-lg:min-h-11 text-sm font-medium rounded-lg transition-colors flex items-center gap-2.5 group cursor-pointer text-left ${
                     isActive
                       ? 'text-digital-blue-700 bg-digital-blue-50/80 font-semibold'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/70'

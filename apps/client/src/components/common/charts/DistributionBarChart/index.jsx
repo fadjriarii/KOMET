@@ -16,6 +16,7 @@ import { DistributionSeries } from './DistributionSeries';
 import ChartLegend from '../ChartLegend';
 import { roundedStackShape } from '../roundedStackShape';
 import { useId } from 'react';
+import { useNarrowChart } from '../useNarrowChart';
 
 /** Seri terakhir yang terisi pada satu baris = ujung tumpukan. */
 function lastFilledKey(series, row) {
@@ -43,6 +44,8 @@ export default function DistributionBarChart({
   labelFormatter,
   series,
 }) {
+  const isNarrow = useNarrowChart();
+  const effectiveYAxisWidth = isNarrow ? Math.min(yAxisWidth, 120) : yAxisWidth;
   const idPrefix = `dist${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const stackShape = roundedStackShape({
     keys: (series || []).map((item) => item.key),
@@ -80,7 +83,7 @@ export default function DistributionBarChart({
           <BarChart
             layout="vertical"
             data={chartItems}
-            margin={{ top: 10, right: 60, left: 10, bottom: 10 }}
+            margin={{ top: 10, right: isNarrow ? 44 : 60, left: 10, bottom: 10 }}
           >
             <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f3f4f6" />
             <XAxis
@@ -93,7 +96,7 @@ export default function DistributionBarChart({
             <YAxis
               type="category"
               dataKey={nameKey}
-              width={yAxisWidth}
+              width={effectiveYAxisWidth}
               tick={{ fontSize: 11, fill: '#374151', fontWeight: 500 }}
               tickLine={false}
               axisLine={false}

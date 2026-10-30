@@ -76,7 +76,7 @@ export default function OpenSidebarButton({
         top: `${cursorY}px`,
         transform: `translateY(-50%) ${isHoveringEdge ? 'translateX(0)' : 'translateX(-100%)'}`,
       }}
-      className={`fixed left-0 flex items-center gap-2 pl-3 pr-3.5 py-2 bg-gray-900/95 hover:bg-gray-900 text-white text-xs font-semibold rounded-r-xl shadow-2xl backdrop-blur border-y border-r border-white/20 z-50 cursor-pointer select-none transition-all duration-300 ease-out ${
+      className={`fixed left-0 hidden lg:flex items-center gap-2 pl-3 pr-3.5 py-2 bg-gray-900/95 hover:bg-gray-900 text-white text-xs font-semibold rounded-r-xl shadow-2xl backdrop-blur border-y border-r border-white/20 z-50 cursor-pointer select-none transition-all duration-300 ease-out ${
         isHoveringEdge
           ? 'opacity-100 pointer-events-auto shadow-digital-blue-500/10'
           : 'opacity-0 pointer-events-none'

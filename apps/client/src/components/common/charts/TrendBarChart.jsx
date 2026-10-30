@@ -19,6 +19,7 @@ import { compactBarLayout } from './compactBarLayout';
 import ChartLegend from './ChartLegend';
 import { roundedStackShape } from './roundedStackShape';
 import { useId } from 'react';
+import { useNarrowChart } from './useNarrowChart';
 
 function CompactBarShape({
   x,
@@ -68,6 +69,7 @@ export default function TrendBarChart({
   isLoading = false,
   error = null,
 }) {
+  const isNarrow = useNarrowChart();
   const idPrefix = `trend${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   // Satu shape per tumpukan: ujung atas membulat, segmen di dalam tetap rata.
   const stackShape = (stackId) =>
@@ -115,7 +117,8 @@ export default function TrendBarChart({
           <BarChart
             data={data}
             barGap={compactZeroBars ? 0 : barGap}
-            margin={{ top: 12, right: 24, left: 4, bottom: 44 }}
+            // Label sumbu-X miring paling kiri butuh ruang ekstra saat batang sempit.
+            margin={{ top: 12, right: 24, left: isNarrow ? 24 : 4, bottom: 44 }}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
             <XAxis

@@ -10,7 +10,7 @@ export default function MenuGroup({ title, children }) {
       <button
         onClick={() => setIsOpen(!isOpen)}
         aria-expanded={isOpen}
-        className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold uppercase tracking-wider text-gray-500 hover:text-gray-800 hover:bg-gray-50 transition-colors cursor-pointer rounded-lg select-none group"
+        className="w-full max-lg:min-h-11 flex items-center justify-between px-3 py-2 text-xs font-semibold uppercase tracking-wider text-gray-500 hover:text-gray-800 hover:bg-gray-50 transition-colors cursor-pointer rounded-lg select-none group"
       >
         <span className="group-hover:text-gray-900 transition-colors">{title}</span>
         <ChevronDown

@@ -170,7 +170,7 @@ export default function AcademicYearFilter({
         </div>
         <ChevronDown
           size={15}
-          className={`text-gray-400 transition-transform duration-500 ease-out ml-1 flex-shrink-0 ${
+          className={`text-gray-400 transition-transform duration-500 ease-out ml-auto flex-shrink-0 ${
             isOpen ? 'rotate-180 text-digital-blue-600' : 'group-hover:text-gray-600'
           }`}
         />
@@ -199,7 +199,7 @@ export default function AcademicYearFilter({
                 role="option"
                 aria-selected={isSelected}
                 onClick={() => handleSelect(cleanOpt)}
-                className={`w-full h-9 flex items-center px-3 text-xs sm:text-[13px] rounded-xl transition-all duration-150 cursor-pointer text-left ${
+                className={`w-full h-9 max-sm:h-11 flex items-center px-3 text-xs sm:text-[13px] rounded-xl transition-all duration-150 cursor-pointer text-left ${
                   isSelected
                     ? 'bg-digital-blue-50 text-digital-blue-700 font-bold border border-digital-blue-100/80 shadow-2xs'
                     : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900 font-medium'
@@ -246,7 +246,7 @@ export default function AcademicYearFilter({
               role="option"
               aria-selected={isCustomActive}
               onClick={handleCustomRowClick}
-              className={`w-full h-9 flex items-center px-3 text-xs sm:text-[13px] rounded-xl transition-all duration-150 cursor-pointer ${
+              className={`w-full h-9 max-sm:h-11 flex items-center px-3 text-xs sm:text-[13px] rounded-xl transition-all duration-150 cursor-pointer ${
                 isCustomActive
                   ? 'bg-digital-blue-50 text-digital-blue-700 font-bold border border-digital-blue-100/80 shadow-2xs'
                   : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900 font-medium'

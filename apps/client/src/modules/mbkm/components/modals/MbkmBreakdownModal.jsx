@@ -213,7 +213,7 @@ export default function MbkmBreakdownModal({ cardKey, isOpen, onClose, originRec
       <div className="flex flex-col h-full space-y-4">
         <ModalSummaryBanner
           description={
-            <p className="text-justify">
+            <p className="text-left sm:text-justify">
               {isLoading ? 'Memuat rincian...' : `${periodLabel}${config.describe(card, filters)}`}
             </p>
           }

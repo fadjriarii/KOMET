@@ -14,7 +14,7 @@ function DistributionTooltip({ active, payload, nameKey, countLabel, countUnit, 
   const data = getTooltipPayloadItem(payload);
   if (!data) return null;
   return (
-    <div className="bg-white/95 backdrop-blur-md border border-digital-blue-100 rounded-xl shadow-lg px-3.5 py-2.5 text-xs min-w-[160px] z-50">
+    <div className="bg-white/95 backdrop-blur-md border border-digital-blue-100 rounded-xl shadow-lg px-3.5 py-2.5 text-xs min-w-[160px] max-sm:max-w-[240px] z-50">
       <p className="font-bold text-gray-900 mb-1.5 leading-tight">{data[nameKey]}</p>
       <div className="flex items-center justify-between gap-3 text-gray-600 mb-1">
         <span>{countLabel}:</span>

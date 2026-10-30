@@ -61,7 +61,7 @@ const FilterContainerShell = memo(function FilterContainerShell({
               type="button"
               onClick={handleReset}
               disabled={activeCount === 0 || isLoading}
-              className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shadow-2xs group ${
+              className={`inline-flex items-center justify-center gap-2 px-4 py-2 max-sm:w-full max-sm:py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shadow-2xs group ${
                 resetFlash
                   ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                   : activeCount > 0

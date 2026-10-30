@@ -33,7 +33,7 @@ export default function StudentDataTable({
       emptyIcon={null}
       pagination={pagination}
       onPageChange={onPageChange}
-      tableClassName="table-fixed min-w-[760px]"
+      tableClassName="table-fixed min-w-[1400px] 2xl:min-w-[760px]"
       tableViewportClassName="overflow-x-auto overflow-y-hidden"
       density="compact"
       className="min-h-[360px]"

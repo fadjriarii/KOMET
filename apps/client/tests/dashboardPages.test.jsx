@@ -508,10 +508,10 @@ describe('kartu MBKM', () => {
     expect(screen.getByPlaceholderText('Cari berdasarkan NIM, Nama, atau Mitra...')).toBeTruthy();
 
     const searchWrapper = screen.getByText('Cari Aktivitas MBKM').closest('div');
-    expect(searchWrapper.className).toContain('md:col-span-2');
+    expect(searchWrapper.className).toContain('lg:col-span-2');
 
     const firstRow = searchWrapper.parentElement;
-    expect(firstRow.className).toContain('md:grid-cols-4');
+    expect(firstRow.className).toContain('lg:grid-cols-4');
 
     const secondRow = firstRow.nextElementSibling;
     expect(secondRow.className).toContain('md:grid-cols-3');

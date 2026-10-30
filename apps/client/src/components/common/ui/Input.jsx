@@ -200,7 +200,7 @@ export default function Input({
           <button
             type="button"
             onClick={handleClear}
-            className="absolute right-2.5 p-1 text-gray-400 hover:text-gray-700 bg-gray-200/60 hover:bg-gray-200 rounded-md transition-colors cursor-pointer"
+            className="absolute right-2.5 max-sm:p-3 p-1 text-gray-400 hover:text-gray-700 bg-gray-200/60 hover:bg-gray-200 rounded-md transition-colors cursor-pointer"
             aria-label="Clear search"
           >
             <X size={13} />

@@ -163,7 +163,7 @@ export default function GraduateDataTable({
       emptyIcon={null}
       pagination={pagination}
       onPageChange={onPageChange}
-      tableClassName="table-fixed min-w-[850px]"
+      tableClassName="table-fixed min-w-[1400px] 2xl:min-w-[850px]"
       tableViewportClassName="overflow-x-auto overflow-y-hidden custom-scrollbar"
       density="compact"
       className="min-h-[360px]"

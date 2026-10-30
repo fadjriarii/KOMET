@@ -18,7 +18,7 @@ export const STUDENT_TABLE_COLUMNS = [
   {
     key: 'nama',
     label: 'Nama',
-    headerClassName: 'w-[16%]',
+    headerClassName: 'w-[20%]',
     cellClassName: 'break-words',
     render: (row) => (
       <span className="block font-bold text-gray-900 whitespace-normal break-words leading-snug">
@@ -29,7 +29,7 @@ export const STUDENT_TABLE_COLUMNS = [
   {
     key: 'programStudi',
     label: 'Program Studi',
-    headerClassName: 'w-[16%] whitespace-normal leading-tight',
+    headerClassName: 'w-[12%] whitespace-normal leading-tight',
     cellClassName: 'break-words',
     render: (row) => (
       <span className="block font-semibold text-gray-800 whitespace-normal break-words leading-snug">

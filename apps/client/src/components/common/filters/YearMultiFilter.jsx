@@ -266,7 +266,7 @@ function YearOption({ checked, onSelect, label }) {
     <button
       type="button"
       onClick={onSelect}
-      className={`w-full flex items-center justify-between px-3 py-2 text-xs font-medium rounded-xl transition-all duration-150 cursor-pointer ${
+      className={`w-full max-sm:min-h-11 flex items-center justify-between px-3 py-2 text-xs font-medium rounded-xl transition-all duration-150 cursor-pointer ${
         checked
           ? 'bg-digital-blue-50 text-digital-blue-700 font-bold border border-digital-blue-100 shadow-2xs'
           : 'text-gray-700 hover:bg-digital-blue-50/70 hover:text-digital-blue-700'

@@ -124,7 +124,7 @@ export default function StudySuccessModal({ isOpen, onClose, originRect, data, f
       <div className="flex flex-col h-full space-y-4">
         <ModalSummaryBanner
           description={
-            <div className="space-y-1.5 text-justify">
+            <div className="space-y-1.5 text-left sm:text-justify">
               {typeof evaluated?.intake === 'number' ? (
                 <p>
                   Dari {formatNumber(evaluated.intake)} mahasiswa masuk {cohortText}

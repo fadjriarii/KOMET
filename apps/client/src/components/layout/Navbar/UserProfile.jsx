@@ -71,7 +71,7 @@ export default function UserProfile() {
         <div className="p-1.5">
           <button
             onClick={() => setIsDropdownOpen(false)}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50/80 rounded-xl transition-colors duration-200 cursor-pointer group"
+            className="w-full max-sm:min-h-11 flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50/80 rounded-xl transition-colors duration-200 cursor-pointer group"
           >
             <LogOut
               size={15}

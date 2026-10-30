@@ -226,7 +226,7 @@ export default function TotalGraduatesModal({ isOpen, onClose, originRect, data,
       <div className="flex flex-col h-full space-y-4">
         <ModalSummaryBanner
           description={
-            <div className="space-y-1.5 text-justify">
+            <div className="space-y-1.5 text-left sm:text-justify">
               <p>
                 Menampilkan{' '}
                 <strong className="text-digital-blue-900 font-bold">

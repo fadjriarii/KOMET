@@ -24,7 +24,7 @@ export function useModalLifecycle(isOpen, onClose, panelRef) {
       );
       if (!focusable?.length) {
         event.preventDefault();
-        panelRef.current?.focus();
+        panelRef.current?.focus({ preventScroll: true });
         return;
       }
       const first = focusable[0];
@@ -88,7 +88,7 @@ export function useModalLifecycle(isOpen, onClose, panelRef) {
   useOpenerFocus(isOpen);
 
   useEffect(() => {
-    if (isRendered) panelRef.current?.focus();
+    if (isRendered) panelRef.current?.focus({ preventScroll: true });
   }, [isRendered, panelRef]);
 
   return { isRendered, isAnimatingIn };

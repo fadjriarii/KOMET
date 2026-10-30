@@ -105,7 +105,7 @@ export default function OnTimeGraduationModal({ isOpen, onClose, originRect, dat
       <div className="flex flex-col h-full space-y-4">
         <ModalSummaryBanner
           description={
-            <div className="space-y-1.5 text-justify">
+            <div className="space-y-1.5 text-left sm:text-justify">
               <p>
                 Secara keseluruhan{scopeSuffix},{' '}
                 <strong className="text-digital-blue-900 font-bold">{overall}</strong> lulusan lulus

@@ -173,7 +173,7 @@ export default function StudyLengthModal({ isOpen, onClose, originRect, data, fi
       <div className="flex flex-col h-full space-y-4">
         <ModalSummaryBanner
           description={
-            <div className="space-y-1.5 text-justify">
+            <div className="space-y-1.5 text-left sm:text-justify">
               <p>
                 {studyLengthSubtitle(card, scope)} Semester pendek tidak dihitung, dan semester cuti
                 ke-3 dan seterusnya tetap dihitung sebagai masa studi.{scope.searchSuffix}

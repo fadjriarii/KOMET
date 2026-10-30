@@ -122,7 +122,7 @@ export default function Select({
         {/* Dropdown Popover List dengan kontras tajam & animasi halus identik navbar */}
         <div
           role="listbox"
-          className={`absolute left-0 right-0 mt-2 bg-white/98 backdrop-blur-xl border border-gray-100 shadow-[0_16px_36px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.04)] py-1.5 z-[70] text-gray-900 rounded-2xl origin-top transition-all duration-500 ease-out ${
+          className={`absolute left-0 right-0 mt-2 bg-white/98 backdrop-blur-xl border border-gray-100 shadow-[0_16px_36px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.04)] py-1.5 z-50 text-gray-900 rounded-2xl origin-top transition-all duration-500 ease-out ${
             isOpen
               ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto visible'
               : 'opacity-0 scale-95 -translate-y-2 pointer-events-none invisible'
@@ -136,7 +136,7 @@ export default function Select({
                 role="option"
                 aria-selected={isPlaceholderSelected}
                 onClick={() => handleSelectOption('')}
-                className={`w-full flex items-center justify-between px-3 py-2 text-xs font-medium rounded-xl transition-all duration-150 cursor-pointer ${
+                className={`w-full max-sm:min-h-11 flex items-center justify-between px-3 py-2 text-xs font-medium rounded-xl transition-all duration-150 cursor-pointer ${
                   isPlaceholderSelected
                     ? 'bg-digital-blue-50 text-digital-blue-700 font-bold border border-digital-blue-100 shadow-2xs'
                     : 'text-gray-600 hover:bg-digital-blue-50/70 hover:text-digital-blue-700'
@@ -162,7 +162,7 @@ export default function Select({
                   role="option"
                   aria-selected={isSelected}
                   onClick={() => handleSelectOption(optVal)}
-                  className={`w-full flex items-center justify-between px-3 py-2 text-xs font-medium rounded-xl transition-all duration-150 cursor-pointer text-left ${
+                  className={`w-full max-sm:min-h-11 flex items-center justify-between px-3 py-2 text-xs font-medium rounded-xl transition-all duration-150 cursor-pointer text-left ${
                     isSelected
                       ? 'bg-digital-blue-50 text-digital-blue-700 font-bold border border-digital-blue-100 shadow-2xs'
                       : 'text-gray-700 hover:bg-digital-blue-50/70 hover:text-digital-blue-700'

@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { RefreshCw } from 'lucide-react';
 import ConfigurationModal from './ConfigurationModal';
 
-export default function SidebarFooter() {
+export default function SidebarFooter({ onOpen }) {
   const [isOpen, setIsOpen] = useState(false);
   const [originRect, setOriginRect] = useState(null);
   const buttonRef = useRef(null);
@@ -12,6 +12,8 @@ export default function SidebarFooter() {
       setOriginRect(buttonRef.current.getBoundingClientRect());
     }
     setIsOpen(true);
+    // Modal di-portal ke luar sidebar; drawer mobile ditutup agar tidak menimpanya.
+    onOpen?.();
   };
 
   const handleClose = () => {
@@ -25,7 +27,7 @@ export default function SidebarFooter() {
           ref={buttonRef}
           type="button"
           onClick={handleOpen}
-          className="w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100/80 active:bg-gray-200/60 rounded-lg transition-colors cursor-pointer group"
+          className="w-full max-lg:min-h-11 flex items-center gap-2.5 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100/80 active:bg-gray-200/60 rounded-lg transition-colors cursor-pointer group"
         >
           <RefreshCw
             size={18}

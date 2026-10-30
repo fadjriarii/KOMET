@@ -58,9 +58,9 @@ export default function ConfigurationModal({ isOpen, onClose, originRect }) {
       showCloseButton
       footer={
         <>
-          <span className="mr-auto flex items-center gap-1.5 min-w-0 text-[11px] text-gray-500">
+          <span className="flex items-center gap-1.5 min-w-0 text-[11px] text-gray-500 w-full sm:w-auto sm:mr-auto">
             <Lock size={13} className="shrink-0 text-gray-400" />
-            <span className="truncate">
+            <span className="leading-snug sm:truncate">
               The sync keeps running in the background, you can close this window anytime.
             </span>
           </span>
@@ -68,7 +68,7 @@ export default function ConfigurationModal({ isOpen, onClose, originRect }) {
             type="button"
             onClick={run}
             disabled={!canStart}
-            className={`inline-flex items-center gap-2 px-4 h-9 rounded-lg text-[13px] font-semibold transition-all duration-200 ${
+            className={`inline-flex items-center justify-center gap-2 px-4 h-9 rounded-lg text-[13px] font-semibold transition-all duration-200 w-full sm:w-auto ${
               muted
                 ? 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed'
                 : `bg-digital-blue-600 text-white hover:bg-digital-blue-700 ${

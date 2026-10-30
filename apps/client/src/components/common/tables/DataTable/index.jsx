@@ -27,12 +27,12 @@ function DataTable({
   rowNumber = false, // nomor baris absolut; per-hitung di sini, bukan per modul tabel
   rowKey = 'id', // key stabil baris; tabel mahasiswa memakai 'nim' (PK-nya tidak punya id)
   className = '',
-  tableClassName = 'min-w-[920px]',
+  tableClassName = 'min-w-[1400px] xl:min-w-full',
   tableViewportClassName = 'overflow-x-auto overflow-y-hidden custom-scrollbar',
   density = 'default',
 }) {
-  const cellPadding = density === 'compact' ? 'px-2 py-1.5' : 'px-4 py-4';
-  const headerPadding = density === 'compact' ? 'px-2 py-2' : 'px-4 py-3';
+  const cellPadding = density === 'compact' ? 'px-2 py-1.5' : 'px-6 lg:px-3 py-4';
+  const headerPadding = density === 'compact' ? 'px-2 py-2' : 'px-6 lg:px-3 py-3';
   const tableInset = density === 'compact' ? 'px-2' : '';
   const { visibleColumns, paginationMeta, paginationItems } = useTableModel({
     columns,

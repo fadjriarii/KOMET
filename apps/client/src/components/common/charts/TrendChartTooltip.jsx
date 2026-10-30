@@ -22,7 +22,7 @@ export default function TrendChartTooltip({
       : footer?.valueClassName ||
         'font-bold text-digital-blue-700 bg-digital-blue-50 px-2 py-0.5 rounded';
   return (
-    <div className="bg-white/98 backdrop-blur-md border border-digital-blue-100 rounded-xl shadow-lg px-4 py-3 text-xs min-w-[180px] z-50">
+    <div className="bg-white/98 backdrop-blur-md border border-digital-blue-100 rounded-xl shadow-lg px-4 py-3 text-xs min-w-[180px] max-sm:max-w-[240px] z-50">
       <div className="flex items-center justify-between mb-2 gap-3">
         <p className="font-bold text-gray-800">{item[titleKey]}</p>
         {titleAccessory?.(item)}

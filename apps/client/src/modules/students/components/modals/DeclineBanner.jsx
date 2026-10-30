@@ -6,7 +6,7 @@ export function DeclineBanner({ kpis, declineAverage, trendStyle, yearsCount = 5
   return (
     <ModalSummaryBanner
       description={
-        <div className="space-y-1.5 text-justify">
+        <div className="space-y-1.5 text-left sm:text-justify">
           <p>
             Penurunan jumlah mahasiswa baru dihitung{' '}
             {isWindow ? (

@@ -27,7 +27,7 @@ export function StatCardFooter({ badge, isFiltered, hasAction, actionLabel, onVi
         <button
           type="button"
           onClick={onViewDetails}
-          className="inline-flex flex-shrink-0 items-center gap-1 whitespace-nowrap text-xs font-semibold px-2 py-1 rounded-lg transition-all duration-150 text-digital-blue-600 hover:text-digital-blue-700 hover:bg-digital-blue-50/70 active:bg-digital-blue-100/70 cursor-pointer group/btn"
+          className="inline-flex flex-shrink-0 items-center gap-1 whitespace-nowrap text-xs font-semibold px-2 py-1 max-sm:min-h-11 max-sm:px-3 rounded-lg transition-all duration-150 text-digital-blue-600 hover:text-digital-blue-700 hover:bg-digital-blue-50/70 active:bg-digital-blue-100/70 cursor-pointer group/btn"
         >
           <span>{actionLabel}</span>
           <ChevronRight

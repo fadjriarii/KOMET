@@ -160,7 +160,7 @@ export default function MbkmDataTable({
       emptyIcon={Briefcase}
       pagination={pagination}
       onPageChange={onPageChange}
-      tableClassName="table-fixed min-w-[1040px]"
+      tableClassName="table-fixed min-w-[1400px] 2xl:min-w-[1040px]"
       density="compact"
       className="min-h-[360px]"
     />
